@@ -28,37 +28,56 @@ This document details all production configuration, security rules, environment 
 
 ---
 
-## 2. Authentication Providers
+## 2. Authentication Providers & Multi-Admin Governance
 
-1. **Email & Password Authentication (`/api/auth/bootstrap`, `/api/auth/login`, `/api/auth/register-with-invite`)**:
+1. **Firebase Google OAuth (`signInWithPopup` with mobile `signInWithRedirect` fallback)**:
+   - Firebase Project ID: `ivory-receiver-slxdt` (`authDomain: ivory-receiver-slxdt.firebaseapp.com`).
+   - Enabled in **Firebase Console → Authentication → Sign-in method → Google**.
+   - Synchronized with the backend session via `POST /api/auth/firebase-sync`.
+   - **Authorized Platform Administrators (Equal Full Access)**:
+     - `asilbeknuraliyev43@gmail.com`
+     - `bahodirboliqulov3@gmail.com`
+   - All other authenticated Google accounts are strictly assigned the `student` role (`platformAdmin: false`).
+2. **Email & Password Authentication (`/api/auth/bootstrap`, `/api/auth/login`, `/api/auth/register-with-invite`)**:
    - Passwords are salted and hashed server-side using `crypto.scryptSync`.
    - Sessions use HMAC-SHA256 signed bearer tokens (`Authorization: Bearer <token>`).
-   - **Initial Administrator Bootstrap**: Enabled only when zero administrator accounts exist in the environment (`GET /api/auth/bootstrap-status`). Automatically and permanently locked once the first administrator is created.
-   - **Cryptographic Invitations**: Public registration requires a valid, unrevoked, non-expired single-use `inviteToken`. Raw tokens are shown only once at creation time; only the SHA-256 `tokenHash` is stored in the database.
-2. **Firebase Google OAuth (`signInWithPopup`)**:
-   - Enabled in Firebase Console -> Authentication -> Sign-in method -> Google.
-   - Synchronized with the backend session via `POST /api/auth/firebase-sync`.
 
 ---
 
-## 3. Environment Variables & Secrets
+## 3. Environment Variables (Vercel & Cloud Run)
 
-Define the following environment variables in Cloud Run / `.env`:
+Define the following environment variables in **Vercel Project Settings → Environment Variables** (or Cloud Run):
 
 | Variable | Purpose | Required |
 | :--- | :--- | :--- |
-| `GEMINI_API_KEY` | Server-side Google Gemini API key (`@google/genai`) for `/api/ai/analyze-attempt` and `/api/ai/draft-question`. Never exposed to client bundle. | Yes |
-| `LEARNOS_TOKEN_SECRET` | 256-bit secret key used to sign HMAC-SHA256 session tokens. | Recommended in Prod |
-| `APP_URL` | Public HTTPS URL of the deployed Cloud Run service. | Yes |
-| `PORT` | HTTP server port (defaults to `3000`). | Yes (`3000`) |
+| `VITE_FIREBASE_API_KEY` | Firebase Web API key (falls back to `firebase-applet-config.json` if omitted). | Optional override |
+| `VITE_FIREBASE_AUTH_DOMAIN` | `ivory-receiver-slxdt.firebaseapp.com` | Optional override |
+| `VITE_FIREBASE_PROJECT_ID` | `ivory-receiver-slxdt` | Optional override |
+| `VITE_FIREBASE_APP_ID` | `1:1062217928830:web:ae3dd8472192ddaabb082f` | Optional override |
+| `GEMINI_API_KEY` | Server-side Google Gemini API key (`@google/genai`). Never exposed to client bundle. | Yes (for AI features) |
+| `SESSION_SECRET` | 256-bit secret key used to sign HMAC-SHA256 session tokens (`LEARNOS_TOKEN_SECRET`). | Recommended in Prod |
+| `APP_URL` | Public HTTPS URL of your production deployment (e.g., `https://specialized-study.vercel.app`). | Recommended |
 
 ---
 
-## 4. Authorized Domains & Custom Domain Setup
+## 4. Fixing `"Bu domen orqali kirishga ruxsat yo'q."` (`auth/unauthorized-domain`) on Vercel
 
-1. Open **Firebase Console -> Authentication -> Settings -> Authorized domains**.
-2. Add your Cloud Run `*.run.app` domain and your production custom domain (e.g., `app.learnos.uz`).
-3. In **Google Cloud Console -> Cloud Run -> Manage Custom Domains**, map your domain to the `learnos` service and verify DNS records (`A` / `AAAA` / `CNAME`).
+Firebase Authentication blocks Google Sign-In popups and redirects from any hostname not explicitly listed in the Firebase project's **Authorized domains**.
+
+### Step-by-Step Firebase Console Fix:
+1. Open [Firebase Console](https://console.firebase.google.com/) and select project **`ivory-receiver-slxdt`**.
+2. Navigate to **Authentication → Settings → Authorized domains** (`Authentication -> Sozlamalar -> Ruxsat berilgan domenlar`).
+3. Click **Add domain** and add:
+   - Your production Vercel domain (e.g., `specialized-study.vercel.app` or your exact `<project-name>.vercel.app` hostname shown in the login error box).
+   - Your custom domain if configured (e.g., `specializedstudy.uz`).
+   - Note: `localhost`, `ivory-receiver-slxdt.firebaseapp.com`, and `ivory-receiver-slxdt.web.app` are authorized by default.
+4. **Vercel Preview Deployment URLs (`*-git-*.vercel.app`)**:
+   - Vercel generates a new random subdomain for every branch/commit preview deployment (e.g., `specialized-study-git-main-user.vercel.app`).
+   - Because Firebase does not support wildcard `*.vercel.app` entries in Authorized domains, either test Google Sign-In on your primary production Vercel domain or add the specific preview hostname to Firebase Authorized domains.
+5. **Google Cloud Console OAuth 2.0 Client Check (Optional Custom Domain)**:
+   - In [Google Cloud Console → APIs & Services → Credentials](https://console.cloud.google.com/apis/credentials?project=ivory-receiver-slxdt), under **OAuth 2.0 Client IDs (Web client auto-created by Google Service)**:
+     - **Authorized JavaScript origins**: Ensure `https://<your-vercel-domain>.vercel.app` and `https://ivory-receiver-slxdt.firebaseapp.com` are listed.
+     - **Authorized redirect URIs**: Ensure `https://ivory-receiver-slxdt.firebaseapp.com/__/auth/handler` is present.
 
 ---
 

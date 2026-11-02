@@ -8,16 +8,53 @@
     --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
   }
 
+  html,
   body {
     font-family: var(--font-sans);
+    overflow-x: hidden;
+    max-width: 100vw;
+    -webkit-text-size-adjust: 100%;
   }
 
   h1, h2, h3, h4, h5, h6 {
     font-family: var(--font-display);
     letter-spacing: -0.02em;
+    overflow-wrap: break-word;
+  }
+
+  button,
+  a,
+  input,
+  select,
+  textarea {
+    touch-action: manipulation;
   }
 }
 
 .tabular-nums {
   font-variant-numeric: tabular-nums;
+}
+
+.pb-safe {
+  padding-bottom: max(0.5rem, env(safe-area-inset-bottom, 0px));
+}
+
+.pt-safe {
+  padding-top: max(0px, env(safe-area-inset-top, 0px));
+}
+
+.math-formula-wrap {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

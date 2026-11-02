@@ -25,6 +25,7 @@ import {
   ArrowRight,
   Plus,
   Upload,
+  User as UserIcon,
 } from 'lucide-react';
 import { useLearnOS } from '../context/LearnOSContext';
 import { AICommandExecutionResult, GlobalSearchResultItem } from '../types';
@@ -117,7 +118,9 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
   const isAdminAccount =
     currentUser.role === 'admin' || currentUser.role === 'platform_owner';
 
-  // Exact 9 primary navigation items & Exact 5 student navigation items
+  const isActiveTestRunner = /^\/student\/assessments\/[^/]+$/.test(location.pathname);
+
+  // Desktop sidebar items (9 for Admin, 5 for Student)
   const navItems = isAdminAccount
     ? [
         { to: '/admin/dashboard', label: 'Bosh sahifa', icon: LayoutDashboard, end: true },
@@ -136,6 +139,23 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
         { to: '/student/assessments', label: 'Testlar', icon: ClipboardCheck },
         { to: '/student/knowledge-map', label: "O'quv xaritam", icon: Compass },
         { to: '/student/results', label: 'Natijalar', icon: BarChart3 },
+      ];
+
+  // Mobile bottom navigation bar items for Students (Part 2 Section 3.1)
+  const studentMobileBottomItems = [
+    { to: '/student/dashboard', label: 'Bosh sahifa', icon: LayoutDashboard, end: true },
+    { to: '/student/lessons', label: 'Darslar', icon: BookOpen, end: false },
+    { to: '/student/assessments', label: 'Testlar', icon: ClipboardCheck, end: false },
+    { to: '/student/knowledge-map', label: 'Xaritam', icon: Compass, end: false },
+    { to: '/student/profile', label: 'Profil', icon: UserIcon, end: false },
+  ];
+
+  // Mobile drawer items (for Students includes secondary actions like Natijalar & Profil)
+  const mobileDrawerItems = isAdminAccount
+    ? navItems
+    : [
+        ...navItems,
+        { to: '/student/profile', label: 'Profil', icon: UserIcon, end: false },
       ];
 
   // Clean section title for header
@@ -218,7 +238,7 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
   };
 
   return (
-    <div className="min-h-screen flex bg-[#F8FAFC] dark:bg-[#0B0F17] text-slate-900 dark:text-slate-100 transition-colors">
+    <div className="min-h-screen flex bg-[#F8FAFC] dark:bg-[#0B0F17] text-slate-900 dark:text-slate-100 transition-colors overflow-x-hidden">
       {/* Desktop Sidebar — Clean Linear/Notion style */}
       <aside className="w-60 shrink-0 border-r border-slate-200/80 dark:border-slate-800/80 bg-white dark:bg-[#0F1623] hidden lg:flex flex-col justify-between">
         <div>
@@ -295,25 +315,27 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
             className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs"
             onClick={() => setMobileMenuOpen(false)}
           />
-          <aside className="relative w-64 max-w-[80vw] bg-white dark:bg-[#0F1623] h-full flex flex-col justify-between z-10 shadow-xl">
+          <aside className="relative w-72 max-w-[84vw] bg-white dark:bg-[#0F1623] h-full flex flex-col justify-between z-10 shadow-xl">
             <div>
               <div className="h-14 px-4 flex items-center justify-between border-b border-slate-200 dark:border-slate-800">
-                <div className="flex items-center gap-2">
-                  <div className="w-7 h-7 rounded-md bg-blue-600 flex items-center justify-center text-white font-bold text-xs">
+                <div className="flex items-center gap-2 min-w-0">
+                  <div className="w-7 h-7 rounded-md bg-blue-600 flex items-center justify-center text-white font-bold text-xs shrink-0">
                     SS
                   </div>
-                  <span className="font-bold text-sm tracking-tight">SPECIALIZED STUDY</span>
+                  <span className="font-bold text-sm tracking-tight truncate">
+                    SPECIALIZED STUDY
+                  </span>
                 </div>
                 <button
                   onClick={() => setMobileMenuOpen(false)}
                   aria-label="Menyuni yopish"
-                  className="p-1.5 rounded-md text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800"
+                  className="w-9 h-9 flex items-center justify-center rounded-md text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800"
                 >
                   <X className="w-4 h-4" />
                 </button>
               </div>
-              <nav className="p-2.5 space-y-0.5 overflow-y-auto max-h-[calc(100vh-140px)]">
-                {navItems.map((item) => {
+              <nav className="p-2.5 space-y-1 overflow-y-auto max-h-[calc(100vh-160px)]">
+                {mobileDrawerItems.map((item) => {
                   const Icon = item.icon;
                   return (
                     <NavLink
@@ -321,7 +343,7 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
                       to={item.to}
                       end={item.end}
                       className={({ isActive }) =>
-                        `flex items-center gap-2.5 px-3 py-2.5 rounded-md text-sm font-medium transition-colors ${
+                        `min-h-[44px] flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
                           isActive
                             ? 'bg-blue-50 dark:bg-blue-950/50 text-blue-600 dark:text-blue-400 font-semibold'
                             : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/60'
@@ -335,9 +357,14 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
                 })}
               </nav>
             </div>
-            <div className="p-3 border-t border-slate-200 dark:border-slate-800">
-              <div className="text-xs font-semibold truncate mb-2 px-1">
-                {currentUser.displayName}
+            <div className="p-3 border-t border-slate-200 dark:border-slate-800 pb-safe">
+              <div className="px-2 py-1.5 mb-2 rounded-lg bg-slate-50 dark:bg-slate-800/40">
+                <div className="text-xs font-semibold truncate">{currentUser.displayName}</div>
+                <div className="text-[11px] text-slate-500 dark:text-slate-400 truncate">
+                  {!isAdminAccount && currentUser.classCode
+                    ? `${currentUser.classCode.toUpperCase()} sinf`
+                    : currentUser.email}
+                </div>
               </div>
               <button
                 onClick={() => {
@@ -345,7 +372,7 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
                   logout();
                   navigate('/login');
                 }}
-                className="w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-md text-xs font-medium text-rose-600 bg-rose-50 dark:bg-rose-950/30"
+                className="w-full min-h-[44px] flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold text-rose-600 bg-rose-50 dark:bg-rose-950/30"
               >
                 <LogOut className="w-3.5 h-3.5" />
                 <span>Chiqish</span>
@@ -358,28 +385,40 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col min-w-0">
         {/* Minimalist Top Header — Displays ONLY current section + Quick Command Search */}
-        <header className="h-14 border-b border-slate-200/80 dark:border-slate-800/80 bg-white/90 dark:bg-[#0F1623]/90 backdrop-blur-md px-4 lg:px-6 flex items-center justify-between sticky top-0 z-30">
-          <div className="flex items-center gap-2.5">
+        <header className="h-14 border-b border-slate-200/80 dark:border-slate-800/80 bg-white/95 dark:bg-[#0F1623]/95 backdrop-blur-md px-3 sm:px-4 lg:px-6 flex items-center justify-between gap-2 sticky top-0 z-30">
+          <div className="flex items-center gap-2 min-w-0">
             <button
               onClick={() => setMobileMenuOpen(true)}
               aria-label="Menyuni ochish"
-              className="lg:hidden p-1.5 rounded-md border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
+              className="lg:hidden w-10 h-10 flex items-center justify-center rounded-lg border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 shrink-0 cursor-pointer"
             >
               <Menu className="w-4 h-4" />
             </button>
-            <h1 className="text-sm sm:text-base font-semibold text-slate-900 dark:text-white tracking-tight">
+            <h1 className="text-sm sm:text-base font-semibold text-slate-900 dark:text-white tracking-tight truncate">
               {resolveSectionTitle()}
             </h1>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+            {/* Admin Mobile Quick Action Button (+) */}
+            {isAdminAccount && (
+              <button
+                onClick={() => setCommandOpen(true)}
+                aria-label="Tezkor amal qo'shish"
+                className="sm:hidden w-10 h-10 flex items-center justify-center rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors cursor-pointer"
+              >
+                <Plus className="w-4 h-4" />
+              </button>
+            )}
+
             {/* Quick Command Palette Trigger (Ctrl+K / Cmd+K) */}
             <button
               onClick={() => setCommandOpen(true)}
-              className="flex items-center gap-2.5 px-3 py-1.5 rounded-md border border-slate-200 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-800/50 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400 text-xs transition-colors cursor-pointer"
+              aria-label="Qidiruv"
+              className="min-h-[40px] flex items-center gap-2 px-2.5 sm:px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-800/50 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400 text-xs transition-colors cursor-pointer"
               title="Tezkor qidiruv va buyruqlar (Ctrl+K)"
             >
-              <Search className="w-3.5 h-3.5 text-slate-400" />
+              <Search className="w-4 h-4 text-slate-400 shrink-0" />
               <span className="hidden sm:inline">Qidiruv...</span>
               <kbd className="hidden sm:inline-block px-1.5 py-0.5 text-[10px] font-mono bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded text-slate-500">
                 Ctrl+K
@@ -391,7 +430,7 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
               <button
                 onClick={() => setNotifOpen(!notifOpen)}
                 aria-label="Bildirishnomalar"
-                className="p-1.5 rounded-md border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 relative cursor-pointer"
+                className="w-10 h-10 flex items-center justify-center rounded-lg border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 relative cursor-pointer"
               >
                 <Bell className="w-4 h-4" />
                 {unreadCount > 0 && (
@@ -402,7 +441,7 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
               </button>
 
               {notifOpen && (
-                <div className="absolute right-0 mt-2 w-80 max-w-[calc(100vw-2rem)] rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-lg p-3 z-50">
+                <div className="absolute right-0 mt-2 w-80 max-w-[calc(100vw-1.5rem)] rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-lg p-3 z-50">
                   <div className="flex items-center justify-between pb-2 mb-2 border-b border-slate-100 dark:border-slate-800">
                     <span className="font-semibold text-xs">Bildirishnomalar</span>
                     <span className="text-[11px] text-slate-400">{myNotifications.length} ta</span>
@@ -436,7 +475,7 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
             {/* Theme Toggle */}
             <button
               onClick={toggleTheme}
-              className="p-1.5 rounded-md border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
+              className="w-10 h-10 flex items-center justify-center rounded-lg border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
               aria-label="Mavzuni o'zgartirish"
             >
               {theme === 'light' ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4" />}
@@ -445,7 +484,46 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
         </header>
 
         {/* Page Viewport */}
-        <main className="flex-1 p-4 lg:p-6 max-w-7xl w-full mx-auto">{children}</main>
+        <main
+          className={`flex-1 p-3.5 sm:p-5 lg:p-6 max-w-7xl w-full mx-auto min-w-0 ${
+            !isAdminAccount && !isActiveTestRunner ? 'pb-24 lg:pb-6' : 'pb-8 lg:pb-6'
+          }`}
+        >
+          {children}
+        </main>
+
+        {/* Student Mobile Bottom Navigation Bar (< 1024px) */}
+        {!isAdminAccount && !isActiveTestRunner && (
+          <nav
+            aria-label="O'quvchi mobil navigatsiyasi"
+            className="lg:hidden fixed bottom-0 inset-x-0 z-40 bg-white/95 dark:bg-[#0F1623]/95 backdrop-blur-md border-t border-slate-200/90 dark:border-slate-800/90 pb-safe"
+          >
+            <div className="grid grid-cols-5 h-16 max-w-lg mx-auto px-1">
+              {studentMobileBottomItems.map((item) => {
+                const Icon = item.icon;
+                return (
+                  <NavLink
+                    key={item.to}
+                    to={item.to}
+                    end={item.end}
+                    className={({ isActive }) =>
+                      `flex flex-col items-center justify-center gap-1 min-h-[48px] px-1 rounded-lg transition-colors ${
+                        isActive
+                          ? 'text-blue-600 dark:text-blue-400 font-semibold'
+                          : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+                      }`
+                    }
+                  >
+                    <Icon className="w-5 h-5 shrink-0" />
+                    <span className="text-[11px] leading-none truncate max-w-full">
+                      {item.label}
+                    </span>
+                  </NavLink>
+                );
+              })}
+            </div>
+          </nav>
+        )}
       </div>
 
       {/* Universal Command Palette (Ctrl+K / Cmd+K) — Section 09 & 11 */}
@@ -714,7 +792,7 @@ export const ToastContainer: React.FC = () => {
   if (!toasts || toasts.length === 0) return null;
 
   return (
-    <div className="fixed bottom-4 right-4 z-50 flex flex-col gap-2 max-w-sm w-full pointer-events-none">
+    <div className="fixed bottom-20 lg:bottom-4 right-3 left-3 sm:left-auto sm:right-4 z-50 flex flex-col gap-2 sm:max-w-sm sm:w-full pointer-events-none">
       {toasts.map((t) => (
         <div
           key={t.id}

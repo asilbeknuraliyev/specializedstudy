@@ -1034,8 +1034,10 @@ export const LearnOSProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   const loginWithGoogle = useCallback(
     async (
-      inviteOrOptions?: string | { forceRedirect?: boolean; inviteToken?: string },
-      options?: { forceRedirect?: boolean }
+      inviteOrOptions?:
+        | string
+        | { forceRedirect?: boolean; preferPopup?: boolean; inviteToken?: string; redirectPath?: string },
+      options?: { forceRedirect?: boolean; preferPopup?: boolean; redirectPath?: string }
     ): Promise<UserProfile | null> => {
       if (googleSignInInFlightRef.current) {
         return null;
@@ -1052,10 +1054,14 @@ export const LearnOSProvider: React.FC<{ children: React.ReactNode }> = ({ child
       const forceRedirect =
         (typeof inviteOrOptions === 'object' && inviteOrOptions?.forceRedirect === true) ||
         options?.forceRedirect === true;
+      const preferPopup =
+        (typeof inviteOrOptions === 'object' && inviteOrOptions?.preferPopup === true) ||
+        options?.preferPopup === true;
 
       try {
         const provider = createGoogleAuthProvider();
-        const useRedirect = forceRedirect || isMobileOrTouchRedirectPreferred();
+        const useRedirect =
+          forceRedirect || (!preferPopup && isMobileOrTouchRedirectPreferred() && forceRedirect);
 
         if (useRedirect) {
           if (inviteToken) {
@@ -1065,13 +1071,30 @@ export const LearnOSProvider: React.FC<{ children: React.ReactNode }> = ({ child
           return null;
         }
 
-        const result = await signInWithPopup(auth, provider);
-        const fbUser = result.user;
-        const syncedUser = await syncFirebaseUserWithBackend(fbUser, inviteToken);
-        if (syncedUser) {
-          addToast('success', `Xush kelibsiz, ${syncedUser.displayName}!`);
+        try {
+          const result = await signInWithPopup(auth, provider);
+          const fbUser = result.user;
+          const syncedUser = await syncFirebaseUserWithBackend(fbUser, inviteToken);
+          if (syncedUser) {
+            addToast('success', `Xush kelibsiz, ${syncedUser.displayName}!`);
+          }
+          return syncedUser;
+        } catch (popupErr) {
+          const popupMapped = mapFirebaseAuthError(popupErr);
+          // On mobile browsers where popups are blocked or unsupported, automatically fall back to signInWithRedirect
+          if (
+            isMobileOrTouchRedirectPreferred() &&
+            (popupMapped.code === 'auth/popup-blocked' ||
+              popupMapped.code === 'auth/operation-not-supported-in-this-environment')
+          ) {
+            if (inviteToken) {
+              sessionStorage.setItem('ss_pending_invite_token', inviteToken);
+            }
+            await signInWithRedirect(auth, provider);
+            return null;
+          }
+          throw popupErr;
         }
-        return syncedUser;
       } catch (error) {
         const mapped = mapFirebaseAuthError(error);
         console.warn(mapped.sanitizedLog);

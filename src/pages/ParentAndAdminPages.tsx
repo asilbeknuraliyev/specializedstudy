@@ -1483,53 +1483,20 @@ export const AdminStudentsPage: React.FC = () => {
                 </p>
               </div>
             ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse text-xs">
-                  <thead>
-                    <tr className="border-b border-slate-200 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-950 text-slate-500 font-semibold">
-                      <th className="py-2.5 px-3 w-8">
-                        <input
-                          type="checkbox"
-                          aria-label="Barchasini belgilash"
-                          checked={
-                            paginatedStudents.length > 0 &&
-                            paginatedStudents.every((s) => selectedUids.includes(s.uid))
-                          }
-                          onChange={(e) => {
-                            if (e.target.checked) {
-                              setSelectedUids(
-                                Array.from(
-                                  new Set([...selectedUids, ...paginatedStudents.map((s) => s.uid)])
-                                )
-                              );
-                            } else {
-                              const pageSet = new Set(paginatedStudents.map((s) => s.uid));
-                              setSelectedUids(selectedUids.filter((id) => !pageSet.has(id)));
-                            }
-                          }}
-                        />
-                      </th>
-                      <th className="py-2.5 px-3">F.I.Sh.</th>
-                      <th className="py-2.5 px-3">ID</th>
-                      <th className="py-2.5 px-3">Sinf</th>
-                      <th className="py-2.5 px-3">Holat</th>
-                      <th className="py-2.5 px-3 text-right">Amallar</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80">
-                    {paginatedStudents.map((stu) => {
-                      const cls = classes.find(
-                        (c) => c.id === stu.classId || c.code === stu.classCode
-                      );
-                      const classCode = (cls?.code || cls?.name || stu.classCode || '7a1') as OfficialClassCode;
-                      const checked = selectedUids.includes(stu.uid);
+              <>
+                {/* Mobile Student Card List (<768px) */}
+                <div className="md:hidden divide-y divide-slate-100 dark:divide-slate-800">
+                  {paginatedStudents.map((stu) => {
+                    const cls = classes.find(
+                      (c) => c.id === stu.classId || c.code === stu.classCode
+                    );
+                    const classCode = (cls?.code || cls?.name || stu.classCode || '7a1') as OfficialClassCode;
+                    const checked = selectedUids.includes(stu.uid);
 
-                      return (
-                        <tr
-                          key={stu.uid}
-                          className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors"
-                        >
-                          <td className="py-2.5 px-3">
+                    return (
+                      <div key={stu.uid} className="p-3.5 space-y-2.5 text-xs">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex items-start gap-2.5 min-w-0">
                             <input
                               type="checkbox"
                               aria-label={`${stu.displayName} tanlash`}
@@ -1539,58 +1506,167 @@ export const AdminStudentsPage: React.FC = () => {
                                   checked ? prev.filter((id) => id !== stu.uid) : [...prev, stu.uid]
                                 )
                               }
+                              className="mt-1 shrink-0"
                             />
-                          </td>
-                          <td className="py-2.5 px-3">
-                            <button
-                              type="button"
-                              onClick={() => setDetailStudentUid(stu.uid)}
-                              className="font-semibold text-slate-900 dark:text-white hover:text-blue-600 dark:hover:text-blue-400 text-left cursor-pointer"
-                            >
-                              {stu.displayName}
-                            </button>
-                            {!stu.email.endsWith('@student.specialized.local') && (
-                              <div className="text-[11px] text-slate-400">{stu.email}</div>
-                            )}
-                          </td>
-                          <td className="py-2.5 px-3 font-mono tabular-nums text-slate-500">
-                            {stu.studentCode || stu.uid.slice(0, 8)}
-                          </td>
-                          <td className="py-2.5 px-3">
-                            <select
-                              aria-label={`${stu.displayName} sinfi`}
-                              value={classCode}
-                              onChange={(e) =>
-                                updateUserAdmin(stu.uid, { classCode: e.target.value })
-                              }
-                              className="px-2 py-1 rounded border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 font-mono font-semibold text-blue-600 dark:text-blue-400"
-                            >
-                              {OFFICIAL_19_CLASS_CODES.map((c) => (
-                                <option key={c} value={c}>
-                                  {c}
-                                </option>
-                              ))}
-                            </select>
-                          </td>
-                          <td className="py-2.5 px-3">{statusBadge(stu.status)}</td>
-                          <td className="py-2.5 px-3 text-right">
-                            <div className="inline-flex items-center gap-2">
+                            <div className="min-w-0">
                               <button
                                 type="button"
                                 onClick={() => setDetailStudentUid(stu.uid)}
-                                className="inline-flex items-center gap-1 px-2 py-1 rounded hover:bg-slate-100 dark:hover:bg-slate-800 text-blue-600 font-medium cursor-pointer"
+                                className="font-semibold text-sm text-slate-900 dark:text-white hover:text-blue-600 text-left break-words cursor-pointer"
                               >
-                                <Eye className="w-3.5 h-3.5" />
-                                <span>Ochish</span>
+                                {stu.displayName}
                               </button>
+                              <div className="text-[11px] font-mono text-slate-400 mt-0.5">
+                                ID: {stu.studentCode || stu.uid.slice(0, 8)}
+                              </div>
+                              {!stu.email.endsWith('@student.specialized.local') && (
+                                <div className="text-[11px] text-slate-400 truncate">{stu.email}</div>
+                              )}
                             </div>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
+                          </div>
+                          {statusBadge(stu.status)}
+                        </div>
+
+                        <div className="flex items-center justify-between gap-2 pt-1">
+                          <select
+                            aria-label={`${stu.displayName} sinfi`}
+                            value={classCode}
+                            onChange={(e) =>
+                              updateUserAdmin(stu.uid, { classCode: e.target.value })
+                            }
+                            className="min-h-[38px] px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 font-mono font-semibold text-blue-600 dark:text-blue-400"
+                          >
+                            {OFFICIAL_19_CLASS_CODES.map((c) => (
+                              <option key={c} value={c}>
+                                {c}
+                              </option>
+                            ))}
+                          </select>
+
+                          <button
+                            type="button"
+                            onClick={() => setDetailStudentUid(stu.uid)}
+                            className="min-h-[38px] inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 text-blue-600 font-semibold cursor-pointer"
+                          >
+                            <Eye className="w-3.5 h-3.5" />
+                            <span>Profilni ochish</span>
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Desktop High-Density Table (>=768px) */}
+                <div className="hidden md:block overflow-x-auto">
+                  <table className="w-full text-left border-collapse text-xs">
+                    <thead>
+                      <tr className="border-b border-slate-200 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-950 text-slate-500 font-semibold">
+                        <th className="py-2.5 px-3 w-8">
+                          <input
+                            type="checkbox"
+                            aria-label="Barchasini belgilash"
+                            checked={
+                              paginatedStudents.length > 0 &&
+                              paginatedStudents.every((s) => selectedUids.includes(s.uid))
+                            }
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setSelectedUids(
+                                  Array.from(
+                                    new Set([...selectedUids, ...paginatedStudents.map((s) => s.uid)])
+                                  )
+                                );
+                              } else {
+                                const pageSet = new Set(paginatedStudents.map((s) => s.uid));
+                                setSelectedUids(selectedUids.filter((id) => !pageSet.has(id)));
+                              }
+                            }}
+                          />
+                        </th>
+                        <th className="py-2.5 px-3">F.I.Sh.</th>
+                        <th className="py-2.5 px-3">ID</th>
+                        <th className="py-2.5 px-3">Sinf</th>
+                        <th className="py-2.5 px-3">Holat</th>
+                        <th className="py-2.5 px-3 text-right">Amallar</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80">
+                      {paginatedStudents.map((stu) => {
+                        const cls = classes.find(
+                          (c) => c.id === stu.classId || c.code === stu.classCode
+                        );
+                        const classCode = (cls?.code || cls?.name || stu.classCode || '7a1') as OfficialClassCode;
+                        const checked = selectedUids.includes(stu.uid);
+
+                        return (
+                          <tr
+                            key={stu.uid}
+                            className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors"
+                          >
+                            <td className="py-2.5 px-3">
+                              <input
+                                type="checkbox"
+                                aria-label={`${stu.displayName} tanlash`}
+                                checked={checked}
+                                onChange={() =>
+                                  setSelectedUids((prev) =>
+                                    checked ? prev.filter((id) => id !== stu.uid) : [...prev, stu.uid]
+                                  )
+                                }
+                              />
+                            </td>
+                            <td className="py-2.5 px-3">
+                              <button
+                                type="button"
+                                onClick={() => setDetailStudentUid(stu.uid)}
+                                className="font-semibold text-slate-900 dark:text-white hover:text-blue-600 dark:hover:text-blue-400 text-left cursor-pointer"
+                              >
+                                {stu.displayName}
+                              </button>
+                              {!stu.email.endsWith('@student.specialized.local') && (
+                                <div className="text-[11px] text-slate-400">{stu.email}</div>
+                              )}
+                            </td>
+                            <td className="py-2.5 px-3 font-mono tabular-nums text-slate-500">
+                              {stu.studentCode || stu.uid.slice(0, 8)}
+                            </td>
+                            <td className="py-2.5 px-3">
+                              <select
+                                aria-label={`${stu.displayName} sinfi`}
+                                value={classCode}
+                                onChange={(e) =>
+                                  updateUserAdmin(stu.uid, { classCode: e.target.value })
+                                }
+                                className="px-2 py-1 rounded border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 font-mono font-semibold text-blue-600 dark:text-blue-400"
+                              >
+                                {OFFICIAL_19_CLASS_CODES.map((c) => (
+                                  <option key={c} value={c}>
+                                    {c}
+                                  </option>
+                                ))}
+                              </select>
+                            </td>
+                            <td className="py-2.5 px-3">{statusBadge(stu.status)}</td>
+                            <td className="py-2.5 px-3 text-right">
+                              <div className="inline-flex items-center gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => setDetailStudentUid(stu.uid)}
+                                  className="inline-flex items-center gap-1 px-2 py-1 rounded hover:bg-slate-100 dark:hover:bg-slate-800 text-blue-600 font-medium cursor-pointer"
+                                >
+                                  <Eye className="w-3.5 h-3.5" />
+                                  <span>Ochish</span>
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </>
             )}
 
             {/* Pagination Footer */}
@@ -5574,44 +5650,76 @@ export const AdminResultsPage: React.FC = () => {
         </div>
       ) : (
         <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden">
-          <table className="w-full text-left border-collapse text-xs">
-            <thead>
-              <tr className="border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-slate-500">
-                <th className="py-2.5 px-4">O‘quvchi</th>
-                <th className="py-2.5 px-4">Sinf</th>
-                <th className="py-2.5 px-4">Test</th>
-                <th className="py-2.5 px-4">Natija</th>
-                <th className="py-2.5 px-4">To‘g‘ri / Jami</th>
-                <th className="py-2.5 px-4">Sana</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-              {filteredAttempts.map((att) => {
-                const stu = students.find((s) => s.uid === att.studentId);
-                const cls = classes.find((c) => c.id === att.classId);
-                return (
-                  <tr key={att.id}>
-                    <td className="py-2.5 px-4 font-semibold text-slate-900 dark:text-white">
+          {/* Mobile Results Card List (<768px) */}
+          <div className="md:hidden divide-y divide-slate-100 dark:divide-slate-800 text-xs">
+            {filteredAttempts.map((att) => {
+              const stu = students.find((s) => s.uid === att.studentId);
+              const cls = classes.find((c) => c.id === att.classId);
+              return (
+                <div key={att.id} className="p-3.5 space-y-1.5">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="font-semibold text-slate-900 dark:text-white">
                       {att.studentName}
-                    </td>
-                    <td className="py-2.5 px-4 font-mono font-bold text-blue-600">
-                      {cls?.code || stu?.classCode || '—'}
-                    </td>
-                    <td className="py-2.5 px-4">{att.assessmentTitle}</td>
-                    <td className="py-2.5 px-4 font-mono font-bold text-emerald-600">
+                    </span>
+                    <span className="font-mono font-bold text-emerald-600 text-sm">
                       {att.scorePercent}%
-                    </td>
-                    <td className="py-2.5 px-4 font-mono">
-                      {att.correctCount} / {att.totalQuestions}
-                    </td>
-                    <td className="py-2.5 px-4 font-mono text-slate-400">
-                      {new Date(att.submittedAt).toLocaleDateString('uz-UZ')}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+                    </span>
+                  </div>
+                  <div className="text-slate-600 dark:text-slate-300 font-medium">
+                    {att.assessmentTitle}
+                  </div>
+                  <div className="flex items-center justify-between text-[11px] font-mono text-slate-400">
+                    <span className="text-blue-600 font-bold">
+                      {cls?.code || stu?.classCode || '—'} · {att.correctCount}/{att.totalQuestions}
+                    </span>
+                    <span>{new Date(att.submittedAt).toLocaleDateString('uz-UZ')}</span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Desktop Results Table (>=768px) */}
+          <div className="hidden md:block overflow-x-auto">
+            <table className="w-full text-left border-collapse text-xs">
+              <thead>
+                <tr className="border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-slate-500">
+                  <th className="py-2.5 px-4">O‘quvchi</th>
+                  <th className="py-2.5 px-4">Sinf</th>
+                  <th className="py-2.5 px-4">Test</th>
+                  <th className="py-2.5 px-4">Natija</th>
+                  <th className="py-2.5 px-4">To‘g‘ri / Jami</th>
+                  <th className="py-2.5 px-4">Sana</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                {filteredAttempts.map((att) => {
+                  const stu = students.find((s) => s.uid === att.studentId);
+                  const cls = classes.find((c) => c.id === att.classId);
+                  return (
+                    <tr key={att.id}>
+                      <td className="py-2.5 px-4 font-semibold text-slate-900 dark:text-white">
+                        {att.studentName}
+                      </td>
+                      <td className="py-2.5 px-4 font-mono font-bold text-blue-600">
+                        {cls?.code || stu?.classCode || '—'}
+                      </td>
+                      <td className="py-2.5 px-4">{att.assessmentTitle}</td>
+                      <td className="py-2.5 px-4 font-mono font-bold text-emerald-600">
+                        {att.scorePercent}%
+                      </td>
+                      <td className="py-2.5 px-4 font-mono">
+                        {att.correctCount} / {att.totalQuestions}
+                      </td>
+                      <td className="py-2.5 px-4 font-mono text-slate-400">
+                        {new Date(att.submittedAt).toLocaleDateString('uz-UZ')}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
 

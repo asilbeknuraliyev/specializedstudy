@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import React, { useState, useEffect, useMemo } from 'react';
+import { Link, useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import {
   ShieldCheck,
   Mail,
@@ -9,10 +9,19 @@ import {
   CheckCircle2,
   AlertCircle,
   RefreshCw,
+  Copy,
+  Check,
+  ExternalLink,
 } from 'lucide-react';
 import { useLearnOS } from '../context/LearnOSContext';
 import { UserRole } from '../types';
 import { APP_NAME, APP_TAGLINE } from '../constants/curriculum';
+import { getRuntimeAuthDomainDiagnostics } from '../firebase';
+import {
+  isMobileOrTouchRedirectPreferred,
+  savePostLoginDestination,
+  consumePostLoginDestination,
+} from '../utils/firebaseAuthErrors';
 import { PublicHeader, PublicFooter } from './PublicPages';
 
 export const LoginPage: React.FC = () => {
@@ -28,6 +37,7 @@ export const LoginPage: React.FC = () => {
     addToast,
   } = useLearnOS();
   const navigate = useNavigate();
+  const location = useLocation();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -35,11 +45,33 @@ export const LoginPage: React.FC = () => {
   const [submitting, setSubmitting] = useState(false);
   const [resetMode, setResetMode] = useState(false);
   const [resetSent, setResetSent] = useState(false);
+  const [copiedDomain, setCopiedDomain] = useState(false);
+
+  const runtimeDiag = useMemo(() => getRuntimeAuthDomainDiagnostics(), []);
+  const isMobileBrowser = useMemo(() => isMobileOrTouchRedirectPreferred(), []);
 
   const navigateForRole = (role: UserRole) => {
+    const savedDest = consumePostLoginDestination();
+    if (savedDest) {
+      if (role === 'student' && savedDest.startsWith('/student/')) {
+        navigate(savedDest, { replace: true });
+        return;
+      }
+      if (role !== 'student' && savedDest.startsWith('/admin/')) {
+        navigate(savedDest, { replace: true });
+        return;
+      }
+    }
     const path = role === 'student' ? '/student/dashboard' : '/admin/dashboard';
     navigate(path, { replace: true });
   };
+
+  useEffect(() => {
+    const fromState = (location.state as { from?: string } | null)?.from;
+    if (fromState) {
+      savePostLoginDestination(fromState);
+    }
+  }, [location.state]);
 
   useEffect(() => {
     if (authReady && currentUser) {
@@ -85,25 +117,38 @@ export const LoginPage: React.FC = () => {
   const handleGoogleLogin = async (forceRedirect = false) => {
     setErrorMsg('');
     clearAuthError();
-    const profile = await loginWithGoogle({ forceRedirect });
+    const profile = await loginWithGoogle({ forceRedirect, preferPopup: !forceRedirect });
     if (profile) {
       navigateForRole(profile.role);
     }
   };
 
+  const handleCopyHostname = async () => {
+    const hostToCopy = authError?.detectedHostname || runtimeDiag.hostname;
+    if (!hostToCopy || typeof navigator === 'undefined' || !navigator.clipboard) return;
+    try {
+      await navigator.clipboard.writeText(hostToCopy);
+      setCopiedDomain(true);
+      addToast('success', `"${hostToCopy}" nusxalandi`);
+      setTimeout(() => setCopiedDomain(false), 2500);
+    } catch {
+      // Ignore clipboard error
+    }
+  };
+
   return (
-    <div className="min-h-screen flex flex-col bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100">
+    <div className="min-h-screen flex flex-col bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 overflow-x-hidden">
       <PublicHeader />
-      <main className="flex-1 flex items-center justify-center py-12 px-6">
-        <div className="max-w-md w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-8 space-y-6 shadow-xs">
+      <main className="flex-1 flex items-center justify-center py-6 px-4 sm:py-12 sm:px-6">
+        <div className="max-w-md w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 sm:p-8 space-y-5 sm:space-y-6 shadow-xs">
           <div className="space-y-1.5">
-            <p className="text-xs font-bold uppercase tracking-wider text-blue-600 dark:text-blue-400">
+            <p className="text-[11px] sm:text-xs font-bold uppercase tracking-wider text-blue-600 dark:text-blue-400 break-words">
               {APP_NAME} • {APP_TAGLINE}
             </p>
-            <h1 className="text-2xl font-bold text-slate-900 dark:text-white">
+            <h1 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white">
               {resetMode ? 'Parolni tiklash' : 'Tizimga kirish'}
             </h1>
-            <p className="text-sm text-slate-500 dark:text-slate-400">
+            <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 leading-relaxed">
               {resetMode
                 ? 'Tiklash ko‘rsatmalarini olish uchun elektron pochtangizni kiriting.'
                 : 'Google hisobingiz yoki elektron pochta orqali davom eting.'}
@@ -123,23 +168,59 @@ export const LoginPage: React.FC = () => {
           {authError && (
             <div
               role="alert"
-              className="p-4 rounded-xl bg-rose-50 dark:bg-rose-950/50 border border-rose-200 dark:border-rose-800 space-y-2.5 text-xs"
+              className="p-3.5 sm:p-4 rounded-xl bg-rose-50 dark:bg-rose-950/50 border border-rose-200 dark:border-rose-800 space-y-2.5 text-xs"
             >
               <div className="flex items-start gap-2 text-rose-700 dark:text-rose-300 font-semibold">
                 <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
                 <span>{authError.userMessage}</span>
               </div>
-              <p className="text-rose-600/90 dark:text-rose-300/90 leading-relaxed">
+              <p className="text-rose-600/90 dark:text-rose-300/90 leading-relaxed break-words">
                 {authError.recoveryAction}
               </p>
-              {authError.shouldOfferRedirectFallback && (
+
+              {authError.code === 'auth/unauthorized-domain' && (
+                <div className="p-2.5 rounded-lg bg-white/80 dark:bg-slate-900/80 border border-rose-200 dark:border-rose-800/80 space-y-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="min-w-0">
+                      <span className="block text-[10px] uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                        Joriy domen (Authorized domains ga qo‘shish uchun)
+                      </span>
+                      <code className="block text-xs font-mono font-bold text-slate-900 dark:text-white truncate">
+                        {authError.detectedHostname || runtimeDiag.hostname}
+                      </code>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleCopyHostname}
+                      className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 text-[11px] font-semibold shrink-0 min-h-[36px]"
+                    >
+                      {copiedDomain ? (
+                        <>
+                          <Check className="w-3.5 h-3.5 text-emerald-600" />
+                          <span>Nusxalandi</span>
+                        </>
+                      ) : (
+                        <>
+                          <Copy className="w-3.5 h-3.5" />
+                          <span>Nusxalash</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                  <p className="text-[11px] text-slate-600 dark:text-slate-400">
+                    Firebase loyiha ID: <strong className="font-mono">{runtimeDiag.projectId}</strong>
+                  </p>
+                </div>
+              )}
+
+              {(authError.shouldOfferRedirectFallback || isMobileBrowser) && (
                 <button
                   type="button"
                   onClick={() => handleGoogleLogin(true)}
                   disabled={isGoogleSigningIn}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-700 text-white font-semibold transition-colors"
+                  className="w-full sm:w-auto min-h-[44px] inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-lg bg-rose-600 hover:bg-rose-700 text-white font-semibold transition-colors"
                 >
-                  <RefreshCw className="w-3.5 h-3.5" />
+                  <RefreshCw className="w-3.5 h-3.5 shrink-0" />
                   <span>Yo‘naltirish orqali kirish</span>
                 </button>
               )}
@@ -149,28 +230,28 @@ export const LoginPage: React.FC = () => {
           {errorMsg && (
             <div
               role="alert"
-              className="p-3.5 rounded-xl bg-rose-50 dark:bg-rose-950/50 border border-rose-200 dark:border-rose-800 text-xs font-medium text-rose-700 dark:text-rose-300"
+              className="p-3.5 rounded-xl bg-rose-50 dark:bg-rose-950/50 border border-rose-200 dark:border-rose-800 text-xs font-medium text-rose-700 dark:text-rose-300 break-words"
             >
               {errorMsg}
             </div>
           )}
 
           {!resetMode && (
-            <div className="space-y-4">
+            <div className="space-y-3.5">
               <button
                 type="button"
                 onClick={() => handleGoogleLogin(false)}
                 disabled={isGoogleSigningIn || submitting}
-                className="w-full flex items-center justify-center gap-3 py-3 px-4 text-sm font-semibold text-slate-900 dark:text-white bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/80 rounded-xl transition-colors disabled:opacity-60 shadow-2xs"
+                className="w-full min-h-[48px] flex items-center justify-center gap-3 py-3 px-4 text-sm font-semibold text-slate-900 dark:text-white bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/80 active:scale-[0.99] rounded-xl transition-all disabled:opacity-60 shadow-2xs"
               >
                 {isGoogleSigningIn ? (
                   <>
-                    <div className="w-4 h-4 rounded-full border-2 border-blue-600 border-t-transparent animate-spin" />
+                    <div className="w-4 h-4 rounded-full border-2 border-blue-600 border-t-transparent animate-spin shrink-0" />
                     <span>Google hisobi tekshirilmoqda...</span>
                   </>
                 ) : (
                   <>
-                    <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24" aria-hidden="true">
+                    <svg className="w-5 h-5 shrink-0" viewBox="0 0 24 24" aria-hidden="true">
                       <path
                         fill="#4285F4"
                         d="M23.49 12.27c0-.79-.07-1.54-.19-2.27H12v4.51h6.47c-.29 1.48-1.14 2.73-2.4 3.58v3h3.86c2.26-2.09 3.56-5.17 3.56-8.82Z"
@@ -193,6 +274,18 @@ export const LoginPage: React.FC = () => {
                 )}
               </button>
 
+              {isMobileBrowser && !authError && (
+                <button
+                  type="button"
+                  onClick={() => handleGoogleLogin(true)}
+                  disabled={isGoogleSigningIn || submitting}
+                  className="w-full min-h-[40px] flex items-center justify-center gap-1.5 py-2 px-3 text-xs font-medium text-slate-600 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                >
+                  <ExternalLink className="w-3.5 h-3.5 shrink-0" />
+                  <span>Mobil brauzerda yo‘naltirish (Redirect) orqali kirish</span>
+                </button>
+              )}
+
               <div className="relative flex py-1 items-center">
                 <div className="grow border-t border-slate-200 dark:border-slate-800" />
                 <span className="shrink mx-3 text-xs text-slate-400">yoki elektron pochta</span>
@@ -203,7 +296,7 @@ export const LoginPage: React.FC = () => {
 
           {resetSent && resetMode ? (
             <div className="p-4 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 space-y-3">
-              <p className="text-xs font-medium text-emerald-800 dark:text-emerald-300">
+              <p className="text-xs font-medium text-emerald-800 dark:text-emerald-300 break-words">
                 Parolni tiklash bo‘yicha ko‘rsatma <strong>{email}</strong> manziliga yuborildi.
               </p>
               <button
@@ -212,7 +305,7 @@ export const LoginPage: React.FC = () => {
                   setResetMode(false);
                   setResetSent(false);
                 }}
-                className="text-xs font-semibold text-blue-600 hover:underline"
+                className="text-xs font-semibold text-blue-600 hover:underline min-h-[40px]"
               >
                 Kirish oynasiga qaytish
               </button>
@@ -227,21 +320,23 @@ export const LoginPage: React.FC = () => {
                   Elektron pochta
                 </label>
                 <div className="relative">
-                  <Mail className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
+                  <Mail className="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5 pointer-events-none" />
                   <input
                     id="login-email"
                     type="email"
+                    autoComplete="email"
+                    inputMode="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="foydalanuvchi@specialized.uz"
-                    className="w-full pl-10 pr-4 py-2.5 text-sm bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl focus:outline-none focus:border-blue-600"
+                    className="w-full min-h-[46px] pl-10 pr-4 py-2.5 text-sm bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl focus:outline-none focus:border-blue-600"
                   />
                 </div>
               </div>
 
               {!resetMode && (
                 <div className="space-y-1.5">
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between gap-2">
                     <label
                       htmlFor="login-password"
                       className="block text-xs font-semibold text-slate-700 dark:text-slate-300"
@@ -251,20 +346,21 @@ export const LoginPage: React.FC = () => {
                     <button
                       type="button"
                       onClick={() => setResetMode(true)}
-                      className="text-xs text-blue-600 hover:underline"
+                      className="text-xs text-blue-600 hover:underline py-1"
                     >
                       Parolni unutdingizmi?
                     </button>
                   </div>
                   <div className="relative">
-                    <Lock className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
+                    <Lock className="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5 pointer-events-none" />
                     <input
                       id="login-password"
                       type="password"
+                      autoComplete="current-password"
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       placeholder="••••••••"
-                      className="w-full pl-10 pr-4 py-2.5 text-sm bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl focus:outline-none focus:border-blue-600"
+                      className="w-full min-h-[46px] pl-10 pr-4 py-2.5 text-sm bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl focus:outline-none focus:border-blue-600"
                     />
                   </div>
                 </div>
@@ -273,7 +369,7 @@ export const LoginPage: React.FC = () => {
               <button
                 type="submit"
                 disabled={submitting || isGoogleSigningIn}
-                className="w-full py-2.5 px-4 text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-xl transition-colors disabled:opacity-50"
+                className="w-full min-h-[48px] py-3 px-4 text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 active:scale-[0.99] rounded-xl transition-all disabled:opacity-50"
               >
                 {submitting
                   ? 'Tekshirilmoqda...'
@@ -286,7 +382,7 @@ export const LoginPage: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setResetMode(false)}
-                  className="w-full py-2 text-xs font-medium text-slate-500 hover:text-slate-800"
+                  className="w-full min-h-[44px] py-2 text-xs font-medium text-slate-500 hover:text-slate-800"
                 >
                   Bekor qilish
                 </button>
@@ -394,19 +490,19 @@ export const RegisterPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100">
+    <div className="min-h-screen flex flex-col bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 overflow-x-hidden">
       <PublicHeader />
-      <main className="flex-1 flex items-center justify-center py-12 px-6">
-        <div className="max-w-xl w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-8 space-y-6">
+      <main className="flex-1 flex items-center justify-center py-6 px-4 sm:py-12 sm:px-6">
+        <div className="max-w-xl w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 sm:p-8 space-y-5 sm:space-y-6">
           <div className="space-y-1">
             <div className="flex items-center gap-2 text-xs font-semibold text-blue-600">
-              <KeyRound className="w-4 h-4" />
+              <KeyRound className="w-4 h-4 shrink-0" />
               <span>O‘quvchi taklifnomasi asosida ro‘yxatdan o‘tish</span>
             </div>
-            <h1 className="text-2xl font-bold text-slate-900 dark:text-white">
+            <h1 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white">
               {APP_NAME} platformasiga ulanish
             </h1>
-            <p className="text-sm text-slate-500 dark:text-slate-400">
+            <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400">
               Sinfga biriktirilgan taklif kodini (Invite Token) kiriting.
             </p>
           </div>
@@ -414,7 +510,7 @@ export const RegisterPage: React.FC = () => {
           {errorMsg && (
             <div
               role="alert"
-              className="p-3.5 rounded-xl bg-rose-50 dark:bg-rose-950/50 border border-rose-200 dark:border-rose-800 text-xs font-medium text-rose-700 dark:text-rose-300"
+              className="p-3.5 rounded-xl bg-rose-50 dark:bg-rose-950/50 border border-rose-200 dark:border-rose-800 text-xs font-medium text-rose-700 dark:text-rose-300 break-words"
             >
               {errorMsg}
             </div>
@@ -434,14 +530,14 @@ export const RegisterPage: React.FC = () => {
                 value={inviteToken}
                 onChange={(e) => setInviteToken(e.target.value)}
                 placeholder="Masalan: INV-A1B2C3D4E5F6"
-                className="w-full px-3.5 py-2.5 text-sm font-mono bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl focus:outline-none focus:border-blue-600"
+                className="w-full min-h-[46px] px-3.5 py-2.5 text-sm font-mono bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl focus:outline-none focus:border-blue-600"
               />
             </div>
 
             {invitePreview && (
               <div className="p-3.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-xs space-y-1">
                 <div className="flex items-center gap-1.5 font-bold text-emerald-800 dark:text-emerald-300">
-                  <CheckCircle2 className="w-4 h-4" />
+                  <CheckCircle2 className="w-4 h-4 shrink-0" />
                   <span>Tasdiqlangan o‘quvchi taklifnomasi topildi</span>
                 </div>
                 <p className="text-emerald-700 dark:text-emerald-300">
@@ -462,10 +558,11 @@ export const RegisterPage: React.FC = () => {
               <input
                 id="reg-name"
                 type="text"
+                autoComplete="name"
                 value={displayName}
                 onChange={(e) => setDisplayName(e.target.value)}
                 placeholder="Masalan: Jasur Karimov"
-                className="w-full px-3.5 py-2.5 text-sm bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl focus:outline-none focus:border-blue-600"
+                className="w-full min-h-[46px] px-3.5 py-2.5 text-sm bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl focus:outline-none focus:border-blue-600"
               />
             </div>
 
@@ -480,10 +577,12 @@ export const RegisterPage: React.FC = () => {
                 <input
                   id="reg-email"
                   type="email"
+                  autoComplete="email"
+                  inputMode="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="oquvchi@specialized.uz"
-                  className="w-full px-3.5 py-2.5 text-sm bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl focus:outline-none focus:border-blue-600"
+                  className="w-full min-h-[46px] px-3.5 py-2.5 text-sm bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl focus:outline-none focus:border-blue-600"
                 />
               </div>
 
@@ -497,10 +596,11 @@ export const RegisterPage: React.FC = () => {
                 <input
                   id="reg-password"
                   type="password"
+                  autoComplete="new-password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="Kamida 6 ta belgi"
-                  className="w-full px-3.5 py-2.5 text-sm bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl focus:outline-none focus:border-blue-600"
+                  className="w-full min-h-[46px] px-3.5 py-2.5 text-sm bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl focus:outline-none focus:border-blue-600"
                 />
               </div>
             </div>
@@ -508,9 +608,9 @@ export const RegisterPage: React.FC = () => {
             <button
               type="submit"
               disabled={submitting}
-              className="w-full flex items-center justify-center gap-2 py-3 px-4 text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-xl transition-colors disabled:opacity-50"
+              className="w-full min-h-[48px] flex items-center justify-center gap-2 py-3 px-4 text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 active:scale-[0.99] rounded-xl transition-all disabled:opacity-50"
             >
-              <UserCheck className="w-4 h-4" />
+              <UserCheck className="w-4 h-4 shrink-0" />
               <span>
                 {submitting ? 'Faollashtirilmoqda...' : 'O‘quvchi hisobini faollashtirish'}
               </span>

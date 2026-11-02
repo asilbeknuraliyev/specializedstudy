@@ -330,7 +330,7 @@ async function startServer() {
 
     res.setHeader(
       'Content-Security-Policy',
-      "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://apis.google.com https://www.gstatic.com https://*.firebaseapp.com https://accounts.google.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https:; frame-src 'self' https://*.firebaseapp.com https://accounts.google.com https://apis.google.com; connect-src 'self' https://*.googleapis.com https://*.firebaseio.com https://*.firebaseapp.com https://apis.google.com https://accounts.google.com https://*.google.com https://www.gstatic.com wss://*.firebaseio.com; frame-ancestors 'self' https://*.google.com https://*.goog https://*.run.app https://*.ai.studio https://ai.studio;"
+      "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://apis.google.com https://www.gstatic.com https://*.firebaseapp.com https://accounts.google.com https://*.vercel.app; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https:; frame-src 'self' https://*.firebaseapp.com https://accounts.google.com https://apis.google.com; connect-src 'self' https://*.googleapis.com https://*.firebaseio.com https://*.firebaseapp.com https://apis.google.com https://accounts.google.com https://*.google.com https://www.gstatic.com https://*.vercel.app wss://*.firebaseio.com; frame-ancestors 'self' https://*.google.com https://*.goog https://*.run.app https://*.ai.studio https://ai.studio https://*.vercel.app;"
     );
     res.setHeader('Cross-Origin-Opener-Policy', 'same-origin-allow-popups');
     res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
@@ -366,6 +366,30 @@ async function startServer() {
       return res.status(204).end();
     }
     next();
+  });
+
+  app.get('/api/auth/diagnostics', (req, res) => {
+    const requestHost = String(req.headers['x-forwarded-host'] || req.headers.host || '').trim();
+    const origin = String(req.headers.origin || '').trim();
+    const projectId = String(
+      process.env.VITE_FIREBASE_PROJECT_ID ||
+        process.env.FIREBASE_PROJECT_ID ||
+        'ivory-receiver-slxdt'
+    ).trim();
+    const authDomain = String(
+      process.env.VITE_FIREBASE_AUTH_DOMAIN || `${projectId}.firebaseapp.com`
+    ).trim();
+
+    return res.json({
+      status: 'ok',
+      projectId,
+      authDomain,
+      requestHost,
+      origin: origin || null,
+      corsAllowed: isTrustedCorsOrigin(origin || undefined, requestHost),
+      googleProviderConfigured: true,
+      authorizedAdminCount: AUTHORIZED_ADMIN_EMAILS.length,
+    });
   });
 
   const uploadJsonParser = express.json({ limit: '20mb' });
@@ -6853,7 +6877,7 @@ async function startServer() {
     if (!authCtx) return res.status(401).json({ error: 'Avtorizatsiya talab qilinadi.' });
     const { user, env, db } = authCtx;
 
-    if (user.role !== 'teacher' && user.role !== 'admin') {
+    if (user.role !== 'teacher' && user.role !== 'admin' && user.role !== 'platform_owner') {
       return res.status(403).json({ error: 'Ruxsat yo‘q.' });
     }
 

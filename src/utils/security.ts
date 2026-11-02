@@ -478,9 +478,14 @@ export function isTrustedCorsOrigin(
     const hostWithPort = parsed.host.toLowerCase();
 
     if (requestHost && requestHost.trim()) {
-      const normalizedReqHost = requestHost.split(',')[0].trim().toLowerCase();
-      if (hostWithPort === normalizedReqHost || hostname === normalizedReqHost.split(':')[0]) {
-        return true;
+      const candidateHosts = requestHost
+        .split(',')
+        .map((h) => h.trim().toLowerCase())
+        .filter(Boolean);
+      for (const normalizedReqHost of candidateHosts) {
+        if (hostWithPort === normalizedReqHost || hostname === normalizedReqHost.split(':')[0]) {
+          return true;
+        }
       }
     }
 
@@ -492,7 +497,32 @@ export function isTrustedCorsOrigin(
       return false;
     }
 
+    // Check configured APP_URL / VERCEL_URL environment variables when running on server
+    if (typeof process !== 'undefined' && process.env) {
+      const configuredUrls = [
+        process.env.APP_URL,
+        process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : undefined,
+        process.env.VERCEL_BRANCH_URL ? `https://${process.env.VERCEL_BRANCH_URL}` : undefined,
+        process.env.VERCEL_PROJECT_PRODUCTION_URL
+          ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
+          : undefined,
+      ].filter(Boolean) as string[];
+
+      for (const rawUrl of configuredUrls) {
+        try {
+          const envParsed = new URL(rawUrl.startsWith('http') ? rawUrl : `https://${rawUrl}`);
+          if (envParsed.hostname.toLowerCase() === hostname) {
+            return true;
+          }
+        } catch {
+          // Ignore malformed env URL
+        }
+      }
+    }
+
     return (
+      hostname.endsWith('.vercel.app') ||
+      hostname === 'vercel.app' ||
       hostname.endsWith('.run.app') ||
       hostname === 'ai.studio' ||
       hostname.endsWith('.ai.studio') ||

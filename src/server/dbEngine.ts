@@ -364,10 +364,34 @@ export function createEmptyDatabaseState(): PersistentDatabaseState {
   return ensureSpecializedStudyStructure(base);
 }
 
-function ensureDataDir() {
-  if (!fs.existsSync(DATA_DIR)) {
-    fs.mkdirSync(DATA_DIR, { recursive: true });
+function ensureDataDir(): string {
+  try {
+    if (!fs.existsSync(DATA_DIR)) {
+      fs.mkdirSync(DATA_DIR, { recursive: true });
+    }
+    fs.accessSync(DATA_DIR, fs.constants.W_OK);
+    return DATA_DIR;
+  } catch {
+    const tmpDir = path.join('/tmp', '.data');
+    if (!fs.existsSync(tmpDir)) {
+      fs.mkdirSync(tmpDir, { recursive: true });
+    }
+    return tmpDir;
   }
+}
+
+function resolveDbPaths(env: 'prod' | 'test'): { readPath: string; writePath: string } {
+  const writableDir = ensureDataDir();
+  const fileName = env === 'test' ? 'learnos_test.json' : 'learnos_prod.json';
+  const writePath = path.join(writableDir, fileName);
+  const bundledPath = env === 'test' ? TEST_DB_PATH : PROD_DB_PATH;
+  if (fs.existsSync(writePath)) {
+    return { readPath: writePath, writePath };
+  }
+  if (fs.existsSync(bundledPath)) {
+    return { readPath: bundledPath, writePath };
+  }
+  return { readPath: writePath, writePath };
 }
 
 const memoryCache: Record<'prod' | 'test', PersistentDatabaseState | null> = {
@@ -379,11 +403,10 @@ export function getDbState(env: 'prod' | 'test' = 'prod'): PersistentDatabaseSta
   if (memoryCache[env]) {
     return memoryCache[env]!;
   }
-  ensureDataDir();
-  const filePath = env === 'test' ? TEST_DB_PATH : PROD_DB_PATH;
-  if (fs.existsSync(filePath)) {
+  const { readPath } = resolveDbPaths(env);
+  if (fs.existsSync(readPath)) {
     try {
-      const raw = fs.readFileSync(filePath, 'utf-8');
+      const raw = fs.readFileSync(readPath, 'utf-8');
       const parsed = JSON.parse(raw) as Partial<PersistentDatabaseState>;
       const merged: PersistentDatabaseState = ensureSpecializedStudyStructure({
         ...createEmptyDatabaseState(),
@@ -392,7 +415,7 @@ export function getDbState(env: 'prod' | 'test' = 'prod'): PersistentDatabaseSta
       memoryCache[env] = merged;
       return merged;
     } catch (err) {
-      console.warn(`Error reading ${filePath}, initializing clean state:`, err);
+      console.warn(`Error reading ${readPath}, initializing clean state:`, err);
     }
   }
   const fresh = createEmptyDatabaseState();
@@ -402,23 +425,43 @@ export function getDbState(env: 'prod' | 'test' = 'prod'): PersistentDatabaseSta
 }
 
 export function saveDbState(env: 'prod' | 'test', state: PersistentDatabaseState): void {
-  ensureDataDir();
   memoryCache[env] = state;
-  const filePath = env === 'test' ? TEST_DB_PATH : PROD_DB_PATH;
-  fs.writeFileSync(filePath, JSON.stringify(state, null, 2), 'utf-8');
+  const { writePath } = resolveDbPaths(env);
+  try {
+    fs.writeFileSync(writePath, JSON.stringify(state, null, 2), 'utf-8');
+  } catch (err) {
+    // Fallback to /tmp/.data if primary DATA_DIR becomes read-only
+    try {
+      const fallbackDir = path.join('/tmp', '.data');
+      if (!fs.existsSync(fallbackDir)) {
+        fs.mkdirSync(fallbackDir, { recursive: true });
+      }
+      const fallbackFile = path.join(
+        fallbackDir,
+        env === 'test' ? 'learnos_test.json' : 'learnos_prod.json'
+      );
+      fs.writeFileSync(fallbackFile, JSON.stringify(state, null, 2), 'utf-8');
+    } catch {
+      console.warn('In-memory state preserved; disk write skipped:', err);
+    }
+  }
 }
 
 const revokedTokenSet = new Set<string>();
 const revokedBeforeTimestampByUser = new Map<string, number>();
 
 export function resetTestDbState(): void {
-  ensureDataDir();
+  const { writePath } = resolveDbPaths('test');
   const empty = createEmptyDatabaseState();
   memoryCache.test = empty;
   revokedTokenSet.clear();
   revokedBeforeTimestampByUser.clear();
-  if (fs.existsSync(TEST_DB_PATH)) {
-    fs.unlinkSync(TEST_DB_PATH);
+  try {
+    if (fs.existsSync(writePath)) {
+      fs.unlinkSync(writePath);
+    }
+  } catch {
+    // Ignore unlink error on read-only fs
   }
   saveDbState('test', empty);
 }

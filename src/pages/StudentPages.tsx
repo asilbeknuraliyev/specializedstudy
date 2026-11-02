@@ -40,7 +40,6 @@ export const StudentDashboardPage: React.FC = () => {
     assessments,
     attempts,
     masteryRecords,
-    learningPaths,
   } = useLearnOS();
 
   const studentId = currentUser?.uid || '';
@@ -52,17 +51,20 @@ export const StudentDashboardPage: React.FC = () => {
   const track = studentClass?.track || currentUser?.track || 'A';
 
   const mySubjects = subjects.filter((s) => isSubjectCompatibleWithClass(s.name, classCode).compatible);
-  const myLessons = lessons.filter((l) => {
-    const matchesClass =
-      l.classId === studentClass?.id ||
-      l.classCode?.toLowerCase() === classCode.toLowerCase() ||
-      (Array.isArray(l.classIds) && studentClass?.id && l.classIds.includes(studentClass.id)) ||
-      (Array.isArray(l.classCodes) &&
-        l.classCodes.some((c) => c.toLowerCase() === classCode.toLowerCase()));
-    if (!matchesClass) return false;
-    if (l.additionalCurriculumAssignment && l.tTrackVisibilityApproved !== true) return false;
-    return l.status === 'published' || l.status === 'completed';
-  });
+  const myLessons = lessons
+    .filter((l) => {
+      const matchesClass =
+        l.classId === studentClass?.id ||
+        l.classCode?.toLowerCase() === classCode.toLowerCase() ||
+        (Array.isArray(l.classIds) && studentClass?.id && l.classIds.includes(studentClass.id)) ||
+        (Array.isArray(l.classCodes) &&
+          l.classCodes.some((c) => c.toLowerCase() === classCode.toLowerCase()));
+      if (!matchesClass) return false;
+      if (l.additionalCurriculumAssignment && l.tTrackVisibilityApproved !== true) return false;
+      return l.status !== 'draft' && l.status !== 'archived';
+    })
+    .sort((a, b) => a.quarter - b.quarter || a.lessonNumber - b.lessonNumber);
+
   const myAttempts = attempts.filter((a) => a.studentId === studentId);
   const completedIds = new Set(myAttempts.map((a) => a.assessmentId));
   const publishedAssessments = assessments.filter((a) => {
@@ -78,12 +80,14 @@ export const StudentDashboardPage: React.FC = () => {
     );
   });
   const pendingAssessments = publishedAssessments.filter((a) => !completedIds.has(a.id));
+  const nextUpcomingTest = pendingAssessments[0] || publishedAssessments[0] || null;
   const myMastery = masteryRecords.filter((r) => r.studentId === studentId);
-  const myPaths = learningPaths.filter((lp) => lp.studentId === studentId);
 
   const avgAccuracy =
     myMastery.length > 0
       ? Math.round(myMastery.reduce((acc, r) => acc + r.accuracy, 0) / myMastery.length)
+      : myAttempts.length > 0
+      ? Math.round(myAttempts.reduce((acc, a) => acc + a.scorePercent, 0) / myAttempts.length)
       : 0;
 
   const progressChartData = myAttempts
@@ -99,156 +103,364 @@ export const StudentDashboardPage: React.FC = () => {
     }));
 
   return (
-    <div className="space-y-8">
-      {/* Greeting & Student Class/Track Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 dark:border-slate-800 pb-6">
+    <div className="space-y-6 sm:space-y-8">
+      {/* 1. Compact Greeting & 2. Student Class */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 dark:border-slate-800 pb-5">
         <div className="space-y-1.5">
+          <h1 className="text-xl sm:text-3xl font-bold text-slate-900 dark:text-white">
+            Xush kelibsiz, {currentUser?.displayName || 'O‘quvchi'}
+          </h1>
           <div className="flex flex-wrap items-center gap-2 text-xs font-semibold">
-            <span className="px-2.5 py-0.5 rounded-md bg-blue-600 text-white font-mono">
-              {classCode} sinfi
+            <span className="px-2.5 py-1 rounded-md bg-blue-600 text-white font-mono">
+              {classCode.toUpperCase()} sinfi
             </span>
-            <span className="px-2.5 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
+            <span className="px-2.5 py-1 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
               {grade}-sinf
             </span>
             <span
-              className={`px-2.5 py-0.5 rounded-md ${
+              className={`px-2.5 py-1 rounded-md ${
                 track === 'T'
                   ? 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300'
                   : 'bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300'
               }`}
             >
-              {track === 'T' ? 'T — Tabiiy fanlar yo‘nalishi' : 'A — Aniq fanlar yo‘nalishi'}
+              {track === 'T' ? 'T — Tabiiy fanlar' : 'A — Aniq fanlar'}
             </span>
           </div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-white">
-            Xush kelibsiz, {currentUser?.displayName || 'O‘quvchi'}
-          </h1>
-          <p className="text-xs text-slate-500">
-            Fanlaringiz: {mySubjects.map((s) => s.name).join(' • ')}
-          </p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="grid grid-cols-2 sm:flex items-center gap-2.5">
           <Link
             to="/student/lessons"
-            className="inline-flex items-center gap-2 px-4 py-2.5 text-xs font-semibold text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:bg-slate-50 rounded-xl transition-colors whitespace-nowrap"
+            className="min-h-[44px] inline-flex items-center justify-center gap-2 px-4 py-2.5 text-xs font-semibold text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:bg-slate-50 rounded-xl transition-colors whitespace-nowrap"
           >
-            <BookOpen className="w-3.5 h-3.5" />
+            <BookOpen className="w-3.5 h-3.5 shrink-0" />
             <span>Darslar ({myLessons.length})</span>
           </Link>
           <Link
             to="/student/assessments"
-            className="inline-flex items-center gap-2 px-4 py-2.5 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-xl transition-colors whitespace-nowrap"
+            className="min-h-[44px] inline-flex items-center justify-center gap-2 px-4 py-2.5 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-xl transition-colors whitespace-nowrap"
           >
-            <span>Testlarni ko‘rish</span>
-            <ArrowRight className="w-3.5 h-3.5" />
+            <span>Testlar ({pendingAssessments.length})</span>
+            <ArrowRight className="w-3.5 h-3.5 shrink-0" />
           </Link>
         </div>
       </div>
 
-      {/* Overview KPI Strip */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 space-y-1">
-          <p className="text-xs text-slate-500 dark:text-slate-400">Nashr qilingan darslar</p>
-          <p className="text-2xl font-bold font-mono tabular-nums text-blue-600 dark:text-blue-400">
-            {myLessons.length}
-          </p>
-          <p className="text-xs text-slate-500">{classCode} o‘quv xaritasi bo‘yicha</p>
-        </div>
+      {/* 3. Upcoming Test Card */}
+      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 sm:p-6 shadow-2xs">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="space-y-1.5 min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="px-2.5 py-0.5 rounded-md bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 text-xs font-semibold">
+                {pendingAssessments.length > 0 ? 'Navbatdagi test' : 'Faol test sinovi'}
+              </span>
+              {nextUpcomingTest && (
+                <span className="text-xs font-mono text-slate-500">
+                  {nextUpcomingTest.subject} · {nextUpcomingTest.questionIds.length} ta savol ·{' '}
+                  {nextUpcomingTest.durationMinutes} daq
+                </span>
+              )}
+            </div>
+            {nextUpcomingTest ? (
+              <>
+                <h2 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white break-words">
+                  {nextUpcomingTest.title}
+                </h2>
+                <p className="text-xs text-slate-500">
+                  Kutilayotgan testlar: <strong>{pendingAssessments.length} ta</strong> · Topshirilgan:{' '}
+                  <strong>{myAttempts.length} ta</strong>
+                </p>
+              </>
+            ) : (
+              <p className="text-xs sm:text-sm text-slate-500">
+                Hozircha kutilayotgan yangi test yo‘q. O‘quv darslarini ko‘rib chiqishingiz mumkin.
+              </p>
+            )}
+          </div>
 
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 space-y-1">
-          <p className="text-xs text-slate-500 dark:text-slate-400">Kutilayotgan testlar</p>
-          <p className="text-2xl font-bold font-mono tabular-nums text-amber-600 dark:text-amber-400">
-            {pendingAssessments.length}
-          </p>
-          <p className="text-xs text-slate-500">Topshirilgan: {myAttempts.length} ta</p>
-        </div>
-
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 space-y-1">
-          <p className="text-xs text-slate-500 dark:text-slate-400">Baholangan mavzular</p>
-          <p className="text-2xl font-bold font-mono tabular-nums text-slate-900 dark:text-white">
-            {myMastery.length}
-          </p>
-          <p className="text-xs text-slate-500">O‘quv xaritam ko‘rsatkichi</p>
-        </div>
-
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 space-y-1">
-          <p className="text-xs text-slate-500 dark:text-slate-400">O‘rtacha o‘zlashtirish</p>
-          <p className="text-2xl font-bold font-mono tabular-nums text-emerald-600 dark:text-emerald-400">
-            {avgAccuracy}%
-          </p>
-          <p className="text-xs text-slate-500">Oxirgi natija: {myAttempts[0]?.scorePercent ?? 0}%</p>
+          {nextUpcomingTest && (
+            <Link
+              to={`/student/assessments/${nextUpcomingTest.id}`}
+              className="w-full sm:w-auto min-h-[46px] inline-flex items-center justify-center gap-2 px-5 py-2.5 text-xs sm:text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-xl transition-colors shrink-0"
+            >
+              <span>Testni boshlash</span>
+              <ArrowRight className="w-4 h-4 shrink-0" />
+            </Link>
+          )}
         </div>
       </div>
 
-      {/* Upcoming Lessons & Assigned Tests */}
+      {/* 4. Current Lessons */}
+      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 sm:p-6 space-y-4">
+        <div className="flex items-center justify-between gap-2">
+          <div>
+            <h2 className="text-base font-bold text-slate-900 dark:text-white">
+              Joriy darslar ({classCode.toUpperCase()})
+            </h2>
+            <p className="text-xs text-slate-500">
+              O‘quv xaritasi bo‘yicha nashr qilingan darslar va uyga vazifalar
+            </p>
+          </div>
+          <Link
+            to="/student/lessons"
+            className="text-xs font-semibold text-blue-600 hover:underline whitespace-nowrap shrink-0"
+          >
+            Barcha darslar
+          </Link>
+        </div>
+
+        {myLessons.length === 0 ? (
+          <div className="p-6 text-center bg-slate-50 dark:bg-slate-950 rounded-xl border border-dashed border-slate-200 dark:border-slate-800">
+            <p className="text-xs text-slate-500">
+              Hozircha {classCode} sinfi uchun nashr qilingan darslar yo‘q.
+            </p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {myLessons.slice(0, 4).map((les) => (
+              <div
+                key={les.id}
+                className="p-3.5 sm:p-4 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+              >
+                <div className="space-y-1 min-w-0">
+                  <div className="flex flex-wrap items-center gap-1.5 text-xs">
+                    <span className="px-2 py-0.5 rounded bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 font-semibold">
+                      {les.curriculumArea || les.subject}
+                    </span>
+                    <span className="font-mono text-slate-500">
+                      {les.quarter}-chorak · {les.lessonNumber}-dars
+                    </span>
+                  </div>
+                  <p className="text-sm font-bold text-slate-900 dark:text-white math-formula-wrap">
+                    {les.topicTitle}
+                  </p>
+                  {les.homework && (
+                    <p className="text-xs text-slate-500 truncate">
+                      Uyga vazifa: {les.homework}
+                    </p>
+                  )}
+                </div>
+                <Link
+                  to="/student/lessons"
+                  className="min-h-[40px] inline-flex items-center justify-center px-3.5 py-2 text-xs font-semibold text-blue-600 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg shrink-0"
+                >
+                  Ochish
+                </Link>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* 5. Subject Access — Mobile Subject Cards */}
+      <div className="space-y-3">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-base font-bold text-slate-900 dark:text-white">
+              Mening fanlarim
+            </h2>
+            <p className="text-xs text-slate-500">
+              {classCode.toUpperCase()} sinfi fanlari bo‘yicha darslar va faol testlar
+            </p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {mySubjects.map((subj) => {
+            const subjLessons = myLessons.filter(
+              (l) =>
+                l.subject === subj.name ||
+                l.subjectName === subj.name ||
+                (subj.name === 'Matematika' &&
+                  (l.curriculumArea === 'Algebra' ||
+                    l.curriculumArea === 'Geometriya' ||
+                    l.curriculumArea === 'Matematika'))
+            );
+            const nextLesson = subjLessons[0] || null;
+            const activeSubjTests = publishedAssessments.filter(
+              (a) => a.subject === subj.name && !completedIds.has(a.id)
+            );
+            const subjAttempts = myAttempts.filter((att) => {
+              const a = assessments.find((x) => x.id === att.assessmentId);
+              return a?.subject === subj.name;
+            });
+            const subjAccuracy =
+              subjAttempts.length > 0
+                ? Math.round(
+                    subjAttempts.reduce((acc, a) => acc + a.scorePercent, 0) / subjAttempts.length
+                  )
+                : avgAccuracy;
+
+            return (
+              <div
+                key={subj.id}
+                className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 sm:p-5 flex flex-col justify-between space-y-4"
+              >
+                <div className="space-y-2.5">
+                  <div className="flex items-center justify-between gap-2">
+                    <h3 className="text-base font-bold text-slate-900 dark:text-white">
+                      {subj.name}
+                    </h3>
+                    {activeSubjTests.length > 0 ? (
+                      <span className="px-2 py-0.5 rounded-md bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 text-[11px] font-semibold">
+                        {activeSubjTests.length} ta faol test
+                      </span>
+                    ) : (
+                      <span className="px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 text-[11px] font-mono">
+                        {subjLessons.length} dars
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Progress Indicator */}
+                  <div className="space-y-1">
+                    <div className="flex items-center justify-between text-[11px] text-slate-500">
+                      <span>O‘zlashtirish ko‘rsatkichi</span>
+                      <span className="font-mono font-semibold text-slate-700 dark:text-slate-300">
+                        {subjAccuracy}%
+                      </span>
+                    </div>
+                    <div className="h-1.5 w-full bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-blue-600 rounded-full"
+                        style={{ width: `${Math.max(8, subjAccuracy)}%` }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Next Lesson */}
+                  <div className="pt-1 text-xs text-slate-600 dark:text-slate-400">
+                    <span className="text-slate-400 dark:text-slate-500">Navbatdagi dars: </span>
+                    <span className="font-medium text-slate-800 dark:text-slate-200 line-clamp-1">
+                      {nextLesson ? nextLesson.topicTitle : `${subj.name} kirish mavzusi`}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between gap-2">
+                  <Link
+                    to="/student/lessons"
+                    className="min-h-[40px] inline-flex items-center px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-xs font-semibold text-slate-700 dark:text-slate-200"
+                  >
+                    Darslar
+                  </Link>
+                  {activeSubjTests[0] && (
+                    <Link
+                      to={`/student/assessments/${activeSubjTests[0].id}`}
+                      className="min-h-[40px] inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-xs font-semibold text-white"
+                    >
+                      <span>Testni ishlash</span>
+                      <ArrowRight className="w-3.5 h-3.5" />
+                    </Link>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* 6. Recent Results & KPI Strip */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-4 sm:p-5 space-y-1">
+          <p className="text-[11px] sm:text-xs text-slate-500 dark:text-slate-400">Nashr qilingan darslar</p>
+          <p className="text-xl sm:text-2xl font-bold font-mono tabular-nums text-blue-600 dark:text-blue-400">
+            {myLessons.length}
+          </p>
+          <p className="text-[11px] text-slate-500">{classCode} o‘quv xaritasi</p>
+        </div>
+
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-4 sm:p-5 space-y-1">
+          <p className="text-[11px] sm:text-xs text-slate-500 dark:text-slate-400">Kutilayotgan testlar</p>
+          <p className="text-xl sm:text-2xl font-bold font-mono tabular-nums text-amber-600 dark:text-amber-400">
+            {pendingAssessments.length}
+          </p>
+          <p className="text-[11px] text-slate-500">Topshirilgan: {myAttempts.length} ta</p>
+        </div>
+
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-4 sm:p-5 space-y-1">
+          <p className="text-[11px] sm:text-xs text-slate-500 dark:text-slate-400">Baholangan mavzular</p>
+          <p className="text-xl sm:text-2xl font-bold font-mono tabular-nums text-slate-900 dark:text-white">
+            {myMastery.length}
+          </p>
+          <p className="text-[11px] text-slate-500">O‘quv xaritam</p>
+        </div>
+
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-4 sm:p-5 space-y-1">
+          <p className="text-[11px] sm:text-xs text-slate-500 dark:text-slate-400">O‘rtacha natija</p>
+          <p className="text-xl sm:text-2xl font-bold font-mono tabular-nums text-emerald-600 dark:text-emerald-400">
+            {avgAccuracy}%
+          </p>
+          <p className="text-[11px] text-slate-500">Oxirgi: {myAttempts[0]?.scorePercent ?? 0}%</p>
+        </div>
+      </div>
+
+      {/* 7. Learning Progress: Recent Results List, Topic Mastery & Dynamics */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        <div className="lg:col-span-7 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-6 space-y-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-base font-bold text-slate-900 dark:text-white">
-                Sinfingiz uchun joriy darslar ({classCode})
-              </h2>
-              <p className="text-xs text-slate-500">
-                O‘quv xaritasi bo‘yicha nashr qilingan darslar va uyga vazifalar
-              </p>
-            </div>
+        <div className="lg:col-span-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 sm:p-6 space-y-4">
+          <div className="flex items-center justify-between gap-2">
+            <h2 className="text-base font-bold text-slate-900 dark:text-white">
+              So‘nggi natijalar va testlar
+            </h2>
             <Link
-              to="/student/lessons"
+              to="/student/results"
               className="text-xs font-semibold text-blue-600 hover:underline whitespace-nowrap"
             >
-              Barcha darslar
+              Barchasi
             </Link>
           </div>
 
-          {myLessons.length === 0 ? (
-            <div className="p-8 text-center bg-slate-50 dark:bg-slate-950 rounded-xl border border-dashed border-slate-200 dark:border-slate-800">
+          {publishedAssessments.length === 0 ? (
+            <div className="p-6 rounded-xl bg-slate-50 dark:bg-slate-950 border border-dashed border-slate-200 dark:border-slate-800 text-center">
               <p className="text-xs text-slate-500">
-                Hozircha {classCode} sinfi uchun nashr qilingan darslar yo‘q.
+                Hozircha sizga biriktirilgan testlar yo‘q.
               </p>
             </div>
           ) : (
             <div className="space-y-3">
-              {myLessons.slice(0, 4).map((les) => (
-                <div
-                  key={les.id}
-                  className="p-4 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 flex items-center justify-between gap-4"
-                >
-                  <div className="space-y-1 min-w-0">
-                    <div className="flex items-center gap-2 text-xs">
-                      <span className="px-2 py-0.5 rounded bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 font-semibold">
-                        {les.subject}
-                      </span>
-                      <span className="font-mono text-slate-500">
-                        {les.quarter}-chorak · {les.lessonNumber}-dars
-                      </span>
-                    </div>
-                    <p className="text-sm font-bold text-slate-900 dark:text-white truncate">
-                      {les.topicTitle}
-                    </p>
-                    {les.homework && (
-                      <p className="text-xs text-slate-500 truncate">
-                        Uyga vazifa: {les.homework}
+              {publishedAssessments.slice(0, 4).map((assess) => {
+                const attempt = myAttempts.find((a) => a.assessmentId === assess.id);
+                return (
+                  <div
+                    key={assess.id}
+                    className="p-3.5 sm:p-4 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+                  >
+                    <div className="space-y-1 min-w-0">
+                      <p className="text-sm font-bold text-slate-900 dark:text-white break-words">
+                        {assess.title}
                       </p>
+                      <p className="text-xs text-slate-500 font-mono tabular-nums">
+                        {assess.subject} · {assess.questionIds.length} ta savol · {assess.durationMinutes} daq
+                      </p>
+                    </div>
+                    {attempt ? (
+                      <Link
+                        to={`/student/results/${attempt.id}`}
+                        className="min-h-[40px] inline-flex items-center justify-center px-3.5 py-1.5 text-xs font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800 rounded-lg whitespace-nowrap shrink-0"
+                      >
+                        Natija: {attempt.scorePercent}%
+                      </Link>
+                    ) : (
+                      <Link
+                        to={`/student/assessments/${assess.id}`}
+                        className="min-h-[40px] inline-flex items-center justify-center px-3.5 py-1.5 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg whitespace-nowrap shrink-0"
+                      >
+                        Testni boshlash
+                      </Link>
                     )}
                   </div>
-                  <Link
-                    to="/student/lessons"
-                    className="px-3 py-1.5 text-xs font-semibold text-blue-600 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg shrink-0"
-                  >
-                    Ochish
-                  </Link>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
 
-        {/* Topic Mastery Summary */}
-        <div className="lg:col-span-5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-6 space-y-4">
-          <div className="flex items-center justify-between">
+        {/* Topic Mastery & Progress Dynamics */}
+        <div className="lg:col-span-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 sm:p-6 space-y-5">
+          <div className="flex items-center justify-between gap-2">
             <div>
               <h2 className="text-base font-bold text-slate-900 dark:text-white">
-                O‘quv xaritam holati
+                O‘quv xaritam va o‘zlashtirish
               </h2>
               <p className="text-xs text-slate-500">Mavzular kesimida joriy ko‘rsatkich</p>
             </div>
@@ -260,17 +472,11 @@ export const StudentDashboardPage: React.FC = () => {
             </Link>
           </div>
 
-          {myMastery.length === 0 ? (
-            <div className="py-12 text-center bg-slate-50 dark:bg-slate-950 rounded-xl border border-dashed border-slate-200 dark:border-slate-800 p-4">
-              <p className="text-xs font-medium text-slate-500">
-                Birinchi testni topshirganingizdan so‘ng shaxsiy o‘quv xaritangiz yangilanadi.
-              </p>
-            </div>
-          ) : (
-            <div className="space-y-3.5">
-              {myMastery.slice(0, 5).map((m) => (
+          {myMastery.length > 0 && (
+            <div className="space-y-3">
+              {myMastery.slice(0, 4).map((m) => (
                 <div key={m.id} className="space-y-1.5">
-                  <div className="flex items-center justify-between text-xs">
+                  <div className="flex items-center justify-between text-xs gap-2">
                     <span className="font-medium text-slate-800 dark:text-slate-200 truncate">
                       {m.topicName}
                     </span>
@@ -294,96 +500,20 @@ export const StudentDashboardPage: React.FC = () => {
               ))}
             </div>
           )}
-        </div>
-      </div>
 
-      {/* Bottom Grid: Assigned Tests & Progress Chart */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-6 space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-base font-bold text-slate-900 dark:text-white">
-              Biriktirilgan testlar va so‘nggi natijalar
-            </h2>
-            <Link
-              to="/student/assessments"
-              className="text-xs font-semibold text-blue-600 hover:underline"
-            >
-              Barchasi
-            </Link>
-          </div>
-
-          {publishedAssessments.length === 0 ? (
-            <div className="p-6 rounded-xl bg-slate-50 dark:bg-slate-950 border border-dashed border-slate-200 dark:border-slate-800 text-center">
+          {progressChartData.length === 0 ? (
+            <div className="h-44 flex items-center justify-center bg-slate-50 dark:bg-slate-950 rounded-xl border border-dashed border-slate-200 dark:border-slate-800 p-4 text-center">
               <p className="text-xs text-slate-500">
-                Hozircha sizga biriktirilgan testlar yo‘q.
+                Birinchi testni topshirganingizdan so‘ng shaxsiy o‘quv xaritangiz yangilanadi.
               </p>
             </div>
           ) : (
-            <div className="space-y-3">
-              {publishedAssessments.slice(0, 4).map((assess) => {
-                const attempt = myAttempts.find((a) => a.assessmentId === assess.id);
-                return (
-                  <div
-                    key={assess.id}
-                    className="p-4 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 flex items-center justify-between gap-4"
-                  >
-                    <div className="space-y-1 min-w-0">
-                      <p className="text-sm font-bold text-slate-900 dark:text-white truncate">
-                        {assess.title}
-                      </p>
-                      <p className="text-xs text-slate-500 font-mono tabular-nums">
-                        {assess.subject} · {assess.questionIds.length} ta savol · {assess.durationMinutes} daq
-                      </p>
-                    </div>
-                    {attempt ? (
-                      <Link
-                        to={`/student/results/${attempt.id}`}
-                        className="px-3 py-1.5 text-xs font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800 rounded-lg whitespace-nowrap shrink-0"
-                      >
-                        Natija: {attempt.scorePercent}%
-                      </Link>
-                    ) : (
-                      <Link
-                        to={`/student/assessments/${assess.id}`}
-                        className="px-3 py-1.5 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg whitespace-nowrap shrink-0"
-                      >
-                        Testni boshlash
-                      </Link>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
-
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-6 space-y-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-base font-bold text-slate-900 dark:text-white">
-                O‘zlashtirish dinamikasi
-              </h2>
-              <p className="text-xs text-slate-500">Test urinishlari bo‘yicha natijalar</p>
-            </div>
-            <Link
-              to="/student/results"
-              className="text-xs font-semibold text-blue-600 hover:underline"
-            >
-              Natijalar tarixi
-            </Link>
-          </div>
-
-          {progressChartData.length === 0 ? (
-            <div className="h-52 flex items-center justify-center bg-slate-50 dark:bg-slate-950 rounded-xl border border-dashed border-slate-200 dark:border-slate-800">
-              <p className="text-xs text-slate-500">Hozircha test natijalari mavjud emas.</p>
-            </div>
-          ) : (
-            <div className="h-52 w-full">
+            <div className="h-48 w-full">
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={progressChartData}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                  <XAxis dataKey="date" tick={{ fontSize: 12 }} />
-                  <YAxis domain={[0, 100]} tick={{ fontSize: 12 }} />
+                  <XAxis dataKey="date" tick={{ fontSize: 11 }} />
+                  <YAxis domain={[0, 100]} tick={{ fontSize: 11 }} width={30} />
                   <Tooltip />
                   <Line
                     type="monotone"
@@ -425,7 +555,7 @@ export const StudentLessonsPage: React.FC = () => {
         l.classCodes.some((c) => c.toLowerCase() === classCode.toLowerCase()));
     if (!matchesClass) return false;
     if (l.additionalCurriculumAssignment && l.tTrackVisibilityApproved !== true) return false;
-    return l.status === 'published' || l.status === 'completed';
+    return l.status !== 'draft' && l.status !== 'archived';
   });
 
   const availableCurriculumAreas = Array.from(
@@ -447,21 +577,21 @@ export const StudentLessonsPage: React.FC = () => {
     .sort((a, b) => a.quarter - b.quarter || a.lessonNumber - b.lessonNumber);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5 sm:space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 dark:border-slate-800 pb-5">
         <div>
           <p className="text-xs font-semibold text-blue-600 dark:text-blue-400">
-            {classCode} sinfi · O‘quv darslari va materiallar ({visibleLessons.length} ta dars)
+            {classCode.toUpperCase()} sinfi · O‘quv darslari va materiallar ({visibleLessons.length} ta dars)
           </p>
-          <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Darslar</h1>
+          <h1 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white">Darslar</h1>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2.5">
+        <div className="grid grid-cols-1 sm:flex sm:flex-wrap items-center gap-2.5">
           <select
             aria-label="Fanni tanlash"
             value={subjectFilter}
             onChange={(e) => setSubjectFilter(e.target.value)}
-            className="px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-xs font-semibold"
+            className="w-full sm:w-auto min-h-[44px] px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-xs font-semibold"
           >
             <option value="ALL">Barcha fanlar va bo‘limlar</option>
             {Array.from(
@@ -477,7 +607,7 @@ export const StudentLessonsPage: React.FC = () => {
             aria-label="Chorakni tanlash"
             value={quarterFilter}
             onChange={(e) => setQuarterFilter(e.target.value)}
-            className="px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-xs font-semibold"
+            className="w-full sm:w-auto min-h-[44px] px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-xs font-semibold"
           >
             <option value="ALL">Barcha choraklar</option>
             <option value="1">1-chorak</option>
@@ -489,7 +619,7 @@ export const StudentLessonsPage: React.FC = () => {
       </div>
 
       {visibleLessons.length === 0 ? (
-        <div className="p-12 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl text-center space-y-2">
+        <div className="p-8 sm:p-12 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl text-center space-y-2">
           <p className="text-sm font-semibold text-slate-700 dark:text-slate-300">
             Hozircha ushbu filtr bo‘yicha nashr qilingan darslar topilmadi.
           </p>
@@ -498,7 +628,7 @@ export const StudentLessonsPage: React.FC = () => {
           </p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-5">
           {visibleLessons.slice(0, 60).map((lesson) => {
             const linkedTest = assessments.find(
               (a) =>
@@ -508,10 +638,10 @@ export const StudentLessonsPage: React.FC = () => {
             return (
               <div
                 key={lesson.id}
-                className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 flex flex-col justify-between space-y-4"
+                className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 sm:p-6 flex flex-col justify-between space-y-4"
               >
                 <div className="space-y-2">
-                  <div className="flex items-center justify-between gap-2 text-xs">
+                  <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
                     <span className="font-semibold text-blue-600 dark:text-blue-400">
                       {lesson.curriculumArea || lesson.subject} · {lesson.quarterLabel || `${lesson.quarter}-chorak`}
                     </span>
@@ -522,27 +652,27 @@ export const StudentLessonsPage: React.FC = () => {
                   <p className="text-xs font-semibold text-slate-500">
                     {lesson.lessonType || lesson.unit}
                   </p>
-                  <h2 className="text-lg font-bold text-slate-900 dark:text-white">
+                  <h2 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white math-formula-wrap leading-snug">
                     {lesson.topicTitle || lesson.title}
                   </h2>
                   {lesson.classwork && (
-                    <p className="text-xs text-slate-600 dark:text-slate-400">
+                    <p className="text-xs text-slate-600 dark:text-slate-400 math-formula-wrap">
                       <strong>Sinf ishi:</strong> {lesson.classwork}
                     </p>
                   )}
                   {lesson.homework && (
-                    <div className="p-2.5 rounded-lg bg-slate-50 dark:bg-slate-950 border border-slate-200/80 dark:border-slate-800 text-xs">
+                    <div className="p-2.5 rounded-lg bg-slate-50 dark:bg-slate-950 border border-slate-200/80 dark:border-slate-800 text-xs math-formula-wrap">
                       <strong className="text-slate-800 dark:text-slate-200">Uyga vazifa:</strong>{' '}
                       <span className="text-slate-600 dark:text-slate-400">{lesson.homework}</span>
                     </div>
                   )}
                 </div>
 
-                <div className="pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between gap-3">
+                <div className="pt-3 border-t border-slate-100 dark:border-slate-800 flex flex-wrap items-center justify-between gap-2.5">
                   <button
                     type="button"
                     onClick={() => setSelectedLesson(lesson)}
-                    className="px-3.5 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-xs font-semibold text-slate-800 dark:text-slate-200"
+                    className="min-h-[42px] px-3.5 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-xs font-semibold text-slate-800 dark:text-slate-200"
                   >
                     Dars tafsilotlari
                   </button>
@@ -550,7 +680,7 @@ export const StudentLessonsPage: React.FC = () => {
                   {linkedTest && (
                     <Link
                       to={`/student/assessments/${linkedTest.id}`}
-                      className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold"
+                      className="min-h-[42px] inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold"
                     >
                       <span>Testni boshlash</span>
                       <ArrowRight className="w-3.5 h-3.5" />
@@ -565,15 +695,15 @@ export const StudentLessonsPage: React.FC = () => {
 
       {/* Lesson Detail Modal */}
       {selectedLesson && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4">
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl max-w-2xl w-full p-6 space-y-5 max-h-[85vh] overflow-y-auto">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-3 sm:p-4">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl max-w-2xl w-full p-4 sm:p-6 space-y-5 max-h-[88vh] overflow-y-auto">
             <div className="flex items-start justify-between gap-3 border-b border-slate-100 dark:border-slate-800 pb-4">
-              <div>
+              <div className="min-w-0">
                 <p className="text-xs font-semibold text-blue-600">
                   {selectedLesson.classCode} • {selectedLesson.subject} • {selectedLesson.quarter}-chorak •{' '}
                   {selectedLesson.lessonNumber}-dars
                 </p>
-                <h3 className="text-xl font-bold text-slate-900 dark:text-white mt-0.5">
+                <h3 className="text-lg sm:text-xl font-bold text-slate-900 dark:text-white mt-0.5 math-formula-wrap">
                   {selectedLesson.topicTitle}
                 </h3>
                 <p className="text-xs text-slate-500">Bo‘lim: {selectedLesson.unit}</p>
@@ -581,7 +711,8 @@ export const StudentLessonsPage: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setSelectedLesson(null)}
-                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600"
+                aria-label="Yopish"
+                className="w-10 h-10 flex items-center justify-center rounded-lg text-slate-400 hover:text-slate-600 shrink-0"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -600,9 +731,9 @@ export const StudentLessonsPage: React.FC = () => {
                       ? selectedLesson.learningObjectives
                       : [selectedLesson.learningObjectives]
                     ).map((obj, i) => (
-                      <li key={i} className="flex items-center gap-2">
-                        <CheckSquare className="w-3.5 h-3.5 text-blue-600 shrink-0" />
-                        <span>{obj}</span>
+                      <li key={i} className="flex items-start gap-2">
+                        <CheckSquare className="w-3.5 h-3.5 text-blue-600 shrink-0 mt-0.5" />
+                        <span className="math-formula-wrap">{obj}</span>
                       </li>
                     ))}
                   </ul>
@@ -614,14 +745,14 @@ export const StudentLessonsPage: React.FC = () => {
                 <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500">
                   Dars mazmuni va tushuntirish
                 </h4>
-                <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs text-slate-700 dark:text-slate-300 leading-relaxed whitespace-pre-wrap">
+                <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs sm:text-sm text-slate-700 dark:text-slate-300 leading-relaxed whitespace-pre-wrap math-formula-wrap">
                   {selectedLesson.explanationContent || selectedLesson.description}
                 </div>
               </div>
             )}
 
             {selectedLesson.homework && (
-              <div className="p-4 rounded-xl bg-amber-50/70 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/60 space-y-1">
+              <div className="p-4 rounded-xl bg-amber-50/70 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/60 space-y-1 math-formula-wrap">
                 <p className="text-xs font-bold text-amber-900 dark:text-amber-300">
                   Uyga vazifa (Homework)
                 </p>
@@ -642,16 +773,16 @@ export const StudentLessonsPage: React.FC = () => {
                       key={mat.id}
                       className="p-3 rounded-xl border border-slate-200 dark:border-slate-800 flex items-center justify-between gap-3 text-xs"
                     >
-                      <div className="flex items-center gap-2">
-                        <FileText className="w-4 h-4 text-blue-600" />
-                        <span className="font-semibold">{mat.title}</span>
+                      <div className="flex items-center gap-2 min-w-0">
+                        <FileText className="w-4 h-4 text-blue-600 shrink-0" />
+                        <span className="font-semibold truncate">{mat.title}</span>
                       </div>
                       {mat.url && (
                         <a
                           href={mat.url}
                           target="_blank"
                           rel="noreferrer"
-                          className="inline-flex items-center gap-1 text-blue-600 font-semibold hover:underline"
+                          className="min-h-[36px] inline-flex items-center gap-1 text-blue-600 font-semibold hover:underline shrink-0"
                         >
                           <span>Ochish</span>
                           <ExternalLink className="w-3.5 h-3.5" />
@@ -667,7 +798,7 @@ export const StudentLessonsPage: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setSelectedLesson(null)}
-                className="px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-xs font-semibold"
+                className="min-h-[42px] px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-xs font-semibold"
               >
                 Yopish
               </button>
@@ -711,17 +842,17 @@ export const StudentAssessmentsPage: React.FC = () => {
   });
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5 sm:space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 dark:border-slate-800 pb-5">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Testlar</h1>
-          <p className="text-sm text-slate-500">
-            {classCode ? `${classCode} sinfi uchun biriktirilgan` : 'Biriktirilgan'} sinovlarni topshiring va AI tahlilini oling
+          <h1 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white">Testlar</h1>
+          <p className="text-xs sm:text-sm text-slate-500">
+            {classCode ? `${classCode.toUpperCase()} sinfi uchun biriktirilgan` : 'Biriktirilgan'} sinovlarni topshiring va AI tahlilini oling
           </p>
         </div>
 
         {/* Interactive Filter Tabs */}
-        <div className="flex items-center gap-1 p-1 bg-slate-100 dark:bg-slate-800 rounded-lg self-start">
+        <div className="grid grid-cols-3 sm:flex items-center gap-1 p-1 bg-slate-100 dark:bg-slate-800 rounded-xl w-full sm:w-auto">
           {[
             { id: 'all', label: 'Barcha testlar' },
             { id: 'pending', label: 'Kutilayotgan' },
@@ -731,7 +862,7 @@ export const StudentAssessmentsPage: React.FC = () => {
               key={tab.id}
               type="button"
               onClick={() => setFilter(tab.id as any)}
-              className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-colors whitespace-nowrap ${
+              className={`min-h-[38px] px-2.5 sm:px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors truncate ${
                 filter === tab.id
                   ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-xs'
                   : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
@@ -744,7 +875,7 @@ export const StudentAssessmentsPage: React.FC = () => {
       </div>
 
       {filtered.length === 0 ? (
-        <div className="p-12 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-center space-y-2">
+        <div className="p-8 sm:p-12 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-center space-y-2">
           <p className="text-sm font-medium text-slate-600 dark:text-slate-300">
             Hozircha sizga biriktirilgan testlar yo‘q.
           </p>
@@ -753,46 +884,46 @@ export const StudentAssessmentsPage: React.FC = () => {
           </p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
           {filtered.map((assess) => {
             const latestAttempt = myAttempts.find((att) => att.assessmentId === assess.id);
             return (
               <div
                 key={assess.id}
-                className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-6 flex flex-col justify-between space-y-5"
+                className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 sm:p-6 flex flex-col justify-between space-y-5"
               >
                 <div className="space-y-2">
                   <p className="text-xs text-slate-500 font-mono tabular-nums">
                     {assess.subject} · {assess.classCode || `${assess.grade}-sinf`} ·{' '}
                     {assess.durationMinutes} daqiqa · Muddat: {assess.dueDate}
                   </p>
-                  <h2 className="text-lg font-bold text-slate-900 dark:text-white">
+                  <h2 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white break-words">
                     {assess.title}
                   </h2>
                   {assess.description && (
-                    <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
+                    <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
                       {assess.description}
                     </p>
                   )}
                 </div>
 
-                <div className="pt-4 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between gap-3">
+                <div className="pt-4 border-t border-slate-100 dark:border-slate-800 flex flex-wrap items-center justify-between gap-3">
                   <span className="text-xs font-mono tabular-nums text-slate-500">
                     Jami: {assess.questionIds.length} ta savol
                   </span>
 
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
                     {latestAttempt && (
                       <Link
                         to={`/student/results/${latestAttempt.id}`}
-                        className="px-3.5 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 rounded-lg whitespace-nowrap"
+                        className="min-h-[42px] inline-flex items-center px-3.5 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 rounded-xl whitespace-nowrap"
                       >
                         Natijani ko‘rish ({latestAttempt.scorePercent}%)
                       </Link>
                     )}
                     <Link
                       to={`/student/assessments/${assess.id}`}
-                      className="px-4 py-2 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg whitespace-nowrap"
+                      className="min-h-[42px] inline-flex items-center px-4 py-2 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-xl whitespace-nowrap"
                     >
                       {latestAttempt ? 'Qayta topshirish' : 'Testni boshlash'}
                     </Link>
@@ -924,35 +1055,42 @@ export const AssessmentRunnerPage: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6 pb-20 lg:pb-0">
       {/* Top Bar: Title, Autosave Status & Timer */}
-      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <p className="text-xs text-slate-500">
-            Avtomatik saqlash yoqilgan · Javob berildi: {answeredCount} / {assessmentQuestions.length}
-          </p>
-          <h1 className="text-lg font-bold text-slate-900 dark:text-white">
+      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500">
+            <span className="inline-flex items-center gap-1 text-emerald-600 dark:text-emerald-400 font-semibold">
+              <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
+              <span>Avtomatik saqlash yoqilgan</span>
+            </span>
+            <span>·</span>
+            <span className="font-mono">
+              Javob berildi: {answeredCount} / {assessmentQuestions.length}
+            </span>
+          </div>
+          <h1 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white mt-0.5 break-words">
             {assessment.title}
           </h1>
         </div>
 
-        <div className="flex items-center gap-4 shrink-0">
+        <div className="flex items-center justify-between sm:justify-end gap-3 shrink-0">
           <div className="flex items-center gap-2 px-3.5 py-2 rounded-lg bg-slate-100 dark:bg-slate-800 text-sm font-mono tabular-nums font-semibold">
-            <Clock className="w-4 h-4 text-blue-600" />
+            <Clock className="w-4 h-4 text-blue-600 shrink-0" />
             <span>{formatTime(secondsLeft)}</span>
           </div>
           <button
             type="button"
             onClick={() => setConfirmModalOpen(true)}
-            className="px-4 py-2 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors whitespace-nowrap"
+            className="min-h-[42px] px-4 py-2 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-xl transition-colors whitespace-nowrap"
           >
             Testni yakunlash
           </button>
         </div>
       </div>
 
-      {/* Question Navigator Strip */}
-      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-4 flex flex-wrap items-center gap-2">
+      {/* Question Navigator Strip (44x44px touch targets) */}
+      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-3 sm:p-4 flex items-center gap-2 overflow-x-auto sm:flex-wrap">
         {assessmentQuestions.map((q, idx) => {
           const isAnswered = Boolean(answersMap[q.id]?.trim());
           const isFlagged = Boolean(flaggedIds[q.id]);
@@ -963,7 +1101,7 @@ export const AssessmentRunnerPage: React.FC = () => {
               type="button"
               onClick={() => setCurrentIndex(idx)}
               aria-label={`${idx + 1}-savol`}
-              className={`w-9 h-9 rounded-lg text-xs font-mono font-semibold border transition-colors ${
+              className={`min-w-[44px] min-h-[44px] rounded-xl text-xs font-mono font-semibold border transition-colors shrink-0 ${
                 isCurrent
                   ? 'bg-blue-600 text-white border-blue-600'
                   : isFlagged
@@ -980,7 +1118,7 @@ export const AssessmentRunnerPage: React.FC = () => {
       </div>
 
       {/* Current Question Card */}
-      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-6 sm:p-8 space-y-6">
+      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 sm:p-8 space-y-5 sm:space-y-6">
         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 dark:border-slate-800 pb-4">
           <div className="flex flex-wrap items-center gap-2 text-xs font-mono text-slate-500">
             <span>
@@ -999,13 +1137,13 @@ export const AssessmentRunnerPage: React.FC = () => {
           <button
             type="button"
             onClick={() => toggleFlag(currentQuestion.id)}
-            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
+            className={`min-h-[38px] inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
               flaggedIds[currentQuestion.id]
                 ? 'bg-amber-50 dark:bg-amber-950/50 text-amber-700 border-amber-300'
                 : 'text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-800 hover:bg-slate-50'
             }`}
           >
-            <Flag className="w-3.5 h-3.5" />
+            <Flag className="w-3.5 h-3.5 shrink-0" />
             <span>
               {flaggedIds[currentQuestion.id]
                 ? 'Ko‘rib chiqishga belgilangan'
@@ -1014,7 +1152,7 @@ export const AssessmentRunnerPage: React.FC = () => {
           </button>
         </div>
 
-        <p className="text-base sm:text-lg font-bold text-slate-900 dark:text-white leading-relaxed">
+        <p className="text-base sm:text-lg font-bold text-slate-900 dark:text-white leading-relaxed math-formula-wrap">
           {currentQuestion.prompt}
         </p>
 
@@ -1029,7 +1167,7 @@ export const AssessmentRunnerPage: React.FC = () => {
           </div>
         )}
 
-        {/* Choice Questions */}
+        {/* Choice Questions (48px+ touch targets) */}
         {(currentQuestion.type === 'single_choice' ||
           currentQuestion.type === 'multiple_choice' ||
           currentQuestion.type === 'multi_select') && (
@@ -1055,18 +1193,18 @@ export const AssessmentRunnerPage: React.FC = () => {
                           ? handleToggleMultiAnswer(optKey)
                           : handleSelectAnswer(valueToUse)
                       }
-                      className={`w-full text-left p-4 rounded-xl border text-sm font-medium transition-colors cursor-pointer flex items-center justify-between gap-4 ${
+                      className={`min-h-[52px] w-full text-left p-3.5 sm:p-4 rounded-xl border text-sm font-medium transition-colors cursor-pointer flex items-center justify-between gap-3 ${
                         selected
                           ? 'bg-blue-50 dark:bg-blue-950/50 border-blue-600 text-blue-900 dark:text-blue-200'
                           : 'bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-200 hover:border-slate-400'
                       }`}
                     >
-                      <div className="space-y-2 flex-1">
+                      <div className="space-y-2 flex-1 min-w-0">
                         <div className="flex items-center gap-2.5">
-                          <span className="w-6 h-6 rounded-md bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs font-mono font-bold flex items-center justify-center shrink-0">
+                          <span className="w-7 h-7 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs font-mono font-bold flex items-center justify-center shrink-0">
                             {optItem.key}
                           </span>
-                          <span>{optItem.text}</span>
+                          <span className="math-formula-wrap">{optItem.text}</span>
                         </div>
                         {optItem.imageUrl && (
                           <img
@@ -1080,7 +1218,7 @@ export const AssessmentRunnerPage: React.FC = () => {
                           />
                         )}
                       </div>
-                      {selected && <CheckCircle2 className="w-4 h-4 text-blue-600 shrink-0" />}
+                      {selected && <CheckCircle2 className="w-5 h-5 text-blue-600 shrink-0" />}
                     </div>
                   );
                 })
@@ -1102,21 +1240,21 @@ export const AssessmentRunnerPage: React.FC = () => {
                           ? handleToggleMultiAnswer(opt)
                           : handleSelectAnswer(opt)
                       }
-                      className={`w-full text-left p-4 rounded-xl border text-sm font-medium transition-colors flex items-center justify-between ${
+                      className={`min-h-[52px] w-full text-left p-3.5 sm:p-4 rounded-xl border text-sm font-medium transition-colors flex items-center justify-between gap-3 ${
                         selected
                           ? 'bg-blue-50 dark:bg-blue-950/50 border-blue-600 text-blue-900 dark:text-blue-200'
                           : 'bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-200 hover:border-slate-400'
                       }`}
                     >
-                      <span>{opt}</span>
-                      {selected && <CheckCircle2 className="w-4 h-4 text-blue-600 shrink-0" />}
+                      <span className="math-formula-wrap">{opt}</span>
+                      {selected && <CheckCircle2 className="w-5 h-5 text-blue-600 shrink-0" />}
                     </button>
                   );
                 })}
           </div>
         )}
 
-        {/* Numeric Answer Question */}
+        {/* Numeric Answer Question (Mobile keyboard decimal friendly) */}
         {currentQuestion.type === 'numeric' && (
           <div className="space-y-2 max-w-md">
             <label
@@ -1128,10 +1266,11 @@ export const AssessmentRunnerPage: React.FC = () => {
             <input
               id="numeric-answer-input"
               type="text"
+              inputMode="decimal"
               value={answersMap[currentQuestion.id] || ''}
               onChange={(e) => handleSelectAnswer(e.target.value)}
               placeholder="Masalan: 12 yoki 3.5"
-              className="w-full px-4 py-3 text-sm font-mono bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl focus:outline-none focus:border-blue-600"
+              className="w-full min-h-[48px] px-4 py-3 text-base sm:text-sm font-mono bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl focus:outline-none focus:border-blue-600"
             />
           </div>
         )}
@@ -1151,7 +1290,7 @@ export const AssessmentRunnerPage: React.FC = () => {
               value={answersMap[currentQuestion.id] || ''}
               onChange={(e) => handleSelectAnswer(e.target.value)}
               placeholder="Javobni qisqa va aniq yozing..."
-              className="w-full px-4 py-3 text-sm bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl focus:outline-none focus:border-blue-600"
+              className="w-full min-h-[48px] px-4 py-3 text-base sm:text-sm bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl focus:outline-none focus:border-blue-600"
             />
           </div>
         )}
@@ -1171,20 +1310,20 @@ export const AssessmentRunnerPage: React.FC = () => {
               value={answersMap[currentQuestion.id] || ''}
               onChange={(e) => handleSelectAnswer(e.target.value)}
               placeholder="Masalaning yechilish bosqichlari, formulalar va xulosani batafsil yozing..."
-              className="w-full p-4 text-sm bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl focus:outline-none focus:border-blue-600"
+              className="w-full p-4 text-base sm:text-sm bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl focus:outline-none focus:border-blue-600"
             />
           </div>
         )}
 
-        {/* Prev / Next Controls */}
-        <div className="pt-6 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
+        {/* Sticky Mobile & Desktop Prev / Next Controls */}
+        <div className="fixed bottom-0 inset-x-0 z-30 lg:static bg-white/95 dark:bg-slate-900/95 backdrop-blur-md lg:bg-transparent border-t border-slate-200 dark:border-slate-800 lg:border-slate-100 p-3 pb-safe lg:p-0 lg:pt-6 flex items-center justify-between gap-3">
           <button
             type="button"
             disabled={currentIndex === 0}
             onClick={() => setCurrentIndex((i) => Math.max(0, i - 1))}
-            className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 rounded-lg disabled:opacity-40"
+            className="min-h-[46px] inline-flex items-center justify-center gap-1.5 px-4 py-2.5 text-xs font-semibold text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 rounded-xl disabled:opacity-40"
           >
-            <ChevronLeft className="w-4 h-4" />
+            <ChevronLeft className="w-4 h-4 shrink-0" />
             <span>Oldingi savol</span>
           </button>
 
@@ -1194,16 +1333,16 @@ export const AssessmentRunnerPage: React.FC = () => {
               onClick={() =>
                 setCurrentIndex((i) => Math.min(assessmentQuestions.length - 1, i + 1))
               }
-              className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg"
+              className="min-h-[46px] inline-flex items-center justify-center gap-1.5 px-5 py-2.5 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-xl"
             >
               <span>Keyingi savol</span>
-              <ChevronRight className="w-4 h-4" />
+              <ChevronRight className="w-4 h-4 shrink-0" />
             </button>
           ) : (
             <button
               type="button"
               onClick={() => setConfirmModalOpen(true)}
-              className="inline-flex items-center gap-1.5 px-5 py-2.5 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg"
+              className="min-h-[46px] inline-flex items-center justify-center gap-1.5 px-5 py-2.5 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl"
             >
               <span>Javoblarni topshirish</span>
             </button>
@@ -1229,7 +1368,7 @@ export const AssessmentRunnerPage: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setZoomImageUrl(null)}
-                className="px-4 py-1.5 text-xs font-semibold text-white bg-blue-600 rounded-lg"
+                className="min-h-[42px] px-4 py-2 text-xs font-semibold text-white bg-blue-600 rounded-xl"
               >
                 Yopish
               </button>
@@ -1246,7 +1385,7 @@ export const AssessmentRunnerPage: React.FC = () => {
           aria-modal="true"
           aria-labelledby="submit-confirm-title"
         >
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl max-w-md w-full p-6 space-y-4">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl max-w-md w-full p-5 sm:p-6 space-y-4">
             <h2
               id="submit-confirm-title"
               className="text-lg font-bold text-slate-900 dark:text-white"
@@ -1257,11 +1396,11 @@ export const AssessmentRunnerPage: React.FC = () => {
               Siz jami <strong>{assessmentQuestions.length}</strong> ta savoldan{' '}
               <strong>{answeredCount}</strong> tasiga javob belgiladingiz.
             </p>
-            <div className="flex items-center justify-end gap-3 pt-2">
+            <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-2.5 pt-2">
               <button
                 type="button"
                 onClick={() => setConfirmModalOpen(false)}
-                className="px-4 py-2 text-xs font-semibold text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 rounded-lg"
+                className="min-h-[44px] px-4 py-2 text-xs font-semibold text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 rounded-xl"
               >
                 Qaytish va tekshirish
               </button>
@@ -1269,7 +1408,7 @@ export const AssessmentRunnerPage: React.FC = () => {
                 type="button"
                 disabled={isSubmitting}
                 onClick={handleFinalSubmit}
-                className="px-4 py-2 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg disabled:opacity-50"
+                className="min-h-[44px] px-4 py-2 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-xl disabled:opacity-50"
               >
                 {isSubmitting ? 'Hisoblanmoqda...' : 'Tasdiqlash va yakunlash'}
               </button>

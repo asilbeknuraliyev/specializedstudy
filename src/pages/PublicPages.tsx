@@ -27,17 +27,17 @@ export const PublicHeader: React.FC = () => {
 
   return (
     <header className="sticky top-0 z-30 bg-white/95 dark:bg-slate-950/95 backdrop-blur border-b border-slate-200 dark:border-slate-800">
-      <div className="max-w-7xl mx-auto flex items-center justify-between gap-8 px-6 py-4">
+      <div className="max-w-7xl mx-auto flex items-center justify-between gap-2 sm:gap-8 px-4 sm:px-6 py-3 sm:py-4">
         <Link
           to="/"
-          className="flex items-center gap-2.5 text-lg font-bold tracking-tight text-slate-900 dark:text-white whitespace-nowrap shrink-0"
+          className="flex items-center gap-2 sm:gap-2.5 text-base sm:text-lg font-bold tracking-tight text-slate-900 dark:text-white min-w-0"
         >
-          <span className="w-8 h-8 rounded-lg bg-blue-600 text-white flex items-center justify-center text-xs font-extrabold">
+          <span className="w-8 h-8 rounded-lg bg-blue-600 text-white flex items-center justify-center text-xs font-extrabold shrink-0">
             SS
           </span>
-          <div>
-            <span className="block leading-none">{APP_NAME}</span>
-            <span className="block text-[10px] font-medium text-slate-500 dark:text-slate-400 mt-0.5">
+          <div className="min-w-0">
+            <span className="block leading-none truncate">{APP_NAME}</span>
+            <span className="hidden sm:block text-[10px] font-medium text-slate-500 dark:text-slate-400 mt-0.5 truncate">
               {APP_TAGLINE}
             </span>
           </div>
@@ -79,18 +79,18 @@ export const PublicHeader: React.FC = () => {
           </Link>
         </nav>
 
-        <div className="flex items-center gap-3 shrink-0">
+        <div className="flex items-center gap-2 sm:gap-3 shrink-0">
           {currentUser ? (
             <Link
               to={dashboardPath}
-              className="px-4 py-2 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors whitespace-nowrap shrink-0"
+              className="min-h-[40px] inline-flex items-center px-3.5 sm:px-4 py-2 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors whitespace-nowrap shrink-0"
             >
               Kabinetga o‘tish
             </Link>
           ) : (
             <Link
               to="/login"
-              className="px-4 py-2 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors whitespace-nowrap shrink-0"
+              className="min-h-[40px] inline-flex items-center px-3.5 sm:px-4 py-2 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors whitespace-nowrap shrink-0"
             >
               Tizimga kirish
             </Link>
@@ -103,7 +103,7 @@ export const PublicHeader: React.FC = () => {
 
 export const PublicFooter: React.FC = () => {
   return (
-    <footer className="bg-white dark:bg-slate-950 border-t border-slate-200 dark:border-slate-800 py-12 px-6">
+    <footer className="bg-white dark:bg-slate-950 border-t border-slate-200 dark:border-slate-800 py-10 sm:py-12 px-4 sm:px-6">
       <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-4 gap-8">
         <div className="space-y-3">
           <p className="text-lg font-bold tracking-tight text-slate-900 dark:text-white">
@@ -192,7 +192,7 @@ export const PublicFooter: React.FC = () => {
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto mt-10 pt-6 border-t border-slate-100 dark:border-slate-900 flex flex-col sm:flex-row items-center justify-between text-xs text-slate-500">
+      <div className="max-w-7xl mx-auto mt-10 pt-6 border-t border-slate-100 dark:border-slate-900 flex flex-col sm:flex-row items-center justify-between gap-2 text-center sm:text-left text-xs text-slate-500">
         <p>© 2026 {APP_NAME} — {APP_TAGLINE}</p>
         <p>19 ta ixtisoslashtirilgan sinf (5a1–11a2 va 7t–11t) standarti asosida.</p>
       </div>
@@ -204,70 +204,70 @@ export const LandingPage: React.FC = () => {
   const { isBootstrapped } = useLearnOS();
 
   return (
-    <div className="min-h-screen flex flex-col bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100">
+    <div className="min-h-screen flex flex-col bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 overflow-x-hidden">
       <PublicHeader />
 
       <main className="flex-1">
         {/* Hero Section */}
-        <section className="py-16 sm:py-24 px-6 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
-          <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
-            <div className="lg:col-span-6 space-y-6">
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-md bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 text-xs font-bold uppercase tracking-wider">
+        <section className="py-10 sm:py-20 lg:py-24 px-4 sm:px-6 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
+          <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center">
+            <div className="lg:col-span-6 space-y-5 sm:space-y-6">
+              <div className="inline-flex flex-wrap items-center gap-1.5 px-3 py-1 rounded-md bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 text-[11px] sm:text-xs font-bold uppercase tracking-wider">
                 <span>{APP_NAME}</span>
                 <span>•</span>
                 <span>{APP_TAGLINE}</span>
               </div>
               <h1
-                className="text-4xl sm:text-5xl font-extrabold tracking-tight text-slate-900 dark:text-white leading-tight"
+                className="text-2xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight text-slate-900 dark:text-white leading-tight"
                 style={{ textWrap: 'balance' }}
               >
                 Ixtisoslashtirilgan maktab uchun yagona intellektual o‘quv tizimi.
               </h1>
-              <p className="text-base sm:text-lg text-slate-600 dark:text-slate-300 leading-relaxed max-w-xl">
+              <p className="text-sm sm:text-base lg:text-lg text-slate-600 dark:text-slate-300 leading-relaxed max-w-xl">
                 <strong>{APP_NAME}</strong> — Aniq fanlar (<strong>A yo‘nalishi: 14 ta sinf</strong>) va Tabiiy fanlar (<strong>T yo‘nalishi: 5 ta sinf</strong>) uchun ish rejalarini darslar xaritasiga aylantirish, AI yordamida mavzulashtirilgan testlar yaratish va har bir o‘quvchining o‘zlashtirish ko‘rsatkichini o‘lchash platformasi.
               </p>
 
-              <div className="flex flex-wrap items-center gap-4 pt-2">
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4 pt-2">
                 <Link
                   to="/login"
-                  className="inline-flex items-center gap-2 px-6 py-3 text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-xl transition-colors whitespace-nowrap"
+                  className="min-h-[48px] inline-flex items-center justify-center gap-2 px-6 py-3 text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-xl transition-colors whitespace-nowrap"
                 >
                   <span>Tizimga kirish</span>
-                  <ArrowRight className="w-4 h-4" />
+                  <ArrowRight className="w-4 h-4 shrink-0" />
                 </Link>
                 <Link
                   to="/register"
-                  className="inline-flex items-center gap-2 px-6 py-3 text-sm font-semibold text-slate-800 dark:text-slate-100 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-xl transition-colors whitespace-nowrap"
+                  className="min-h-[48px] inline-flex items-center justify-center gap-2 px-6 py-3 text-sm font-semibold text-slate-800 dark:text-slate-100 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-xl transition-colors whitespace-nowrap"
                 >
                   <span>Taklif kodi bilan ulanish</span>
                 </Link>
               </div>
 
-              <div className="pt-4 border-t border-slate-100 dark:border-slate-800 grid grid-cols-3 gap-4 text-xs">
+              <div className="pt-4 border-t border-slate-100 dark:border-slate-800 grid grid-cols-3 gap-2 sm:gap-4 text-xs">
                 <div>
-                  <p className="text-xl font-extrabold text-slate-900 dark:text-white font-mono">19</p>
-                  <p className="text-slate-500">Rasmiy sinflar (14 A + 5 T)</p>
+                  <p className="text-lg sm:text-xl font-extrabold text-slate-900 dark:text-white font-mono">19</p>
+                  <p className="text-[11px] sm:text-xs text-slate-500">Rasmiy sinflar (14 A + 5 T)</p>
                 </div>
                 <div>
-                  <p className="text-xl font-extrabold text-slate-900 dark:text-white font-mono">5</p>
-                  <p className="text-slate-500">Ixtisoslashgan fanlar</p>
+                  <p className="text-lg sm:text-xl font-extrabold text-slate-900 dark:text-white font-mono">5</p>
+                  <p className="text-[11px] sm:text-xs text-slate-500">Ixtisoslashgan fanlar</p>
                 </div>
                 <div>
-                  <p className="text-xl font-extrabold text-slate-900 dark:text-white font-mono">4</p>
-                  <p className="text-slate-500">O‘quv choragi monitoringi</p>
+                  <p className="text-lg sm:text-xl font-extrabold text-slate-900 dark:text-white font-mono">4</p>
+                  <p className="text-[11px] sm:text-xs text-slate-500">O‘quv choragi monitoringi</p>
                 </div>
               </div>
             </div>
 
             {/* Hero Visual: Official 19-Class & Curriculum Architecture Preview */}
             <div className="lg:col-span-6">
-              <div className="bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-sm space-y-5">
-                <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-4">
+              <div className="bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 sm:p-6 shadow-sm space-y-4 sm:space-y-5">
+                <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 dark:border-slate-800 pb-4">
                   <div>
                     <p className="text-xs font-semibold text-blue-600 dark:text-blue-400">
                       {APP_NAME} • Akademik Arxitektura
                     </p>
-                    <h2 className="text-base font-bold text-slate-900 dark:text-white">
+                    <h2 className="text-sm sm:text-base font-bold text-slate-900 dark:text-white">
                       19 ta Rasmiy Sinf va Yo‘nalishlar Kesimi
                     </h2>
                   </div>

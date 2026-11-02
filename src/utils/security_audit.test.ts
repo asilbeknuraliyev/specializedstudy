@@ -720,7 +720,25 @@ describe('SPECIALIZED STUDY — GOOGLE AUTHENTICATION REPAIR, MULTI-ADMIN & SECU
       'https://specializedstudy-1062217928830.asia-southeast1.run.app',
       'https://specializedstudy.ai.studio',
       'https://ivory-receiver-slxdt.firebaseapp.com',
+      'https://specialized-study.vercel.app',
+      'https://specialized-study-git-main-asilbek.vercel.app',
     ];
+    assert.equal(
+      mapFirebaseAuthError({ code: 'auth/unauthorized-domain' }).userMessage,
+      "Bu domen orqali kirishga ruxsat yo'q."
+    );
+    assert.equal(
+      mapFirebaseAuthError({ code: 'auth/operation-not-allowed' }).userMessage,
+      'Google orqali kirish sozlanmagan.'
+    );
+    assert.equal(
+      mapFirebaseAuthError({ code: 'auth/popup-closed-by-user' }).userMessage,
+      "Kirish oynasi yopildi. Qaytadan urinib ko'ring."
+    );
+    assert.equal(
+      mapFirebaseAuthError({ code: 'auth/network-request-failed' }).userMessage,
+      'Internet aloqasini tekshiring.'
+    );
     const originTestToken = createIsolatedTestFirebaseIdToken({
       uid: 'google-uid-asilbek-1',
       email: 'asilbeknuraliyev43@gmail.com',
@@ -747,6 +765,14 @@ describe('SPECIALIZED STUDY — GOOGLE AUTHENTICATION REPAIR, MULTI-ADMIN & SECU
       );
       assert.equal(originRes.headers.get('access-control-allow-origin'), allowedOrigin);
     }
+
+    const diagRes = await apiRequest('/api/auth/diagnostics', 'GET', undefined, undefined, {
+      Origin: 'https://specialized-study.vercel.app',
+    });
+    assert.equal(diagRes.status, 200);
+    assert.equal(diagRes.data.projectId, 'ivory-receiver-slxdt');
+    assert.equal(diagRes.data.corsAllowed, true);
+    assert.equal(diagRes.data.authorizedAdminCount, 2);
 
     const evilCorsRes = await apiRequest('/api/health', 'GET', undefined, undefined, {
       Origin: 'https://malicious-phishing-site.example.com',
