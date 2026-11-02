@@ -1,0 +1,1677 @@
+
+# LEARNOS — ULTIMATE ADMIN CONTROL CENTER & ADVANCED ASSESSMENT ENGINE
+
+You are upgrading an existing production-oriented SaaS application called LearnOS.
+
+This is a major feature expansion and architecture improvement task.
+
+You are acting as:
+- Principal SaaS Architect
+- Senior Full-Stack Engineer
+- Firebase Security Specialist
+- Assessment Platform Architect
+- Educational Content Import Specialist
+- AI Integration Engineer
+- Enterprise Product Designer
+- QA Engineer
+
+Your task is to transform the existing LearnOS administrator workspace into a powerful, secure, professional Platform Control Center and implement a comprehensive assessment and question-import system.
+
+IMPORTANT:
+This is an EXISTING APPLICATION.
+
+Do not start a new project.
+Do not remove existing working functionality.
+Do not overwrite the student dashboard design.
+Do not introduce demo records.
+Do not create fictional users, institutions, questions, or statistics.
+Do not replace real backend functionality with mock implementations.
+
+Inspect the entire existing codebase and modify the real application.
+
+========================================================
+01. CORE PRODUCT IDENTITY
+========================================================
+
+Product: LearnOS
+Product category: AI-powered Learning Intelligence SaaS
+
+Platform Owner:
+asilbeknuraliyev43@gmail.com
+
+The platform must be controlled by one verified Platform Owner account.
+
+PRIMARY GOAL:
+
+Create an enterprise-quality administrative environment where the Platform Owner can control institutions, users, educational structures, assessments, imported tests, question banks, analytics, and platform settings.
+
+The Admin experience should be intuitive enough for a non-technical school administrator to understand.
+
+The product must remain globally deployable and connected to the real Firebase backend.
+
+========================================================
+02. EXCLUSIVE ADMIN ACCESS — CRITICAL SECURITY RULE
+========================================================
+
+Only the following verified email address may access the full LearnOS Platform Admin Console:
+
+asilbeknuraliyev43@gmail.com
+
+This is an explicit ownership restriction.
+
+Implement it securely.
+
+REQUIRED AUTHORIZATION:
+
+1. User must authenticate through Firebase Authentication.
+2. Email must be verified.
+3. Email must match asilbeknuraliyev43@gmail.com.
+4. The authenticated account must have a trusted platformOwner custom claim.
+5. Backend authorization must independently verify the identity and owner permission.
+6. Firestore Security Rules must enforce owner-only access to privileged platform resources.
+
+Use a case-normalized email comparison.
+
+Suggested server-side configuration:
+
+PLATFORM_OWNER_EMAIL=asilbeknuraliyev43@gmail.com
+
+Do not rely on a frontend email comparison alone.
+
+Do not simply hide the Admin navigation item.
+
+A non-owner must receive HTTP 403 or an equivalent authorization denial when accessing:
+- Admin pages.
+- Admin APIs.
+- Institution management operations.
+- Platform-wide analytics.
+- Administrative settings.
+- User management operations.
+- Question import administration.
+- Platform audit logs.
+
+OWNER PROVISIONING:
+
+If the owner account does not yet exist:
+- Allow the owner to authenticate through the configured Firebase provider.
+- Provide a trusted server-side initial provisioning process.
+- Set the platformOwner custom claim through Firebase Admin SDK.
+- Never grant the claim because a user submitted an email address in a frontend form.
+- Never allow users to assign themselves the platformOwner role.
+
+If the owner account already exists:
+- Preserve the existing account.
+- Verify its UID and email.
+- Provision the claim through a trusted administrative procedure if required.
+
+If a user changes their email or loses verified ownership:
+- Revoke administrative authorization.
+- Require secure re-verification.
+
+Do not hardcode passwords, service account keys, or owner login credentials.
+
+Create clear access-denied and unauthorized-session screens.
+
+If an existing administrator account has a different email:
+- Do not delete its account.
+- Do not delete its data.
+- Remove its unrestricted Platform Admin access.
+- Preserve only separately authorized roles where appropriate.
+
+IMPORTANT ROLE DISTINCTION:
+
+Platform Owner:
+Full access to the LearnOS Platform Control Center.
+
+Teacher:
+Access only to authorized teaching tools.
+
+Student:
+Access only to personal learning resources.
+
+Parent:
+Access only to explicitly linked child information.
+
+If institution-level managers are supported, they must use a restricted institution-management area. They must never inherit Platform Owner privileges or gain access to the global /admin console.
+
+========================================================
+03. COMPLETE ADMIN PANEL REDESIGN
+========================================================
+
+Build a world-class Platform Control Center.
+
+Do not create an overly complicated interface.
+
+It must be powerful but understandable.
+
+Use a clean enterprise SaaS interface with:
+- Professional sidebar.
+- Clear page hierarchy.
+- Global search.
+- Breadcrumbs.
+- Contextual action menus.
+- Responsive tables.
+- Filter panels.
+- Confirmation dialogs.
+- Notification center.
+- Helpful empty states.
+- Loading skeletons.
+- Clear error handling.
+
+BRAND:
+LearnOS.
+
+Keep the existing visual identity:
+- Primary blue.
+- White and light neutral surfaces.
+- Refined typography.
+- Consistent iconography.
+- Premium spacing.
+- Subtle borders.
+- Minimal decoration.
+
+Use the existing application design system.
+
+SIDEBAR STRUCTURE:
+
+1. Overview
+2. Institutions
+3. Users & Access
+   - All Users
+   - Students
+   - Teachers
+   - Parents
+   - Invitations
+4. Academic Structure
+   - Classes
+   - Subjects
+   - Topics
+   - Academic Years
+5. Assessment Center
+   - Question Bank
+   - Test Builder
+   - Import Assessments
+   - Published Assessments
+   - Assessment Results
+   - Import History
+6. AI Intelligence
+   - AI Analysis Activity
+   - AI Usage
+   - AI Configuration
+7. Analytics
+   - Platform Analytics
+   - Institution Analytics
+   - Learning Outcomes
+8. Notifications
+9. Audit Logs
+10. Platform Settings
+11. Help & Documentation
+
+Every section must contain functional features.
+
+Do not create empty decorative menu items.
+
+Where a feature has not yet been implemented, do not pretend it works.
+
+========================================================
+04. ADMIN OVERVIEW — REAL PLATFORM CONTROL DASHBOARD
+========================================================
+
+Create a powerful overview dashboard.
+
+Display actual database-backed metrics:
+
+- Total institutions.
+- Active institutions.
+- Total users.
+- Total students.
+- Total teachers.
+- Total parents.
+- Active classes.
+- Published assessments.
+- Total assessment attempts.
+- Pending invitations.
+- Recent platform activity.
+
+Create these visualizations:
+
+A. Institution growth.
+
+B. User growth.
+
+C. Assessment usage over time.
+
+D. Student participation.
+
+E. Assessment completion.
+
+F. Subject distribution.
+
+All figures must be calculated from actual authorized records.
+
+No fake numbers.
+
+No hardcoded chart values.
+
+If there is no data, display zero and meaningful onboarding actions.
+
+ADMIN QUICK ACTIONS:
+
+- Create institution.
+- Invite teacher.
+- Add student.
+- Create subject.
+- Import assessment.
+- Open question bank.
+- Review recent activity.
+
+Make these actions accessible directly from the main dashboard.
+
+========================================================
+05. INSTITUTION MANAGEMENT — FULL CRUD
+========================================================
+
+This is a critical feature.
+
+The administrator must be able to manage institutions completely.
+
+INSTITUTIONS LIST:
+
+Build a professional searchable institution table.
+
+Columns:
+- Institution name.
+- Institution type.
+- Region.
+- District.
+- Number of students.
+- Number of teachers.
+- Number of classes.
+- Status.
+- Created date.
+- Actions.
+
+Actions:
+- View.
+- Edit.
+- Manage.
+- Suspend.
+- Reactivate.
+- Archive.
+- Restore.
+
+CREATE INSTITUTION:
+
+Build a multi-step institution creation form.
+
+Fields:
+
+GENERAL INFORMATION:
+- Institution name.
+- Official name.
+- Institution code.
+- Institution type.
+- Description.
+- Logo.
+
+LOCATION:
+- Country.
+- Region.
+- District.
+- City or settlement.
+- Optional address.
+
+CONTACT:
+- Official email.
+- Contact telephone.
+- Website.
+
+ACADEMIC CONFIGURATION:
+- Academic year.
+- Supported grades.
+- Default language.
+- Timezone.
+- Available subjects.
+
+PLATFORM CONFIGURATION:
+- Institution status.
+- Account limits if applicable.
+- Feature availability.
+- Created date.
+
+EDIT INSTITUTION:
+
+Add a comprehensive Edit Institution interface.
+
+The owner must be able to edit:
+- Institution name.
+- Official name.
+- Institution logo.
+- Institution description.
+- Institution type.
+- Region.
+- District.
+- Address.
+- Contact information.
+- Website.
+- Academic year.
+- Default language.
+- Timezone.
+- Available grades.
+- Active/inactive status.
+
+The Edit Institution screen must be especially intuitive.
+
+Use logical groups, clear field labels, validation, and save confirmation.
+
+LOGO MANAGEMENT:
+
+Allow image upload.
+
+Use Firebase Cloud Storage.
+
+Validate file type and size.
+
+Show:
+- Current logo.
+- New logo preview.
+- Upload progress.
+- Save action.
+
+INSTITUTION DETAIL PAGE:
+
+When opening an institution, show:
+
+1. Overview.
+2. Students.
+3. Teachers.
+4. Classes.
+5. Assessments.
+6. Analytics.
+7. Institution Settings.
+8. Activity History.
+
+Every action must affect the real institution records.
+
+DATA SAFETY:
+
+Never delete an institution using an uncontrolled cascading delete.
+
+Prefer:
+- Archive.
+- Suspend.
+- Restore.
+
+Permanent deletion must require explicit confirmation, authorization, and a safe dependency review.
+
+Maintain audit logs for every important institution update.
+
+When the institution name or logo changes, the relevant views throughout LearnOS must use the updated information.
+
+========================================================
+06. GLOBAL USER MANAGEMENT
+========================================================
+
+Create a central user management module.
+
+USER DIRECTORY:
+
+Display:
+- Full name.
+- Email.
+- Role.
+- Institution.
+- Class where applicable.
+- Account status.
+- Registration date.
+- Last activity where available.
+- Actions.
+
+Features:
+- Search.
+- Filter.
+- Sort.
+- Pagination.
+- User detail view.
+- Edit permitted profile information.
+- Suspend and reactivate.
+- Invitation management.
+- Export authorized user lists.
+
+The Platform Owner must be able to:
+- Create institutions.
+- Invite authorized institution managers where supported.
+- Invite teachers.
+- Invite students.
+- View account status.
+- Revoke pending invitations.
+- Manage access.
+
+Do not create public default passwords.
+
+Use secure invitation links and Firebase Authentication.
+
+When suspending an account:
+- Block future authorized application access.
+- Preserve educational records.
+- Keep audit history.
+- Provide an explicit reactivation workflow.
+
+========================================================
+07. ACADEMIC STRUCTURE MANAGEMENT
+========================================================
+
+Create a powerful Academic Structure module.
+
+Allow the owner to manage:
+
+SUBJECTS:
+- Subject name.
+- Subject code.
+- Description.
+- Applicable grades.
+- Status.
+
+TOPICS:
+- Topic name.
+- Parent topic if needed.
+- Subject.
+- Grade.
+- Topic code.
+- Learning objectives.
+- Status.
+
+ACADEMIC YEARS:
+- Year name.
+- Start date.
+- End date.
+- Institution association.
+- Current year status.
+
+GRADES:
+- Grade name.
+- Grade code.
+- Institution compatibility.
+- Display order.
+
+CLASSES:
+- Institution.
+- Class name.
+- Grade.
+- Academic year.
+- Assigned teachers.
+- Enrolled students.
+- Status.
+
+Allow editing and archiving.
+
+Use relational integrity and prevent invalid references.
+
+========================================================
+08. ADVANCED ASSESSMENT CENTER
+========================================================
+
+Build the LearnOS Assessment Center as a major platform module.
+
+The owner must be able to:
+
+- Create assessments.
+- Import assessments.
+- Create question collections.
+- Manage question bank records.
+- Organize questions by subject.
+- Organize questions by grade.
+- Organize questions by topic.
+- Manage difficulty.
+- Preview tests.
+- Edit drafts.
+- Approve imported questions.
+- Publish assessments.
+- Archive assessments.
+- Review attempt history.
+- View assessment-level analytics.
+
+The assessment interface must support these question types:
+
+TYPE 1: SINGLE CHOICE
+
+One correct option.
+
+TYPE 2: MULTIPLE CHOICE
+
+More than one correct option.
+
+TYPE 3: NUMERIC ANSWER
+
+A student enters a numerical answer.
+
+Support an optional numerical tolerance.
+
+TYPE 4: SHORT TEXT ANSWER
+
+A student types a short written answer.
+
+TYPE 5: LONG WRITTEN ANSWER
+
+A student provides a paragraph or a detailed written explanation.
+
+For written-answer questions, support teacher grading and rubric-based assessment.
+
+All questions must support configurable points.
+
+========================================================
+09. ADVANCED QUESTION EDITOR
+========================================================
+
+Create a premium question creation interface.
+
+The question editor must be intuitive for teachers and administrators.
+
+FIELDS:
+
+- Question title or internal label.
+- Question instructions.
+- Question body.
+- Subject.
+- Grade.
+- Topic.
+- Difficulty.
+- Question type.
+- Maximum points.
+- Explanation.
+- Status.
+
+QUESTION CONTENT:
+
+Support:
+- Rich-text content.
+- Multiple paragraphs.
+- Bold text.
+- Mathematical notation.
+- LaTeX expressions where supported.
+- Lists.
+- Special mathematical symbols.
+- Image attachments.
+
+IMAGE SUPPORT:
+
+A question can contain:
+- A single image.
+- Multiple images when appropriate.
+- An image inside the question text.
+- Images attached to answer options.
+- An explanatory image.
+
+Allow:
+- Upload.
+- Preview.
+- Replace.
+- Remove.
+- Caption.
+- Alternative text.
+
+Store question images in Firebase Cloud Storage.
+
+Store their verified Storage paths and metadata in Firestore.
+
+Do not store raw image binaries inside Firestore documents.
+
+Suggested permitted formats:
+- JPEG.
+- PNG.
+- WebP.
+
+Reject unsafe file types.
+
+Validate actual file type, not only the filename extension.
+
+Use configurable upload limits, initially 5 MB per image.
+
+QUESTION OPTIONS:
+
+For choice questions:
+- Add option.
+- Edit option.
+- Delete option.
+- Reorder options.
+- Attach an image.
+- Set correct answers.
+
+For single-choice questions:
+Exactly one answer key must be correct.
+
+For multiple-choice questions:
+Allow multiple correct answers.
+
+Validate answer-key consistency before saving.
+
+========================================================
+10. PROFESSIONAL EXCEL ASSESSMENT IMPORTER
+========================================================
+
+THIS IS ONE OF THE MOST IMPORTANT NEW FEATURES.
+
+Create a dedicated Assessment Import Center.
+
+The objective is to allow administrators and authorized teachers to upload large test collections quickly without manually creating every question.
+
+SUPPORTED FORMAT:
+
+Primary:
+.xlsx
+
+Package format:
+.zip containing an .xlsx template and associated images.
+
+Do not rely exclusively on a manually written JSON format.
+
+The product must provide a downloadable Excel template inside the application.
+
+Create these import actions:
+
+1. Download Excel Template.
+2. Download Import Guide.
+3. Upload Excel File.
+4. Upload ZIP Package.
+5. Validate File.
+6. Preview Questions.
+7. Confirm Import.
+8. View Import Report.
+
+TEMPLATE REQUIREMENTS:
+
+Generate a downloadable, blank Excel workbook programmatically.
+
+Use the workbook filename:
+
+LearnOS_Assessment_Import_Template.xlsx
+
+Workbook sheets:
+
+SHEET 1: Instructions
+
+Write clear instructions in Uzbek Latin.
+
+Explain:
+- How to fill the template.
+- Required fields.
+- Optional fields.
+- Supported question types.
+- How to attach images.
+- How correct answers are defined.
+- How written answers are handled.
+- How to upload the ZIP package.
+
+This must be a real generated template, not a link to a nonexistent file.
+
+SHEET 2: Assessment
+
+Columns:
+
+assessment_code
+assessment_title
+description
+subject_code
+grade
+duration_minutes
+maximum_attempts
+instructions
+availability_start
+availability_end
+
+Allow one assessment metadata row.
+
+When this sheet is populated, imported questions can be organized into a new draft assessment.
+
+When the sheet is intentionally left empty, imported questions can be added to the Question Bank as drafts instead.
+
+SHEET 3: Questions
+
+Columns:
+
+question_code
+question_type
+question_text
+question_image
+subject_code
+grade
+topic_code
+difficulty
+points
+explanation
+grading_mode
+rubric
+numeric_correct_answer
+numeric_tolerance
+
+Supported question_type values:
+
+single_choice
+multiple_choice
+numeric
+short_text
+long_text
+
+Supported grading_mode values:
+
+automatic
+manual
+ai_assisted
+
+Explain which fields are required for each type.
+
+SHEET 4: Options
+
+Columns:
+
+question_code
+option_code
+option_text
+option_image
+is_correct
+display_order
+
+Rules:
+- A single-choice question needs exactly one correct option.
+- A multiple-choice question needs at least one correct option.
+- Text and image content can coexist in the same option.
+- Numeric and written-answer questions do not require options.
+
+SHEET 5: AcceptedAnswers
+
+Columns:
+
+question_code
+accepted_answer
+case_sensitive
+trim_whitespace
+
+This sheet supports short-text exact-match grading.
+
+Allow multiple acceptable answers for a question.
+
+SHEET 6: Topics
+
+Provide instructions for using existing topic codes.
+
+Do not automatically create arbitrary duplicate topic records.
+
+Unknown topics must be identified during validation.
+
+If a new topic is needed, let the administrator map it to an existing topic or create an authorized new topic before importing.
+
+TEMPLATE QUALITY:
+
+- Freeze header rows.
+- Add clear column descriptions.
+- Set reasonable column widths.
+- Use readable styling.
+- Add dropdown validation for question types.
+- Add dropdown validation for difficulty.
+- Add dropdown validation for grading modes.
+- Highlight required columns.
+- Add workbook-level instructions.
+- Avoid macros.
+- Avoid unnecessary complex formulas.
+
+Do not include fake student questions or fake imported records in the template.
+
+The blank template must be sufficient to create a complete assessment package.
+
+========================================================
+11. IMPORTING IMAGES THROUGH ZIP PACKAGES
+========================================================
+
+Image attachments are important.
+
+Support a ZIP upload structure like:
+
+learnos-assessment-package.zip
+
+Inside:
+
+LearnOS_Assessment_Import_Template.xlsx
+
+media/
+    question_001.png
+    question_002.jpg
+    option_001_a.png
+    option_001_b.png
+    geometry_diagram_01.webp
+
+The workbook references the exact relative file path.
+
+Examples:
+
+media/question_001.png
+media/geometry_diagram_01.webp
+
+IMPORT PROCESS:
+
+1. User fills the Excel workbook.
+2. User adds the relevant images into the media folder.
+3. User creates a ZIP package.
+4. User uploads the ZIP file.
+5. LearnOS extracts the package in a secure server-side environment.
+6. LearnOS validates all referenced paths.
+7. LearnOS checks file types and image sizes.
+8. LearnOS previews questions with their images.
+9. Administrator confirms import.
+10. Images are uploaded to Firebase Cloud Storage.
+11. Image Storage paths are associated with Firestore question records.
+
+Also support direct image uploads through the visual question editor.
+
+VALIDATION:
+
+- Reject invalid image paths.
+- Reject missing files.
+- Reject unsafe file types.
+- Reject oversized files.
+- Prevent ZIP path traversal attacks.
+- Avoid extracting arbitrary executable files.
+- Validate actual MIME type.
+- Reject malformed packages.
+- Check for duplicate image references.
+
+Use secure temporary storage and clean up temporary extraction data after processing.
+
+========================================================
+12. IMPORT CENTER USER EXPERIENCE
+========================================================
+
+Design the Import Center as a premium step-by-step workflow.
+
+STEP 1 — DOWNLOAD:
+
+Display two clear actions:
+
+"Excel shablonini yuklab olish"
+
+"Import qo'llanmasini yuklab olish"
+
+Explain which file format to use.
+
+STEP 2 — UPLOAD:
+
+Support:
+- Drag and drop.
+- File picker.
+- .xlsx.
+- .zip.
+
+Show file name, size, and upload status.
+
+STEP 3 — VALIDATE:
+
+Run all checks before creating database records.
+
+Validate:
+- Workbook structure.
+- Required sheets.
+- Required columns.
+- Missing values.
+- Unsupported types.
+- Invalid points.
+- Missing correct answers.
+- Duplicate question identifiers.
+- Invalid topics.
+- Missing images.
+- Broken image paths.
+- Invalid numeric answers.
+- Incorrect written-answer configuration.
+- Assessment metadata.
+
+STEP 4 — PREVIEW:
+
+Display:
+
+Import summary:
+- Number of questions.
+- Question types.
+- Total points.
+- Subject.
+- Grade.
+- Topics.
+- Number of attached images.
+- Validation errors.
+- Validation warnings.
+
+Allow the user to preview every question.
+
+The preview must render text and images as students will see them.
+
+STEP 5 — ERROR REPORT:
+
+Show row-level validation problems.
+
+Example:
+
+Sheet: Questions
+Row: 12
+Column: question_text
+Problem: Required field is empty.
+
+Sheet: Options
+Row: 24
+Column: is_correct
+Problem: No correct answer defined for this single-choice question.
+
+Sheet: Questions
+Row: 19
+Column: question_image
+Problem: Referenced image does not exist in the ZIP package.
+
+Provide a downloadable error report.
+
+Allow users to correct their Excel file and upload it again.
+
+STEP 6 — IMPORT:
+
+Only after successful validation, show a final confirmation.
+
+Create a new import batch record.
+
+Import all valid records safely.
+
+Use server-side batching and appropriate Firestore write limits.
+
+Support large imports without exceeding Firestore limits.
+
+Do not make a partially completed import appear successful.
+
+If an import fails:
+- Record the failure.
+- Preserve a clear error report.
+- Allow safe retries.
+- Avoid duplicate records.
+
+STEP 7 — COMPLETE:
+
+Display:
+
+- Total questions imported.
+- Total images uploaded.
+- Total points where relevant.
+- Import batch ID.
+- Destination assessment or question bank.
+- Import timestamp.
+- Final import status.
+
+Imported assessments must default to DRAFT.
+
+Never publish automatically after import.
+
+========================================================
+13. IMPORT DUPLICATE DETECTION AND VERSION CONTROL
+========================================================
+
+Implement intelligent duplicate management.
+
+Use question_code as the stable external identifier within an import scope.
+
+Detect:
+- Duplicate IDs inside a workbook.
+- Existing IDs in the question bank.
+- Exact duplicate content where appropriate.
+- Repeated image references.
+
+Offer explicit actions:
+
+1. Skip existing questions.
+2. Import new questions only.
+3. Review possible duplicates.
+4. Update existing questions with explicit confirmation.
+
+Never overwrite an existing question silently.
+
+When updating an existing question:
+- Preserve historical assessment versions.
+- Preserve existing student attempts.
+- Record the change.
+- Create a new question revision.
+- Prevent published assessment history from changing unexpectedly.
+
+========================================================
+14. WRITTEN ANSWERS AND GRADING ENGINE
+========================================================
+
+Written answers must be fully supported.
+
+SHORT TEXT:
+
+Students can enter short written answers.
+
+Grading options:
+
+A. Automatic exact matching.
+
+The teacher defines one or more acceptable answers.
+
+Normalize whitespace if configured.
+
+Support case-sensitive or case-insensitive matching.
+
+B. Manual grading.
+
+Teacher reviews the student's answer and awards points.
+
+LONG TEXT:
+
+Students can submit:
+- Multi-line text.
+- Paragraphs.
+- Mathematical reasoning.
+- Explanations.
+
+Use manual teacher grading as the default.
+
+Support detailed grading rubrics.
+
+Example rubric fields:
+- Correct method.
+- Logical reasoning.
+- Final answer.
+- Explanation quality.
+- Partial credit.
+
+AI-ASSISTED GRADING:
+
+Gemini may provide a suggested evaluation based on a teacher-approved rubric.
+
+However:
+
+- AI must not silently finalize high-stakes grades.
+- Teacher must be able to review the suggested score.
+- Teacher must approve or change it.
+- The final result must record who confirmed the grade.
+- Preserve the original student answer.
+- Store the rubric and grading rationale.
+
+NUMERIC QUESTIONS:
+
+Allow:
+- Exact matching.
+- Optional numeric tolerance.
+- Configurable decimal precision where appropriate.
+
+CHOICE QUESTIONS:
+
+Automatically grade on the trusted backend.
+
+OFFICIAL SCORE:
+
+All official scores must be calculated or approved by trusted server-side logic.
+
+Never let the frontend submit its own official score.
+
+========================================================
+15. TEST BUILDER AND ASSESSMENT EDITOR
+========================================================
+
+Upgrade the assessment builder.
+
+Support two creation paths:
+
+PATH A:
+Create manually.
+
+PATH B:
+Import from Excel or ZIP.
+
+A teacher or authorized administrator must be able to combine questions from the Question Bank into a new assessment.
+
+ASSESSMENT BUILDER:
+
+- Title.
+- Description.
+- Instructions.
+- Subject.
+- Grade.
+- Topic coverage.
+- Duration.
+- Maximum attempts.
+- Start date.
+- End date.
+- Eligible classes.
+- Randomized question order if configured.
+- Question selection.
+- Points configuration.
+- Preview.
+
+Add an assessment outline showing:
+- Question number.
+- Question type.
+- Topic.
+- Points.
+- Attached images.
+
+Allow question reordering.
+
+Allow saving drafts.
+
+Validate before publishing.
+
+Add clear publishing confirmation.
+
+========================================================
+16. STUDENT TEST EXPERIENCE UPGRADE
+========================================================
+
+Preserve the existing excellent student interface.
+
+Improve the assessment experience so it supports all newly introduced question types.
+
+STUDENT MUST BE ABLE TO:
+
+- View actual assigned assessments.
+- Read formatted question text.
+- View question images clearly.
+- Zoom into images where appropriate.
+- See answer option images.
+- Select one answer.
+- Select multiple answers.
+- Enter numeric answers.
+- Write short responses.
+- Write long responses.
+- Use multi-line text input.
+- Navigate between questions.
+- Mark questions for review.
+- See unanswered questions.
+- Save answers.
+- Submit securely.
+
+Provide responsive layouts for mobile and desktop.
+
+Persist answers securely.
+
+Implement autosave with clear save status.
+
+Handle internet interruption.
+
+Prevent accidental duplicate submission.
+
+Do not reveal correct answers before the assessment's review policy permits it.
+
+========================================================
+17. ADMIN INSTITUTION AND USER WORKFLOWS
+========================================================
+
+Connect all administrator operations to the real backend.
+
+Examples:
+
+CREATE INSTITUTION:
+- Persist institution.
+- Create audit event.
+- Update authorized global statistics.
+
+EDIT INSTITUTION:
+- Validate changes.
+- Update Firestore.
+- Update all relevant UI views.
+- Record audit event.
+
+INVITE TEACHER:
+- Create a secure invitation.
+- Send invitation through the configured email workflow if available.
+- Display invitation status.
+
+ENROLL STUDENT:
+- Verify institution.
+- Verify class.
+- Create membership.
+- Update authorized teacher and student views.
+
+IMPORT ASSESSMENT:
+- Create import batch.
+- Upload images.
+- Create question records.
+- Create assessment draft.
+- Record import outcome.
+
+Every major action must:
+- Have loading state.
+- Have success notification.
+- Have error feedback.
+- Persist data.
+- Create audit events where appropriate.
+
+========================================================
+18. ADMIN ANALYTICS AND AUDITABILITY
+========================================================
+
+Create an advanced analytics workspace.
+
+ADMIN ANALYTICS:
+
+Institution comparison.
+User growth.
+Student participation.
+Assessment usage.
+Question usage.
+Topic-level performance.
+Import activity.
+AI usage.
+
+Use only real backend data.
+
+Apply institution and time filters.
+
+Do not present correlations as causal proof of educational improvement.
+
+AUDIT LOGS:
+
+Track:
+- Who performed an action.
+- What happened.
+- Which record was affected.
+- Which institution was involved.
+- When it happened.
+- Whether the operation succeeded or failed.
+
+Keep sensitive data out of logs.
+
+Ordinary users must not edit audit records.
+
+========================================================
+19. FILE STORAGE AND MEDIA SECURITY
+========================================================
+
+Use Firebase Cloud Storage for:
+- Institution logos.
+- Question images.
+- Option images.
+- Explanation images.
+- Approved educational attachments.
+
+Organize objects using institution-scoped paths.
+
+Example:
+
+institutions/{institutionId}/logos/...
+institutions/{institutionId}/questions/...
+institutions/{institutionId}/assessments/...
+
+Use secure Storage Rules.
+
+Validate authentication and permissions before upload and download.
+
+Do not make private student attachments publicly accessible.
+
+Use controlled access through Firebase SDK or authorized backend delivery.
+
+Store metadata:
+- Original filename.
+- MIME type.
+- Size.
+- Storage path.
+- Uploading user.
+- Institution ID.
+- Created timestamp.
+
+Prevent unauthorized file replacement.
+
+Provide image previews and useful file error messages.
+
+========================================================
+20. ADMIN HELP AND GUIDED WORKFLOWS
+========================================================
+
+The administrator panel must be extremely understandable.
+
+Use Uzbek Latin for the interface.
+
+Provide helpful descriptions beside complicated functions.
+
+Examples:
+
+Institution:
+"Bu bo'limda LearnOS tizimiga ulangan muassasalarni boshqarasiz."
+
+Assessment Import:
+"Excel shablon orqali savollarni va rasmlarni birgalikda yuklashingiz mumkin."
+
+Question Bank:
+"Barcha test savollari shu yerda saqlanadi va keyinchalik test yaratishda ishlatiladi."
+
+Audit Logs:
+"Platformadagi muhim boshqaruv harakatlari tarixi."
+
+Use:
+- Tooltips.
+- Contextual help.
+- Guided onboarding.
+- Empty-state instructions.
+- Clear confirmation messages.
+
+Avoid technical terminology in the main user-facing interface.
+
+========================================================
+21. REAL-TIME SYNCHRONIZATION
+========================================================
+
+All upgraded modules must use the existing real Firebase architecture.
+
+When the administrator edits an institution:
+- Updated information must appear wherever the institution is displayed.
+
+When a teacher imports and publishes an assessment:
+- Authorized students must see the assignment.
+
+When an assessment is imported:
+- The new records must appear in the actual question bank or assessment list.
+
+When a teacher grades a written answer:
+- The student must see the confirmed result according to the assessment review policy.
+
+When a user is suspended:
+- The account must lose permitted application access according to the security policy.
+
+Use authorized Firestore real-time listeners where useful.
+
+Handle listener cleanup, errors, and retry states.
+
+========================================================
+22. DATABASE AND MIGRATION REQUIREMENTS
+========================================================
+
+Inspect the existing schema before changing it.
+
+Extend it rather than replacing it.
+
+Create or refine:
+
+institutions
+institution_settings
+users
+roles
+classes
+subjects
+topics
+questions
+question_revisions
+question_media
+question_options
+accepted_answers
+assessments
+assessment_questions
+assessment_revisions
+assignments
+assessment_attempts
+student_answers
+grading_records
+import_batches
+import_files
+import_errors
+audit_logs
+notifications
+
+Include:
+- Timestamps.
+- Institution ownership.
+- Created by.
+- Updated by.
+- Version identifiers where relevant.
+- Archival state where needed.
+
+Create appropriate indexes.
+
+Use server-side authorization.
+
+Preserve historical student attempts.
+
+Do not destroy existing real production records during migration.
+
+Create migration scripts where necessary.
+
+Document every schema change.
+
+========================================================
+23. GLOBAL ACCESS AND DEPLOYMENT
+========================================================
+
+Preserve global deployment compatibility.
+
+The new modules must work through the actual deployed application, not only localhost.
+
+Requirements:
+
+- Production-ready routing.
+- Secure API execution.
+- Firebase Authentication.
+- Firestore.
+- Firebase Storage.
+- Gemini API server-side integration.
+- HTTPS.
+- Correct environment variables.
+- No localhost hardcoding.
+- No API secrets in frontend code.
+- Correct authorized domains.
+- Correct Storage CORS configuration where required.
+- Production security rules.
+
+The public deployment must allow authorized users to access their correct workspaces from different devices.
+
+Do not claim deployment succeeded unless the publishing process was completed and a public URL was verified.
+
+========================================================
+24. ACCEPTANCE TESTS
+========================================================
+
+Run the following tests in an isolated non-production environment.
+
+TEST 1 — ADMIN OWNER ACCESS:
+
+- Sign in with the verified owner account.
+- Open /admin.
+- Verify that the full Platform Control Center is accessible.
+
+TEST 2 — UNAUTHORIZED ACCESS:
+
+- Sign in with an ordinary teacher account.
+- Attempt to open /admin.
+- Attempt to call an admin API directly.
+- Verify access is denied.
+
+Repeat with a student account and an unrelated administrator account.
+
+TEST 3 — INSTITUTION EDIT:
+
+- Open an institution.
+- Edit its display name.
+- Change its description.
+- Update its logo.
+- Save.
+- Refresh.
+- Verify all changes persist.
+
+TEST 4 — DOWNLOAD TEMPLATE:
+
+- Open Assessment Import.
+- Download the XLSX template.
+- Open it using a spreadsheet application.
+- Verify all expected sheets and columns exist.
+
+TEST 5 — IMPORT CHOICE QUESTIONS:
+
+- Prepare a valid workbook.
+- Upload it.
+- Validate it.
+- Preview it.
+- Import it.
+- Verify questions appear in the real question bank.
+
+TEST 6 — IMAGE IMPORT:
+
+- Prepare an XLSX with referenced images.
+- Upload a ZIP package.
+- Confirm images are validated.
+- Import.
+- Verify images display properly.
+
+TEST 7 — WRITTEN ANSWER IMPORT:
+
+- Import short-text questions.
+- Import long-text questions.
+- Confirm accepted-answer and rubric configurations.
+- Verify students can submit written responses.
+
+TEST 8 — INVALID FILE:
+
+- Upload a workbook with missing required fields.
+- Verify validation catches the errors.
+- Confirm no invalid records are silently imported.
+
+TEST 9 — DUPLICATE IMPORT:
+
+- Upload a package with existing question codes.
+- Verify duplicates are detected.
+- Verify no silent overwrite occurs.
+
+TEST 10 — STUDENT FLOW:
+
+- Publish an imported assessment in the isolated test environment.
+- Sign in as an authorized student.
+- Complete multiple-choice and written questions.
+- Submit.
+- Verify correct persistence and grading workflows.
+
+TEST 11 — TEACHER FLOW:
+
+- Open the teacher workspace.
+- Review submissions.
+- Grade written answers.
+- Confirm approved results are synchronized.
+
+TEST 12 — STORAGE SECURITY:
+
+- Verify an unauthorized account cannot access another institution's private files.
+
+TEST 13 — PERSISTENCE:
+
+- Refresh.
+- Log out.
+- Log in again.
+- Open a separate browser.
+- Verify all authorized changes remain.
+
+Never run destructive test imports against real production data.
+
+========================================================
+25. FINAL QUALITY STANDARD
+========================================================
+
+The final result must feel like an advanced commercial education platform.
+
+The admin must be powerful but easy to understand.
+
+The assessment importer must make importing hundreds of questions practical.
+
+The template must be downloadable and usable.
+
+Question images must work.
+
+Answer option images must work.
+
+Short written answers must work.
+
+Long written answers must work.
+
+Teacher grading must work.
+
+AI-assisted grading must require teacher approval.
+
+Institution editing must work.
+
+Owner-only administration must be enforced at the backend.
+
+No demo records.
+
+No fake statistics.
+
+No decorative unfinished buttons.
+
+No invented success messages.
+
+No broken navigation.
+
+No data loss.
+
+========================================================
+26. EXECUTION INSTRUCTIONS
+========================================================
+
+START BY AUDITING THE EXISTING APPLICATION.
+
+Then implement the features directly in the existing codebase.
+
+Priority order:
+
+PHASE 1:
+- Exclusive owner authorization.
+- Admin route protection.
+- Admin dashboard structure.
+
+PHASE 2:
+- Institution management.
+- Institution editing.
+- User management.
+- Academic structure.
+
+PHASE 3:
+- Advanced question editor.
+- Downloadable Excel template.
+- ZIP package image support.
+- Import validation.
+- Import preview.
+- Import report.
+
+PHASE 4:
+- Written answer grading.
+- Advanced assessment builder.
+- Student assessment experience.
+
+PHASE 5:
+- Analytics.
+- Audit logs.
+- Security Rules.
+- Real-time synchronization.
+
+PHASE 6:
+- Comprehensive testing.
+- Bug fixing.
+- Production readiness.
+
+Do not stop after phase planning.
+
+Implement as many features as the available environment supports.
+
+Do not make destructive database changes without explicit authorization.
+
+Do not assume Firebase Storage is already configured; inspect it and request the required configuration if missing.
+
+If external credentials or configuration are unavailable, implement the code safely and report the exact missing setup instead of faking success.
+
+FINAL REPORT:
+
+Provide:
+
+1. Admin features implemented.
+2. Owner authentication and authorization status.
+3. Institution editing status.
+4. User management status.
+5. Question editor status.
+6. Excel template download status.
+7. ZIP image import status.
+8. Written-answer support status.
+9. Assessment import validation results.
+10. Firebase Storage status.
+11. Firestore schema changes.
+12. Security tests performed.
+13. Features that remain incomplete.
+14. Required production configuration.
+
+The goal is to turn LearnOS into a secure, sophisticated, globally usable education SaaS platform with a genuinely powerful administrative control center.
+
+BEGIN IMPLEMENTATION NOW.

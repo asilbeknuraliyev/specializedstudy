@@ -1,0 +1,1388 @@
+
+# LEARNOS — PRODUCTION-GRADE SAAS TRANSFORMATION
+
+You are now working on an EXISTING LearnOS application.
+
+Your mission is to transform the current application from a prototype/demo-style product into a real, production-ready, globally accessible education SaaS platform.
+
+This is an EXISTING PROJECT MODIFICATION TASK.
+
+DO NOT create a separate application.
+DO NOT restart the project from scratch.
+DO NOT replace the existing design unnecessarily.
+DO NOT remove working features.
+
+Inspect the entire current codebase first, understand its architecture, and then implement the improvements directly in the existing project.
+
+=========================================================
+01. THE NEW PRODUCT STANDARD
+=========================================================
+
+Product: LearnOS
+Category: AI-powered Learning Intelligence SaaS
+Market: Uzbekistan first, international expansion ready.
+
+The final product must have:
+
+1. Real authentication.
+2. Real persistent database.
+3. Real user accounts.
+4. Real school and institution management.
+5. Real teacher and student relationships.
+6. Real assessment creation and assignment.
+7. Real student submissions.
+8. Real assessment scoring.
+9. Real Knowledge Map calculations.
+10. Real Gemini AI analysis.
+11. Real-time data synchronization.
+12. Secure role-based access.
+13. Production-ready hosting.
+14. Global public web accessibility.
+
+ABSOLUTELY NO DEMONSTRATION DATA IN THE PRODUCTION APPLICATION.
+
+All records shown in the production interface must originate from the real connected database.
+
+=========================================================
+02. CRITICAL: AUDIT THE EXISTING PROJECT
+=========================================================
+
+Before editing anything:
+
+Inspect:
+- Existing frontend.
+- Existing backend.
+- Current routing.
+- Current authentication.
+- Current Firebase configuration.
+- Firestore configuration.
+- Existing security rules.
+- Current database models.
+- Existing API endpoints.
+- Existing student dashboard.
+- Existing teacher dashboard.
+- Existing administrator dashboard.
+- Current CSS and design system.
+- Existing demo or mock data sources.
+
+Identify every feature that currently depends on:
+- Hardcoded arrays.
+- Static JSON.
+- Fake statistics.
+- Mock users.
+- Sample students.
+- Sample classes.
+- Demo assessments.
+- Demo question banks.
+- Mock API responses.
+- localStorage as the primary database.
+- In-memory state as the primary storage.
+- Fake AI responses.
+- Placeholder charts.
+
+Create an internal implementation plan and then execute it.
+
+Do not stop after writing the plan.
+
+Preserve working functionality wherever possible.
+
+=========================================================
+03. REMOVE ALL DEMO DATA
+=========================================================
+
+THIS REQUIREMENT IS NON-NEGOTIABLE.
+
+Completely remove the production use of:
+
+- Demo Mode.
+- Demo Student.
+- Demo Teacher.
+- Demo Parent.
+- Demo Administrator.
+- Sample login accounts.
+- Sample passwords.
+- Fake school records.
+- Fake students.
+- Fake teachers.
+- Fake classes.
+- Fake assessment results.
+- Fake questions.
+- Sample question banks.
+- Fake notifications.
+- Fake learning progress.
+- Hardcoded dashboard statistics.
+- Artificial chart values.
+- Placeholder activity history.
+- Mock API responses.
+- Artificial user profiles.
+
+Search the entire project for mockData, sampleData, seedData, fakeData, demoData, dummyData, placeholderRecords, and equivalent patterns.
+
+Remove all demo-only application functionality from production.
+
+Important data migration rule:
+
+Do not blindly delete the entire Firebase database.
+
+Inspect existing records and identify only clearly synthetic records created by the earlier demo or seed implementation.
+
+Remove those known synthetic records safely.
+
+Preserve any legitimate records or configuration created by the product owner.
+
+If a record cannot confidently be classified as synthetic or genuine, do not delete it automatically. Report it for review.
+
+Do not insert another sample dataset to replace the deleted records.
+
+If the real database is empty, show a professional empty state.
+
+EXAMPLE:
+
+Instead of:
+"25 students"
+"12 assessments"
+"78% average performance"
+
+When the database is empty, show:
+"Students: 0"
+"Assessments: 0"
+
+Show a useful message:
+
+"Hozircha ma'lumot mavjud emas."
+
+Provide the appropriate next action:
+
+"Yangi sinf yaratish"
+"Xodim qo'shish"
+"Test yaratish"
+"O'quvchilarni taklif qilish"
+
+Zero is better than fabricated data.
+
+Demo fixtures may exist only inside isolated automated test environments. They must never be imported into production or displayed to actual users.
+
+=========================================================
+04. REAL BACKEND AND DATABASE
+=========================================================
+
+Use Firebase as the primary backend.
+
+Firebase services:
+
+- Firebase Authentication.
+- Cloud Firestore.
+- Firebase Security Rules.
+- Firebase Admin SDK for trusted server operations where appropriate.
+- Secure server-side API endpoints.
+- Firebase emulator or separate test project for automated tests.
+
+First inspect whether Firebase is already connected.
+
+IF FIREBASE IS ALREADY CONNECTED:
+Continue using the existing Firebase project and database.
+
+Do not create a duplicate Firebase project.
+
+Do not replace the existing project configuration.
+
+IF FIREBASE IS NOT CONNECTED:
+Set up the Google AI Studio Firebase Firestore and Authentication integration.
+
+Request the necessary Firebase integration setup from the user through the supported AI Studio integration flow.
+
+Do not silently substitute localStorage, fake APIs, or an in-memory database for Firebase.
+
+DATABASE REQUIREMENTS:
+
+Every important application action must persist to the actual database.
+
+Examples:
+
+When an administrator creates a class:
+The class must be written to Firestore.
+
+When an administrator adds a teacher:
+The teacher invitation or account record must be saved.
+
+When a teacher creates a test:
+The test and its questions must be saved.
+
+When a teacher publishes a test:
+An assignment must be created for the selected students or class.
+
+When a student submits a test:
+The submission and answers must be saved.
+
+When an assessment is scored:
+The official result must be stored securely.
+
+When a new learning recommendation is generated:
+The recommendation must be associated with the correct student and relevant evidence.
+
+All records must remain available after:
+- Browser refresh.
+- Logout and login.
+- Opening the application on another computer.
+- Opening the application on a mobile device.
+- Deployment updates.
+
+Never use browser localStorage as the primary source of truth.
+
+Use localStorage only for harmless interface preferences when appropriate.
+
+=========================================================
+05. MULTI-TENANT SAAS ARCHITECTURE
+=========================================================
+
+Build LearnOS as a multi-institution SaaS platform.
+
+Each institution must have isolated data.
+
+A school must never access another school's private student records.
+
+Create or refine these entities:
+
+institutions
+users
+roles
+classes
+class_memberships
+teacher_assignments
+student_enrollments
+parent_links
+invitations
+subjects
+topics
+questions
+assessments
+assessment_questions
+assignments
+assessment_attempts
+student_answers
+assessment_results
+mastery_records
+learning_paths
+learning_recommendations
+notifications
+teacher_notes
+audit_logs
+institution_settings
+
+Every institution-owned document must include an institutionId or an equivalent verified ownership relationship.
+
+Use consistent document identifiers.
+
+Store createdAt and updatedAt timestamps.
+
+Use server-generated timestamps where appropriate.
+
+Use transactions or batched writes for operations that must succeed together.
+
+Avoid duplicate records.
+
+Make important operations idempotent where possible.
+
+Add appropriate Firestore indexes for commonly used filters and queries.
+
+=========================================================
+06. REAL AUTHENTICATION AND ROLE MANAGEMENT
+=========================================================
+
+Implement genuine Firebase Authentication.
+
+No demo login shortcuts.
+
+No public account registration with arbitrary administrator privileges.
+
+Support the actual roles:
+
+1. PLATFORM OWNER
+2. SCHOOL ADMINISTRATOR
+3. TEACHER
+4. STUDENT
+5. PARENT
+
+Each authenticated user must have a verified role assigned through trusted server-side provisioning or a secure invitation workflow.
+
+Never trust a role supplied by the browser.
+
+Never let users modify their own institutionId or role.
+
+PLATFORM OWNER:
+
+Can manage the overall LearnOS platform and create institutions.
+
+SCHOOL ADMINISTRATOR:
+
+Can manage only their own institution.
+
+TEACHER:
+
+Can access only authorized classes, students, and assessments.
+
+STUDENT:
+
+Can access only their own learning profile, assignments, results, and permitted educational resources.
+
+PARENT:
+
+Can access only children explicitly and securely linked to their account.
+
+FIRST ADMINISTRATOR BOOTSTRAP:
+
+Implement a secure initial administrator provisioning procedure.
+
+Preferred approach:
+A one-time server-side bootstrap script or a secured administrative provisioning endpoint.
+
+The first administrator must be created without a hardcoded default password.
+
+Do not expose bootstrap secrets in browser JavaScript.
+
+Disable or remove one-time bootstrap access after successful initialization.
+
+Document how the platform owner is initially created.
+
+INVITATION SYSTEM:
+
+Implement secure, expiring, single-use invitation tokens.
+
+An institution administrator should be able to invite:
+- Teachers.
+- Students.
+- Other authorized administrators.
+
+Teachers should be able to invite students to their assigned classes if institution permissions allow it.
+
+Parents should be linked through secure guardian invitation flows.
+
+Invitation requirements:
+- Cryptographically secure tokens.
+- Store token hashes rather than plaintext reusable tokens.
+- Expiration timestamps.
+- Single-use validation.
+- Institution ownership validation.
+- Clear invitation status.
+- Revocation capability.
+
+Allow the recipient to create their account through the appropriate invitation flow.
+
+Do not show default passwords or shared credentials.
+
+=========================================================
+07. THE THREE MAIN DASHBOARDS
+=========================================================
+
+The student dashboard is already visually strong.
+
+PRESERVE ITS CURRENT VISUAL IDENTITY AND DESIGN QUALITY.
+
+Now bring the teacher and administrator experiences to the SAME PROFESSIONAL STANDARD.
+
+All three dashboards must feel like parts of one carefully designed international SaaS product.
+
+Use:
+- The same design system.
+- Consistent typography.
+- Consistent navigation.
+- Consistent spacing.
+- Consistent iconography.
+- Consistent buttons.
+- Consistent card styles.
+- Consistent responsive behavior.
+
+Do not simply copy the student dashboard and change its headings.
+
+Each role needs a genuinely useful, role-specific workspace.
+
+---------------------------------------------------------
+A. ADMINISTRATOR WORKSPACE
+---------------------------------------------------------
+
+Create an extremely professional school administration dashboard.
+
+It must look and behave like an enterprise education management system.
+
+SIDEBAR:
+
+- Overview.
+- Institution.
+- Classes.
+- Students.
+- Teachers.
+- Invitations.
+- Subjects.
+- Assessments.
+- Academic Analytics.
+- Reports.
+- Audit Logs.
+- Settings.
+
+ADMIN OVERVIEW:
+
+Show database-backed statistics:
+
+- Total students.
+- Total teachers.
+- Total classes.
+- Active assessments.
+- Active enrollments.
+- Assessment completion.
+- Institution activity.
+
+All metrics must come from actual authorized database records.
+
+If no data exists, display zero and a helpful empty state.
+
+INSTITUTION MANAGEMENT:
+
+Administrator must be able to:
+- Edit institution name.
+- Edit institution information.
+- Manage academic year.
+- Manage institution settings.
+- Manage authorized administrators.
+
+CLASS MANAGEMENT:
+
+Administrator must be able to:
+
+- Create classes.
+- Edit classes.
+- Archive classes.
+- Assign a class teacher.
+- View enrolled students.
+- Add students through invitation workflows.
+- Remove students with confirmation.
+- Assign subjects where appropriate.
+- View class activity.
+
+TEACHER MANAGEMENT:
+
+Administrator must be able to:
+
+- Invite a teacher.
+- View teachers.
+- Search teachers.
+- Filter teachers.
+- View teaching assignments.
+- Assign classes.
+- Change authorized assignments.
+- Suspend access when appropriate.
+- Revoke invitations.
+
+STUDENT MANAGEMENT:
+
+Administrator must be able to:
+
+- Invite a student.
+- View enrolled students.
+- Search students.
+- Filter by class.
+- View individual learning profiles.
+- Change class membership.
+- View assessment activity.
+- Handle account status.
+
+INVITATION MANAGEMENT:
+
+Display:
+- Invitee.
+- Role.
+- Class or institution.
+- Invitation status.
+- Created date.
+- Expiration date.
+
+Provide actions to copy, revoke, or resend invitations where appropriate.
+
+ANALYTICS:
+
+Build real institution-level reports.
+
+Include:
+- Student participation.
+- Assessment completion.
+- Class-level performance.
+- Topic-level learning gaps.
+- Progress trends over time.
+
+Ensure users only see aggregated information they are authorized to access.
+
+Do not expose other institutions' data.
+
+AUDIT LOGS:
+
+Record important events, including:
+- Class created.
+- Teacher invited.
+- Student enrolled.
+- Assessment published.
+- Assessment archived.
+- User permissions changed.
+- Results updated through an authorized process.
+
+Display:
+- Actor.
+- Event.
+- Relevant record.
+- Timestamp.
+
+Audit logs must be append-only for ordinary administrators.
+
+---------------------------------------------------------
+B. TEACHER WORKSPACE
+---------------------------------------------------------
+
+Create a premium professional teacher dashboard.
+
+This should be one of the best interfaces in the entire product.
+
+SIDEBAR:
+
+- Overview.
+- My Classes.
+- My Students.
+- Question Bank.
+- Assessments.
+- Assignments.
+- Learning Analytics.
+- Student Reports.
+- Notifications.
+- Profile.
+
+TEACHER OVERVIEW:
+
+Display real information:
+- Assigned classes.
+- Enrolled students.
+- Published assessments.
+- Pending submissions.
+- Completed submissions.
+- Topics that need attention.
+
+MY CLASSES:
+
+For every authorized class, display:
+- Class name.
+- Grade.
+- Number of enrolled students.
+- Assigned subjects.
+- Upcoming assessments.
+- Recent activity.
+
+TEACHER STUDENT MANAGEMENT:
+
+Teachers must be able to:
+- View authorized students.
+- Search students.
+- Filter students.
+- Open individual student profiles.
+- View assessment history.
+- View Knowledge Maps.
+- Add permitted teacher notes.
+- View learning recommendations.
+
+QUESTION BANK:
+
+A fully functional question bank.
+
+Teachers must be able to:
+- Create questions.
+- Edit questions.
+- Delete questions with confirmation.
+- Assign subject.
+- Assign grade.
+- Assign topic.
+- Assign difficulty.
+- Add answer options.
+- Set the correct answer.
+- Add educational explanations.
+- Preview questions.
+- Search and filter questions.
+
+There must be NO preloaded fictional questions in production.
+
+If the database contains no teacher-created questions, display an empty state and invite the teacher to create the first question.
+
+ASSESSMENT BUILDER:
+
+Create a premium multi-step assessment creation interface.
+
+Step 1:
+Assessment information.
+
+Step 2:
+Select subject, grade, and topics.
+
+Step 3:
+Add questions from the question bank.
+
+Step 4:
+Configure timing and availability.
+
+Step 5:
+Select classes or eligible students.
+
+Step 6:
+Preview.
+
+Step 7:
+Save draft or publish.
+
+Teachers must be able to edit drafts.
+
+Published assessment editing must preserve the integrity of existing student attempts.
+
+Use assessment versioning or immutable published question snapshots.
+
+ASSIGNMENT MANAGEMENT:
+
+A teacher must be able to:
+- Create assignments from assessments.
+- Select a class.
+- Define start and deadline.
+- Publish.
+- Close an assignment.
+- Monitor student participation.
+- Review completed attempts.
+- View individual results.
+
+TEACHER ANALYTICS:
+
+Use actual submissions and assessment results.
+
+Include:
+- Class-level topic performance.
+- Student progress.
+- Completion rates.
+- Frequently missed topics.
+- Assessment history.
+
+Never display fabricated percentages.
+
+---------------------------------------------------------
+C. STUDENT WORKSPACE
+---------------------------------------------------------
+
+The existing student dashboard is excellent.
+
+Do not replace its visual design.
+
+Preserve its strong visual identity, typography, dashboard layout, colors, cards, animations, and overall experience.
+
+However, replace every static data source with actual authenticated student data.
+
+The student must see:
+
+- Their real profile.
+- Their real institution.
+- Their real class.
+- Their real teachers.
+- Their real assignments.
+- Their real published assessments.
+- Their actual completed attempts.
+- Their actual results.
+- Their real Knowledge Map.
+- Their real learning recommendations.
+
+The student must not see other students' private records.
+
+STUDENT ASSIGNMENT EXPERIENCE:
+
+When a teacher publishes an assessment for a class:
+
+1. Create the actual assignment in Firestore.
+2. Verify class membership.
+3. Make the assignment visible to authorized students.
+4. Update the student's dashboard.
+5. Display the deadline and assessment instructions.
+6. Allow the student to begin when the assignment is available.
+
+When a teacher changes an assignment's status:
+
+The student interface must reflect that change according to permissions and assignment rules.
+
+STUDENT RESULTS:
+
+When a student completes an assessment:
+
+- Save their actual answers.
+- Calculate the official score on the server.
+- Generate the result.
+- Update the Knowledge Map using actual evidence.
+- Make the result visible to the student.
+- Make authorized results visible to their teacher.
+- Make permitted information visible to linked parents.
+
+STUDENT INTERFACE EMPTY STATES:
+
+If a student has no assignments:
+
+"Ҳозирча сизга бириктирилган топшириқлар йўқ."
+
+Use natural Uzbek Latin in the actual interface:
+
+"Hozircha sizga biriktirilgan topshiriqlar yo'q."
+
+If no results are available:
+
+"Test natijalari hozircha mavjud emas."
+
+Do not insert sample records.
+
+---------------------------------------------------------
+D. PARENT WORKSPACE
+---------------------------------------------------------
+
+Connect the parent dashboard to real linked children.
+
+Parents must be able to:
+- View linked children.
+- View permitted assessment results.
+- Monitor topic progress.
+- View recommended practice.
+- View recent learning reports.
+
+Never expose private student records to unlinked parents.
+
+=========================================================
+08. REAL-TIME DATA SYNCHRONIZATION
+=========================================================
+
+This is one of the most important requirements.
+
+Admin, Teacher, Student, and Parent workspaces must use the SAME connected backend.
+
+Implement authorized real-time Firestore subscriptions where useful.
+
+Examples:
+
+EVENT 1:
+Administrator creates a new class.
+
+RESULT:
+The new class appears in the appropriate teacher and administrator interfaces.
+
+EVENT 2:
+Administrator invites a teacher and assigns a class.
+
+RESULT:
+After accepting the invitation, the teacher sees the actual assigned class.
+
+EVENT 3:
+Teacher creates an assessment and publishes it to Class 8-A.
+
+RESULT:
+Students enrolled in Class 8-A can see the assignment in their dashboards.
+
+Students from Class 8-B must not see it.
+
+EVENT 4:
+Student submits the assessment.
+
+RESULT:
+The submission is saved and appears in the authorized teacher dashboard.
+
+EVENT 5:
+Teacher reviews the results.
+
+RESULT:
+The updated information appears in the student's results interface and permitted parent interface.
+
+EVENT 6:
+Administrator updates a student's class membership.
+
+RESULT:
+Authorized class membership views are updated throughout the application.
+
+Use Firestore onSnapshot or an equivalent supported real-time approach.
+
+Unsubscribe when components are no longer active.
+
+Handle:
+- Connection errors.
+- Permission errors.
+- Duplicate subscriptions.
+- Loading states.
+- Offline conditions.
+- Concurrent changes.
+
+Do not rely on manual hard refreshes for essential updates.
+
+=========================================================
+09. ACTUAL ASSESSMENT DATA WORKFLOW
+=========================================================
+
+Implement the complete end-to-end data lifecycle.
+
+Teacher creates a question.
+        ↓
+Question is saved in Firestore.
+        ↓
+Teacher creates an assessment.
+        ↓
+Assessment is saved as a draft.
+        ↓
+Teacher publishes the assessment.
+        ↓
+Assignment is connected to eligible class members.
+        ↓
+Students see the actual assignment.
+        ↓
+Student completes the test.
+        ↓
+Student submits their answers.
+        ↓
+Backend validates and stores the attempt.
+        ↓
+Backend calculates the official score.
+        ↓
+Topic performance is calculated.
+        ↓
+Knowledge Map is updated.
+        ↓
+Gemini generates evidence-based learning recommendations.
+        ↓
+Teacher reviews progress.
+        ↓
+Student sees their results and next steps.
+
+Every stage must be based on real persisted records.
+
+Implement server-side scoring.
+
+Never trust an answer score submitted by the client.
+
+Prevent duplicate submissions.
+
+Preserve historical assessment versions.
+
+=========================================================
+10. SECURE AI INTEGRATION
+=========================================================
+
+Preserve the existing Gemini integration and improve it.
+
+All Gemini calls must happen through secure server-side execution.
+
+Never expose:
+- GEMINI_API_KEY.
+- Firebase service account private keys.
+- Administrative secrets.
+- Database administrative credentials.
+
+AI analysis must use only the information necessary for the request.
+
+Avoid sending student names, email addresses, or other direct identifying information to the model.
+
+Use pseudonymous identifiers and educational evidence.
+
+AI must:
+- Explain observed mathematical mistakes.
+- Suggest learning materials.
+- Identify patterns only when sufficient evidence exists.
+- Explain uncertainty.
+- Generate useful teacher summaries.
+
+AI must never determine official exam scores.
+
+Official scores must be calculated by deterministic backend logic.
+
+Validate all generated structured responses.
+
+If Gemini is unavailable:
+- Keep the rest of the application working.
+- Show a clear service-unavailable message.
+- Allow retry.
+- Do not display invented analysis.
+
+=========================================================
+11. REAL DATA FIRESTORE SECURITY
+=========================================================
+
+Create strict, production-oriented Firestore Security Rules.
+
+Security principles:
+
+DEFAULT:
+Deny access unless explicitly granted.
+
+STUDENT:
+Can read their own profile and permitted learning records.
+
+TEACHER:
+Can read and manage only their authorized teaching resources.
+
+SCHOOL ADMIN:
+Can manage records belonging to their institution, subject to role permissions.
+
+PARENT:
+Can read only explicitly linked child information.
+
+PLATFORM OWNER:
+Can perform authorized platform-wide management operations through trusted privileged services.
+
+Never use:
+
+allow read, write: if true;
+
+Never use permissive production rules.
+
+Do not rely only on frontend route guards.
+
+All important API endpoints must verify:
+- Firebase authentication.
+- User identity.
+- Verified role.
+- Institution ownership.
+- Resource-level permission.
+- Request payload validity.
+
+Users must not be able to:
+- Change their own role.
+- Change their own institution ownership.
+- Edit official scores.
+- Modify answer keys.
+- Read unrelated students' information.
+- Access unauthorized classes.
+- Forge parent-child relationships.
+- Access other institutions' data.
+
+Use server-side validation for privileged actions.
+
+Include automated security tests for these permissions.
+
+=========================================================
+12. PRODUCTION DEPLOYMENT AND GLOBAL ACCESSIBILITY
+=========================================================
+
+The application must not be restricted to localhost.
+
+Make the existing project production-deployment ready.
+
+TARGET HOSTING:
+Google Cloud Run through Google AI Studio's publishing workflow.
+
+Requirements:
+
+- Production build.
+- Correct server startup.
+- Correct PORT environment handling.
+- Listen on 0.0.0.0 where required.
+- No hardcoded localhost production URLs.
+- Secure environment variables.
+- HTTPS.
+- Production CORS configuration.
+- Health endpoint.
+- Proper server logging.
+- Runtime error handling.
+- Firebase Authentication authorized-domain configuration.
+- Persistent Firestore connection.
+- Secure Gemini API configuration.
+
+Use relative API paths or centrally configured production API URLs.
+
+Support:
+- Local development.
+- AI Studio preview.
+- Production deployment.
+
+Do not allow development-only authentication shortcuts in production.
+
+Create a PRODUCTION CONFIGURATION DOCUMENT explaining:
+- Firebase project requirements.
+- Authentication providers.
+- Firestore configuration.
+- Environment variables.
+- Gemini API secret.
+- Cloud Run deployment.
+- Authorized domains.
+- Custom domain setup.
+- Security Rules deployment.
+
+The application must be capable of being published and accessed through a publicly reachable HTTPS URL.
+
+Do not claim that the app is live until an actual successful deployment has occurred.
+
+If publishing requires an account-level confirmation or billing setup, identify that exact remaining action.
+
+=========================================================
+13. DESIGN IMPROVEMENTS
+=========================================================
+
+Keep the current LearnOS brand.
+
+Do not redesign the existing student interface unnecessarily.
+
+Upgrade ADMIN and TEACHER interfaces to match the same design quality.
+
+ADMIN DESIGN:
+
+Use a sophisticated institution-management workspace.
+
+It should feel like a premium enterprise SaaS product.
+
+Use:
+- Clean sidebar.
+- Refined navigation.
+- Professional data tables.
+- Smart filtering.
+- Search.
+- Real charts.
+- Action menus.
+- Structured forms.
+- Detailed record views.
+- Helpful empty states.
+- Responsive layouts.
+
+TEACHER DESIGN:
+
+Use a premium productivity workspace.
+
+Important interfaces:
+- My Classes.
+- Student Directory.
+- Assessment Builder.
+- Question Bank.
+- Assessment Monitoring.
+- Learning Analytics.
+
+Use information-rich but uncluttered layouts.
+
+STUDENT DESIGN:
+
+Preserve the existing strong visual experience.
+
+Ensure it connects to genuine data and real backend functionality.
+
+GENERAL DESIGN RULES:
+
+- Excellent desktop experience.
+- Excellent mobile experience.
+- Responsive tablet layout.
+- Accessible colors and typography.
+- Consistent spacing.
+- Realistic loading states.
+- Skeleton loaders.
+- Empty states.
+- Error states.
+- Success notifications.
+- Confirmation dialogs.
+
+Every button must do something meaningful.
+
+No decorative non-functional buttons.
+
+=========================================================
+14. REAL NOTIFICATIONS
+=========================================================
+
+Create in-app notifications based on real events.
+
+Examples:
+
+Student:
+- New assessment published.
+- Assessment deadline approaching.
+- Assessment result available.
+- Learning recommendation added.
+
+Teacher:
+- Student submitted an assessment.
+- New class assignment.
+- Assessment participation updated.
+
+Administrator:
+- Teacher accepted invitation.
+- New student enrolled.
+- Important institution activity.
+
+Parent:
+- Child completed an assessment.
+- New learning report available.
+
+Store notification records in Firestore.
+
+Add:
+- Read/unread state.
+- Created timestamp.
+- Notification destination.
+- Permission checks.
+
+Do not generate random notifications.
+
+=========================================================
+15. CSV IMPORT AND DATA MANAGEMENT
+=========================================================
+
+Provide controlled institution data-management functionality.
+
+Administrator:
+- Import student lists via CSV.
+- Preview before importing.
+- Validate required columns.
+- Identify duplicates.
+- Show import errors.
+- Confirm before writing records.
+
+Teacher:
+- Export authorized assessment results as CSV.
+- Export class performance summaries.
+
+Never accept arbitrary CSV uploads without validation.
+
+Do not silently create student accounts using publicly exposed passwords.
+
+=========================================================
+16. PERFORMANCE AND RELIABILITY
+=========================================================
+
+Optimize for real educational usage.
+
+Requirements:
+
+- Paginated large student lists.
+- Paginated assessment history.
+- Firestore query optimization.
+- Useful indexes.
+- Avoid unnecessary document reads.
+- Avoid duplicate listeners.
+- Handle slow connections.
+- Use loading skeletons.
+- Gracefully handle service failures.
+- Use appropriate caching without exposing private records.
+- Avoid unnecessarily large frontend bundles.
+
+Use transactions for critical operations.
+
+Make submissions resilient to network retries.
+
+Do not create duplicate assessment attempts because of a retry.
+
+=========================================================
+17. PRIVACY AND STUDENT PROTECTION
+=========================================================
+
+The platform serves school-aged children.
+
+Implement privacy by design.
+
+- Collect minimum necessary information.
+- Avoid unnecessary personal data.
+- Do not expose student records publicly.
+- Do not create public student profile URLs.
+- Keep student analytics restricted.
+- Require appropriate parent or institutional authorization.
+- Provide data correction and deletion request workflows.
+- Maintain controlled access to institutional records.
+- Do not use students' personal information for advertising.
+- Do not train public AI systems on student records.
+- Maintain secure audit logs.
+
+Add clear privacy and terms pages.
+
+Document remaining legal and institutional configuration requirements before the platform handles actual students.
+
+=========================================================
+18. DATA INTEGRITY AND BACKUP
+=========================================================
+
+Implement sensible database integrity procedures.
+
+- Validate all required references.
+- Ensure class membership references an existing class.
+- Ensure assignments reference valid assessments.
+- Ensure submitted attempts reference valid assignments.
+- Protect answer keys.
+- Preserve assessment history.
+- Prevent unauthorized record deletion.
+- Use server-generated timestamps.
+
+Document the backup and recovery strategy.
+
+Never automatically erase real user data during deployment.
+
+Database cleanup must only target clearly identified synthetic demo records.
+
+=========================================================
+19. TESTING REQUIREMENTS
+=========================================================
+
+Test the complete product using separate test accounts and an isolated testing environment.
+
+Do not create test accounts or test records inside the live production institution.
+
+Test the following complete scenario:
+
+TEST A — ADMINISTRATOR:
+
+1. Administrator signs in.
+2. Creates an institution class.
+3. Invites a teacher.
+4. Creates student invitations.
+5. Assigns a teacher to the class.
+6. Verifies that changes persist.
+
+TEST B — TEACHER:
+
+1. Teacher accepts the actual invitation.
+2. Signs in from a different browser.
+3. Sees the assigned class.
+4. Creates a mathematics question.
+5. Creates an assessment.
+6. Publishes the assessment to the class.
+
+TEST C — STUDENT:
+
+1. Student accepts their invitation.
+2. Signs in from another device.
+3. Sees their actual class.
+4. Sees the published assessment.
+5. Completes the assessment.
+6. Submits answers.
+7. Sees actual results.
+8. Sees an updated Knowledge Map.
+
+TEST D — TEACHER RESULTS:
+
+1. Teacher opens their dashboard.
+2. Sees the student's actual submission.
+3. Reviews the result.
+4. Sees the real topic-level data.
+
+TEST E — ADMINISTRATOR RESULTS:
+
+1. Administrator opens the institution dashboard.
+2. Sees actual enrolled student records.
+3. Sees real assessment participation.
+4. Sees actual institutional activity.
+
+TEST F — SECURITY:
+
+1. A student attempts to access another student's records.
+2. A teacher attempts to access an unauthorized class.
+3. A parent attempts to access an unlinked child.
+4. A school administrator attempts to access another institution.
+
+All unauthorized operations must be rejected by the backend or Firestore security rules.
+
+TEST G — PERSISTENCE:
+
+1. Create real test records in the isolated test project.
+2. Refresh the application.
+3. Log out.
+4. Sign in again.
+5. Open another device or browser session.
+6. Confirm the same authorized records appear.
+
+Remove the isolated test data after the automated tests complete.
+
+Do not claim tests passed unless they actually ran and passed.
+
+=========================================================
+20. ACCEPTANCE CRITERIA
+=========================================================
+
+The transformation is complete only when:
+
+[ ] No demo data is displayed in production.
+
+[ ] No sample accounts or demo passwords remain.
+
+[ ] No fake metrics or chart values remain.
+
+[ ] No production screen uses hardcoded sample records.
+
+[ ] Real Firebase Authentication works.
+
+[ ] Cloud Firestore persistence works.
+
+[ ] Role assignment is secure.
+
+[ ] Administrator actions persist.
+
+[ ] Teacher actions persist.
+
+[ ] Student submissions persist.
+
+[ ] Admin data reaches the appropriate teacher interface.
+
+[ ] Published teacher assignments reach eligible student interfaces.
+
+[ ] Student results appear in the authorized teacher interface.
+
+[ ] Parent permissions work correctly.
+
+[ ] Real-time updates work.
+
+[ ] The student dashboard retains its existing design quality.
+
+[ ] Administrator dashboard has been upgraded.
+
+[ ] Teacher dashboard has been upgraded.
+
+[ ] Security rules are reviewed and tested.
+
+[ ] The application is production-build compatible.
+
+[ ] The application is ready for Cloud Run deployment.
+
+[ ] A public HTTPS deployment URL can be obtained through publishing.
+
+=========================================================
+21. FINAL EXECUTION INSTRUCTIONS
+=========================================================
+
+This is an implementation task, not a discussion task.
+
+Start by inspecting the existing LearnOS codebase.
+
+Then modify the actual files.
+
+Prioritize:
+
+1. Preserve the current student interface.
+2. Remove all demo and fake production data.
+3. Connect every feature to the real backend.
+4. Implement secure authentication and roles.
+5. Make all admin operations persistent.
+6. Make all teacher operations persistent.
+7. Synchronize student and teacher experiences.
+8. Upgrade admin and teacher interface quality.
+9. Implement strict data security.
+10. Prepare the application for global deployment.
+
+Do not generate only an explanation.
+
+Do not stop at a frontend redesign.
+
+Do not invent successful backend integrations.
+
+Do not claim Firebase is connected if it is not.
+
+Do not claim the application is deployed if it is not.
+
+If a required external setup needs user action, explain exactly which configuration screen and action are required, then continue with everything that can be implemented safely.
+
+FINAL REPORT:
+
+After implementation, report:
+
+A. What was changed.
+B. Which demo elements were removed.
+C. Which Firebase services are connected.
+D. Which database operations are fully functional.
+E. Which admin workflows work.
+F. Which teacher workflows work.
+G. Which student workflows work.
+H. Which security checks were actually tested.
+I. Whether public deployment was completed.
+J. The exact remaining configuration steps.
+
+The target is no longer a prototype.
+
+Build LearnOS as a genuine production-grade educational SaaS platform.
+
+START THE TRANSFORMATION NOW.

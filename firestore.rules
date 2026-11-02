@@ -1,0 +1,375 @@
+rules_version = '2';
+
+// Hardened Firestore Security Rules — Specialized Study
+// Authorized Platform Administrators:
+// 1. asilbeknuraliyev43@gmail.com
+// 2. bahodirboliqulov3@gmail.com
+// Enforces:
+// 1. Authorized Platform Administrator verification (email_verified == true + allowlist + custom claim support)
+// 2. Two active application roles: Platform Admin & Student
+// 3. Strict Student Class Isolation (students can only read published lessons/assessments for their assigned class)
+// 4. Answer Key Protection (/questions is restricted to Platform Admin only)
+// 5. Immutable identity & academic fields on /users and /attempts
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() {
+      return request.auth != null && request.auth.uid != null;
+    }
+
+    function isVerified() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    // Two Authorized Platform Administrators with equal privileges
+    function isPlatformOwner() {
+      return isVerified() &&
+        request.auth.token.email in [
+          'asilbeknuraliyev43@gmail.com',
+          'bahodirboliqulov3@gmail.com'
+        ] &&
+        (
+          !('platformAdmin' in request.auth.token) ||
+          request.auth.token.platformAdmin == true
+        );
+    }
+
+    function isAdmin() {
+      return isPlatformOwner();
+    }
+
+    // 0. Authorized Admins Registry
+    match /admins/{adminId} {
+      allow get, list: if isAdmin();
+      allow create, update: if isAdmin()
+        && validStr(incoming().email, 5, 160)
+        && incoming().email in [
+          'asilbeknuraliyev43@gmail.com',
+          'bahodirboliqulov3@gmail.com'
+        ];
+      allow delete: if false;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function validStr(val, minLen, maxLen) {
+      return val is string && val.size() >= minLen && val.size() <= maxLen;
+    }
+
+    function validOptStr(data, field, maxLen) {
+      return !(field in data) || data[field] == null || (data[field] is string && data[field].size() <= maxLen);
+    }
+
+    function getCallerProfile() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function isCallerAssignedToClass(classId, classCode) {
+      return isSignedIn() &&
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        (
+          (classId != null && getCallerProfile().classId == classId) ||
+          (classCode != null && getCallerProfile().classCode == classCode)
+        );
+    }
+
+    // 1. Institutions
+    match /institutions/{institutionId} {
+      allow get: if isSignedIn();
+      allow list: if isPlatformOwner();
+      allow create, update: if isPlatformOwner()
+        && validStr(incoming().name, 2, 160)
+        && validStr(incoming().region, 2, 100);
+      allow delete: if isPlatformOwner();
+    }
+
+    // 2. Institution Settings
+    match /institution_settings/{settingId} {
+      allow get: if isSignedIn();
+      allow list, create, update, delete: if isPlatformOwner();
+    }
+
+    // 3. Academic Years
+    match /academic_years/{yearId} {
+      allow get, list: if isSignedIn();
+      allow create, update, delete: if isPlatformOwner();
+    }
+
+    // 4. Users (Exclusive Admin + Student profile immutability)
+    match /users/{userId} {
+      allow get: if isOwner(userId) || isPlatformOwner();
+      allow list: if isPlatformOwner();
+
+      allow create: if isSignedIn()
+        && validStr(incoming().uid, 2, 128)
+        && validStr(incoming().displayName, 2, 120)
+        && validStr(incoming().email, 5, 160)
+        && validStr(incoming().institutionId, 2, 120)
+        && (
+          isPlatformOwner() ||
+          (
+            isOwner(userId)
+            && incoming().uid == userId
+            && incoming().role == 'student'
+            && (!('platformOwner' in incoming()) || incoming().platformOwner == false)
+            && (!('platformAdmin' in incoming()) || incoming().platformAdmin == false)
+          )
+        );
+
+      allow update: if isPlatformOwner() || (
+        isOwner(userId)
+        && incoming().uid == existing().uid
+        && incoming().email == existing().email
+        && incoming().role == existing().role
+        && incoming().institutionId == existing().institutionId
+        && incoming().classId == existing().classId
+        && incoming().classCode == existing().classCode
+        && incoming().grade == existing().grade
+        && incoming().track == existing().track
+        && incoming().studentCode == existing().studentCode
+        && incoming().status == existing().status
+        && (!('platformOwner' in incoming()) || incoming().platformOwner == false)
+        && (!('platformAdmin' in incoming()) || incoming().platformAdmin == false)
+        && validStr(incoming().displayName, 2, 120)
+      );
+
+      allow delete: if isPlatformOwner();
+    }
+
+    // 5. Classes (19 Official Classes)
+    match /classes/{classId} {
+      allow get: if isPlatformOwner() || isCallerAssignedToClass(classId, existing().code);
+      allow list: if isPlatformOwner();
+      allow create, update: if isPlatformOwner()
+        && validStr(incoming().name, 2, 80)
+        && validStr(incoming().institutionId, 2, 120)
+        && incoming().grade is number
+        && incoming().grade >= 5
+        && incoming().grade <= 11;
+      allow delete: if isPlatformOwner();
+    }
+
+    // 6. Class Memberships, Teacher Assignments, Student Enrollments, Parent Links
+    match /class_memberships/{membershipId} {
+      allow get: if isSignedIn() && (existing().userId == request.auth.uid || isPlatformOwner());
+      allow list, create, update, delete: if isPlatformOwner();
+    }
+
+    match /teacher_assignments/{assignmentId} {
+      allow get, list, create, update, delete: if isPlatformOwner();
+    }
+
+    match /student_enrollments/{enrollmentId} {
+      allow get: if isSignedIn() && (existing().studentId == request.auth.uid || isPlatformOwner());
+      allow list, create, update, delete: if isPlatformOwner();
+    }
+
+    match /parent_links/{linkId} {
+      allow get: if isSignedIn() && (existing().studentId == request.auth.uid || isPlatformOwner());
+      allow list, create, update, delete: if isPlatformOwner();
+    }
+
+    // 7. Invitations (Hashed tokens only)
+    match /invitations/{invitationId} {
+      allow get: if isSignedIn();
+      allow list: if isPlatformOwner();
+      allow create: if isPlatformOwner()
+        && validStr(incoming().institutionId, 2, 120)
+        && validStr(incoming().tokenHash, 8, 128)
+        && incoming().role == 'student'
+        && incoming().status == 'pending';
+      allow update: if isPlatformOwner() || (
+        isSignedIn()
+        && existing().status == 'pending'
+        && incoming().status == 'accepted'
+        && incoming().tokenHash == existing().tokenHash
+        && incoming().role == existing().role
+        && incoming().institutionId == existing().institutionId
+      );
+      allow delete: if isPlatformOwner();
+    }
+
+    // 8. Subjects & Topics & Curriculum
+    match /subjects/{subjectId} {
+      allow get, list: if isSignedIn();
+      allow create, update, delete: if isPlatformOwner();
+    }
+
+    match /topics/{topicId} {
+      allow get, list: if isSignedIn();
+      allow create, update, delete: if isPlatformOwner();
+    }
+
+    match /curriculum_units/{unitId} {
+      allow get, list: if isSignedIn();
+      allow create, update, delete: if isPlatformOwner();
+    }
+
+    match /curriculum_topics/{topicId} {
+      allow get, list: if isSignedIn();
+      allow create, update, delete: if isPlatformOwner();
+    }
+
+    // 9. Lessons (Students can only read published lessons for their own assigned class)
+    match /lessons/{lessonId} {
+      allow get, list: if isPlatformOwner() || (
+        isSignedIn()
+        && existing().status in ['published', 'in_progress', 'completed']
+        && isCallerAssignedToClass(existing().classId, existing().classCode)
+      );
+      allow create, update, delete: if isPlatformOwner();
+    }
+
+    // 10. Work Plans (Admin Only)
+    match /work_plans/{planId} {
+      allow get, list, create, update, delete: if isPlatformOwner();
+    }
+
+    // 11. Questions & Answer Keys (Strictly Platform Owner ONLY — prevents client-side answer key leakage)
+    match /questions/{questionId} {
+      allow get, list: if isPlatformOwner();
+      allow create, update: if isPlatformOwner()
+        && validStr(incoming().prompt, 3, 4000)
+        && validStr(incoming().topicId, 1, 120)
+        && incoming().type in ['single_choice', 'multiple_choice', 'numeric', 'short_text', 'long_text']
+        && incoming().difficulty in ['easy', 'medium', 'hard'];
+      allow delete: if isPlatformOwner();
+    }
+
+    match /question_options/{optionId} {
+      allow get, list, create, update, delete: if isPlatformOwner();
+    }
+
+    match /question_revisions/{revisionId} {
+      allow get, list, create: if isPlatformOwner();
+      allow update, delete: if false;
+    }
+
+    match /question_media/{mediaId} {
+      allow get, list: if isSignedIn();
+      allow create, update, delete: if isPlatformOwner();
+    }
+
+    // 12. Assessments & Assignments (Students can only read published assessments for their own class)
+    match /assessments/{assessmentId} {
+      allow get, list: if isPlatformOwner() || (
+        isSignedIn()
+        && existing().status == 'published'
+        && isCallerAssignedToClass(existing().classId, existing().classCode)
+      );
+      allow create, update, delete: if isPlatformOwner();
+    }
+
+    match /assignments/{assignmentId} {
+      allow get, list: if isPlatformOwner() || (
+        isSignedIn()
+        && existing().status == 'published'
+        && isCallerAssignedToClass(existing().classId, existing().className)
+      );
+      allow create, update, delete: if isPlatformOwner();
+    }
+
+    // 13. Assessment Attempts (Students can only read/create their own attempts; attempts are immutable to students)
+    match /attempts/{attemptId} {
+      allow get, list: if isPlatformOwner() || (isSignedIn() && existing().studentId == request.auth.uid);
+      allow create: if (isPlatformOwner() || (isSignedIn() && incoming().studentId == request.auth.uid))
+        && validStr(incoming().assessmentId, 2, 120)
+        && incoming().scorePercent is number
+        && incoming().scorePercent >= 0
+        && incoming().scorePercent <= 100
+        && incoming().totalQuestions is number
+        && incoming().totalQuestions > 0;
+      allow update: if isPlatformOwner()
+        && incoming().studentId == existing().studentId
+        && incoming().assessmentId == existing().assessmentId;
+      allow delete: if false;
+    }
+
+    match /grading_records/{recordId} {
+      allow get, list: if isPlatformOwner() || (isSignedIn() && existing().studentId == request.auth.uid);
+      allow create: if isPlatformOwner()
+        && validStr(incoming().attemptId, 2, 120)
+        && validStr(incoming().questionId, 1, 120)
+        && incoming().awardedPoints is number
+        && incoming().awardedPoints >= 0;
+      allow update, delete: if false;
+    }
+
+    // 14. Import Batches & Student Import Jobs (Admin Only)
+    match /import_batches/{batchId} {
+      allow get, list, create, update, delete: if isPlatformOwner();
+    }
+
+    match /student_import_jobs/{jobId} {
+      allow get, list, create, update, delete: if isPlatformOwner();
+    }
+
+    // 15. Mastery Records & Learning Paths (Student can only read their own)
+    match /mastery_records/{recordId} {
+      allow get, list: if isPlatformOwner() || (isSignedIn() && existing().studentId == request.auth.uid);
+      allow create, update: if isPlatformOwner() || (
+        isSignedIn()
+        && incoming().studentId == request.auth.uid
+        && incoming().accuracy is number
+        && incoming().accuracy >= 0
+        && incoming().accuracy <= 100
+      );
+      allow delete: if isPlatformOwner();
+    }
+
+    match /learning_paths/{pathId} {
+      allow get, list: if isPlatformOwner() || (isSignedIn() && existing().studentId == request.auth.uid);
+      allow create, update: if isPlatformOwner() || (isSignedIn() && incoming().studentId == request.auth.uid);
+      allow delete: if isPlatformOwner();
+    }
+
+    match /learning_recommendations/{recId} {
+      allow get, list: if isPlatformOwner() || (isSignedIn() && existing().studentId == request.auth.uid);
+      allow create, update, delete: if isPlatformOwner();
+    }
+
+    // 16. Notifications & Teacher Notes
+    match /notifications/{notifId} {
+      allow get, list: if isPlatformOwner() || (isSignedIn() && existing().recipientUid == request.auth.uid);
+      allow create: if isPlatformOwner();
+      allow update: if isPlatformOwner() || (
+        isSignedIn()
+        && existing().recipientUid == request.auth.uid
+        && incoming().recipientUid == existing().recipientUid
+      );
+      allow delete: if isPlatformOwner();
+    }
+
+    match /teacher_notes/{noteId} {
+      allow get, list: if isPlatformOwner() || (isSignedIn() && existing().studentId == request.auth.uid);
+      allow create, update, delete: if isPlatformOwner();
+    }
+
+    // 17. Immutable Audit Logs & Security Alerts
+    match /audit_logs/{logId} {
+      allow get, list, create: if isPlatformOwner();
+      allow update, delete: if false;
+    }
+
+    match /security_alerts/{alertId} {
+      allow get, list, create: if isPlatformOwner();
+      allow update, delete: if false;
+    }
+
+    // Default deny-all fallback
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

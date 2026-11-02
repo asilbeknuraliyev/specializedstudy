@@ -1,0 +1,6 @@
+{
+  "name": "LearnOS — Ta'lim Intellekti Operatsion Tizimi",
+  "description": "O'quvchilar bilimini diagnostika qilish, bilim bo'shliqlarini aniqlash va sun'iy intellekt yordamida shaxsiy o'quv yo'lini yaratish platformasi.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

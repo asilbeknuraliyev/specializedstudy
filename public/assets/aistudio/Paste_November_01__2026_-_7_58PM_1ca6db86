@@ -1,0 +1,1213 @@
+
+# SPECIALIZED STUDY — ULTIMATE SECURITY HARDENING & RELIABILITY AUDIT
+
+You are now acting as an elite application security and software reliability team.
+
+Your responsibilities include:
+
+- Principal Application Security Engineer
+- Senior Firebase Security Architect
+- Cloud Infrastructure Security Engineer
+- Full-Stack Security Engineer
+- Secure Authentication Specialist
+- Database Security Engineer
+- DevSecOps Engineer
+- QA Automation Engineer
+- Software Reliability Engineer
+
+PROJECT:
+
+Specialized Study
+
+An educational SaaS platform used by a specialized school in Uzbekistan.
+
+The application processes:
+- Student personal information.
+- Student accounts.
+- Class assignments.
+- Academic work plans.
+- Lesson materials.
+- Examination questions.
+- Assessment submissions.
+- Student results.
+- Individual learning progress.
+
+This application contains sensitive information about school-aged students.
+
+Security, privacy, data integrity, and reliability are critical requirements.
+
+YOUR MISSION:
+
+Perform a complete security audit of the existing application.
+
+Find vulnerabilities, fix vulnerable code, strengthen backend security, improve database protection, review authentication, inspect every API endpoint, and create comprehensive automated security tests.
+
+This is an EXISTING PROJECT.
+
+DO NOT:
+- Create a new application.
+- Rebuild everything unnecessarily.
+- Destroy existing real data.
+- Remove working features.
+- Weaken security to make functionality easier.
+- Replace real Firebase integration with mock data.
+- Claim security improvements that have not been verified.
+
+Do not respond with only recommendations.
+
+Inspect the real codebase and implement actual security improvements.
+
+==================================================
+01. SECURITY STANDARDS
+==================================================
+
+Use these security standards as engineering references:
+
+1. OWASP Application Security Verification Standard (ASVS) 5.0.
+2. OWASP Top 10:2025.
+3. Firebase Security Rules best practices.
+4. Google Cloud security best practices.
+5. Secure software development lifecycle principles.
+
+Cover all relevant areas:
+
+- Access control.
+- Authentication.
+- Session management.
+- Cryptographic protection.
+- Input validation.
+- Injection prevention.
+- Secure configuration.
+- Software supply chain.
+- File upload security.
+- Security logging.
+- Exception handling.
+- Data protection.
+- API security.
+- Infrastructure security.
+
+Create a security requirements checklist and map implementation evidence to the relevant controls.
+
+Do not simply claim OWASP compliance.
+
+Only mark a security requirement as passed when it has been implemented and tested.
+
+==================================================
+02. FULL APPLICATION SECURITY AUDIT
+==================================================
+
+Inspect the complete existing repository.
+
+Analyze:
+
+- Frontend source code.
+- Backend source code.
+- API routes.
+- Authentication implementation.
+- Firebase initialization.
+- Firestore configuration.
+- Firestore Security Rules.
+- Cloud Storage Security Rules.
+- Firebase Authentication settings.
+- Firebase custom claims.
+- Admin SDK usage.
+- Environment variables.
+- Secrets management.
+- File upload mechanisms.
+- XLSX import logic.
+- PDF and DOCX processing.
+- Gemini API integration.
+- User input handling.
+- HTML rendering.
+- Navigation and protected routes.
+- Dependencies.
+- Deployment configuration.
+- Logging and error handling.
+
+Search for security-sensitive patterns including:
+
+- Hardcoded passwords.
+- Hardcoded API keys.
+- Private service account information.
+- Exposed Firebase administrative credentials.
+- Unrestricted database access.
+- Frontend-only authorization.
+- Missing backend authorization.
+- Insecure direct object references.
+- Unsafe file processing.
+- Missing input validation.
+- Unrestricted CORS.
+- Unsafe HTML rendering.
+- Debug routes.
+- Development authentication shortcuts.
+- Unprotected administrative endpoints.
+
+Create a vulnerability inventory.
+
+Classify each finding:
+
+CRITICAL
+HIGH
+MEDIUM
+LOW
+INFORMATIONAL
+
+For every finding include:
+
+- Vulnerability title.
+- Affected file or component.
+- Risk.
+- Why it is dangerous.
+- Actual evidence.
+- Recommended repair.
+- Implemented repair.
+- Verification status.
+
+Do not invent vulnerabilities.
+
+Only report problems actually found in the codebase or configuration.
+
+==================================================
+03. ABSOLUTE ADMIN AUTHORIZATION
+==================================================
+
+There are only two active application roles:
+
+1. Platform Admin.
+2. Student.
+
+The only authorized Platform Admin identity is:
+
+asilbeknuraliyev43@gmail.com
+
+This restriction must be enforced at multiple layers.
+
+ADMIN AUTHORIZATION REQUIREMENTS:
+
+- Firebase Authentication must authenticate the user.
+- Email must be verified.
+- Normalize email for comparison.
+- Verify the authenticated Firebase UID.
+- Require a trusted platformAdmin custom claim.
+- Verify the custom claim on protected backend requests.
+- Check that the owner identity matches the authorized account.
+- Use server-side authorization.
+- Apply strict Firestore permissions.
+- Apply strict Cloud Storage permissions.
+
+The frontend email comparison must never be the sole security mechanism.
+
+Never allow a user to assign themselves a platformAdmin claim.
+
+Never trust a role field submitted by the frontend.
+
+Never allow a student to modify their own role or class.
+
+ADMIN PROVISIONING:
+
+Use a trusted one-time server-side provisioning procedure.
+
+The initial administrator must be configured securely.
+
+Do not use a hardcoded default password.
+
+Do not expose service account credentials.
+
+Protect the provisioning procedure from repeated unauthorized execution.
+
+Once owner provisioning is complete:
+- Disable the one-time bootstrap procedure.
+- Remove temporary credentials.
+- Record the administrative setup event.
+
+SENSITIVE ADMIN ACTIONS:
+
+Require recent authentication or reauthentication for exceptionally sensitive operations where appropriate.
+
+Support MFA for the owner account using a supported identity-provider mechanism.
+
+If MFA is not configured, report it as a production security requirement.
+
+Apply secure session handling and token revocation where appropriate.
+
+==================================================
+04. AUTHENTICATION SECURITY
+==================================================
+
+Harden Firebase Authentication.
+
+Review:
+
+- Sign-in.
+- Sign-up.
+- Account invitation.
+- Email verification.
+- Password reset.
+- Account suspension.
+- Session expiration.
+- Token refresh.
+- Token revocation.
+- Account recovery.
+
+Requirements:
+
+1. No hardcoded passwords.
+2. No shared student passwords.
+3. No plaintext password storage.
+4. No passwords inside Excel imports.
+5. No unrestricted public administrator registration.
+6. No unverified administrator access.
+7. No privilege escalation through user metadata.
+8. No trust in browser-supplied user IDs.
+
+Backend requests must identify the authenticated user securely.
+
+For custom backend requests:
+
+- Receive Firebase ID tokens through HTTPS.
+- Verify tokens using Firebase Admin SDK.
+- Validate the expected Firebase project.
+- Validate token expiration and identity.
+- Check revocation where required.
+- Verify custom claims.
+- Perform resource-level authorization.
+
+Do not trust a user ID submitted in the request body as proof of identity.
+
+Use the verified token identity.
+
+Avoid account enumeration through authentication error messages.
+
+Apply reasonable sign-in rate limits.
+
+Do not introduce weak recovery flows.
+
+==================================================
+05. FIRESTORE SECURITY — CRITICAL
+==================================================
+
+Review and rewrite Firestore Security Rules where necessary.
+
+Default security policy:
+
+DENY ACCESS UNLESS EXPLICITLY AUTHORIZED.
+
+Never use unrestricted rules.
+
+Never use:
+
+allow read, write: if true;
+
+Never rely on:
+
+allow read, write: if request.auth != null;
+
+as the complete production authorization policy.
+
+Implement collection-specific and document-specific permissions.
+
+STUDENT PERMISSIONS:
+
+A student may access only:
+
+- Their own authorized profile.
+- Their assigned class information.
+- Subjects assigned to their class.
+- Published lessons for their class.
+- Published assessments assigned to their class.
+- Their own submissions.
+- Their own results.
+- Their own Knowledge Map.
+
+A student must not:
+
+- Read another student's private information.
+- Modify their class.
+- Change their role.
+- Modify official results.
+- Modify question answer keys.
+- Read unpublished assessments.
+- Read private administrative records.
+- Access unauthorized institution records.
+
+ADMIN PERMISSIONS:
+
+Only the verified Platform Admin can perform authorized global administrative operations.
+
+Validate ownership and permissions independently.
+
+FIELD VALIDATION:
+
+For important writes:
+
+- Validate document fields.
+- Validate field types.
+- Validate allowed values.
+- Validate document ownership.
+- Validate institution references.
+- Validate immutable fields.
+- Reject unexpected privileged fields.
+
+Protect against client-side privilege escalation.
+
+Use schema validation on the backend as well.
+
+IMPORTANT FIREBASE ADMIN SDK RULE:
+
+Server-side Firebase Admin SDK operations bypass Firestore Security Rules.
+
+Therefore:
+
+Every Admin SDK endpoint must independently validate:
+- Authenticated identity.
+- Authorization.
+- Resource ownership.
+- Input schema.
+- Operation permissions.
+
+Never assume Firestore rules protect a server-side Admin SDK operation.
+
+==================================================
+06. CLOUD STORAGE SECURITY
+==================================================
+
+Secure every file in Firebase Cloud Storage.
+
+The application stores:
+
+- Student-related documents.
+- Work plans.
+- PDFs.
+- Images.
+- Question attachments.
+- Institution logos.
+- Assessment materials.
+
+Security requirements:
+
+- Restrict access to authenticated and authorized users.
+- Apply path-level permissions.
+- Validate file size.
+- Validate MIME types.
+- Validate actual file signatures where possible.
+- Reject executable formats.
+- Reject dangerous files.
+- Prevent arbitrary file overwriting.
+- Prevent unauthorized file deletion.
+- Protect private student records.
+- Avoid permanently public URLs for sensitive files.
+
+Use short-lived or permission-controlled access where appropriate.
+
+Create separate storage paths for different file categories.
+
+Validate the institution and owner relationship before every privileged operation.
+
+Add reasonable configurable upload limits.
+
+Protect against oversized uploads and storage abuse.
+
+Never trust a file extension as proof of the actual file type.
+
+==================================================
+07. EXCEL, ZIP, PDF AND DOCUMENT UPLOAD SECURITY
+==================================================
+
+The platform accepts Excel and other educational files.
+
+File processing must be treated as an untrusted input boundary.
+
+Protect the file import system against:
+
+- Malformed workbooks.
+- Oversized files.
+- Excessive worksheet counts.
+- Excessive row counts.
+- Formula injection.
+- CSV injection.
+- Malformed ZIP archives.
+- ZIP bombs.
+- Path traversal.
+- Archive directory traversal.
+- Unexpected file extensions.
+- MIME type mismatches.
+- External file references.
+- Malicious embedded content.
+- Excessive memory consumption.
+- Parsing timeouts.
+
+IMPORTANT XLSX RULES:
+
+1. Never execute Excel formulas.
+2. Never evaluate imported macros.
+3. Do not execute embedded scripts.
+4. Disable or ignore external workbook links.
+5. Treat formulas and cell content as untrusted data.
+6. Escape data correctly during export.
+7. Apply strict file-size and resource limits.
+8. Validate worksheet structures.
+9. Use safe temporary storage.
+10. Delete temporary files after processing.
+
+Do not allow uploaded ZIP archives to write files outside their designated temporary directory.
+
+Normalize file paths safely.
+
+Do not process arbitrary URLs from uploaded documents.
+
+Use a secure document parsing pipeline.
+
+All imported records must undergo schema validation before entering Firestore.
+
+==================================================
+08. API SECURITY
+==================================================
+
+Inspect every backend API endpoint.
+
+Create an API security inventory.
+
+For every endpoint validate:
+
+- HTTP method.
+- Authentication requirement.
+- Authorization requirement.
+- Request schema.
+- Response schema.
+- Rate limit.
+- Maximum payload size.
+- Error behavior.
+- Audit requirements.
+
+Requirements:
+
+- Reject unauthenticated privileged requests.
+- Reject forged roles.
+- Reject unauthorized resource IDs.
+- Reject invalid payloads.
+- Reject unknown privileged fields.
+- Limit expensive operations.
+- Avoid excessive database reads.
+- Avoid unrestricted query filters.
+- Avoid arbitrary collection paths.
+- Prevent mass assignment.
+- Prevent insecure direct object references.
+
+Use Zod or an equivalent runtime schema validator.
+
+Use strict typed request schemas.
+
+Never blindly spread user-supplied request data into Firestore updates.
+
+Construct permitted updates field by field.
+
+Use pagination and maximum result limits.
+
+==================================================
+09. RATE LIMITING AND ABUSE PROTECTION
+==================================================
+
+Protect the application from automated abuse.
+
+Implement server-side rate limits for:
+
+- Login attempts.
+- Password reset requests.
+- Invitation generation.
+- Student import.
+- File uploads.
+- Assessment submission.
+- AI generation.
+- AI analysis.
+- Expensive administrative queries.
+- Public API endpoints.
+
+Use per-user and appropriate IP-based controls.
+
+Use a distributed rate-limiting solution suitable for the deployed infrastructure.
+
+Do not rely only on in-memory counters in a serverless environment.
+
+Define safe limits and adjustable quotas.
+
+Apply cooldowns where necessary.
+
+Use Firebase App Check to reduce unauthorized automated access to supported Firebase services.
+
+For the web application, evaluate reCAPTCHA Enterprise as the App Check provider.
+
+Start in monitoring mode where appropriate, verify legitimate traffic, and only then enforce it.
+
+Do not lock out real students through an incorrectly configured App Check policy.
+
+Do not treat App Check as a replacement for authentication or authorization.
+
+==================================================
+10. XSS, INJECTION AND BROWSER SECURITY
+==================================================
+
+Review all displayed user-generated content.
+
+Protect against:
+
+- Cross-site scripting.
+- HTML injection.
+- DOM-based XSS.
+- Unsafe rich-text rendering.
+- Unsafe URL handling.
+- Injection into database queries.
+- Command injection.
+- Open redirects.
+- Untrusted markdown rendering.
+
+Requirements:
+
+- Prefer safe React rendering.
+- Avoid dangerouslySetInnerHTML.
+- Sanitize rich-text content with a maintained sanitizer.
+- Restrict supported HTML elements and attributes.
+- Validate URL protocols.
+- Reject javascript: URLs.
+- Never execute imported scripts.
+- Validate query parameters.
+- Do not concatenate untrusted input into commands or queries.
+
+Implement suitable browser security headers:
+
+- Content-Security-Policy.
+- Strict-Transport-Security on HTTPS.
+- X-Content-Type-Options.
+- Referrer-Policy.
+- Permissions-Policy.
+- Appropriate frame protections.
+
+Use a carefully tested CSP that does not break Firebase authentication or legitimate application functionality.
+
+Avoid unrestricted wildcard sources.
+
+==================================================
+11. CORS AND CSRF SECURITY
+========================================================
+
+Configure production CORS carefully.
+
+Only trusted deployed origins should access protected backend APIs.
+
+Do not allow every origin by default.
+
+Use HTTPS only for production API communication.
+
+If authentication uses cookies:
+
+- Secure cookie settings.
+- HttpOnly.
+- SameSite configuration.
+- CSRF token protection.
+- Origin validation.
+
+If the application uses bearer-token authentication:
+
+- Validate Firebase tokens.
+- Do not accidentally enable credentialed cross-origin requests.
+- Keep authorization checks server-side.
+
+Do not assume CORS is authentication.
+
+==================================================
+12. SECRETS MANAGEMENT
+========================================================
+
+Inspect the entire codebase for exposed secrets.
+
+Check:
+- Gemini API key.
+- Firebase Admin service account.
+- Private keys.
+- Database credentials.
+- Bootstrap secrets.
+- SMTP credentials.
+- Cloud deployment secrets.
+- Third-party API tokens.
+
+Requirements:
+
+- Secrets only in server-side secret storage.
+- Never embed private secrets in frontend bundles.
+- Never expose secrets through API responses.
+- Never write secrets into logs.
+- Never commit .env files containing real credentials.
+- Add appropriate ignore rules.
+- Use the platform's supported secrets management.
+- Rotate any credential found to have been exposed.
+
+For Google AI Studio:
+Use its server-side Secrets management for confidential API keys.
+
+For Cloud Run:
+Use an appropriate server-side secrets solution, preferably Secret Manager.
+
+Inspect the generated production bundle to make sure private credentials are absent.
+
+==================================================
+13. DEPENDENCY AND SUPPLY-CHAIN SECURITY
+========================================================
+
+Inspect package.json and the complete dependency tree.
+
+Identify:
+
+- Outdated dependencies.
+- Known vulnerabilities.
+- Abandoned packages.
+- Unnecessary dependencies.
+- Suspicious packages.
+- Duplicate versions.
+- Unsafe install scripts.
+- Unmaintained security-sensitive libraries.
+
+Use a maintained dependency scanning workflow.
+
+Run:
+
+npm audit
+
+or the equivalent package manager audit.
+
+Use an appropriate high-severity threshold.
+
+Do not blindly update every package to the latest major version.
+
+Update dependencies carefully.
+
+Keep and verify the lockfile.
+
+Run regression tests after every meaningful dependency change.
+
+Add secret scanning and dependency scanning to the development workflow where supported.
+
+Generate a software component inventory or SBOM if the build environment supports it.
+
+Do not introduce an untrusted package just to implement a convenience feature.
+
+==================================================
+14. FIREBASE APP CHECK
+==================================================
+
+Inspect Firebase App Check configuration.
+
+Implement App Check where supported.
+
+For web:
+Evaluate reCAPTCHA Enterprise.
+
+Protect supported Firebase resources.
+
+Recommended process:
+
+1. Configure provider.
+2. Enable debug mode only in local development.
+3. Monitor valid traffic.
+4. Identify integration failures.
+5. Confirm correct production domains.
+6. Gradually enforce App Check.
+7. Remove development debug tokens from production.
+
+Never expose App Check debug tokens publicly.
+
+==================================================
+15. OWNER AND STUDENT DATA PROTECTION
+==================================================
+
+This system handles data belonging to school-aged students.
+
+Use privacy-by-design principles.
+
+- Collect only necessary student information.
+- Do not collect unnecessary sensitive information.
+- Avoid sending identifiable student data to Gemini.
+- Use pseudonymous identifiers for AI analysis.
+- Protect academic records.
+- Limit access according to class membership.
+- Keep private files private.
+- Limit audit-log personal information.
+- Implement safe data correction procedures.
+- Implement authorized account deletion or archival workflows.
+
+A student must never be able to access another student's records by changing an ID in the URL.
+
+All data access must be verified against actual authenticated identity and class membership.
+
+==================================================
+16. AUDIT LOGGING AND SECURITY MONITORING
+========================================================
+
+Create reliable security audit logging.
+
+Record important events:
+
+- Successful administrative login.
+- Failed administrative login where available.
+- Sensitive setting changes.
+- User suspension.
+- Account reactivation.
+- Student invitation.
+- Class assignment changes.
+- Assessment publication.
+- Assessment modification.
+- Data import.
+- File upload.
+- Unauthorized privileged request.
+- Security validation failure.
+
+Each event should contain:
+
+- Timestamp.
+- Event type.
+- Actor UID.
+- Resource ID where relevant.
+- Outcome.
+- Request correlation ID.
+
+Do not log:
+- Passwords.
+- Access tokens.
+- API secrets.
+- Private file contents.
+- Unnecessary student personal data.
+
+Protect audit records against modification by ordinary clients.
+
+Create alerts for:
+- Repeated failed logins.
+- Repeated denied admin access.
+- Unusual AI usage.
+- Excessive file imports.
+- Repeated malformed requests.
+- Unexpected administrative permission changes.
+
+==================================================
+17. BACKUPS AND DATA RECOVERY
+========================================================
+
+Protect the school database against accidental loss.
+
+Review the available Firestore backup and point-in-time recovery options.
+
+Recommend and configure suitable backup policies where available.
+
+Document:
+
+- Backup frequency.
+- Retention.
+- Recovery procedure.
+- Restore verification.
+- Database migration rollback.
+- Incident response.
+
+Test restoration in an isolated test project.
+
+Never test destructive recovery operations on production data.
+
+Do not automatically delete genuine data during security improvements.
+
+==================================================
+18. SOFTWARE RELIABILITY AND BUG PREVENTION
+========================================================
+
+Perform a complete reliability review.
+
+Inspect:
+
+- Runtime errors.
+- Type errors.
+- Build errors.
+- Unhandled promise rejections.
+- Unhandled exceptions.
+- Memory leaks.
+- Infinite rendering loops.
+- Duplicate Firestore subscriptions.
+- Race conditions.
+- Stale state.
+- Incorrect database writes.
+- Duplicate submissions.
+- Invalid calculations.
+- Timezone bugs.
+- Missing loading states.
+- Broken navigation.
+- Responsive layout errors.
+
+Use strict TypeScript checks.
+
+Avoid unnecessary any types.
+
+Add error boundaries.
+
+Add centralized error handling.
+
+Handle network interruption.
+
+Use transaction protection for important operations.
+
+Make important operations idempotent.
+
+Never display success messages before the backend confirms success.
+
+Do not hide application errors silently.
+
+Provide understandable Uzbek error messages to users.
+
+Do not display raw stack traces to students.
+
+Use structured error logs on the server.
+
+==================================================
+19. AUTOMATED TESTING
+========================================================
+
+Create and execute a comprehensive test suite.
+
+Use:
+
+- Unit tests.
+- Integration tests.
+- End-to-end tests.
+- Firebase Emulator tests.
+- Firestore Rules unit tests.
+- Storage Rules tests.
+- API authorization tests.
+- Dependency checks.
+- Build checks.
+
+TEST SCENARIO A — AUTHENTICATION:
+
+1. Unauthenticated visitor attempts to access protected pages.
+2. Student signs in.
+3. Student accesses their own workspace.
+4. Student tries to open /admin.
+5. Student tries to call an administrative API directly.
+6. Both unauthorized operations must fail.
+
+TEST SCENARIO B — ADMIN IDENTITY:
+
+1. Verified owner signs in.
+2. Correct Platform Admin claim is checked.
+3. Owner opens administrative resources.
+4. Another verified account attempts to obtain administrative privileges.
+5. Access must be denied.
+
+TEST SCENARIO C — STUDENT ISOLATION:
+
+1. Student A accesses Student B's document.
+2. Student A changes a URL identifier.
+3. Student A attempts to read Student B's result.
+4. Student A attempts to modify their own class.
+5. All unauthorized operations must be rejected.
+
+TEST SCENARIO D — DATABASE SECURITY:
+
+Test unauthenticated reads.
+
+Test unauthorized writes.
+
+Test forged custom fields.
+
+Test role escalation.
+
+Test cross-class access.
+
+Test cross-institution access if multiple institutions exist.
+
+TEST SCENARIO E — FILE SECURITY:
+
+Test oversized files.
+
+Test invalid extensions.
+
+Test MIME mismatches.
+
+Test malformed XLSX.
+
+Test malicious archive paths.
+
+Test compressed archive size limits.
+
+Test unauthorized image retrieval.
+
+TEST SCENARIO F — API SECURITY:
+
+Test invalid tokens.
+
+Test expired tokens.
+
+Test revoked sessions.
+
+Test forged user IDs.
+
+Test excessive request rates.
+
+Test invalid request schemas.
+
+TEST SCENARIO G — FUNCTIONAL REGRESSION:
+
+Verify all main features still work:
+
+- Student management.
+- Excel import.
+- Class management.
+- Work plan upload.
+- Curriculum map.
+- Lesson publishing.
+- AI test generation.
+- Assessment publishing.
+- Student submission.
+- Result calculation.
+- Knowledge Map.
+
+TEST SCENARIO H — PERFORMANCE:
+
+Test realistic data volumes in an isolated environment.
+
+Check:
+- Loading.
+- Pagination.
+- Database query counts.
+- Memory use.
+- File-processing resource use.
+- Response times.
+
+Do not run unauthorized or disruptive stress tests against production infrastructure.
+
+==================================================
+20. FIREBASE EMULATOR SECURITY TESTING
+========================================================
+
+Use Firebase Local Emulator Suite.
+
+Create automated tests with:
+
+@firebase/rules-unit-testing
+
+Test both authenticated and unauthenticated users.
+
+Test Admin and Student identities.
+
+Test valid and invalid custom claims.
+
+Test all important Firestore collections.
+
+Test Cloud Storage permissions where supported.
+
+Use isolated test data.
+
+Ensure the emulator actually loads the project's real security rules.
+
+Do not assume rules are secure merely because the application works.
+
+Important:
+
+Firebase Admin SDK operations bypass Firestore Security Rules.
+
+Therefore, test both:
+1. Client-side Firestore Security Rules.
+2. Server-side API authorization.
+
+Never deploy rules that have only been checked visually.
+
+==================================================
+21. CI/CD SECURITY GATES
+========================================================
+
+Create a safe verification pipeline where supported.
+
+Before every production deployment:
+
+1. TypeScript check.
+2. Lint.
+3. Unit tests.
+4. Integration tests.
+5. Security Rules tests.
+6. Build.
+7. Dependency audit.
+8. Secret scan.
+9. Critical regression tests.
+
+Do not deploy if:
+- A critical security test fails.
+- A high-severity unresolved vulnerability is confirmed.
+- Security Rules tests fail.
+- The production build fails.
+- A secret is detected in the frontend bundle.
+- Authentication authorization tests fail.
+
+Provide a clear deployment report.
+
+==================================================
+22. SAFE IMPLEMENTATION AND CHANGE MANAGEMENT
+========================================================
+
+IMPORTANT:
+
+Do not make uncontrolled production changes.
+
+First inspect the current production environment.
+
+Use separate environments:
+
+- Development.
+- Staging.
+- Production.
+
+Run security tests and migrations in staging first.
+
+Before changing production rules:
+- Verify project identity.
+- Inspect current rules.
+- Back up the current configuration.
+- Test new rules in the Emulator.
+- Test legitimate owner access.
+- Test student access.
+- Review the difference.
+- Deploy only after verification.
+
+Do not deploy a rule set that accidentally locks out the owner or real students.
+
+Do not perform destructive database migrations without explicit approval.
+
+Preserve existing real educational records.
+
+Prepare a rollback plan for high-risk changes.
+
+==================================================
+23. SECURITY REPORT FORMAT
+========================================================
+
+Produce a professional security audit report.
+
+Sections:
+
+A. Executive Summary.
+
+B. Application Architecture.
+
+C. Authentication Audit.
+
+D. Admin Authorization Audit.
+
+E. Firestore Rules Audit.
+
+F. Cloud Storage Rules Audit.
+
+G. API Security Audit.
+
+H. File Upload Audit.
+
+I. Secrets and Dependency Audit.
+
+J. Student Privacy Audit.
+
+K. Vulnerability Inventory.
+
+L. Fixed Vulnerabilities.
+
+M. Automated Test Results.
+
+N. Remaining Risks.
+
+O. Production Deployment Requirements.
+
+For each vulnerability record:
+
+- Severity.
+- Description.
+- Affected component.
+- Status.
+- Evidence.
+- Verification.
+
+Use the following status values:
+
+PASS:
+Successfully implemented and tested.
+
+FAIL:
+A confirmed problem remains.
+
+NOT TESTED:
+The required verification has not been performed.
+
+BLOCKED:
+External configuration or access is required.
+
+Do not mark a control as PASS based only on source-code inspection if runtime verification is needed.
+
+==================================================
+24. CRITICAL COMPLETION RULES
+========================================================
+
+The goal is not to create the appearance of security.
+
+The goal is to establish actual security controls and provide evidence that they work.
+
+Never claim:
+
+- The application is unhackable.
+- There are absolutely no bugs.
+- All security risks are eliminated.
+- Every attack is impossible.
+- Security is guaranteed.
+
+Instead, report measurable verification results and remaining risks.
+
+If the environment does not permit an actual test, mark it NOT TESTED.
+
+If a Firebase setting requires manual configuration, explain the exact setting.
+
+If a security issue cannot be repaired safely without an owner decision, stop that specific change and explain why.
+
+Do not fabricate successful security tests.
+
+==================================================
+25. FINAL EXECUTION INSTRUCTIONS
+========================================================
+
+START NOW.
+
+Inspect the existing Specialized Study project.
+
+Create a security audit inventory.
+
+Prioritize CRITICAL and HIGH severity issues.
+
+Fix confirmed vulnerabilities directly in the code.
+
+Strengthen Firestore and Storage Security Rules.
+
+Secure all server-side administrative operations.
+
+Protect the exclusive Platform Admin identity.
+
+Harden file uploads.
+
+Secure student data.
+
+Inspect and protect API endpoints.
+
+Fix reliability issues.
+
+Create automated security tests.
+
+Run all available checks.
+
+Preserve existing product functionality.
+
+Do not introduce demo data.
+
+Do not break global deployment.
+
+Do not remove existing educational features.
+
+After implementation, provide the actual security audit report and exact verification results.
+
+BUILD A SECURITY-FIRST, PRODUCTION-GRADE SPECIALIZED STUDY APPLICATION.
+
+BEGIN THE FULL SECURITY AUDIT AND REMEDIATION NOW.

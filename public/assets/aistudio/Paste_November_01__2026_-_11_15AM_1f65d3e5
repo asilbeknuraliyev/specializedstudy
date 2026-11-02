@@ -1,0 +1,1535 @@
+
+# SPECIALIZED STUDY — COMPLETE PRODUCT TRANSFORMATION
+
+You are an elite software engineering and product design team.
+
+Your expertise includes:
+- Principal SaaS Architecture
+- Full-Stack Engineering
+- AI-powered Education Systems
+- Learning Management Systems
+- Curriculum Mapping
+- Assessment and Examination Systems
+- Firebase and Database Security
+- Premium UI/UX Design
+- Educational Data Analytics
+
+You are modifying an EXISTING application.
+
+Your task is to transform the current LearnOS project into an advanced educational management and learning platform named:
+
+# SPECIALIZED STUDY
+
+Product tagline:
+"Structured Learning. Measurable Progress."
+
+The product is designed for a specialized school environment in Uzbekistan.
+
+This is not a simple test website.
+
+It is a complete system connecting:
+- Academic classes.
+- Specialized learning tracks.
+- Subjects.
+- Academic work plans.
+- Lesson plans.
+- Curriculum maps.
+- AI-generated assessments.
+- Student learning journeys.
+- Assessment results.
+- Individual academic progress.
+
+IMPORTANT EXECUTION RULES:
+
+1. Work on the existing codebase.
+2. Preserve existing working functionality where appropriate.
+3. Rename all LearnOS branding to Specialized Study.
+4. Remove obsolete application features.
+5. Do not create demonstration data.
+6. Do not create fake statistics.
+7. Do not use sample student accounts.
+8. Use real Firebase authentication and Firestore.
+9. Implement real application functionality.
+10. Make the interface exceptionally clean and easy to use.
+
+Do not respond with only a plan.
+
+Inspect the existing project and implement the actual changes.
+
+========================================================
+01. PRODUCT IDENTITY AND BRANDING
+========================================================
+
+New application name:
+
+SPECIALIZED STUDY
+
+Short brand:
+Specialized Study
+
+Product category:
+Specialized School Academic Management & Learning Intelligence Platform.
+
+Market:
+Uzbekistan.
+
+Primary language:
+Uzbek Latin.
+
+Future languages:
+Russian and English.
+
+Brand personality:
+- Professional.
+- Academic.
+- Intelligent.
+- Minimal.
+- Trustworthy.
+- Modern.
+
+Replace the old LearnOS branding everywhere:
+
+- Application name.
+- Logo text.
+- Navigation.
+- Browser title.
+- Metadata.
+- Login page.
+- Loading screens.
+- Error pages.
+- Emails and notifications.
+- Documentation.
+- Settings.
+- PWA information.
+- Footer.
+
+Do not leave old LearnOS labels in the visible application.
+
+DESIGN DIRECTION:
+
+Build a sophisticated educational SaaS application inspired by the usability and clarity of:
+
+- Google Classroom.
+- Khan Academy.
+- Wayground.
+- Linear.
+- Notion.
+
+Do not copy their branding or layouts.
+
+Use their best interaction patterns as references.
+
+========================================================
+02. ONLY TWO USER ROLES
+========================================================
+
+The application must have ONLY TWO active roles:
+
+1. ADMIN
+2. STUDENT
+
+Remove teacher and parent workspaces from the active application.
+
+There must be:
+- No teacher dashboard.
+- No parent dashboard.
+- No teacher registration.
+- No parent registration.
+- No teacher navigation.
+- No parent navigation.
+
+All administrative and educational content-management responsibilities belong to the Admin.
+
+ADMIN ACCESS:
+
+The only authorized platform administrator is:
+
+asilbeknuraliyev43@gmail.com
+
+Preserve this previous ownership restriction.
+
+Implement:
+- Firebase Authentication.
+- Verified email.
+- Trusted platformAdmin custom claim.
+- Server-side owner verification.
+- Strict Firestore Security Rules.
+- Server-side authorization for administrative endpoints.
+
+Do not authorize Admin access through a frontend email check alone.
+
+Never allow someone to grant themselves administrative permissions.
+
+STUDENT ACCESS:
+
+Students must:
+- Receive an invitation from Admin.
+- Have an assigned class.
+- Sign in through Firebase Authentication.
+- Access only their own educational information.
+- View only content assigned to their class.
+- Never access administrative functionality.
+
+If existing teacher or parent accounts and records exist:
+Do not destroy them automatically.
+
+Preserve historical records, but remove unsupported roles from the active navigation and authentication workflow.
+
+========================================================
+03. OFFICIAL CLASS STRUCTURE
+========================================================
+
+This class structure is mandatory.
+
+Create the following 18 official classes:
+
+GRADE 5:
+- 5a1
+- 5a2
+
+GRADE 6:
+- 6a1
+- 6a2
+
+GRADE 7:
+- 7a1
+- 7a2
+- 7t
+
+GRADE 8:
+- 8a1
+- 8a2
+- 8t
+
+GRADE 9:
+- 9a1
+- 9a2
+- 9t
+
+GRADE 10:
+- 10a1
+- 10a2
+- 10t
+
+GRADE 11:
+- 11a1
+- 11a2
+- 11t
+
+Total:
+18 classes.
+
+Store class identifiers using the exact lowercase codes above.
+
+Display labels may use a visually clearer format, but preserve the canonical class code.
+
+CLASS TRACKS:
+
+A = ANIQ FANLAR
+
+T = TABIIY FANLAR
+
+A TRACK SUBJECTS:
+
+- Matematika.
+- Ingliz tili.
+- Fizika.
+
+T TRACK SUBJECTS:
+
+- Ingliz tili.
+- Biologiya.
+- Kimyo.
+
+CLASS-SUBJECT ASSOCIATION:
+
+For all classes ending in a1 or a2:
+Default applicable subjects are:
+- Matematika.
+- Ingliz tili.
+- Fizika.
+
+For all classes ending in t:
+Default applicable subjects are:
+- Ingliz tili.
+- Biologiya.
+- Kimyo.
+
+Do not create any T-track classes for grades 5 and 6.
+
+The complete initial class list must be created in the real database using an idempotent setup/migration procedure.
+
+Do not insert fictional student records.
+
+CLASS MANAGEMENT:
+
+Admin must be able to:
+- View all 18 classes.
+- Search classes.
+- Filter by grade.
+- Filter by track.
+- Open class details.
+- View enrolled students.
+- Edit class settings.
+- Assign academic plans.
+- View class learning maps.
+- View assigned assessments.
+- Archive a class if appropriate.
+
+The default class structure must be protected from accidental duplicate creation.
+
+========================================================
+04. SUBJECT MANAGEMENT
+========================================================
+
+Create a simple subject-management system.
+
+Initial subjects:
+
+1. Matematika
+2. Ingliz tili
+3. Fizika
+4. Biologiya
+5. Kimyo
+
+Each subject must have:
+
+- Subject ID.
+- Name.
+- Short code.
+- Applicable tracks.
+- Applicable grades.
+- Description.
+- Active status.
+
+Admin must be able to:
+- View subjects.
+- Edit subject details.
+- Manage subject availability.
+- View associated classes.
+- View work plans.
+- View lesson topics.
+- View assessments.
+
+The initial track associations must follow the class structure defined above.
+
+Allow future subjects to be added by the Admin without requiring code changes.
+
+========================================================
+05. APPLICATION ARCHITECTURE
+========================================================
+
+Use the existing modern full-stack architecture.
+
+Recommended technology:
+
+Frontend:
+- React.
+- TypeScript.
+- Tailwind CSS.
+- Lucide icons.
+- React Router.
+- Recharts.
+
+Backend:
+- Secure server-side API.
+- Node.js runtime.
+- Firebase Admin SDK where appropriate.
+
+Database:
+- Firebase Authentication.
+- Cloud Firestore.
+- Firebase Cloud Storage.
+
+AI:
+- Google Gemini API.
+- All privileged AI requests must run server-side.
+- Use structured JSON responses.
+- Validate all AI-generated results.
+
+Do not expose API keys in frontend code.
+
+Do not replace Firebase with localStorage.
+
+Use actual persistent records for every major operation.
+
+Maintain production deployment compatibility.
+
+========================================================
+06. NAVIGATION — MINIMAL AND CLEAR
+========================================================
+
+The entire application must have a clean and minimal navigation structure.
+
+Do not create excessive menu items.
+
+ADMIN SIDEBAR:
+
+1. Bosh sahifa
+2. Sinflar
+3. O‘quvchilar
+4. Fanlar
+5. Ish rejalari
+6. O‘quv xaritasi
+7. Testlar
+8. Natijalar
+9. Sozlamalar
+
+Keep the navigation compact.
+
+Use appropriate icons.
+
+Avoid unnecessary explanatory paragraphs.
+
+No redundant navigation.
+
+STUDENT NAVIGATION:
+
+1. Bosh sahifa
+2. Darslar
+3. Testlar
+4. O‘quv xaritam
+5. Natijalar
+6. Profil
+
+Only show pages relevant to the signed-in role.
+
+========================================================
+07. PREMIUM MINIMALIST DESIGN
+========================================================
+
+Create a world-class design.
+
+The application must look like a premium international education platform.
+
+DESIGN REFERENCES:
+
+Google Classroom:
+Use simple class organization and clear assignments.
+
+Khan Academy:
+Use understandable progress and mastery visualization.
+
+Wayground:
+Use intuitive assessment creation, previews, and question interactions.
+
+Linear:
+Use excellent spacing, typography, and minimal navigation.
+
+Notion:
+Use clean information organization.
+
+DO NOT:
+- Copy their interfaces.
+- Overload the dashboard.
+- Add unnecessary paragraphs.
+- Display long descriptions everywhere.
+- Add decorative elements without purpose.
+- Use excessive gradients.
+- Create unnecessary animations.
+- Use multiple competing accent colors.
+- Display technical system terminology to students.
+
+COLOR DIRECTION:
+
+Primary blue:
+#2563EB
+
+Deep blue:
+#1D4ED8
+
+Background:
+#F8FAFC
+
+White:
+#FFFFFF
+
+Text:
+#0F172A
+
+Secondary:
+#64748B
+
+Borders:
+#E2E8F0
+
+Success:
+#16A34A
+
+Warning:
+#D97706
+
+TYPOGRAPHY:
+Use Inter or a suitable modern sans-serif font.
+
+LAYOUT:
+- Professional sidebar.
+- Clean dashboard.
+- Balanced white space.
+- Compact information cards.
+- Excellent data tables.
+- Clear buttons.
+- Minimal dialogs.
+- Responsive mobile interface.
+- Strong visual hierarchy.
+
+IMPORTANT:
+
+Every interface label must be concise.
+
+Examples:
+
+Use:
+"Sinflar"
+
+Not:
+"Platformadagi barcha sinflarni boshqarish uchun ushbu bo‘limdan foydalaning."
+
+Use:
+"Ish rejalari"
+
+Not:
+"Bu yerda barcha o‘quv rejalar va mavzularni boshqarishingiz mumkin."
+
+Keep useful instructions inside small contextual help areas only.
+
+========================================================
+08. ADMIN DASHBOARD
+========================================================
+
+Create a clean administrative overview.
+
+Show actual information:
+
+- Jami o‘quvchilar.
+- Jami sinflar.
+- Jami fanlar.
+- Faol ish rejalar.
+- Nashr qilingan testlar.
+- Kutilayotgan test topshiriqlari.
+
+All values must come from Firestore.
+
+Never generate arbitrary numbers.
+
+Dashboard sections:
+
+A. Quick actions:
+
+- Ish rejasi yuklash.
+- O‘quvchi qo‘shish.
+- Test yaratish.
+- Sinfni ochish.
+
+B. Recent activity:
+
+Show actual recent actions.
+
+C. Academic overview:
+
+Display real data related to:
+- Class participation.
+- Lesson progress.
+- Assessment completion.
+
+D. Upcoming items:
+
+- Upcoming assessments.
+- Scheduled lessons.
+- Work-plan deadlines where configured.
+
+When no records exist, show a minimal empty state.
+
+========================================================
+09. STUDENT MANAGEMENT
+========================================================
+
+Admin must be able to manage student accounts.
+
+Create a student directory with:
+
+- Full name.
+- Student ID.
+- Email or approved login identifier.
+- Class.
+- Grade.
+- Track.
+- Account status.
+- Enrollment date.
+
+Features:
+
+- Add student.
+- Edit student.
+- Search.
+- Filter by class.
+- Filter by grade.
+- Move student to another class.
+- Suspend account.
+- Reactivate account.
+- View student profile.
+- View assessments.
+- View academic progress.
+
+STUDENT CREATION:
+
+Only Admin creates or invites student accounts.
+
+Use secure invitation links or codes.
+
+Do not create generic public student passwords.
+
+Do not allow a student to change their own class, grade, or track.
+
+When a student is assigned to a class, all appropriate subjects and learning resources must become available automatically.
+
+========================================================
+10. WORK PLAN IMPORT — CORE FEATURE
+========================================================
+
+This is one of the most important features of Specialized Study.
+
+The Admin must be able to upload an actual academic WORK PLAN.
+
+Supported formats:
+
+- PDF.
+- DOCX.
+- XLSX.
+- PPTX where useful.
+- JPG.
+- JPEG.
+- PNG.
+
+Support scanned documents where the configured extraction services can read them.
+
+The system must not assume every uploaded file is perfectly structured.
+
+WORK PLAN IMPORT WORKFLOW:
+
+STEP 1 — UPLOAD
+
+Admin opens:
+
+"Ish rejalari"
+
+Selects:
+
+"Yangi reja"
+
+Uploads a file.
+
+STEP 2 — SELECT CONTEXT
+
+Ask for the necessary metadata:
+
+- Sinf.
+- Fan.
+- O‘quv yili.
+- Chorak.
+- Reja turi.
+
+If these fields can be reliably determined from the document, suggest the values and let Admin confirm.
+
+Do not guess when ambiguous.
+
+STEP 3 — DOCUMENT ANALYSIS
+
+Gemini analyzes the uploaded document.
+
+Extract:
+
+- Subject.
+- Grade.
+- Class where available.
+- Academic year.
+- Quarter.
+- Month.
+- Week.
+- Lesson number.
+- Lesson title.
+- Topic.
+- Learning objective.
+- Planned hours.
+- Planned date.
+- Related materials.
+- Homework where available.
+
+Preserve the original document.
+
+Store it in Firebase Cloud Storage.
+
+Store its metadata in Firestore.
+
+STEP 4 — STRUCTURED EXTRACTION
+
+Convert the work plan into structured records.
+
+Expected hierarchy:
+
+Academic Year
+  └── Subject
+       └── Class
+            └── Quarter
+                 └── Unit
+                      └── Topic
+                           └── Lesson
+                                ├── Learning objectives
+                                ├── Content
+                                ├── Materials
+                                ├── Planned date
+                                ├── Homework
+                                └── Assessment
+
+STEP 5 — PREVIEW
+
+Display the extracted work plan in a clean table.
+
+Admin must be able to:
+
+- Edit lesson names.
+- Edit topic names.
+- Change lesson order.
+- Change planned dates.
+- Edit learning objectives.
+- Remove incorrect rows.
+- Add missing topics.
+- Confirm class and subject assignments.
+
+Show warnings for missing information.
+
+STEP 6 — CONFIRM
+
+Only after Admin confirms:
+
+- Save the work plan.
+- Create topics.
+- Create lesson records.
+- Build the class curriculum map.
+- Make the plan available to authorized students.
+
+Never publish unreviewed extracted content automatically.
+
+========================================================
+11. INTELLIGENT CURRICULUM MAP
+========================================================
+
+Create a sophisticated learning map generated from the imported work plan.
+
+The curriculum map must show the full structure of planned learning.
+
+EXAMPLE:
+
+8a1
+  └── Matematika
+       └── 1-chorak
+            ├── 1-dars: Chiziqli tenglamalar
+            ├── 2-dars: Tenglamalarni yechish
+            ├── 3-dars: Tengsizliklar
+            └── 4-dars: Amaliy masalalar
+
+The actual topics must come from the confirmed work plan.
+
+Do not use these examples as real seed records.
+
+LEARNING MAP VIEWS:
+
+1. By class.
+2. By subject.
+3. By academic year.
+4. By quarter.
+5. By lesson.
+
+Each lesson must show:
+
+- Lesson title.
+- Topic.
+- Planned date.
+- Learning objective.
+- Available material.
+- Assessment status.
+- Student completion status where applicable.
+
+LESSON STATUS:
+
+- Rejalashtirilgan.
+- Nashr qilingan.
+- Jarayonda.
+- Tugallangan.
+
+Admin can edit the curriculum map.
+
+Students can view only the map applicable to their class and assigned subjects.
+
+IMPORTANT DISTINCTION:
+
+Curriculum Map:
+What the school plans to teach.
+
+Student Knowledge Map:
+What an individual student has demonstrated they understand.
+
+These must be separate concepts.
+
+Do not treat a planned lesson as proof that a student has mastered its content.
+
+========================================================
+12. LESSON MANAGEMENT
+========================================================
+
+Every lesson must have its own dedicated detail page.
+
+Lesson structure:
+
+- Lesson title.
+- Subject.
+- Class.
+- Grade.
+- Quarter.
+- Topic.
+- Learning objectives.
+- Lesson content.
+- Attachments.
+- Relevant materials.
+- Homework.
+- Related assessment.
+- Student completion information.
+
+Admin actions:
+
+- Create lesson.
+- Edit lesson.
+- Reorder lesson.
+- Attach materials.
+- Generate test.
+- Publish lesson.
+- Archive lesson.
+
+STUDENT VIEW:
+
+Students must be able to open their assigned lesson and see:
+- Lesson title.
+- Main topic.
+- Learning objectives.
+- Materials.
+- Related attachments.
+- Assigned assessment.
+- Their own completion status.
+
+The student must never see unpublished content.
+
+========================================================
+13. AI COMMAND CENTER
+========================================================
+
+Create a powerful but minimalist AI command feature.
+
+This is a major part of the platform.
+
+The Admin should be able to issue natural-language commands rather than navigate through multiple complicated forms.
+
+Use a small command input at the top of the administrative workspace.
+
+Placeholder:
+
+"Buyruq kiriting..."
+
+Support commands in Uzbek Latin.
+
+EXAMPLES:
+
+COMMAND 1:
+
+"7a1 sinfi uchun matematika fanidan 3-dars bo‘yicha 15 ta test tuz."
+
+Expected behavior:
+
+- Find class 7a1.
+- Find its mathematics curriculum.
+- Find lesson number 3.
+- Read the approved lesson content and learning objectives.
+- Generate 15 relevant questions.
+- Connect questions to the correct lesson and topic.
+- Create an unpublished draft assessment.
+- Open the preview.
+
+COMMAND 2:
+
+"8a2 uchun biologiyadan 2-chorakdagi mavzular bo‘yicha takrorlash testi yarat."
+
+Expected behavior:
+
+- Retrieve the relevant curriculum map.
+- Identify appropriate topics.
+- Generate a revision assessment.
+- Save as draft.
+
+COMMAND 3:
+
+"9t sinfi uchun kimyodan bugungi darsga 10 ta savol yarat, murakkablik darajasi o‘rta bo‘lsin."
+
+Expected behavior:
+
+- Check whether the required lesson exists.
+- Retrieve its content.
+- Generate the requested questions.
+- Display a preview.
+
+COMMAND 4:
+
+"7a1 sinfining matematika bo‘yicha keyingi 5 ta darsini ko‘rsat."
+
+Expected behavior:
+
+- Retrieve real lesson records.
+- Display the next five lessons.
+
+COMMAND 5:
+
+"8a1 uchun yuklangan ish rejasini o‘quv xaritasiga aylantir."
+
+Expected behavior:
+
+- Identify the relevant uploaded work plan.
+- Extract its structure.
+- Prepare a curriculum map.
+- Request Admin confirmation before saving.
+
+AI COMMAND RULES:
+
+- Understand natural Uzbek commands.
+- Ask only when essential parameters are missing.
+- Use actual Firestore records.
+- Never invent a lesson that does not exist.
+- Never invent class assignments.
+- Never create duplicate assessments.
+- Never publish without confirmation.
+- Always preview generated assessments.
+- Explain errors briefly.
+
+AI COMMAND EXECUTION:
+
+Use a structured intent and tool-calling architecture.
+
+The AI may prepare an authorized action plan.
+
+Trusted server-side functions must validate and execute the action.
+
+Do not allow the AI model to bypass application permissions.
+
+Never permit commands to change platform-owner authorization or security rules.
+
+AI-generated content must be saved as draft until Admin approval.
+
+========================================================
+14. AI TEST GENERATOR
+========================================================
+
+Create a professional assessment-generation engine.
+
+Test generation can be started from:
+
+A. Admin command center.
+B. Lesson detail page.
+C. Test management page.
+
+GENERATION PARAMETERS:
+
+- Class.
+- Grade.
+- Subject.
+- Lesson.
+- Topic.
+- Question count.
+- Difficulty.
+- Question types.
+- Language.
+- Total points.
+- Test duration.
+
+QUESTION DIFFICULTY:
+
+- Oson.
+- O‘rta.
+- Qiyin.
+
+QUESTION TYPES:
+
+- Single choice.
+- Multiple choice.
+- Numeric answer.
+- Short written answer.
+- Long written answer.
+
+Support mathematical notation.
+
+Support images in questions.
+
+Support images in options.
+
+AI must generate:
+- Question text.
+- Answer options where relevant.
+- Answer keys.
+- Explanations.
+- Difficulty labels.
+- Topic references.
+- Suggested points.
+
+All answer keys must be internally validated.
+
+Do not allow the AI to generate unreviewed tests directly visible to students.
+
+ADMIN REVIEW:
+
+Admin can:
+- Edit a question.
+- Delete a question.
+- Regenerate a question.
+- Change difficulty.
+- Add an image.
+- Change points.
+- Preview the whole test.
+- Save draft.
+- Publish.
+
+Only published assessments become visible to students.
+
+========================================================
+15. ASSESSMENT MANAGEMENT
+========================================================
+
+Admin must be able to create tests manually, through Excel import, or through AI commands.
+
+Preserve the previous advanced Excel question-import system.
+
+Include:
+- Existing blank Excel template.
+- Image attachments.
+- ZIP package support.
+- Import preview.
+- Validation.
+- Duplicate detection.
+- Written-answer support.
+- Question bank.
+- Assessment versioning.
+
+Do not remove this functionality during the rebranding.
+
+ASSESSMENT PROPERTIES:
+
+- Test name.
+- Subject.
+- Class.
+- Grade.
+- Lesson.
+- Topic.
+- Duration.
+- Question count.
+- Maximum points.
+- Availability.
+- Attempts allowed.
+- Publication status.
+
+ASSESSMENT STATUS:
+
+- Draft.
+- Published.
+- Closed.
+- Archived.
+
+Admin can assign a test to:
+- A single class.
+- Multiple selected classes.
+- Specific eligible students where necessary.
+
+Validate that subject and class-track associations are compatible.
+
+For example:
+Matematika must be assigned to A classes by default.
+Biologiya must be assigned to T classes by default.
+Ingliz tili can be assigned to both tracks.
+
+========================================================
+16. STUDENT EXPERIENCE
+========================================================
+
+Keep the existing high-quality student experience as a design foundation.
+
+Upgrade it to fit the new Specialized Study brand.
+
+The student dashboard must be extremely simple.
+
+STUDENT DASHBOARD:
+
+Display:
+
+- Welcome message.
+- Student name.
+- Class.
+- Track.
+- Current academic year.
+- Subject cards.
+- Upcoming lessons.
+- Assigned tests.
+- Recent results.
+- Individual learning map.
+
+Do not add unnecessary statistics.
+
+STUDENT SUBJECT PAGE:
+
+When a student opens Mathematics:
+
+Show:
+- Their class.
+- Active curriculum.
+- Quarter.
+- Lessons.
+- Available resources.
+- Assigned assessments.
+- Personal progress.
+
+LESSON PAGE:
+
+Show:
+- Topic.
+- Learning objective.
+- Lesson content.
+- Attachments.
+- Assigned test.
+- Student completion status.
+
+TEST PAGE:
+
+Support:
+- Question text.
+- Images.
+- Single-choice answers.
+- Multiple-choice answers.
+- Numeric responses.
+- Written answers.
+- Navigation.
+- Answer saving.
+- Review before submission.
+- Submission confirmation.
+
+RESULT PAGE:
+
+Show:
+- Score.
+- Correct answers where permitted.
+- Incorrect answers.
+- Topic performance.
+- Explanations according to the release policy.
+- Next recommended learning actions.
+
+The student must access ONLY:
+- Their own profile.
+- Their actual class.
+- Their assigned subjects.
+- Published lessons.
+- Published assessments.
+- Their own results.
+- Their own knowledge map.
+
+========================================================
+17. INDIVIDUAL STUDENT KNOWLEDGE MAP
+========================================================
+
+Build an actual personalized Knowledge Map.
+
+The map must combine:
+1. Confirmed curriculum topics.
+2. Actual student assessment evidence.
+3. Completed practice records.
+
+For each topic calculate:
+- Number of attempts.
+- Valid question count.
+- Correct answers.
+- Topic accuracy.
+- Last attempt.
+- Evidence quantity.
+- Learning status.
+
+Do not claim mastery from a single weak data point.
+
+Use transparent status labels:
+
+- Ma'lumot yetarli emas.
+- Boshlanmagan.
+- O‘rganilmoqda.
+- Mustahkamlanmoqda.
+- Yaxshi o‘zlashtirilgan.
+
+The map must be linked to the actual curriculum.
+
+When a student completes a test:
+- Update relevant topic records.
+- Recalculate authorized mastery indicators.
+- Display new progress.
+- Preserve assessment history.
+
+Do not invent educational progress.
+
+========================================================
+18. RESULTS AND ANALYTICS
+========================================================
+
+Create simple but powerful analytics.
+
+ADMIN CAN VIEW:
+
+- Class performance.
+- Subject performance.
+- Topic performance.
+- Test completion.
+- Student progress.
+- Lesson completion.
+- Assessment history.
+
+Filters:
+
+- Class.
+- Grade.
+- Track.
+- Subject.
+- Quarter.
+- Date range.
+
+STUDENTS CAN VIEW:
+
+- Personal results.
+- Subject-level progress.
+- Topic-level progress.
+- Historical assessments.
+- Recommended practice.
+
+All analytics must be generated from genuine assessment and curriculum records.
+
+Use meaningful empty states.
+
+========================================================
+19. FIREBASE DATA ARCHITECTURE
+========================================================
+
+Extend the existing Firestore database safely.
+
+Recommended collections:
+
+institutions
+users
+classes
+class_memberships
+subjects
+class_subjects
+academic_years
+work_plans
+work_plan_files
+curriculum_units
+topics
+lessons
+lesson_materials
+questions
+question_revisions
+assessments
+assessment_questions
+assessment_assignments
+assessment_attempts
+student_answers
+assessment_results
+student_topic_progress
+knowledge_maps
+ai_generation_jobs
+notifications
+audit_logs
+
+Every record must include the appropriate:
+- ID.
+- Institution ID.
+- Class ID.
+- Subject ID.
+- Created timestamp.
+- Updated timestamp.
+- Created by.
+- Status.
+
+Use stable relationships.
+
+Use transactions for critical operations.
+
+Use appropriate indexes.
+
+Do not overwrite historical records.
+
+Do not automatically delete existing genuine data.
+
+Implement safe migration scripts.
+
+========================================================
+20. SECURITY
+========================================================
+
+Only two active roles:
+
+Admin and Student.
+
+ADMIN:
+
+- Verified owner email.
+- Trusted platformAdmin claim.
+- Full authorized platform management.
+- Backend authorization.
+
+STUDENT:
+
+- Read own profile.
+- Read assigned curriculum.
+- Read published tests.
+- Submit own responses.
+- Read own results.
+- Read own knowledge map.
+
+STUDENT MUST NOT:
+- Access Admin pages.
+- Change own class.
+- Change track.
+- Publish tests.
+- Edit official scores.
+- Read another student's records.
+- Read answer keys before permitted release.
+- Access unpublished lessons.
+- Access unpublished assessments.
+
+Use strict Firestore and Storage Security Rules.
+
+Default deny.
+
+Never use unrestricted production database permissions.
+
+All privileged actions must be validated on the server.
+
+========================================================
+21. GLOBAL DEPLOYMENT
+========================================================
+
+Preserve global application accessibility.
+
+The application must work over the public internet.
+
+Use:
+- Firebase Authentication.
+- Firestore.
+- Cloud Storage.
+- Secure Gemini API execution.
+- HTTPS deployment.
+- Cloud Run or the existing supported hosting configuration.
+
+Do not hardcode localhost in production.
+
+All production data must remain persistent.
+
+Configure the actual public deployment URL and authorized authentication domains.
+
+Do not claim deployment succeeded until a public URL is verified.
+
+========================================================
+22. PERFORMANCE AND RELIABILITY
+========================================================
+
+The platform must be responsive and reliable.
+
+Optimize:
+- Class queries.
+- Student lists.
+- Work plan parsing.
+- File uploads.
+- Assessment loading.
+- Question rendering.
+- Knowledge map calculation.
+- Real-time subscriptions.
+
+Use pagination where appropriate.
+
+Handle slow internet connections.
+
+Use clear upload progress.
+
+Allow safe retries.
+
+Prevent duplicate test submissions.
+
+Prevent duplicate AI generation operations when the same request is retried.
+
+Validate every uploaded document.
+
+Handle malformed work plans gracefully.
+
+Never lose an original uploaded document during parsing.
+
+========================================================
+23. ACCEPTANCE TESTS
+========================================================
+
+Test the following workflows using isolated non-production test data.
+
+TEST 1 — CLASS STRUCTURE:
+
+Verify all 18 specified classes exist.
+
+Verify:
+- A classes have Mathematics, English, Physics.
+- T classes have English, Biology, Chemistry.
+- Grade 5 and Grade 6 have no T classes.
+- No duplicates exist.
+
+TEST 2 — ADMIN:
+
+- Sign in using authorized owner account.
+- Open the Admin panel.
+- Edit a class setting.
+- Create a student.
+- Assign the student to 8a1.
+- Verify all changes persist.
+
+TEST 3 — STUDENT:
+
+- Sign in as an authorized student.
+- Verify the student sees their actual class.
+- Verify the appropriate subjects appear.
+- Verify another class is inaccessible.
+
+TEST 4 — WORK PLAN IMPORT:
+
+- Upload a valid work plan.
+- Parse its topics.
+- Preview extracted lessons.
+- Edit a topic.
+- Confirm.
+- Verify the curriculum map is created.
+
+TEST 5 — AI COMMAND:
+
+Execute:
+
+"7a1 sinfi uchun matematika fanidan 3-dars bo‘yicha 10 ta test yarat."
+
+Verify that:
+- The class exists.
+- The correct subject is selected.
+- The correct lesson is selected.
+- The questions are relevant.
+- The answer keys are valid.
+- The assessment is saved as draft.
+
+TEST 6 — PUBLISH:
+
+Publish the reviewed assessment.
+
+Verify that only eligible students can access it.
+
+TEST 7 — STUDENT SUBMISSION:
+
+- Complete the test.
+- Submit answers.
+- Verify server-side scoring.
+- Verify result persistence.
+- Verify Knowledge Map updates using actual evidence.
+
+TEST 8 — PERSISTENCE:
+
+Refresh the application.
+Log out.
+Log in again.
+Open another device.
+
+Verify genuine records remain available.
+
+TEST 9 — SECURITY:
+
+Test unauthorized admin access.
+
+Test cross-class access.
+
+Test access to unpublished assessments.
+
+All must be denied appropriately.
+
+========================================================
+24. FINAL EXECUTION PRIORITIES
+========================================================
+
+Implement in this order:
+
+PHASE 1:
+- Rebrand to Specialized Study.
+- Remove unsupported roles.
+- Create exact 18-class structure.
+- Configure A/T subject associations.
+- Simplify Admin navigation.
+
+PHASE 2:
+- Improve student dashboard.
+- Implement student invitations.
+- Implement class and subject management.
+
+PHASE 3:
+- Build work plan uploader.
+- Parse uploaded documents.
+- Create curriculum map.
+- Build lesson management.
+
+PHASE 4:
+- Build AI command center.
+- Implement lesson-based test generation.
+- Improve assessment management.
+- Preserve advanced Excel importing.
+
+PHASE 5:
+- Connect student lessons.
+- Connect published assessments.
+- Implement Knowledge Map.
+- Implement results and analytics.
+
+PHASE 6:
+- Complete security checks.
+- Fix UI problems.
+- Optimize mobile experience.
+- Verify global deployment compatibility.
+
+Do not stop after creating the navigation.
+
+Implement actual working database operations and user workflows.
+
+Do not insert fake information.
+
+Do not write excessive text into the interface.
+
+The user-facing product must be minimal, intuitive, and professional.
+
+========================================================
+25. FINAL REPORT
+========================================================
+
+After implementation, report only the important details:
+
+- Branding changed.
+- Active roles.
+- Class structure created.
+- Subject mapping.
+- Work plan upload status.
+- Curriculum map status.
+- AI command status.
+- Assessment generation status.
+- Student experience status.
+- Firebase integration status.
+- Security checks performed.
+- Global deployment status.
+- Remaining configuration.
+
+Do not claim unfinished features are complete.
+
+The final product must feel like a high-quality international specialized school platform.
+
+START IMPLEMENTING SPECIALIZED STUDY NOW.

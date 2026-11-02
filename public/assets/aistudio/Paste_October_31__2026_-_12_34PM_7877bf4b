@@ -1,0 +1,1272 @@
+
+You are an elite product engineering team consisting of:
+- A Principal SaaS Product Architect
+- A Senior Full-Stack Engineer
+- An AI/LLM Engineer
+- A Senior UI/UX Designer
+- A Database Architect
+- A Cybersecurity Engineer
+- A QA and Testing Engineer
+
+Your task is to DESIGN, BUILD, IMPLEMENT, AND VERIFY a complete working MVP of a premium AI-powered education intelligence platform named:
+
+# LEARNOS
+### Learning Intelligence Operating System
+
+Tagline:
+"Understand every student. Discover every knowledge gap. Improve every learning journey."
+
+IMPORTANT:
+Do not create a static landing page, a simple dashboard mockup, or a collection of non-functional UI components.
+
+Build an actual functional full-stack application with working navigation, authentication, database integration, role-based access, assessment functionality, student analytics, AI-powered analysis, and responsive interfaces.
+
+You are authorized to make reasonable product and engineering decisions without asking unnecessary questions.
+
+Implement the actual application, not just a technical plan.
+
+==================================================
+1. PRODUCT VISION
+==================================================
+
+LearnOS is an AI-powered Student Assessment and Learning Intelligence Platform designed initially for Uzbekistan.
+
+Its purpose is to help educational institutions, teachers, students, and parents understand the actual learning progress of students.
+
+Traditional education systems often focus on grades and examination scores.
+
+LearnOS focuses on WHY a student makes mistakes, WHICH concepts are not sufficiently understood, and WHAT should happen next.
+
+The platform must transform educational data into actionable learning recommendations.
+
+Core philosophy:
+
+ASSESS → ANALYZE → UNDERSTAND → PERSONALIZE → IMPROVE
+
+LearnOS is NOT:
+- Just an online examination website.
+- Just an AI chatbot.
+- Just an electronic school diary.
+- Just a question generator.
+
+LearnOS IS:
+A learning intelligence system that connects assessments, knowledge mapping, personalized practice, teacher analytics, and progress measurement.
+
+Initial market:
+Uzbekistan.
+
+Primary interface language:
+Uzbek (Latin script).
+
+Architecture:
+Internationalization-ready for future Uzbek, Russian, and English interfaces.
+
+Initial educational segment:
+8th-grade mathematics.
+
+The platform must be architected so additional grades, subjects, schools, and countries can be added later without rebuilding the entire application.
+
+==================================================
+2. TARGET USERS AND ROLES
+==================================================
+
+Implement four clearly separated user roles.
+
+A. STUDENT
+
+Students must be able to:
+- Access their personal dashboard.
+- View assigned assessments.
+- Complete diagnostic tests.
+- See their assessment results.
+- View their personal Knowledge Map.
+- Understand their strengths and learning gaps.
+- Receive AI-generated explanations.
+- Receive personalized practice recommendations.
+- Track their learning progress over time.
+- Review completed assessment attempts.
+- View their upcoming assignments.
+
+B. TEACHER
+
+Teachers must be able to:
+- Access a professional teacher dashboard.
+- Create and manage classes.
+- Invite students using secure invitation codes.
+- Create diagnostic assessments.
+- Create and edit questions.
+- Organize questions by subject and topic.
+- Assign assessments to classes.
+- Monitor assessment completion.
+- View individual student reports.
+- View class-level knowledge analytics.
+- Identify commonly misunderstood topics.
+- Review AI-generated learning recommendations.
+- Export assessment results as CSV.
+
+C. PARENT
+
+Parents must be able to:
+- Access a dedicated parent dashboard.
+- Link their account to a child through a secure invitation.
+- View their child's learning progress.
+- View assessment history.
+- Understand the child's learning strengths.
+- View recommended topics for additional practice.
+- Receive clear progress summaries.
+
+Parents must only see information about children explicitly linked to their accounts.
+
+D. SCHOOL ADMINISTRATOR
+
+Administrators must be able to:
+- Manage their institution.
+- Manage teacher accounts.
+- Manage classes.
+- View institutional analytics.
+- Monitor student participation.
+- View subject-level performance.
+- Manage invitation codes.
+- Manage school settings.
+- Access institution-wide reports.
+
+Implement role-based permissions throughout the application.
+
+Never rely only on hiding buttons in the frontend for authorization.
+
+==================================================
+3. TECHNOLOGY STACK
+==================================================
+
+Use a modern, maintainable full-stack architecture.
+
+Frontend:
+- React
+- TypeScript
+- Tailwind CSS
+- Modern reusable components
+- React Router or an equivalent routing solution
+- Lucide icons
+- Recharts for data visualizations
+
+Backend:
+- Node.js server-side runtime
+- Secure API endpoints
+- Server-side business logic
+- Input validation
+- Proper error handling
+
+Database:
+- Firebase Firestore when Firebase integration is available.
+- Use Firebase Authentication for account management.
+- Use secure Firestore security rules.
+- Organize data to support multiple institutions.
+
+AI:
+- Gemini API.
+- ALL Gemini API requests must be made from secure server-side code.
+- Never expose API keys in frontend code.
+- Use structured JSON responses.
+- Validate AI-generated output before displaying it.
+
+Validation:
+- Zod or an equivalent schema validation library.
+
+Architecture requirements:
+- Separate frontend, backend, business logic, database access, and AI services.
+- Use reusable components.
+- Use modular feature folders.
+- Avoid giant components and duplicated code.
+- Add loading, success, empty, and error states.
+- Handle network failures gracefully.
+
+If Firebase setup is available, use the platform's Firebase integration and request the necessary configuration.
+
+If Firebase has not been configured yet, implement a clearly labeled DEMO MODE using realistic sample data and an isolated data adapter.
+
+DEMO MODE must never pretend that local sample data is production data.
+
+Keep the database and backend integration ready so the application can transition to Firebase without rewriting the frontend.
+
+==================================================
+4. BRAND IDENTITY AND DESIGN SYSTEM
+==================================================
+
+Create a premium international SaaS design.
+
+The application should look like a serious venture-backed education technology startup.
+
+Design references:
+- Linear
+- Stripe
+- Notion
+- Modern analytics SaaS platforms
+- Premium enterprise dashboards
+
+Do not copy these products. Use them only as quality references.
+
+BRAND:
+Name: LearnOS
+Product category: Learning Intelligence
+Personality: Intelligent, trustworthy, modern, precise, minimal.
+
+COLOR SYSTEM:
+
+Primary:
+#2563EB
+
+Primary dark:
+#1D4ED8
+
+Background:
+#F8FAFC
+
+Surface:
+#FFFFFF
+
+Main text:
+#0F172A
+
+Secondary text:
+#64748B
+
+Border:
+#E2E8F0
+
+Success:
+#16A34A
+
+Warning:
+#D97706
+
+Danger:
+#DC2626
+
+Dark mode:
+Support a premium dark theme with appropriate contrast.
+
+TYPOGRAPHY:
+Use Inter or a similar professional sans-serif font.
+
+DESIGN REQUIREMENTS:
+
+- Generous white space.
+- Clear visual hierarchy.
+- Consistent spacing.
+- Rounded cards, but do not overuse rounded containers.
+- Subtle shadows.
+- Refined borders.
+- Professional tables.
+- Clean dashboard layouts.
+- Smooth but restrained animations.
+- Elegant hover states.
+- Consistent iconography.
+- Excellent typography.
+- Responsive layouts.
+
+Avoid:
+- Excessive gradients.
+- Random decorative shapes.
+- Excessive glassmorphism.
+- Oversized headlines inside dashboards.
+- Too many colors.
+- Emoji-based navigation.
+- Fake charts.
+- Unnecessary visual clutter.
+
+The application must feel like a polished commercial SaaS product.
+
+==================================================
+5. INFORMATION ARCHITECTURE
+==================================================
+
+Create the following main routes:
+
+PUBLIC:
+/
+ /login
+ /register
+ /about
+ /privacy
+ /terms
+
+STUDENT:
+ /student/dashboard
+ /student/assessments
+ /student/assessments/:id
+ /student/results/:id
+ /student/knowledge-map
+ /student/learning-path
+ /student/progress
+ /student/profile
+
+TEACHER:
+ /teacher/dashboard
+ /teacher/classes
+ /teacher/classes/:id
+ /teacher/students/:id
+ /teacher/assessments
+ /teacher/assessments/create
+ /teacher/question-bank
+ /teacher/analytics
+ /teacher/reports
+
+PARENT:
+ /parent/dashboard
+ /parent/children
+ /parent/children/:id
+ /parent/progress
+
+SCHOOL ADMIN:
+ /admin/dashboard
+ /admin/teachers
+ /admin/students
+ /admin/classes
+ /admin/analytics
+ /admin/settings
+
+Use protected routes and redirect users based on their roles.
+
+The sidebar must dynamically show only the sections permitted for the current role.
+
+Implement breadcrumbs where appropriate.
+
+==================================================
+6. PUBLIC LANDING PAGE
+==================================================
+
+Build a premium marketing landing page.
+
+Navigation:
+- LearnOS logo.
+- Product.
+- For Schools.
+- For Teachers.
+- For Students.
+- About.
+- Sign In.
+- Get Started.
+
+HERO SECTION:
+
+Headline:
+"Ta'limda har bir o'quvchi muhim."
+
+Supporting text:
+"LearnOS helps schools understand every student's learning progress, discover knowledge gaps, and create personalized learning journeys with AI."
+
+Primary CTA:
+"Bepul boshlash"
+
+Secondary CTA:
+"Platformani ko'rish"
+
+Hero visual:
+Show a refined preview of the LearnOS analytics dashboard.
+
+Sections:
+
+1. The Problem
+Explain why traditional grades alone do not provide enough insight into student learning.
+
+2. The LearnOS Solution
+Show the assessment-to-improvement workflow.
+
+3. For Everyone
+Show dedicated benefits for students, teachers, parents, and institutions.
+
+4. Core Features
+Knowledge Map, AI Analysis, Learning Path, Progress Tracker, Teacher Dashboard.
+
+5. How It Works
+Assess → Analyze → Personalize → Improve.
+
+6. Impact
+Explain the goal of helping more students identify and address learning gaps.
+
+7. Call to Action
+Invite schools and teachers to try the platform.
+
+8. Footer
+Include navigation, contact placeholders, product information, privacy, and terms.
+
+Do not invent customer testimonials, institutional partnerships, certifications, or impact statistics.
+
+==================================================
+7. AUTHENTICATION AND ONBOARDING
+==================================================
+
+Implement a professional authentication experience.
+
+Support:
+- Email and password authentication.
+- Sign in.
+- Sign up.
+- Password reset.
+- Sign out.
+- Session persistence.
+- Protected routes.
+
+Onboarding must ask the user to select or receive their assigned role.
+
+Production roles must be assigned securely through administrative provisioning or verified invitation flows.
+
+Users must not be able to grant themselves administrator permissions by editing frontend data.
+
+Onboarding forms:
+
+STUDENT:
+- Display name.
+- Invitation code.
+- Assigned class.
+- Institution.
+
+TEACHER:
+- Display name.
+- Institution.
+- Teaching subject.
+- Invitation or administrator approval.
+
+PARENT:
+- Display name.
+- Child invitation code.
+
+ADMINISTRATOR:
+- Secure setup or invitation flow.
+- No unrestricted public administrator registration.
+
+For demonstration purposes, create a separate demo login experience with four sample role profiles.
+
+Clearly label demo access.
+
+Do not put real passwords or production credentials inside source code.
+
+==================================================
+8. STUDENT DASHBOARD
+==================================================
+
+Build a highly polished student dashboard.
+
+HEADER:
+- Greeting using the student's display name.
+- Current date.
+- Notification icon.
+- Profile menu.
+
+MAIN DASHBOARD COMPONENTS:
+
+A. Overview cards:
+- Completed assessments.
+- Pending assessments.
+- Topics assessed.
+- Recent progress.
+
+B. Learning progress chart:
+Show assessment performance across time.
+
+C. Knowledge overview:
+Show topic-level mastery indicators.
+
+D. Next recommended actions:
+Show the three most relevant learning activities.
+
+E. Upcoming assignments:
+List assigned assessments with deadlines.
+
+F. Recent activity:
+Assessment submissions, reviewed results, and practice sessions.
+
+Use real database records when connected.
+
+Use sample data only in Demo Mode.
+
+Never display fabricated production statistics.
+
+==================================================
+9. DIAGNOSTIC ASSESSMENT ENGINE
+==================================================
+
+This is one of the most important features.
+
+Build a working assessment system.
+
+INITIAL SUBJECT:
+Mathematics.
+
+INITIAL GRADE:
+8th grade.
+
+INITIAL TOPICS:
+
+1. Fractions and rational numbers.
+2. Percentages and proportions.
+3. Linear equations.
+4. Basic geometry.
+5. Algebraic expressions and powers.
+
+Create an initial teacher-editable question bank containing approximately 30 validated sample questions distributed across these five topics.
+
+Questions should:
+- Be written in natural Uzbek Latin.
+- Be appropriate for the selected grade.
+- Have clear instructions.
+- Have one well-defined correct answer for multiple-choice questions.
+- Include topic identifiers.
+- Include difficulty labels.
+- Include explanations.
+- Be reviewable and editable by teachers.
+
+Support question types:
+- Multiple choice.
+- Numeric answer.
+
+For the initial MVP, avoid automatic grading of subjective long-form answers.
+
+ASSESSMENT CREATION:
+
+Teacher can:
+- Enter assessment title.
+- Select grade and subject.
+- Select topics.
+- Select questions.
+- Set duration.
+- Set availability dates.
+- Assign to a class.
+- Preview an assessment.
+- Publish or save as draft.
+
+ASSESSMENT EXPERIENCE:
+
+Student can:
+- Start an assessment.
+- See progress.
+- Navigate between questions.
+- Mark questions for review.
+- Return to previous questions.
+- Submit answers.
+- Confirm final submission.
+
+Implement:
+- Autosave.
+- Submission validation.
+- Server-side scoring.
+- Attempt history.
+- Time handling.
+- Empty answer handling.
+- Protection against duplicate submissions.
+
+ASSESSMENT RESULTS:
+
+Display:
+- Total score.
+- Correct answers.
+- Incorrect answers.
+- Topic performance.
+- Question-by-question review.
+- Explanation for each correct answer.
+- Recommended next steps.
+
+Scoring must be deterministic and reproducible.
+
+Do not let the Gemini model independently decide the official assessment score.
+
+The backend must calculate the score from validated question answers and answer keys.
+
+==================================================
+10. KNOWLEDGE MAP ENGINE
+==================================================
+
+Create a visually sophisticated Knowledge Map.
+
+Purpose:
+Represent a student's progress across the individual learning topics.
+
+For every topic store:
+- Topic ID.
+- Subject.
+- Grade.
+- Topic name.
+- Number of assessed questions.
+- Correct answers.
+- Accuracy.
+- Mastery estimate.
+- Evidence count.
+- Last assessed date.
+- Learning status.
+
+Use transparent and explainable scoring rules.
+
+For the first version:
+Mastery estimate = correct answers / valid assessed answers × 100.
+
+Do not label a topic as mastered based on one or two questions.
+
+Use a minimum evidence threshold before assigning strong mastery labels.
+
+Suggested status labels:
+
+0–39:
+"Qayta ishlash kerak"
+
+40–59:
+"Rivojlanmoqda"
+
+60–79:
+"Yaxshi o'zlashtirilmoqda"
+
+80–100:
+"Mustahkam"
+
+If insufficient data exists:
+"Ma'lumot yetarli emas"
+
+These labels are preliminary learning indicators, not formal psychological or academic assessments.
+
+The Knowledge Map must:
+- Display all available topics.
+- Use clear progress bars.
+- Support topic details.
+- Show the evidence behind each indicator.
+- Show the latest assessment.
+- Show suggested practice.
+
+Create a clean visual representation that is understandable to students and teachers.
+
+==================================================
+11. GEMINI AI ANALYSIS ENGINE
+==================================================
+
+Implement the Gemini-powered AI module on the server side.
+
+The AI must analyze assessment information, not invent facts.
+
+AI INPUT:
+
+- Assessment questions.
+- Question topic identifiers.
+- Correct answer keys.
+- Student submitted answers.
+- Calculated results.
+- Existing knowledge records.
+- Available educational content.
+
+AI RESPONSIBILITIES:
+
+1. Explain why a selected incorrect answer may be incorrect.
+2. Explain the correct mathematical method.
+3. Identify patterns across repeated errors when enough evidence exists.
+4. Recommend topics to review.
+5. Suggest additional practice exercises.
+6. Produce simple student-friendly explanations.
+7. Prepare concise teacher summaries.
+8. Prepare understandable parent summaries.
+
+IMPORTANT AI RULES:
+
+- Never claim certainty about a student's understanding based on a single question.
+- Distinguish observed errors from possible reasons.
+- Do not invent student behavior or psychological characteristics.
+- Do not make unsupported claims about learning disabilities.
+- Never shame or compare students publicly.
+- Do not automatically make high-stakes academic decisions.
+- All AI-generated recommendations must be reviewable.
+- Teachers must be able to override AI recommendations.
+
+USE STRUCTURED JSON OUTPUT.
+
+Example expected schema:
+
+{
+  "summary": "string",
+  "topic_analysis": [
+    {
+      "topic_id": "string",
+      "observed_performance": "string",
+      "possible_error_pattern": "string",
+      "evidence_count": 0,
+      "confidence": "low | medium | high",
+      "recommendation": "string"
+    }
+  ],
+  "next_steps": [
+    {
+      "topic_id": "string",
+      "activity": "string",
+      "reason": "string",
+      "priority": "low | medium | high"
+    }
+  ],
+  "teacher_summary": "string"
+}
+
+Validate all returned JSON using a schema validator.
+
+If the model returns invalid JSON, retry safely or use a deterministic fallback.
+
+Do not crash the application when the AI service is unavailable.
+
+Provide:
+- AI loading states.
+- Error states.
+- Retry actions.
+- Clear indication that analysis is AI-assisted.
+
+==================================================
+12. PERSONALIZED LEARNING PATH
+==================================================
+
+Create a personalized learning path page.
+
+Every recommendation should be connected to:
+- An assessed topic.
+- An observed performance indicator.
+- An available learning activity.
+
+Example:
+
+Student:
+Has completed an assessment.
+
+Observed result:
+Low accuracy in linear equations.
+
+Recommended journey:
+
+Step 1:
+Review the concept.
+
+Step 2:
+Study a simple worked example.
+
+Step 3:
+Complete five practice questions.
+
+Step 4:
+Review mistakes.
+
+Step 5:
+Complete a short reassessment.
+
+Track completion status.
+
+Statuses:
+- Not started.
+- In progress.
+- Completed.
+
+Do not generate recommendations unrelated to the student's available evidence.
+
+For MVP, include sample educational explanations and teacher-reviewed practice questions.
+
+==================================================
+13. TEACHER DASHBOARD
+==================================================
+
+Create a professional analytics dashboard specifically for teachers.
+
+OVERVIEW:
+- Number of students.
+- Number of classes.
+- Published assessments.
+- Assessment completion.
+- Topics requiring attention.
+
+CLASS MANAGEMENT:
+
+Teachers must be able to:
+- Create a class.
+- Edit class details.
+- Add students through invitation codes.
+- View enrolled students.
+- Open individual student profiles.
+- Assign tests.
+
+CLASS ANALYTICS:
+
+Display:
+- Performance distribution.
+- Topic-level accuracy.
+- Assessment participation.
+- Commonly missed questions.
+- Learning progress over time.
+
+STUDENT DETAIL PAGE:
+
+Display:
+- Individual assessment history.
+- Knowledge Map.
+- Learning recommendations.
+- Recent activity.
+- Teacher notes.
+
+TEACHER REPORT:
+
+Allow teachers to generate an assessment summary.
+
+Export results as CSV.
+
+Charts must be based on real database records.
+
+Use clear labels and meaningful empty states when no records exist.
+
+==================================================
+14. PARENT DASHBOARD
+==================================================
+
+Create a simple, reassuring interface.
+
+Display:
+- Child's recent progress.
+- Completed assessments.
+- Topics being studied.
+- Recommended practice.
+- Recent learning activity.
+
+Avoid overly technical terminology.
+
+Use plain Uzbek explanations.
+
+Parents must have read-only access to educational records.
+
+==================================================
+15. SCHOOL ADMIN DASHBOARD
+==================================================
+
+Create an institution-level management interface.
+
+Dashboard:
+- Total students.
+- Total teachers.
+- Total classes.
+- Active assessments.
+- Participation rates.
+
+Management:
+- Teachers.
+- Students.
+- Classes.
+- Invitation codes.
+- Institution settings.
+
+Analytics:
+- Subject-level performance.
+- Class-level assessment activity.
+- Topic-level learning gaps.
+- Institutional progress trends.
+
+Implement appropriate data isolation so one institution cannot access another institution's records.
+
+==================================================
+16. QUESTION BANK MANAGEMENT
+==================================================
+
+Create a comprehensive but easy-to-use question bank.
+
+Features:
+- Create a question.
+- Edit a question.
+- Delete a question with confirmation.
+- Preview a question.
+- Search questions.
+- Filter by grade.
+- Filter by subject.
+- Filter by topic.
+- Filter by difficulty.
+- Set correct answers.
+- Add explanations.
+- Add answer choices.
+- Assign topic identifiers.
+
+Add an AI-assisted question drafting feature.
+
+However:
+AI-generated questions must remain drafts until a teacher reviews and approves them.
+
+Check for missing answer keys and invalid question structures.
+
+==================================================
+17. DATABASE ARCHITECTURE
+==================================================
+
+Design a scalable data structure.
+
+Include appropriate entities or collections for:
+
+- institutions
+- users
+- classes
+- class_memberships
+- invitations
+- subjects
+- topics
+- questions
+- assessments
+- assessment_questions
+- assessment_attempts
+- student_answers
+- mastery_records
+- learning_recommendations
+- learning_activities
+- notifications
+- teacher_notes
+- audit_logs
+
+Every record must contain appropriate identifiers and timestamps.
+
+Support institution-level data ownership.
+
+Define relationships carefully.
+
+Avoid duplicating large assessment records unnecessarily.
+
+Store sufficient historical information to reproduce previous assessment results even when a teacher later edits the original question.
+
+Implement:
+- Access control.
+- Input validation.
+- Database error handling.
+- Server-side authorization.
+- Audit events for important administrative actions.
+
+Use secure database rules that enforce the same permissions as the backend.
+
+Do not allow a student to edit official assessment results or mastery calculations.
+
+==================================================
+18. SECURITY AND PRIVACY
+==================================================
+
+This application serves school-aged students.
+
+Privacy and security are mandatory.
+
+Requirements:
+
+- Collect only necessary information.
+- Do not collect personal addresses or unnecessary contact data.
+- Use pseudonymous student identifiers where possible.
+- Protect passwords through Firebase Authentication.
+- Never store plaintext passwords.
+- Never expose API keys.
+- Validate all user input.
+- Verify permissions on the backend.
+- Protect against unauthorized database reads and writes.
+- Restrict parent access to linked children.
+- Restrict teachers to authorized classes and institutions.
+- Provide logout and session handling.
+- Include a privacy information page.
+- Provide data export and deletion request workflows.
+- Maintain appropriate administrative audit logs.
+
+Use synthetic demo data only during development.
+
+Before processing real student data, the product owner must configure the necessary permissions, consent processes, hosting, and legal requirements.
+
+Do not send identifiable student information to Gemini.
+
+==================================================
+19. UX AND INTERACTION DETAILS
+==================================================
+
+Every major UI control must work.
+
+Examples:
+- Buttons must perform meaningful actions.
+- Search must return filtered records.
+- Filters must update the displayed information.
+- Tables must support sorting where appropriate.
+- Modals must open and close correctly.
+- Forms must validate input.
+- Navigation must work.
+- Charts must reflect real data.
+- Role changes must alter available screens.
+- Loading indicators must appear during requests.
+- Errors must be explained clearly.
+- Empty states must guide users toward the next action.
+
+Use confirmation dialogs for destructive actions.
+
+Do not use generic alerts as the only feedback method.
+
+Create reusable toast notifications.
+
+Add clear form validation messages in Uzbek.
+
+==================================================
+20. INTERNATIONALIZATION
+==================================================
+
+All user-facing interface content must initially be in Uzbek Latin.
+
+Examples:
+
+Dashboard:
+"Boshqaruv paneli"
+
+Assessments:
+"Testlar"
+
+Knowledge Map:
+"Bilim xaritasi"
+
+Learning Path:
+"Shaxsiy o'quv yo'li"
+
+Progress:
+"Rivojlanish"
+
+Teacher:
+"O'qituvchi"
+
+Student:
+"O'quvchi"
+
+Parent:
+"Ota-ona"
+
+School:
+"Maktab"
+
+Save interface strings in a centralized localization structure.
+
+Make it possible to add Russian and English translations later.
+
+Use correct Uzbek spelling and natural terminology.
+
+Avoid randomly mixing Uzbek and English in visible interface text.
+
+==================================================
+21. RESPONSIVENESS AND ACCESSIBILITY
+==================================================
+
+The application must work on:
+
+- Desktop.
+- Laptop.
+- Tablet.
+- Mobile.
+
+Desktop:
+Professional sidebar and wide analytics workspace.
+
+Tablet:
+Responsive navigation and adapted dashboard cards.
+
+Mobile:
+Compact navigation, readable typography, touch-friendly controls.
+
+Accessibility:
+- Semantic HTML.
+- Keyboard navigation.
+- Accessible form labels.
+- Adequate color contrast.
+- Visible focus states.
+- Accessible dialogs.
+- Appropriate ARIA attributes.
+
+==================================================
+22. ANALYTICS AND DATA VISUALIZATION
+==================================================
+
+Use Recharts for charts where appropriate.
+
+Include:
+
+1. Learning progress line chart.
+2. Topic mastery bar chart.
+3. Assessment performance chart.
+4. Class performance distribution.
+5. Assessment completion visualization.
+
+Charts must:
+- Use real records.
+- Have descriptive titles.
+- Have meaningful axes.
+- Include tooltips.
+- Handle empty data.
+- Adapt to smaller screens.
+
+Do not generate random chart values for production views.
+
+Clearly distinguish demonstration data from actual learner data.
+
+==================================================
+23. DEMO EXPERIENCE
+==================================================
+
+Create a complete demonstration experience.
+
+If Firebase is not configured yet, the product must still be explorable in Demo Mode.
+
+Provide four demo profiles:
+
+- Demo Student
+- Demo Teacher
+- Demo Parent
+- Demo Administrator
+
+Use synthetic names and synthetic records.
+
+Create:
+- One demo school.
+- Two demo classes.
+- A few demo students.
+- A demo mathematics teacher.
+- A parent linked to one demo student.
+- Sample question bank.
+- Sample assessments.
+- Sample results.
+- Sample topic mastery records.
+- Sample progress history.
+
+Allow the user to explore every major dashboard.
+
+Use clear "Demo Mode" labels.
+
+Do not mix demo records with production records.
+
+==================================================
+24. QUALITY ASSURANCE AND TESTING
+==================================================
+
+Before declaring the application complete:
+
+1. Inspect the full application structure.
+2. Run the application.
+3. Check all routes.
+4. Check the authentication flow.
+5. Check role-based navigation.
+6. Check assessment creation.
+7. Check assessment completion.
+8. Verify answer scoring.
+9. Verify Knowledge Map calculations.
+10. Verify AI response validation.
+11. Check database permissions.
+12. Check responsive behavior.
+13. Check form validation.
+14. Check all important buttons.
+15. Fix build errors.
+16. Fix runtime errors.
+17. Fix console errors where possible.
+
+Important:
+Do not claim a feature is complete if it is only represented by a visual placeholder.
+
+If a capability depends on Firebase configuration, clearly explain what remains to be configured.
+
+==================================================
+25. IMPLEMENTATION PRIORITIES
+==================================================
+
+Build in the following order:
+
+PHASE 1:
+- Application foundation.
+- Brand identity.
+- Authentication experience.
+- Demo Mode.
+- Role-based routing.
+- Main dashboards.
+
+PHASE 2:
+- Class management.
+- Question bank.
+- Assessment engine.
+- Assessment submissions.
+- Deterministic scoring.
+
+PHASE 3:
+- Knowledge Map.
+- Progress tracking.
+- Gemini AI analysis.
+- Personalized Learning Path.
+
+PHASE 4:
+- Parent portal.
+- Institution administration.
+- CSV exports.
+- Privacy and security improvements.
+
+PHASE 5:
+- Testing.
+- Bug fixing.
+- Responsive refinement.
+- Performance optimization.
+
+Prioritize a coherent and usable MVP over excessive features.
+
+If implementation scope becomes too large, preserve the entire navigation architecture but focus on making the essential student and teacher workflows fully functional.
+
+==================================================
+26. ACCEPTANCE CRITERIA
+==================================================
+
+The MVP is considered successful only when:
+
+A. A student can access the platform and complete an assessment.
+
+B. The system can calculate the student's score correctly.
+
+C. The system can associate results with the correct topics.
+
+D. The Knowledge Map updates based on real assessment evidence.
+
+E. Gemini can generate a validated analysis from the available data.
+
+F. A student can see personalized recommended practice.
+
+G. A teacher can create an assessment and assign it to a class.
+
+H. A teacher can view actual student performance records.
+
+I. A parent can view only their linked child's permitted information.
+
+J. An administrator can manage their institution.
+
+K. The application has responsive and functional interfaces.
+
+L. The app handles unavailable services and invalid data gracefully.
+
+M. No production API key is exposed in frontend code.
+
+N. Demo data is clearly isolated from real records.
+
+==================================================
+27. FINAL EXECUTION INSTRUCTIONS
+==================================================
+
+Now begin implementation.
+
+Do not respond with only a plan.
+
+Do not create only a landing page.
+
+Do not create a fake dashboard with arbitrary numbers.
+
+Generate the actual full-stack project.
+
+Use multiple files and reusable modules.
+
+Build the most important working functionality first.
+
+Run the application and inspect the preview.
+
+Fix implementation errors before finishing.
+
+When you finish, provide a concise implementation report containing:
+
+1. What was successfully implemented.
+2. Which features are fully functional.
+3. Which features operate in Demo Mode.
+4. Whether Firebase has been connected.
+5. Whether Gemini API integration is working.
+6. Any required manual configuration.
+7. Any remaining limitations.
+
+The final result should look and behave like the first serious release of a modern international EdTech SaaS startup.
+
+Your standard is not a school project mockup.
+
+Your standard is a high-quality, scalable, professional software product.
+
+START BUILDING LEARNOS NOW.

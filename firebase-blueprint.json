@@ -1,0 +1,429 @@
+{
+  "entities": {
+    "Institution": {
+      "title": "Institution",
+      "description": "Specialized Study educational institution tenant",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "code": { "type": "string", "maxLength": 32 },
+        "name": { "type": "string", "minLength": 2, "maxLength": 160 },
+        "type": { "type": "string", "enum": ["school", "lyceum", "learning_center", "academy"] },
+        "status": { "type": "string", "enum": ["active", "suspended", "archived"] },
+        "region": { "type": "string", "minLength": 2, "maxLength": 100 },
+        "district": { "type": "string", "minLength": 2, "maxLength": 100 },
+        "academicYear": { "type": "string", "minLength": 4, "maxLength": 32 },
+        "adminUid": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "createdAt": { "type": "string", "maxLength": 64 }
+      },
+      "required": ["id", "name", "region", "district", "academicYear", "adminUid", "createdAt"]
+    },
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "Authenticated user profile (admin or student)",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "displayName": { "type": "string", "minLength": 2, "maxLength": 120 },
+        "email": { "type": "string", "maxLength": 160 },
+        "role": { "type": "string", "enum": ["platform_owner", "admin", "teacher", "student", "parent"] },
+        "institutionId": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "classId": { "type": "string", "maxLength": 128 },
+        "classCode": { "type": "string", "maxLength": 16 },
+        "grade": { "type": "number" },
+        "track": { "type": "string", "enum": ["A", "T"] },
+        "studentCode": { "type": "string", "maxLength": 32 },
+        "status": { "type": "string", "enum": ["active", "suspended"] },
+        "createdAt": { "type": "string", "maxLength": 64 }
+      },
+      "required": ["uid", "displayName", "role", "institutionId", "createdAt"]
+    },
+    "ClassRoom": {
+      "title": "ClassRoom",
+      "description": "Official Specialized Study class (19 classes: 14 A-track + 5 T-track)",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "code": { "type": "string", "maxLength": 16 },
+        "name": { "type": "string", "minLength": 2, "maxLength": 80 },
+        "grade": { "type": "number" },
+        "track": { "type": "string", "enum": ["A", "T"] },
+        "groupIndex": { "type": "number" },
+        "subject": { "type": "string", "minLength": 2, "maxLength": 80 },
+        "teacherId": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "institutionId": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "inviteCode": { "type": "string", "minLength": 4, "maxLength": 32 },
+        "studentCount": { "type": "number" },
+        "status": { "type": "string", "enum": ["active", "archived"] },
+        "createdAt": { "type": "string", "maxLength": 64 }
+      },
+      "required": ["id", "name", "grade", "subject", "teacherId", "institutionId", "inviteCode", "studentCount", "createdAt"]
+    },
+    "WorkPlan": {
+      "title": "WorkPlan",
+      "description": "Curriculum work plan uploaded and confirmed by Admin",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "institutionId": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "title": { "type": "string", "minLength": 2, "maxLength": 200 },
+        "subject": { "type": "string", "minLength": 2, "maxLength": 80 },
+        "grade": { "type": "number" },
+        "track": { "type": "string", "enum": ["A", "T"] },
+        "classId": { "type": "string", "maxLength": 128 },
+        "classCode": { "type": "string", "maxLength": 16 },
+        "quarter": { "type": "number" },
+        "academicYear": { "type": "string", "maxLength": 32 },
+        "status": { "type": "string", "enum": ["draft", "confirmed", "archived"] },
+        "totalLessons": { "type": "number" },
+        "createdByUid": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "createdAt": { "type": "string", "maxLength": 64 }
+      },
+      "required": ["id", "institutionId", "title", "subject", "grade", "track", "quarter", "academicYear", "status", "totalLessons", "createdByUid", "createdAt"]
+    },
+    "LessonItem": {
+      "title": "LessonItem",
+      "description": "Structured curriculum lesson node in O'quv xaritasi",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "institutionId": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "workPlanId": { "type": "string", "maxLength": 128 },
+        "subject": { "type": "string", "minLength": 2, "maxLength": 80 },
+        "grade": { "type": "number" },
+        "track": { "type": "string", "enum": ["A", "T"] },
+        "classId": { "type": "string", "maxLength": 128 },
+        "classCode": { "type": "string", "maxLength": 16 },
+        "quarter": { "type": "number" },
+        "lessonNumber": { "type": "number" },
+        "topicId": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "topicTitle": { "type": "string", "minLength": 2, "maxLength": 200 },
+        "learningObjective": { "type": "string", "maxLength": 1000 },
+        "hours": { "type": "number" },
+        "status": { "type": "string", "enum": ["draft", "published", "completed"] },
+        "createdByUid": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "createdAt": { "type": "string", "maxLength": 64 }
+      },
+      "required": ["id", "institutionId", "subject", "grade", "track", "quarter", "lessonNumber", "topicId", "topicTitle", "hours", "status", "createdByUid", "createdAt"]
+    },
+    "Invitation": {
+      "title": "Invitation",
+      "description": "Single-use expiring cryptographic invitation token record",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "institutionId": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "institutionName": { "type": "string", "maxLength": 160 },
+        "email": { "type": "string", "maxLength": 160 },
+        "inviteeName": { "type": "string", "maxLength": 120 },
+        "role": { "type": "string", "enum": ["admin", "teacher", "student", "parent"] },
+        "tokenHash": { "type": "string", "maxLength": 128 },
+        "status": { "type": "string", "enum": ["pending", "accepted", "revoked", "expired"] },
+        "createdByUid": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "createdAt": { "type": "string", "maxLength": 64 },
+        "expiresAt": { "type": "string", "maxLength": 64 }
+      },
+      "required": ["id", "institutionId", "institutionName", "email", "inviteeName", "role", "tokenHash", "status", "createdByUid", "createdAt", "expiresAt"]
+    },
+    "QuestionItem": {
+      "title": "QuestionItem",
+      "description": "Diagnostic question in question bank supporting 5 question types",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "code": { "type": "string", "maxLength": 64 },
+        "institutionId": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "authorId": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "subject": { "type": "string", "maxLength": 80 },
+        "grade": { "type": "number" },
+        "topicId": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "difficulty": { "type": "string", "enum": ["easy", "medium", "hard"] },
+        "type": { "type": "string", "enum": ["single_choice", "multiple_choice", "numeric", "short_text", "long_text"] },
+        "points": { "type": "number" },
+        "prompt": { "type": "string", "minLength": 5, "maxLength": 1000 },
+        "correctAnswer": { "type": "string", "minLength": 1, "maxLength": 200 },
+        "explanation": { "type": "string", "minLength": 5, "maxLength": 1500 },
+        "status": { "type": "string", "enum": ["draft", "approved"] },
+        "createdAt": { "type": "string", "maxLength": 64 }
+      },
+      "required": ["id", "institutionId", "authorId", "subject", "grade", "topicId", "difficulty", "type", "prompt", "correctAnswer", "explanation", "status", "createdAt"]
+    },
+    "Assessment": {
+      "title": "Assessment",
+      "description": "Diagnostic assessment created by Admin or AI",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "title": { "type": "string", "minLength": 3, "maxLength": 160 },
+        "subject": { "type": "string", "maxLength": 80 },
+        "grade": { "type": "number" },
+        "durationMinutes": { "type": "number" },
+        "dueDate": { "type": "string", "maxLength": 64 },
+        "classId": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "teacherId": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "institutionId": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "status": { "type": "string", "enum": ["draft", "published", "archived"] },
+        "createdAt": { "type": "string", "maxLength": 64 }
+      },
+      "required": ["id", "title", "subject", "grade", "durationMinutes", "dueDate", "classId", "teacherId", "institutionId", "status", "createdAt"]
+    },
+    "Assignment": {
+      "title": "Assignment",
+      "description": "Published assessment assignment for a specific class",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "institutionId": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "assessmentId": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "assessmentTitle": { "type": "string", "maxLength": 160 },
+        "classId": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "className": { "type": "string", "maxLength": 80 },
+        "teacherId": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "startDate": { "type": "string", "maxLength": 64 },
+        "dueDate": { "type": "string", "maxLength": 64 },
+        "status": { "type": "string", "enum": ["published", "closed"] },
+        "createdAt": { "type": "string", "maxLength": 64 }
+      },
+      "required": ["id", "institutionId", "assessmentId", "assessmentTitle", "classId", "className", "teacherId", "startDate", "dueDate", "status", "createdAt"]
+    },
+    "AssessmentAttempt": {
+      "title": "AssessmentAttempt",
+      "description": "Completed student assessment attempt",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "assessmentId": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "studentId": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "classId": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "institutionId": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "scorePercent": { "type": "number" },
+        "correctCount": { "type": "number" },
+        "totalQuestions": { "type": "number" },
+        "status": { "type": "string", "enum": ["completed", "pending_manual_review"] },
+        "submittedAt": { "type": "string", "maxLength": 64 }
+      },
+      "required": ["id", "assessmentId", "studentId", "classId", "institutionId", "scorePercent", "correctCount", "totalQuestions", "status", "submittedAt"]
+    },
+    "MasteryRecord": {
+      "title": "MasteryRecord",
+      "description": "Topic mastery record for a student",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "studentId": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "institutionId": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "topicId": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "assessedQuestions": { "type": "number" },
+        "correctAnswers": { "type": "number" },
+        "accuracy": { "type": "number" },
+        "masteryEstimate": { "type": "number" },
+        "evidenceCount": { "type": "number" },
+        "statusLabel": { "type": "string", "maxLength": 64 },
+        "lastAssessedAt": { "type": "string", "maxLength": 64 }
+      },
+      "required": ["id", "studentId", "institutionId", "topicId", "assessedQuestions", "correctAnswers", "accuracy", "masteryEstimate", "evidenceCount", "statusLabel", "lastAssessedAt"]
+    },
+    "TeacherNote": {
+      "title": "TeacherNote",
+      "description": "Pedagogical note",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "studentId": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "teacherId": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "institutionId": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "content": { "type": "string", "minLength": 2, "maxLength": 1000 },
+        "createdAt": { "type": "string", "maxLength": 64 }
+      },
+      "required": ["id", "studentId", "teacherId", "institutionId", "content", "createdAt"]
+    },
+    "AppNotification": {
+      "title": "AppNotification",
+      "description": "In-app notification record",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "institutionId": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "recipientUid": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "title": { "type": "string", "minLength": 2, "maxLength": 160 },
+        "message": { "type": "string", "minLength": 2, "maxLength": 500 },
+        "read": { "type": "boolean" },
+        "createdAt": { "type": "string", "maxLength": 64 }
+      },
+      "required": ["id", "institutionId", "recipientUid", "title", "message", "read", "createdAt"]
+    },
+    "AuditLogEntry": {
+      "title": "AuditLogEntry",
+      "description": "Append-only institution security audit log",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "institutionId": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "actorUid": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "actorName": { "type": "string", "maxLength": 120 },
+        "actorRole": { "type": "string", "enum": ["platform_owner", "admin", "teacher", "student", "parent"] },
+        "action": { "type": "string", "maxLength": 200 },
+        "target": { "type": "string", "maxLength": 200 },
+        "createdAt": { "type": "string", "maxLength": 64 }
+      },
+      "required": ["id", "institutionId", "actorUid", "actorName", "actorRole", "action", "target", "createdAt"]
+    },
+    "AcademicYearItem": {
+      "title": "AcademicYearItem",
+      "description": "Academic year period",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "institutionId": { "type": "string", "maxLength": 128 },
+        "name": { "type": "string", "maxLength": 64 },
+        "startDate": { "type": "string", "maxLength": 64 },
+        "endDate": { "type": "string", "maxLength": 64 },
+        "status": { "type": "string", "enum": ["active", "archived"] },
+        "createdAt": { "type": "string", "maxLength": 64 }
+      },
+      "required": ["id", "institutionId", "name", "startDate", "endDate", "status", "createdAt"]
+    },
+    "QuestionRevision": {
+      "title": "QuestionRevision",
+      "description": "Immutable version snapshot of a question",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "questionId": { "type": "string", "maxLength": 128 },
+        "institutionId": { "type": "string", "maxLength": 128 },
+        "version": { "type": "number" },
+        "updatedByUid": { "type": "string", "maxLength": 128 },
+        "createdAt": { "type": "string", "maxLength": 64 }
+      },
+      "required": ["id", "questionId", "institutionId", "version", "updatedByUid", "createdAt"]
+    },
+    "QuestionMedia": {
+      "title": "QuestionMedia",
+      "description": "Tenant-isolated uploaded image asset for questions/options/explanations",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "institutionId": { "type": "string", "maxLength": 128 },
+        "targetType": { "type": "string", "enum": ["question", "option", "explanation", "institution_logo"] },
+        "fileName": { "type": "string", "maxLength": 200 },
+        "mimeType": { "type": "string", "enum": ["image/png", "image/jpeg", "image/webp"] },
+        "sizeBytes": { "type": "number" },
+        "storagePath": { "type": "string", "maxLength": 300 },
+        "uploadedByUid": { "type": "string", "maxLength": 128 },
+        "createdAt": { "type": "string", "maxLength": 64 }
+      },
+      "required": ["id", "institutionId", "targetType", "fileName", "mimeType", "sizeBytes", "storagePath", "uploadedByUid", "createdAt"]
+    },
+    "GradingRecord": {
+      "title": "GradingRecord",
+      "description": "Written answer manual/AI-assisted grading confirmation record",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "institutionId": { "type": "string", "maxLength": 128 },
+        "attemptId": { "type": "string", "maxLength": 128 },
+        "questionId": { "type": "string", "maxLength": 128 },
+        "studentId": { "type": "string", "maxLength": 128 },
+        "gradedByUid": { "type": "string", "maxLength": 128 },
+        "earnedPoints": { "type": "number" },
+        "maxPoints": { "type": "number" },
+        "isCorrect": { "type": "boolean" },
+        "createdAt": { "type": "string", "maxLength": 64 }
+      },
+      "required": ["id", "institutionId", "attemptId", "questionId", "studentId", "gradedByUid", "earnedPoints", "maxPoints", "isCorrect", "createdAt"]
+    },
+    "ImportBatch": {
+      "title": "ImportBatch",
+      "description": "Excel or ZIP assessment import batch record",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "institutionId": { "type": "string", "maxLength": 128 },
+        "uploadedByUid": { "type": "string", "maxLength": 128 },
+        "fileName": { "type": "string", "maxLength": 200 },
+        "packageType": { "type": "string", "enum": ["xlsx", "zip"] },
+        "status": { "type": "string", "enum": ["validated", "imported", "failed"] },
+        "createdAt": { "type": "string", "maxLength": 64 }
+      },
+      "required": ["id", "institutionId", "uploadedByUid", "fileName", "packageType", "status", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/institutions/{institutionId}": {
+      "schema": { "$ref": "#/entities/Institution" },
+      "description": "Specialized Study institutions"
+    },
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/UserProfile" },
+      "description": "User profiles"
+    },
+    "/classes/{classId}": {
+      "schema": { "$ref": "#/entities/ClassRoom" },
+      "description": "19 official school classes"
+    },
+    "/work_plans/{workPlanId}": {
+      "schema": { "$ref": "#/entities/WorkPlan" },
+      "description": "Uploaded curriculum work plans"
+    },
+    "/lessons/{lessonId}": {
+      "schema": { "$ref": "#/entities/LessonItem" },
+      "description": "Structured curriculum map lessons"
+    },
+    "/invitations/{invitationId}": {
+      "schema": { "$ref": "#/entities/Invitation" },
+      "description": "Cryptographic single-use invitations"
+    },
+    "/questions/{questionId}": {
+      "schema": { "$ref": "#/entities/QuestionItem" },
+      "description": "Diagnostic question bank"
+    },
+    "/assessments/{assessmentId}": {
+      "schema": { "$ref": "#/entities/Assessment" },
+      "description": "Diagnostic assessments"
+    },
+    "/assignments/{assignmentId}": {
+      "schema": { "$ref": "#/entities/Assignment" },
+      "description": "Published class assignments"
+    },
+    "/assessment_attempts/{attemptId}": {
+      "schema": { "$ref": "#/entities/AssessmentAttempt" },
+      "description": "Student assessment attempts"
+    },
+    "/mastery_records/{recordId}": {
+      "schema": { "$ref": "#/entities/MasteryRecord" },
+      "description": "Topic mastery records"
+    },
+    "/teacher_notes/{noteId}": {
+      "schema": { "$ref": "#/entities/TeacherNote" },
+      "description": "Pedagogical notes"
+    },
+    "/notifications/{notificationId}": {
+      "schema": { "$ref": "#/entities/AppNotification" },
+      "description": "User notifications"
+    },
+    "/audit_logs/{logId}": {
+      "schema": { "$ref": "#/entities/AuditLogEntry" },
+      "description": "Append-only institutional audit logs"
+    },
+    "/academic_years/{yearId}": {
+      "schema": { "$ref": "#/entities/AcademicYearItem" },
+      "description": "Academic years"
+    },
+    "/question_revisions/{revId}": {
+      "schema": { "$ref": "#/entities/QuestionRevision" },
+      "description": "Question version snapshots"
+    },
+    "/question_media/{mediaId}": {
+      "schema": { "$ref": "#/entities/QuestionMedia" },
+      "description": "Question media assets"
+    },
+    "/grading_records/{recId}": {
+      "schema": { "$ref": "#/entities/GradingRecord" },
+      "description": "Written answer grading records"
+    },
+    "/import_batches/{batchId}": {
+      "schema": { "$ref": "#/entities/ImportBatch" },
+      "description": "Assessment Excel/ZIP import batches"
+    }
+  }
+}
