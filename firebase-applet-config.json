@@ -1,12 +1,12 @@
 {
-  "projectId": "ivory-receiver-slxdt",
-  "appId": "1:1062217928830:web:ae3dd8472192ddaabb082f",
-  "apiKey": "AIzaSyBiIYkLyBw50qpCIYce8H0yYBtt6qLEUC0",
-  "authDomain": "ivory-receiver-slxdt.firebaseapp.com",
+  "projectId": "specialized-study",
+  "appId": "1:848511288912:web:df85c4a28ff91cb3887355",
+  "apiKey": "AIzaSyDBqjGF7oDpbmdmkqql1fYNwOI09NT-yHs",
+  "authDomain": "specialized-study.firebaseapp.com",
   "firestoreDatabaseId": "ai-studio-ff65cdf0-7948-4790-b5ab-b03b482aba86",
-  "storageBucket": "ivory-receiver-slxdt.firebasestorage.app",
-  "messagingSenderId": "1062217928830",
+  "storageBucket": "specialized-study.firebasestorage.app",
+  "messagingSenderId": "848511288912",
   "measurementId": "",
-  "oAuthClientId": "1062217928830-48ldio9qk6on0pvaids40itm4dndl458.apps.googleusercontent.com",
+  "oAuthClientId": "848511288912-7tbnmnpfk9mrgj695vg8kqirnilpegvn.apps.googleusercontent.com",
   "recaptchaSiteKey": ""
 }

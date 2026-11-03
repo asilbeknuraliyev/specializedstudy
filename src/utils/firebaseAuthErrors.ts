@@ -80,7 +80,7 @@ export function mapFirebaseAuthError(
     (typeof window !== 'undefined' && window.location ? window.location.origin : '') ||
     ''
   ).trim();
-  const firebaseProjectId = (context?.projectId || 'ivory-receiver-slxdt').trim();
+  const firebaseProjectId = (context?.projectId || 'specialized-study').trim();
   const isVercelDomain = detectedHostname.endsWith('.vercel.app');
   const vercelSubdomain = isVercelDomain ? detectedHostname.replace(/\.vercel\.app$/, '') : '';
   const isVercelPreviewDomain =

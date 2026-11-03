@@ -30,8 +30,15 @@ import {
 import { useLearnOS } from '../context/LearnOSContext';
 import { LearningPathStepStatus, LessonItem } from '../types';
 import { APP_NAME, isSubjectCompatibleWithClass } from '../constants/curriculum';
+import { StudentDashboard2 } from '../components/StudentDashboard2';
+import { Roadmap2View } from '../components/Roadmap2View';
+import { StudentProfile2 } from '../components/StudentProfile2';
 
 export const StudentDashboardPage: React.FC = () => {
+  return <StudentDashboard2 />;
+};
+
+export const LegacyStudentDashboardPage: React.FC = () => {
   const {
     currentUser,
     classes,
@@ -534,6 +541,10 @@ export const StudentDashboardPage: React.FC = () => {
 };
 
 export const StudentLessonsPage: React.FC = () => {
+  return <Roadmap2View mode="student" />;
+};
+
+export const LegacyStudentLessonsPage: React.FC = () => {
   const { currentUser, classes, subjects, lessons, assessments } = useLearnOS();
 
   const studentClass = classes.find(
@@ -1938,23 +1949,19 @@ export const LearningPathPage: React.FC = () => {
 
   return (
     <div className="space-y-8">
-      <div className="border-b border-slate-200 dark:border-slate-800 pb-5 space-y-1">
-        <p className="text-xs text-slate-500">
-          Diagnostik dalillarga asoslangan 5 bosqichli individual o‘zlashtirish dasturi
-        </p>
-        <h1 className="text-2xl font-bold text-slate-900 dark:text-white">
-          Shaxsiy o‘quv yo‘li
-        </h1>
-      </div>
+      <Roadmap2View mode="student" />
 
-      {myPaths.length === 0 ? (
-        <div className="p-12 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-center space-y-2">
-          <p className="text-sm font-medium text-slate-600 dark:text-slate-300">
-            Hozircha ma’lumot mavjud emas.
-          </p>
-        </div>
-      ) : (
-        <div className="space-y-8">
+      {myPaths.length > 0 && (
+        <div className="border-t border-slate-200 dark:border-slate-800 pt-6 space-y-6">
+          <div className="space-y-1">
+            <p className="text-xs text-slate-500">
+              Diagnostik dalillarga asoslangan 5 bosqichli individual o‘zlashtirish dasturi
+            </p>
+            <h2 className="text-lg font-bold text-slate-900 dark:text-white">
+              Individual tavsiya etilgan bosqichlar
+            </h2>
+          </div>
+          <div className="space-y-8">
           {myPaths.map((path) => {
             const completedSteps = path.steps.filter((s) => s.status === 'completed').length;
             return (
@@ -2026,6 +2033,7 @@ export const LearningPathPage: React.FC = () => {
               </div>
             );
           })}
+          </div>
         </div>
       )}
     </div>
@@ -2147,61 +2155,22 @@ export const StudentProfilePage: React.FC = () => {
   };
 
   return (
-    <div className="max-w-3xl space-y-6">
-      <div className="border-b border-slate-200 dark:border-slate-800 pb-5">
-        <h1 className="text-2xl font-bold text-slate-900 dark:text-white">
-          O‘quvchi profili
-        </h1>
-        <p className="text-sm text-slate-500">
-          {APP_NAME} tizimidagi tasdiqlangan o‘quvchi ma’lumotlari
-        </p>
-      </div>
+    <div className="space-y-6">
+      <StudentProfile2 />
 
-      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-6 space-y-4">
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
-          <div>
-            <p className="text-xs text-slate-500">Ism va familiya</p>
-            <p className="font-bold text-slate-900 dark:text-white">
-              {currentUser?.displayName}
-            </p>
-          </div>
-          <div>
-            <p className="text-xs text-slate-500">Elektron pochta</p>
-            <p className="font-bold text-slate-900 dark:text-white">{currentUser?.email}</p>
-          </div>
-          <div>
-            <p className="text-xs text-slate-500">Biriktirilgan sinf (Read-only)</p>
-            <p className="font-mono font-bold text-blue-600">{classCode}</p>
-          </div>
-          <div>
-            <p className="text-xs text-slate-500">Sinf darajasi va yo‘nalishi (Read-only)</p>
-            <p className="font-bold text-slate-900 dark:text-white">
-              {grade}-sinf · {track === 'T' ? 'T — Tabiiy fanlar' : 'A — Aniq fanlar'}
-            </p>
-          </div>
-          <div>
-            <p className="text-xs text-slate-500">O‘quvchi identifikatsiya kodi</p>
-            <p className="font-mono font-bold text-slate-700 dark:text-slate-300">
-              {currentUser?.studentCode || '—'}
-            </p>
-          </div>
-          <div>
-            <p className="text-xs text-slate-500">O‘quv fanlari</p>
-            <p className="font-semibold text-slate-800 dark:text-slate-200">
-              {mySubjects.map((s) => s.name).join(', ')}
-            </p>
-          </div>
+      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h2 className="text-sm font-bold text-slate-900 dark:text-white">
+            Shaxsiy o‘quv ma’lumotlarini yuklab olish
+          </h2>
+          <p className="text-xs text-slate-500 mt-0.5">
+            O‘quv tarixi va natijalarni JSON formatida eksport qilish
+          </p>
         </div>
-      </div>
-
-      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-6 space-y-4">
-        <h2 className="text-base font-bold text-slate-900 dark:text-white">
-          Shaxsiy o‘quv ma’lumotlarini yuklab olish
-        </h2>
         <button
           type="button"
           onClick={handleExportMyData}
-          className="inline-flex items-center gap-2 px-4 py-2 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg"
+          className="inline-flex items-center gap-2 px-4 py-2 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-xl cursor-pointer shrink-0"
         >
           <Download className="w-3.5 h-3.5" />
           <span>Ma’lumotlarimni yuklab olish (JSON)</span>

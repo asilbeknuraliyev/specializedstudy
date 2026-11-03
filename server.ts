@@ -29,6 +29,7 @@ import {
   AUTHORIZED_ADMIN_EMAILS,
 } from './src/utils/security';
 import {
+  loadFirebaseAppletConfig,
   verifyFirebaseIdToken,
   provisionSingleAdminAccount,
   provisionAuthorizedAdmins,
@@ -116,7 +117,35 @@ import {
   StudentImportJob,
   CalendarEventItem,
   GlobalSearchResultItem,
+  StudentGamificationProfile,
+  LearningCheckin,
+  StudentGoal,
+  LearningActivityEvent,
+  XpLedgerEntry,
+  GamificationBadgeDefinition,
+  StudentBadgeRecord,
+  StreakRecord,
+  WeeklyRecapRecord,
+  ClassChallenge,
+  GamificationConfig,
+  StudentLessonCompletion,
+  GamificationActivityType,
+  StudentAvatarIconKey,
 } from './src/types';
+import {
+  DEFAULT_GAMIFICATION_BADGES,
+  DEFAULT_GAMIFICATION_CONFIG,
+  GAMIFICATION_LEVELS,
+  getTashkentDateString,
+  getIsoWeekKey,
+  createInitialGamificationProfile,
+  createInitialStreakRecord,
+  processVerifiedLearningEvent,
+  buildStudentLearningJourney,
+  buildWeeklyLearningRecap,
+  buildSmartNextSteps,
+  classifyRoadmap2LessonBadge,
+} from './src/utils/gamificationEngine';
 
 const CONFIGURED_OWNER_EMAIL = (
   process.env.PLATFORM_OWNER_EMAIL || PLATFORM_OWNER_EMAIL
@@ -371,13 +400,17 @@ async function startServer() {
   app.get('/api/auth/diagnostics', (req, res) => {
     const requestHost = String(req.headers['x-forwarded-host'] || req.headers.host || '').trim();
     const origin = String(req.headers.origin || '').trim();
+    const appletCfg = loadFirebaseAppletConfig();
     const projectId = String(
       process.env.VITE_FIREBASE_PROJECT_ID ||
         process.env.FIREBASE_PROJECT_ID ||
-        'ivory-receiver-slxdt'
+        appletCfg.projectId ||
+        'specialized-study'
     ).trim();
     const authDomain = String(
-      process.env.VITE_FIREBASE_AUTH_DOMAIN || `${projectId}.firebaseapp.com`
+      process.env.VITE_FIREBASE_AUTH_DOMAIN ||
+        appletCfg.authDomain ||
+        `${projectId}.firebaseapp.com`
     ).trim();
 
     return res.json({
@@ -1498,6 +1531,18 @@ async function startServer() {
           (n) => n.recipientUid === user.uid || n.institutionId === instId
         ),
         auditLogs: db.auditLogs,
+        studentGamificationProfiles: db.studentGamificationProfiles || [],
+        learningCheckins: db.learningCheckins || [],
+        studentGoals: db.studentGoals || [],
+        learningActivityEvents: db.learningActivityEvents || [],
+        xpLedger: db.xpLedger || [],
+        gamificationBadges: db.gamificationBadges || DEFAULT_GAMIFICATION_BADGES,
+        studentBadges: db.studentBadges || [],
+        streakRecords: db.streakRecords || [],
+        weeklyRecaps: db.weeklyRecaps || [],
+        classChallenges: db.classChallenges || [],
+        gamificationConfig: db.gamificationConfig || DEFAULT_GAMIFICATION_CONFIG,
+        studentLessonCompletions: db.studentLessonCompletions || [],
       });
     }
 
@@ -1648,6 +1693,58 @@ async function startServer() {
         questionSnapshot: a.questionSnapshot?.map(sanitizeQuestionForStudent),
       }));
 
+      const myWorkPlans = myClass
+        ? (db.workPlans || []).filter(
+            (wp) =>
+              workPlanMatchesClass(wp, myClass.code) &&
+              (!wp.additionalCurriculumAssignment || wp.tTrackVisibilityApproved === true)
+          )
+        : [];
+
+      if (!Array.isArray(db.studentGamificationProfiles)) db.studentGamificationProfiles = [];
+      if (!Array.isArray(db.streakRecords)) db.streakRecords = [];
+      if (!Array.isArray(db.weeklyRecaps)) db.weeklyRecaps = [];
+
+      let myGamificationProfile = db.studentGamificationProfiles.find(
+        (p) => p.studentId === user.uid
+      );
+      if (!myGamificationProfile) {
+        myGamificationProfile = createInitialGamificationProfile(user.uid);
+        db.studentGamificationProfiles.push(myGamificationProfile);
+      }
+
+      const gConfig = db.gamificationConfig || DEFAULT_GAMIFICATION_CONFIG;
+      let myStreak = db.streakRecords.find((s) => s.studentId === user.uid);
+      if (!myStreak) {
+        myStreak = createInitialStreakRecord(user.uid, gConfig.streakGraceDays);
+        db.streakRecords.push(myStreak);
+      }
+
+      const myCompletions = (db.studentLessonCompletions || []).filter(
+        (c) => c.studentId === user.uid
+      );
+      const myEvents = (db.learningActivityEvents || []).filter(
+        (e) => e.studentId === user.uid
+      );
+      const myStudentBadges = (db.studentBadges || []).filter(
+        (b) => b.studentId === user.uid
+      );
+      const myWeeklyRecap = buildWeeklyLearningRecap({
+        studentId: user.uid,
+        events: myEvents,
+        studentBadges: myStudentBadges,
+        lessons: myLessons,
+        classCode: myClass?.code || user.classCode || '7a1',
+        completions: myCompletions,
+      });
+
+      const existingRecapIdx = db.weeklyRecaps.findIndex((r) => r.id === myWeeklyRecap.id);
+      if (existingRecapIdx >= 0) {
+        db.weeklyRecaps[existingRecapIdx] = myWeeklyRecap;
+      } else {
+        db.weeklyRecaps.push(myWeeklyRecap);
+      }
+
       return res.json({
         user,
         institution,
@@ -1655,7 +1752,7 @@ async function startServer() {
         academicYears: db.academicYears || [],
         subjects: mySubjects,
         topics: instTopics,
-        workPlans: [],
+        workPlans: myWorkPlans,
         lessons: myLessons,
         users: [user],
         classes: myClass ? [myClass] : [],
@@ -1675,6 +1772,20 @@ async function startServer() {
         teacherNotes: db.teacherNotes.filter((n) => n.studentId === user.uid),
         notifications: myNotifications,
         auditLogs: [],
+        studentGamificationProfiles: [myGamificationProfile],
+        learningCheckins: (db.learningCheckins || []).filter((c) => c.studentId === user.uid),
+        studentGoals: (db.studentGoals || []).filter((g) => g.studentId === user.uid),
+        learningActivityEvents: myEvents,
+        xpLedger: (db.xpLedger || []).filter((l) => l.studentId === user.uid),
+        gamificationBadges: db.gamificationBadges || DEFAULT_GAMIFICATION_BADGES,
+        studentBadges: myStudentBadges,
+        streakRecords: [myStreak],
+        weeklyRecaps: [myWeeklyRecap],
+        classChallenges: (db.classChallenges || []).filter(
+          (ch) => !myClass || ch.classCode.toLowerCase() === myClass.code.toLowerCase()
+        ),
+        gamificationConfig: gConfig,
+        studentLessonCompletions: myCompletions,
       });
     }
 
@@ -6841,6 +6952,48 @@ async function startServer() {
       attemptId
     );
 
+    // Server-authoritative Gamification reward for completing a published assessment
+    const studentClassCode = (
+      user.classCode ||
+      assessment.classCode ||
+      db.classes.find((c) => c.id === user.classId)?.code ||
+      '7a1'
+    ).toLowerCase();
+
+    const assessGamificationResult = recordVerifiedStudentGamificationEvent(db, {
+      studentId: user.uid,
+      classCode: studentClassCode,
+      activityType: 'assessment_completed',
+      idempotencyKey: `assessment:${user.uid}:${assessment.id}`,
+      reason: `Test yakunlandi: ${assessment.title}`,
+      subject: assessment.subject,
+      curriculumArea: assessment.curriculumArea,
+      lessonId: assessment.lessonId,
+      assessmentId: assessment.id,
+      quarter: assessment.quarter,
+      occurredAt: nowIso,
+    });
+
+    // If this assessment is a BSB / CHSB curriculum milestone, also award milestone XP
+    const isMilestoneAssessment =
+      Boolean(assessment.milestoneCode) ||
+      /\b(bsb|chsb)\b/i.test(assessment.title || '');
+    if (isMilestoneAssessment) {
+      recordVerifiedStudentGamificationEvent(db, {
+        studentId: user.uid,
+        classCode: studentClassCode,
+        activityType: 'curriculum_milestone_completed',
+        idempotencyKey: `milestone_assess:${user.uid}:${assessment.id}`,
+        reason: `Nazorat marrasi yakunlandi: ${assessment.title}`,
+        subject: assessment.subject,
+        curriculumArea: assessment.curriculumArea,
+        lessonId: assessment.lessonId,
+        assessmentId: assessment.id,
+        quarter: assessment.quarter,
+        occurredAt: nowIso,
+      });
+    }
+
     saveDbState(env, db);
     broadcastInstitutionUpdate(env, user.institutionId, 'ATTEMPT_SUBMITTED');
 
@@ -6848,6 +7001,7 @@ async function startServer() {
       attempt: newAttempt,
       masteryRecords: updatedStudentMastery,
       learningPaths: updatedStudentPaths,
+      gamification: assessGamificationResult,
     });
   });
 
@@ -7384,6 +7538,800 @@ Savollar va javoblar: ${JSON.stringify(anonymizedAnswers)}
     });
   });
 
+  // =========================================================================
+  // GAMIFICATION ENGINE, DAILY CHECK-IN, STUDENT GOALS & ROADMAP 2.0 ENDPOINTS
+  // =========================================================================
+
+  function recordVerifiedStudentGamificationEvent(
+    db: PersistentDatabaseState,
+    params: {
+      studentId: string;
+      classCode: string;
+      activityType: GamificationActivityType;
+      idempotencyKey: string;
+      reason: string;
+      subject?: string;
+      curriculumArea?: string;
+      topicId?: string;
+      lessonId?: string;
+      assessmentId?: string;
+      goalId?: string;
+      quarter?: 1 | 2 | 3 | 4;
+      occurredAt?: string;
+      dateKey?: string;
+    }
+  ) {
+    if (!Array.isArray(db.studentGamificationProfiles)) db.studentGamificationProfiles = [];
+    if (!Array.isArray(db.learningActivityEvents)) db.learningActivityEvents = [];
+    if (!Array.isArray(db.xpLedger)) db.xpLedger = [];
+    if (!Array.isArray(db.gamificationBadges) || db.gamificationBadges.length === 0) {
+      db.gamificationBadges = DEFAULT_GAMIFICATION_BADGES.map((b) => ({ ...b }));
+    }
+    if (!Array.isArray(db.studentBadges)) db.studentBadges = [];
+    if (!Array.isArray(db.streakRecords)) db.streakRecords = [];
+    if (!Array.isArray(db.classChallenges)) db.classChallenges = [];
+    if (!db.gamificationConfig) {
+      db.gamificationConfig = {
+        ...DEFAULT_GAMIFICATION_CONFIG,
+        xpRewards: { ...DEFAULT_GAMIFICATION_CONFIG.xpRewards },
+        goalTemplates: [...DEFAULT_GAMIFICATION_CONFIG.goalTemplates],
+      };
+    }
+
+    const existingProfile = db.studentGamificationProfiles.find(
+      (p) => p.studentId === params.studentId
+    );
+    const existingStreak = db.streakRecords.find((s) => s.studentId === params.studentId);
+
+    const result = processVerifiedLearningEvent({
+      ...params,
+      config: db.gamificationConfig,
+      badgeDefinitions: db.gamificationBadges,
+      existingProfile,
+      existingEvents: db.learningActivityEvents,
+      existingLedger: db.xpLedger,
+      existingStudentBadges: db.studentBadges,
+      existingStreak,
+      existingChallenges: db.classChallenges,
+    });
+
+    if (!result.duplicate) {
+      const pIdx = db.studentGamificationProfiles.findIndex(
+        (p) => p.studentId === params.studentId
+      );
+      if (pIdx >= 0) {
+        db.studentGamificationProfiles[pIdx] = result.profile;
+      } else {
+        db.studentGamificationProfiles.push(result.profile);
+      }
+
+      if (result.event) {
+        db.learningActivityEvents.unshift(result.event);
+      }
+      if (result.ledgerEntry) {
+        db.xpLedger.unshift(result.ledgerEntry);
+      }
+      if (result.newlyEarnedBadges.length > 0) {
+        db.studentBadges.unshift(...result.newlyEarnedBadges);
+      }
+
+      const sIdx = db.streakRecords.findIndex((s) => s.studentId === params.studentId);
+      if (sIdx >= 0) {
+        db.streakRecords[sIdx] = result.streak;
+      } else {
+        db.streakRecords.push(result.streak);
+      }
+
+      db.classChallenges = result.updatedChallenges;
+    }
+
+    return result;
+  }
+
+  // Daily Check-in ("Bugungi maqsading") — optional, +5 XP idempotently once per day
+  app.post('/api/student/checkin', (req, res) => {
+    const authCtx = authenticateRequest(req);
+    if (!authCtx) return res.status(401).json({ error: 'Avtorizatsiya talab qilinadi.' });
+    const { user, env, db } = authCtx;
+
+    if (user.role !== 'student') {
+      return res.status(403).json({ error: "Kunlik maqsad faqat o'quvchilar uchun." });
+    }
+
+    const { selectedSubject, selectedGoal, completionState, dateOverride } = req.body;
+    const cleanSubject = String(selectedSubject || 'Matematika').trim();
+    const cleanGoal = String(selectedGoal || "1 ta darsni o'rganish").trim();
+    if (!cleanGoal) {
+      return res.status(400).json({ error: 'Bugungi maqsadni tanlang yoki kiriting.' });
+    }
+
+    const nowIso = new Date().toISOString();
+    const dateKey =
+      env === 'test' && dateOverride && /^\d{4}-\d{2}-\d{2}$/.test(String(dateOverride))
+        ? String(dateOverride)
+        : getTashkentDateString();
+
+    const myClass = db.classes.find(
+      (c) =>
+        c.id === user.classId ||
+        (user.classCode && c.code.toLowerCase() === user.classCode.toLowerCase())
+    );
+    const classCode = (myClass?.code || user.classCode || '7a1').toLowerCase();
+
+    if (!Array.isArray(db.learningCheckins)) db.learningCheckins = [];
+    const checkinId = `${user.uid}_${dateKey}`;
+    const existingIdx = db.learningCheckins.findIndex((c) => c.id === checkinId);
+
+    const gamificationResult = recordVerifiedStudentGamificationEvent(db, {
+      studentId: user.uid,
+      classCode,
+      activityType: 'daily_checkin',
+      idempotencyKey: `checkin:${user.uid}:${dateKey}`,
+      reason: `Bugungi maqsad belgilandi (${cleanSubject}: ${cleanGoal})`,
+      subject: cleanSubject,
+      occurredAt: nowIso,
+      dateKey,
+    });
+
+    const checkinRecord: LearningCheckin = {
+      id: checkinId,
+      studentId: user.uid,
+      classCode,
+      date: dateKey,
+      time: nowIso,
+      selectedSubject: cleanSubject,
+      selectedGoal: cleanGoal,
+      completionState: completionState === 'completed' ? 'completed' : 'active',
+      xpAwarded:
+        existingIdx >= 0
+          ? db.learningCheckins[existingIdx].xpAwarded
+          : gamificationResult.xpAwarded,
+      completedAt: completionState === 'completed' ? nowIso : undefined,
+    };
+
+    if (existingIdx >= 0) {
+      db.learningCheckins[existingIdx] = checkinRecord;
+    } else {
+      db.learningCheckins.unshift(checkinRecord);
+    }
+
+    saveDbState(env, db);
+    return res.json({
+      message: 'Bugungi maqsading belgilandi!',
+      checkin: checkinRecord,
+      gamification: gamificationResult,
+    });
+  });
+
+  // Student marks a published lesson in their class as completed (+10 XP idempotent, +25 XP if milestone)
+  app.post('/api/student/lessons/:lessonId/complete', (req, res) => {
+    const authCtx = authenticateRequest(req);
+    if (!authCtx) return res.status(401).json({ error: 'Avtorizatsiya talab qilinadi.' });
+    const { user, env, db } = authCtx;
+
+    if (user.role !== 'student') {
+      return res.status(403).json({ error: "Darsni yakunlash faqat o'quvchi hisobi uchun." });
+    }
+
+    const lesson = db.lessons.find((l) => l.id === req.params.lessonId);
+    if (!lesson) {
+      return res.status(404).json({ error: 'Dars topilmadi.' });
+    }
+
+    const myClass = db.classes.find(
+      (c) =>
+        c.id === user.classId ||
+        (user.classCode && c.code.toLowerCase() === user.classCode.toLowerCase())
+    );
+    const classCode = (myClass?.code || user.classCode || '7a1').toLowerCase();
+
+    if (!lessonMatchesClass(lesson, classCode)) {
+      return res.status(403).json({ error: 'Ushbu dars sizning sinfingizga biriktirilmagan.' });
+    }
+
+    const nowIso = new Date().toISOString();
+    const dateKey =
+      env === 'test' && req.body?.dateOverride && /^\d{4}-\d{2}-\d{2}$/.test(String(req.body.dateOverride))
+        ? String(req.body.dateOverride)
+        : getTashkentDateString();
+
+    if (!Array.isArray(db.studentLessonCompletions)) db.studentLessonCompletions = [];
+    const compId = `${user.uid}_${lesson.id}`;
+    const existingCompIdx = db.studentLessonCompletions.findIndex((c) => c.id === compId);
+
+    const completionRecord: StudentLessonCompletion = {
+      id: compId,
+      studentId: user.uid,
+      classCode,
+      lessonId: lesson.id,
+      workPlanId: lesson.workPlanId || '',
+      subject: lesson.subjectName || lesson.subject || 'Matematika',
+      curriculumArea: lesson.curriculumArea,
+      quarter: lesson.quarter || 1,
+      status: 'completed',
+      practiceCompleted:
+        existingCompIdx >= 0
+          ? db.studentLessonCompletions[existingCompIdx].practiceCompleted
+          : Boolean(req.body?.practiceCompleted),
+      completedAt:
+        existingCompIdx >= 0 && db.studentLessonCompletions[existingCompIdx].completedAt
+          ? db.studentLessonCompletions[existingCompIdx].completedAt
+          : nowIso,
+      updatedAt: nowIso,
+    };
+
+    if (existingCompIdx >= 0) {
+      db.studentLessonCompletions[existingCompIdx] = completionRecord;
+    } else {
+      db.studentLessonCompletions.push(completionRecord);
+    }
+
+    const gamificationResult = recordVerifiedStudentGamificationEvent(db, {
+      studentId: user.uid,
+      classCode,
+      activityType: 'lesson_completed',
+      idempotencyKey: `lesson_complete:${user.uid}:${lesson.id}`,
+      reason: `Dars yakunlandi: ${lesson.lessonNumber}-dars — ${lesson.title}`,
+      subject: lesson.subjectName || lesson.subject,
+      curriculumArea: lesson.curriculumArea,
+      topicId: lesson.topicId,
+      lessonId: lesson.id,
+      quarter: lesson.quarter || 1,
+      occurredAt: nowIso,
+      dateKey,
+    });
+
+    const badgeType = classifyRoadmap2LessonBadge(lesson);
+    if (badgeType === 'BSB' || badgeType === 'CHSB' || badgeType === 'Loyiha ishi') {
+      recordVerifiedStudentGamificationEvent(db, {
+        studentId: user.uid,
+        classCode,
+        activityType: 'curriculum_milestone_completed',
+        idempotencyKey: `milestone_lesson:${user.uid}:${lesson.id}`,
+        reason: `O'quv marrasi yakunlandi: ${lesson.title}`,
+        subject: lesson.subjectName || lesson.subject,
+        curriculumArea: lesson.curriculumArea,
+        topicId: lesson.topicId,
+        lessonId: lesson.id,
+        quarter: lesson.quarter || 1,
+        occurredAt: nowIso,
+        dateKey,
+      });
+    }
+
+    // Also update any active studentGoals matching this subject
+    if (Array.isArray(db.studentGoals) && !gamificationResult.duplicate) {
+      for (const goal of db.studentGoals) {
+        if (goal.studentId === user.uid && goal.status === 'active') {
+          goal.currentCount = Math.min(goal.targetCount, goal.currentCount + 1);
+          if (goal.currentCount >= goal.targetCount) {
+            goal.status = 'completed';
+            goal.completedAt = nowIso;
+            if (goal.period === 'weekly') {
+              recordVerifiedStudentGamificationEvent(db, {
+                studentId: user.uid,
+                classCode,
+                activityType: 'weekly_goal_completed',
+                idempotencyKey: `goal_complete:${user.uid}:${goal.id}`,
+                reason: `Haftalik maqsad bajarildi: ${goal.title}`,
+                subject: goal.subject,
+                goalId: goal.id,
+                occurredAt: nowIso,
+                dateKey,
+              });
+            }
+          }
+        }
+      }
+    }
+
+    saveDbState(env, db);
+    return res.json({
+      completion: completionRecord,
+      gamification: gamificationResult,
+    });
+  });
+
+  // Student completes practice/homework for a lesson (+5 XP idempotent)
+  app.post('/api/student/lessons/:lessonId/practice', (req, res) => {
+    const authCtx = authenticateRequest(req);
+    if (!authCtx) return res.status(401).json({ error: 'Avtorizatsiya talab qilinadi.' });
+    const { user, env, db } = authCtx;
+
+    if (user.role !== 'student') {
+      return res.status(403).json({ error: "Amaliy mashq faqat o'quvchi hisobi uchun." });
+    }
+
+    const lesson = db.lessons.find((l) => l.id === req.params.lessonId);
+    if (!lesson) {
+      return res.status(404).json({ error: 'Dars topilmadi.' });
+    }
+
+    const myClass = db.classes.find(
+      (c) =>
+        c.id === user.classId ||
+        (user.classCode && c.code.toLowerCase() === user.classCode.toLowerCase())
+    );
+    const classCode = (myClass?.code || user.classCode || '7a1').toLowerCase();
+
+    if (!lessonMatchesClass(lesson, classCode)) {
+      return res.status(403).json({ error: 'Ushbu dars sizning sinfingizga biriktirilmagan.' });
+    }
+
+    const nowIso = new Date().toISOString();
+    const dateKey =
+      env === 'test' && req.body?.dateOverride && /^\d{4}-\d{2}-\d{2}$/.test(String(req.body.dateOverride))
+        ? String(req.body.dateOverride)
+        : getTashkentDateString();
+
+    if (!Array.isArray(db.studentLessonCompletions)) db.studentLessonCompletions = [];
+    const compId = `${user.uid}_${lesson.id}`;
+    const existingIdx = db.studentLessonCompletions.findIndex((c) => c.id === compId);
+
+    if (existingIdx >= 0) {
+      db.studentLessonCompletions[existingIdx].practiceCompleted = true;
+      db.studentLessonCompletions[existingIdx].updatedAt = nowIso;
+    } else {
+      db.studentLessonCompletions.push({
+        id: compId,
+        studentId: user.uid,
+        classCode,
+        lessonId: lesson.id,
+        workPlanId: lesson.workPlanId || '',
+        subject: lesson.subjectName || lesson.subject || 'Matematika',
+        curriculumArea: lesson.curriculumArea,
+        quarter: lesson.quarter || 1,
+        status: 'in_progress',
+        practiceCompleted: true,
+        updatedAt: nowIso,
+      });
+    }
+
+    const gamificationResult = recordVerifiedStudentGamificationEvent(db, {
+      studentId: user.uid,
+      classCode,
+      activityType: 'practice_completed',
+      idempotencyKey: `lesson_practice:${user.uid}:${lesson.id}`,
+      reason: `Amaliy mashq bajarildi: ${lesson.lessonNumber}-dars — ${lesson.title}`,
+      subject: lesson.subjectName || lesson.subject,
+      curriculumArea: lesson.curriculumArea,
+      topicId: lesson.topicId,
+      lessonId: lesson.id,
+      quarter: lesson.quarter || 1,
+      occurredAt: nowIso,
+      dateKey,
+    });
+
+    saveDbState(env, db);
+    return res.json({
+      gamification: gamificationResult,
+    });
+  });
+
+  // Create or update student personal daily/weekly goal
+  app.post('/api/student/goals', (req, res) => {
+    const authCtx = authenticateRequest(req);
+    if (!authCtx) return res.status(401).json({ error: 'Avtorizatsiya talab qilinadi.' });
+    const { user, env, db } = authCtx;
+
+    if (user.role !== 'student') {
+      return res.status(403).json({ error: "Shaxsiy o'quv maqsadi faqat o'quvchilar uchun." });
+    }
+
+    const { period = 'weekly', subject = 'Matematika', title, targetCount = 3 } = req.body;
+    const cleanTitle = String(title || "Haftada 3 ta darsni o'zlashtirish").trim();
+    const nowIso = new Date().toISOString();
+    const dateKey = getTashkentDateString();
+    const { weekKey } = getIsoWeekKey(dateKey);
+
+    const myClass = db.classes.find(
+      (c) =>
+        c.id === user.classId ||
+        (user.classCode && c.code.toLowerCase() === user.classCode.toLowerCase())
+    );
+    const classCode = (myClass?.code || user.classCode || '7a1').toLowerCase();
+
+    if (!Array.isArray(db.studentGoals)) db.studentGoals = [];
+    const config = db.gamificationConfig || DEFAULT_GAMIFICATION_CONFIG;
+
+    const newGoal: StudentGoal = {
+      id: `goal_${user.uid}_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+      studentId: user.uid,
+      classCode,
+      period: period === 'daily' ? 'daily' : 'weekly',
+      subject: String(subject).trim(),
+      title: cleanTitle,
+      targetCount: Math.max(1, Math.min(50, Number(targetCount) || 3)),
+      currentCount: 0,
+      status: 'active',
+      weekKey: period === 'weekly' ? weekKey : undefined,
+      dateKey: period === 'daily' ? dateKey : undefined,
+      xpReward: period === 'weekly' ? config.xpRewards.weekly_goal_completed : config.xpRewards.daily_checkin,
+      createdAt: nowIso,
+    };
+
+    db.studentGoals.unshift(newGoal);
+    saveDbState(env, db);
+    return res.json({ goal: newGoal });
+  });
+
+  app.put('/api/student/goals/:id', (req, res) => {
+    const authCtx = authenticateRequest(req);
+    if (!authCtx) return res.status(401).json({ error: 'Avtorizatsiya talab qilinadi.' });
+    const { user, env, db } = authCtx;
+
+    if (!Array.isArray(db.studentGoals)) db.studentGoals = [];
+    const goal = db.studentGoals.find(
+      (g) => g.id === req.params.id && g.studentId === user.uid
+    );
+    if (!goal) {
+      return res.status(404).json({ error: 'Maqsad topilmadi.' });
+    }
+
+    const { title, targetCount, currentCount, status } = req.body;
+    if (title && String(title).trim()) goal.title = String(title).trim();
+    if (targetCount !== undefined) {
+      goal.targetCount = Math.max(1, Math.min(50, Number(targetCount) || goal.targetCount));
+    }
+    if (currentCount !== undefined) {
+      goal.currentCount = Math.max(0, Math.min(goal.targetCount, Number(currentCount) || 0));
+    }
+    const nowIso = new Date().toISOString();
+    let gamificationResult = null;
+
+    if (status === 'completed' || goal.currentCount >= goal.targetCount) {
+      goal.currentCount = goal.targetCount;
+      goal.status = 'completed';
+      goal.completedAt = goal.completedAt || nowIso;
+
+      if (goal.period === 'weekly') {
+        gamificationResult = recordVerifiedStudentGamificationEvent(db, {
+          studentId: user.uid,
+          classCode: goal.classCode,
+          activityType: 'weekly_goal_completed',
+          idempotencyKey: `goal_complete:${user.uid}:${goal.id}`,
+          reason: `Haftalik maqsad bajarildi: ${goal.title}`,
+          subject: goal.subject,
+          goalId: goal.id,
+          occurredAt: nowIso,
+        });
+      }
+    }
+
+    saveDbState(env, db);
+    return res.json({ goal, gamification: gamificationResult });
+  });
+
+  // Update Student Profile 2.0 Preferences (avatarIcon, streakRemindersEnabled, notificationsEnabled)
+  app.put('/api/student/profile-preferences', (req, res) => {
+    const authCtx = authenticateRequest(req);
+    if (!authCtx) return res.status(401).json({ error: 'Avtorizatsiya talab qilinadi.' });
+    const { user, env, db } = authCtx;
+
+    if (!Array.isArray(db.studentGamificationProfiles)) db.studentGamificationProfiles = [];
+    let profile = db.studentGamificationProfiles.find((p) => p.studentId === user.uid);
+    if (!profile) {
+      profile = createInitialGamificationProfile(user.uid);
+      db.studentGamificationProfiles.push(profile);
+    }
+
+    const allowedIcons: StudentAvatarIconKey[] = [
+      'compass',
+      'orbit',
+      'prism',
+      'summit',
+      'stellar',
+      'helix',
+      'vector',
+      'quantum',
+    ];
+    if (req.body.avatarIcon && allowedIcons.includes(req.body.avatarIcon)) {
+      profile.avatarIcon = req.body.avatarIcon;
+    }
+    if (typeof req.body.streakRemindersEnabled === 'boolean') {
+      profile.streakRemindersEnabled = req.body.streakRemindersEnabled;
+    }
+    if (typeof req.body.notificationsEnabled === 'boolean') {
+      profile.notificationsEnabled = req.body.notificationsEnabled;
+    }
+    profile.updatedAt = new Date().toISOString();
+
+    saveDbState(env, db);
+    return res.json({ profile });
+  });
+
+  // Admin Roadmap 2.0: Reorder lessons within a workPlan/quarter with audit history
+  app.post('/api/lessons/reorder', (req, res) => {
+    const authCtx = authenticateRequest(req);
+    if (!authCtx) return res.status(401).json({ error: 'Avtorizatsiya talab qilinadi.' });
+    const { user, env, db } = authCtx;
+
+    if (user.role !== 'admin' && user.role !== 'platform_owner') {
+      return res.status(403).json({ error: "Darslar tartibini o'zgartirish faqat administrator uchun." });
+    }
+
+    const { lessonId, direction, orderedLessonIds } = req.body;
+    const nowIso = new Date().toISOString();
+
+    if (Array.isArray(orderedLessonIds) && orderedLessonIds.length > 0) {
+      orderedLessonIds.forEach((id: string, idx: number) => {
+        const l = db.lessons.find((item) => item.id === id);
+        if (l) {
+          const prevNum = l.lessonNumber;
+          const nextNum = idx + 1;
+          if (prevNum !== nextNum) {
+            l.lessonNumber = nextNum;
+            l.orderIndex = nextNum;
+            l.updatedAt = nowIso;
+            l.modificationHistory = [
+              ...(l.modificationHistory || []),
+              {
+                id: `mod_${Date.now()}_${idx}`,
+                editedAt: nowIso,
+                editedByUid: user.uid,
+                editedByName: user.displayName,
+                modifiedAt: nowIso,
+                modifiedBy: user.displayName,
+                changedFields: ['lessonNumber', 'orderIndex'],
+              },
+            ];
+          }
+        }
+      });
+      saveDbState(env, db);
+      return res.json({ status: 'ok' });
+    }
+
+    const target = db.lessons.find((l) => l.id === lessonId);
+    if (!target) {
+      return res.status(404).json({ error: 'Dars topilmadi.' });
+    }
+
+    const quarterLessons = db.lessons
+      .filter(
+        (l) =>
+          l.workPlanId === target.workPlanId &&
+          l.quarter === target.quarter &&
+          l.status !== 'archived'
+      )
+      .sort(
+        (a, b) =>
+          (a.lessonNumber || a.orderIndex || 0) - (b.lessonNumber || b.orderIndex || 0)
+      );
+
+    const currentIdx = quarterLessons.findIndex((l) => l.id === target.id);
+    const swapIdx = direction === 'up' ? currentIdx - 1 : currentIdx + 1;
+    if (currentIdx === -1 || swapIdx < 0 || swapIdx >= quarterLessons.length) {
+      return res.status(400).json({ error: "Ushbu yo'nalishda siljitish imkonsiz." });
+    }
+
+    const neighbor = quarterLessons[swapIdx];
+    const targetNum = target.lessonNumber || currentIdx + 1;
+    const neighborNum = neighbor.lessonNumber || swapIdx + 1;
+
+    target.lessonNumber = neighborNum;
+    target.orderIndex = neighborNum;
+    target.updatedAt = nowIso;
+    target.modificationHistory = [
+      ...(target.modificationHistory || []),
+      {
+        id: `mod_${Date.now()}_1`,
+        editedAt: nowIso,
+        editedByUid: user.uid,
+        editedByName: user.displayName,
+        modifiedAt: nowIso,
+        modifiedBy: user.displayName,
+        changedFields: ['lessonNumber', 'orderIndex'],
+      },
+    ];
+
+    neighbor.lessonNumber = targetNum;
+    neighbor.orderIndex = targetNum;
+    neighbor.updatedAt = nowIso;
+    neighbor.modificationHistory = [
+      ...(neighbor.modificationHistory || []),
+      {
+        id: `mod_${Date.now()}_2`,
+        editedAt: nowIso,
+        editedByUid: user.uid,
+        editedByName: user.displayName,
+        modifiedAt: nowIso,
+        modifiedBy: user.displayName,
+        changedFields: ['lessonNumber', 'orderIndex'],
+      },
+    ];
+
+    // Also sync workPlan rows order if present
+    const wp = db.workPlans.find((w) => w.id === target.workPlanId);
+    if (wp && Array.isArray(wp.rows)) {
+      const r1 = wp.rows.find((r) => r.rowId === target.id);
+      const r2 = wp.rows.find((r) => r.rowId === neighbor.id);
+      if (r1) r1.lessonNumber = target.lessonNumber;
+      if (r2) r2.lessonNumber = neighbor.lessonNumber;
+      wp.rows.sort((a, b) => a.quarter - b.quarter || a.lessonNumber - b.lessonNumber);
+    }
+
+    appendAuditLog(
+      db,
+      user.institutionId,
+      user,
+      `Dars tartibi o'zgartirildi (${targetNum} <-> ${neighborNum})`,
+      target.title,
+      target.id
+    );
+
+    saveDbState(env, db);
+    return res.json({ status: 'ok', swapped: [target.id, neighbor.id] });
+  });
+
+  // Admin Gamification Controls: Update XP config, streak grace days, feature toggles, and badge thresholds
+  app.put('/api/admin/gamification-config', (req, res) => {
+    const authCtx = authenticateRequest(req);
+    if (!authCtx) return res.status(401).json({ error: 'Avtorizatsiya talab qilinadi.' });
+    const { user, env, db } = authCtx;
+
+    if (user.role !== 'admin' && user.role !== 'platform_owner') {
+      return res.status(403).json({ error: 'Gamifikatsiya sozlamalari faqat administrator uchun.' });
+    }
+
+    if (!db.gamificationConfig) {
+      db.gamificationConfig = {
+        ...DEFAULT_GAMIFICATION_CONFIG,
+        xpRewards: { ...DEFAULT_GAMIFICATION_CONFIG.xpRewards },
+        goalTemplates: [...DEFAULT_GAMIFICATION_CONFIG.goalTemplates],
+      };
+    }
+
+    const cfg = db.gamificationConfig;
+    const {
+      enabled,
+      xpRewards,
+      dailyXpCap,
+      streakGraceDays,
+      enableDailyCheckin,
+      enableBadges,
+      enableStreaks,
+      enableClassChallenges,
+      enableWeeklyRecap,
+      goalTemplates,
+      badgeUpdates,
+    } = req.body;
+
+    if (typeof enabled === 'boolean') cfg.enabled = enabled;
+    if (xpRewards && typeof xpRewards === 'object') {
+      for (const k of Object.keys(cfg.xpRewards) as Array<keyof typeof cfg.xpRewards>) {
+        if (xpRewards[k] !== undefined) {
+          cfg.xpRewards[k] = Math.max(0, Math.min(500, Number(xpRewards[k]) || 0));
+        }
+      }
+    }
+    if (dailyXpCap !== undefined) {
+      cfg.dailyXpCap = Math.max(10, Math.min(2000, Number(dailyXpCap) || 150));
+    }
+    if (streakGraceDays !== undefined) {
+      cfg.streakGraceDays = Math.max(0, Math.min(7, Number(streakGraceDays) || 0));
+    }
+    if (typeof enableDailyCheckin === 'boolean') cfg.enableDailyCheckin = enableDailyCheckin;
+    if (typeof enableBadges === 'boolean') cfg.enableBadges = enableBadges;
+    if (typeof enableStreaks === 'boolean') cfg.enableStreaks = enableStreaks;
+    if (typeof enableClassChallenges === 'boolean') cfg.enableClassChallenges = enableClassChallenges;
+    if (typeof enableWeeklyRecap === 'boolean') cfg.enableWeeklyRecap = enableWeeklyRecap;
+    if (Array.isArray(goalTemplates) && goalTemplates.length > 0) {
+      cfg.goalTemplates = goalTemplates.map((t: any) => String(t).trim()).filter(Boolean);
+    }
+
+    if (Array.isArray(badgeUpdates) && Array.isArray(db.gamificationBadges)) {
+      for (const upd of badgeUpdates) {
+        const badge = db.gamificationBadges.find((b) => b.code === upd.code || b.id === upd.id);
+        if (badge) {
+          if (upd.thresholdValue !== undefined) {
+            badge.thresholdValue = Math.max(1, Number(upd.thresholdValue) || badge.thresholdValue);
+          }
+          if (typeof upd.isActive === 'boolean') {
+            badge.isActive = upd.isActive;
+          }
+          if (upd.title) badge.title = String(upd.title).trim();
+          if (upd.description) badge.description = String(upd.description).trim();
+        }
+      }
+    }
+
+    cfg.updatedByUid = user.uid;
+    cfg.updatedAt = new Date().toISOString();
+
+    appendAuditLog(
+      db,
+      user.institutionId,
+      user,
+      'Gamifikatsiya tizimi sozlamalari yangilandi',
+      'GamificationConfig',
+      'default'
+    );
+    saveDbState(env, db);
+    return res.json({
+      gamificationConfig: cfg,
+      gamificationBadges: db.gamificationBadges,
+    });
+  });
+
+  // Admin Cooperative Class Challenges CRUD
+  app.post('/api/admin/class-challenges', (req, res) => {
+    const authCtx = authenticateRequest(req);
+    if (!authCtx) return res.status(401).json({ error: 'Avtorizatsiya talab qilinadi.' });
+    const { user, env, db } = authCtx;
+
+    if (user.role !== 'admin' && user.role !== 'platform_owner') {
+      return res.status(403).json({ error: 'Sinf maqsadini yaratish faqat administrator uchun.' });
+    }
+
+    const {
+      classCode = '7a1',
+      title,
+      description,
+      targetType = 'lessons',
+      targetCount = 30,
+      subject,
+      startDate,
+      endDate,
+    } = req.body;
+
+    const cleanTitle = String(title || "Bu hafta sinf bo'lib 30 ta darsni yakunlaymiz").trim();
+    const nowIso = new Date().toISOString();
+    const todayKey = getTashkentDateString();
+    const { weekStartDate, weekEndDate } = getIsoWeekKey(todayKey);
+
+    if (!Array.isArray(db.classChallenges)) db.classChallenges = [];
+
+    const challenge: ClassChallenge = {
+      id: `ch_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+      classCode: String(classCode).toLowerCase(),
+      title: cleanTitle,
+      description: String(description || "Sinf o'quvchilarining hamkorlikdagi haftalik o'quv marrasi").trim(),
+      targetType: ['lessons', 'assessments', 'checkins', 'activities'].includes(targetType)
+        ? targetType
+        : 'lessons',
+      targetCount: Math.max(1, Number(targetCount) || 30),
+      currentCount: 0,
+      contributorStudentIds: [],
+      subject: subject ? String(subject).trim() : undefined,
+      startDate: startDate ? String(startDate) : weekStartDate,
+      endDate: endDate ? String(endDate) : weekEndDate,
+      isActive: true,
+      createdByUid: user.uid,
+      createdAt: nowIso,
+      updatedAt: nowIso,
+    };
+
+    db.classChallenges.unshift(challenge);
+    saveDbState(env, db);
+    return res.json({ challenge });
+  });
+
+  app.put('/api/admin/class-challenges/:id', (req, res) => {
+    const authCtx = authenticateRequest(req);
+    if (!authCtx) return res.status(401).json({ error: 'Avtorizatsiya talab qilinadi.' });
+    const { user, env, db } = authCtx;
+
+    if (user.role !== 'admin' && user.role !== 'platform_owner') {
+      return res.status(403).json({ error: 'Ruxsat yo‘q.' });
+    }
+
+    if (!Array.isArray(db.classChallenges)) db.classChallenges = [];
+    const ch = db.classChallenges.find((c) => c.id === req.params.id);
+    if (!ch) return res.status(404).json({ error: 'Sinf maqsadi topilmadi.' });
+
+    if (req.body.title) ch.title = String(req.body.title).trim();
+    if (req.body.description !== undefined) ch.description = String(req.body.description).trim();
+    if (req.body.targetCount !== undefined) {
+      ch.targetCount = Math.max(1, Number(req.body.targetCount) || ch.targetCount);
+    }
+    if (typeof req.body.isActive === 'boolean') ch.isActive = req.body.isActive;
+    ch.updatedAt = new Date().toISOString();
+
+    saveDbState(env, db);
+    return res.json({ challenge: ch });
+  });
+
   if (process.env.NODE_ENV !== 'production') {
     const vite = await createViteServer({
       server: { middlewareMode: true },
@@ -7423,7 +8371,7 @@ Savollar va javoblar: ${JSON.stringify(anonymizedAnswers)}
             actorUid: 'admin-owner',
             actorName: 'Asilbek Nuraliyev',
             tTrackVisibilityApproved: false,
-            publishImmediately: false,
+            publishImmediately: true,
             duplicatePolicy: 'update_existing',
           }
         );

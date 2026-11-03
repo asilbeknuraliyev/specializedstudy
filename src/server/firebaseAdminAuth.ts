@@ -23,8 +23,7 @@ export interface FirebaseAppletConfig {
 }
 
 const CONFIG_PATH = path.resolve(process.cwd(), 'firebase-applet-config.json');
-const TEST_ID_TOKEN_SECRET =
-  process.env.SESSION_SECRET || 'specialized-study-hmac-secret-2026';
+const TEST_ID_TOKEN_SECRET = 'specialized-study-isolated-test-jwt-secret-2026';
 
 export function loadFirebaseAppletConfig(): FirebaseAppletConfig {
   const raw = fs.readFileSync(CONFIG_PATH, 'utf-8');

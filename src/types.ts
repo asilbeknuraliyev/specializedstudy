@@ -408,6 +408,8 @@ export interface LessonItem {
   scheduledDate?: string;
   hours?: number;
   maxPoints?: number;
+  orderIndex?: number;
+  assessmentType?: string;
   milestoneType?: 'BSB' | 'CHSB' | 'WRITTEN_WORK' | 'PROJECT' | 'ANALYSIS' | null;
   milestoneCode?: string;
   precedingLessonIds?: string[];
@@ -1149,4 +1151,300 @@ export interface GlobalSearchResultItem {
   recordId?: string;
   classCode?: string;
 }
+
+// ==========================================
+// ROADMAP 2.0 + STUDENT EXPERIENCE 2.0 + GAMIFICATION ENGINE
+// ==========================================
+
+export type GamificationLevelNumber = 1 | 2 | 3 | 4 | 5 | 6 | 7;
+
+export type GamificationLevelTitle =
+  | 'Boshlovchi'
+  | 'Izlanuvchi'
+  | "O'rganuvchi"
+  | 'Bilimdon'
+  | 'Tadqiqotchi'
+  | 'Mutaxassis'
+  | 'Ekspert';
+
+export interface GamificationLevelDefinition {
+  level: GamificationLevelNumber;
+  title: GamificationLevelTitle;
+  minXp: number;
+  maxXp: number | null;
+  description: string;
+}
+
+export type GamificationActivityType =
+  | 'daily_checkin'
+  | 'lesson_completed'
+  | 'practice_completed'
+  | 'assessment_completed'
+  | 'weekly_goal_completed'
+  | 'curriculum_milestone_completed';
+
+export type BadgeCode =
+  | 'BIRINCHI_QADAM'
+  | 'FAOL_OQUVCHI'
+  | 'MATEMATIKA_IXLOSMANDI'
+  | 'IZCHILLIK'
+  | 'BILIM_IZLOVCHISI'
+  | 'BIRINCHI_TEST'
+  | 'MASHGULOT_USTASI';
+
+export interface GamificationBadgeDefinition {
+  id: string;
+  code: BadgeCode;
+  title: string;
+  description: string;
+  category: 'milestone' | 'subject' | 'consistency' | 'assessment' | 'goal';
+  thresholdValue: number;
+  xpBonus: number;
+  iconKey: BadgeCode;
+  isActive: boolean;
+}
+
+export interface StudentBadgeRecord {
+  id: string;
+  studentId: string;
+  badgeId: string;
+  badgeCode: BadgeCode;
+  title: string;
+  description: string;
+  earnedAt: string;
+  triggerEventId: string;
+}
+
+export type StudentAvatarIconKey =
+  | 'compass'
+  | 'orbit'
+  | 'prism'
+  | 'summit'
+  | 'stellar'
+  | 'helix'
+  | 'vector'
+  | 'quantum';
+
+export interface StudentGamificationProfile {
+  id: string; // studentId
+  studentId: string;
+  totalXp: number;
+  currentLevel: GamificationLevelNumber;
+  currentLevelTitle: GamificationLevelTitle;
+  nextLevelXp: number | null;
+  levelProgressPercent: number;
+  completedLessonsCount: number;
+  completedPracticeCount: number;
+  completedAssessmentsCount: number;
+  completedGoalsCount: number;
+  completedMilestonesCount: number;
+  mathActivitiesCount: number;
+  exploredSubjects: string[];
+  exploredTopics: string[];
+  avatarIcon: StudentAvatarIconKey;
+  streakRemindersEnabled: boolean;
+  notificationsEnabled: boolean;
+  updatedAt: string;
+}
+
+export interface LearningCheckin {
+  id: string; // `${studentId}_${date}`
+  studentId: string;
+  classCode: string;
+  date: string; // YYYY-MM-DD in Asia/Tashkent
+  time: string; // ISO string
+  selectedSubject: string;
+  selectedGoal: string;
+  completionState: 'active' | 'completed';
+  xpAwarded: number;
+  completedAt?: string;
+}
+
+export interface StudentGoal {
+  id: string;
+  studentId: string;
+  classCode: string;
+  period: 'daily' | 'weekly';
+  subject: string;
+  title: string;
+  targetCount: number;
+  currentCount: number;
+  status: 'active' | 'completed';
+  weekKey?: string; // YYYY-Www
+  dateKey?: string; // YYYY-MM-DD
+  xpReward: number;
+  createdAt: string;
+  completedAt?: string;
+}
+
+export interface LearningActivityEvent {
+  id: string;
+  idempotencyKey: string;
+  studentId: string;
+  classCode: string;
+  activityType: GamificationActivityType;
+  subject?: string;
+  curriculumArea?: string;
+  topicId?: string;
+  lessonId?: string;
+  assessmentId?: string;
+  goalId?: string;
+  quarter?: 1 | 2 | 3 | 4;
+  xpAwarded: number;
+  occurredAt: string;
+  dateKey: string; // YYYY-MM-DD in Asia/Tashkent
+}
+
+export interface XpLedgerEntry {
+  id: string;
+  idempotencyKey: string;
+  studentId: string;
+  eventId: string;
+  activityType: GamificationActivityType;
+  xpDelta: number;
+  balanceAfter: number;
+  reason: string;
+  referenceId?: string;
+  createdAt: string;
+  dateKey: string;
+}
+
+export interface StreakRecord {
+  id: string; // studentId
+  studentId: string;
+  currentStreakDays: number;
+  longestStreakDays: number;
+  activeDates: string[]; // sorted YYYY-MM-DD
+  lastActiveDate: string | null;
+  graceDaysAllowed: number;
+  graceDaysUsedInCurrentStreak: number;
+  statusMessage: string;
+  updatedAt: string;
+}
+
+export interface WeeklyRecapRecord {
+  id: string; // `${studentId}_${weekKey}`
+  studentId: string;
+  weekKey: string;
+  weekStartDate: string;
+  weekEndDate: string;
+  completedLessonsCount: number;
+  completedTestsCount: number;
+  subjectsStudied: string[];
+  xpEarned: number;
+  newBadges: BadgeCode[];
+  topicsPracticed: string[];
+  recommendedNextFocus: string;
+  generatedAt: string;
+}
+
+export interface ClassChallenge {
+  id: string;
+  classCode: string;
+  title: string;
+  description: string;
+  targetType: 'lessons' | 'assessments' | 'checkins' | 'activities';
+  targetCount: number;
+  currentCount: number;
+  contributorStudentIds: string[];
+  subject?: string;
+  startDate: string;
+  endDate: string;
+  isActive: boolean;
+  createdByUid: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface GamificationConfig {
+  id: string; // 'default'
+  enabled: boolean;
+  xpRewards: {
+    daily_checkin: number;
+    lesson_completed: number;
+    practice_completed: number;
+    assessment_completed: number;
+    weekly_goal_completed: number;
+    curriculum_milestone_completed: number;
+  };
+  dailyXpCap: number;
+  streakGraceDays: number;
+  enableDailyCheckin: boolean;
+  enableBadges: boolean;
+  enableStreaks: boolean;
+  enableClassChallenges: boolean;
+  enableWeeklyRecap: boolean;
+  goalTemplates: string[];
+  updatedByUid?: string;
+  updatedAt: string;
+}
+
+export interface StudentLessonCompletion {
+  id: string; // `${studentId}_${lessonId}`
+  studentId: string;
+  classCode: string;
+  lessonId: string;
+  workPlanId: string;
+  subject: string;
+  curriculumArea?: string;
+  quarter: 1 | 2 | 3 | 4;
+  status: 'in_progress' | 'completed';
+  practiceCompleted: boolean;
+  completedAt?: string;
+  updatedAt: string;
+}
+
+export type Roadmap2LessonBadgeLabel =
+  | 'Oddiy dars'
+  | 'Yozma ish'
+  | 'BSB'
+  | 'CHSB'
+  | 'BSB tahlili'
+  | 'CHSB tahlili'
+  | 'Loyiha ishi'
+  | 'Takrorlash';
+
+export type Roadmap2StudentLessonState = 'Planned' | 'Published' | 'Completed';
+
+export interface RoadmapPlanOverviewStats {
+  totalLessons: number;
+  ordinaryLessons: number;
+  assessmentMilestones: number;
+  projectActivities: number;
+  revisionLessons: number;
+  publishedLessons: number;
+  completedLessons: number;
+  totalHours: number;
+}
+
+export interface LearningJourneyMilestone {
+  id: string;
+  key:
+    | 'first_lesson'
+    | 'first_assessment'
+    | 'first_completed_topic'
+    | 'five_completed_lessons'
+    | 'new_subject_explored'
+    | 'curriculum_unit_completed';
+  title: string;
+  subtitle: string;
+  reached: boolean;
+  reachedAt?: string;
+  progressText: string;
+}
+
+export interface SmartLearningRecommendation {
+  id: string;
+  type: 'next_lesson' | 'practice' | 'revision' | 'assessment';
+  title: string;
+  subject: string;
+  curriculumArea?: string;
+  quarter?: 1 | 2 | 3 | 4;
+  reason: string;
+  actionLabel: string;
+  targetRoute: string;
+  lessonId?: string;
+  assessmentId?: string;
+}
+
 

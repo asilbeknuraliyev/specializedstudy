@@ -367,9 +367,86 @@ service cloud.firestore {
       allow update, delete: if false;
     }
 
+    // 18. Gamification Engine & Roadmap 2.0 Collections
+    // Students can read their own gamification records; official XP balances, badges, and ledger are server/admin-authoritative
+    match /student_gamification_profiles/{profileId} {
+      allow get, list: if isPlatformOwner() || (isSignedIn() && (profileId == request.auth.uid || existing().studentId == request.auth.uid));
+      allow create, delete: if isPlatformOwner();
+      allow update: if isPlatformOwner() || (
+        isSignedIn()
+        && existing().studentId == request.auth.uid
+        && incoming().studentId == existing().studentId
+        && incoming().totalXp == existing().totalXp
+        && incoming().currentLevel == existing().currentLevel
+      );
+    }
+
+    match /learning_checkins/{checkinId} {
+      allow get, list: if isPlatformOwner() || (isSignedIn() && existing().studentId == request.auth.uid);
+      allow create, update: if isPlatformOwner() || (
+        isSignedIn()
+        && incoming().studentId == request.auth.uid
+        && validStr(incoming().selectedSubject, 2, 80)
+        && validStr(incoming().selectedGoal, 2, 200)
+      );
+      allow delete: if isPlatformOwner();
+    }
+
+    match /student_goals/{goalId} {
+      allow get, list: if isPlatformOwner() || (isSignedIn() && existing().studentId == request.auth.uid);
+      allow create, update: if isPlatformOwner() || (
+        isSignedIn()
+        && incoming().studentId == request.auth.uid
+        && validStr(incoming().title, 2, 200)
+      );
+      allow delete: if isPlatformOwner();
+    }
+
+    match /learning_activity_events/{eventId} {
+      allow get, list: if isPlatformOwner() || (isSignedIn() && existing().studentId == request.auth.uid);
+      allow create, update, delete: if isPlatformOwner();
+    }
+
+    match /xp_ledger/{entryId} {
+      allow get, list: if isPlatformOwner() || (isSignedIn() && existing().studentId == request.auth.uid);
+      allow create: if isPlatformOwner();
+      allow update, delete: if false;
+    }
+
+    match /gamification_badges/{badgeId} {
+      allow get, list: if isSignedIn();
+      allow create, update, delete: if isPlatformOwner();
+    }
+
+    match /student_badges/{recordId} {
+      allow get, list: if isPlatformOwner() || (isSignedIn() && existing().studentId == request.auth.uid);
+      allow create, update, delete: if isPlatformOwner();
+    }
+
+    match /streak_records/{studentId} {
+      allow get, list: if isPlatformOwner() || (isSignedIn() && (studentId == request.auth.uid || existing().studentId == request.auth.uid));
+      allow create, update, delete: if isPlatformOwner();
+    }
+
+    match /weekly_recaps/{recapId} {
+      allow get, list: if isPlatformOwner() || (isSignedIn() && existing().studentId == request.auth.uid);
+      allow create, update, delete: if isPlatformOwner();
+    }
+
+    match /class_challenges/{challengeId} {
+      allow get, list: if isSignedIn();
+      allow create, update, delete: if isPlatformOwner();
+    }
+
+    match /student_lesson_completions/{compId} {
+      allow get, list: if isPlatformOwner() || (isSignedIn() && existing().studentId == request.auth.uid);
+      allow create, update, delete: if isPlatformOwner();
+    }
+
     // Default deny-all fallback
     match /{document=**} {
       allow read, write: if false;
     }
   }
 }
+

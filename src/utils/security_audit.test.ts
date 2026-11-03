@@ -719,7 +719,7 @@ describe('SPECIALIZED STUDY — GOOGLE AUTHENTICATION REPAIR, MULTI-ADMIN & SECU
       'https://ais-mob-jkf63rrqhvm52n6mwpcddy-953702242203.asia-southeast1.run.app',
       'https://specializedstudy-1062217928830.asia-southeast1.run.app',
       'https://specializedstudy.ai.studio',
-      'https://ivory-receiver-slxdt.firebaseapp.com',
+      'https://specialized-study.firebaseapp.com',
       'https://specialized-study.vercel.app',
       'https://specialized-study-git-main-asilbek.vercel.app',
     ];
@@ -770,7 +770,8 @@ describe('SPECIALIZED STUDY — GOOGLE AUTHENTICATION REPAIR, MULTI-ADMIN & SECU
       Origin: 'https://specialized-study.vercel.app',
     });
     assert.equal(diagRes.status, 200);
-    assert.equal(diagRes.data.projectId, 'ivory-receiver-slxdt');
+    assert.equal(diagRes.data.projectId, 'specialized-study');
+    assert.equal(diagRes.data.authDomain, 'specialized-study.firebaseapp.com');
     assert.equal(diagRes.data.corsAllowed, true);
     assert.equal(diagRes.data.authorizedAdminCount, 2);
 

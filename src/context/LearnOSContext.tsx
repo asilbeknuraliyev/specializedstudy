@@ -73,6 +73,19 @@ import {
   QuestionType,
   CalendarEventItem,
   GlobalSearchResultItem,
+  StudentGamificationProfile,
+  LearningCheckin,
+  StudentGoal,
+  LearningActivityEvent,
+  XpLedgerEntry,
+  GamificationBadgeDefinition,
+  StudentBadgeRecord,
+  StreakRecord,
+  WeeklyRecapRecord,
+  ClassChallenge,
+  GamificationConfig,
+  StudentLessonCompletion,
+  StudentAvatarIconKey,
 } from '../types';
 import {
   DEFAULT_SUBJECTS,
@@ -80,6 +93,10 @@ import {
   DEFAULT_ACADEMIC_YEARS,
   PLATFORM_OWNER_EMAIL,
 } from '../constants/curriculum';
+import {
+  DEFAULT_GAMIFICATION_BADGES,
+  DEFAULT_GAMIFICATION_CONFIG,
+} from '../utils/gamificationEngine';
 import { canAccessPlatformAdminConsole } from '../utils/security';
 import { LanguageCode } from '../i18n/translations';
 
@@ -127,6 +144,18 @@ interface LearnOSContextValue {
   teacherNotes: TeacherNote[];
   notifications: AppNotification[];
   auditLogs: AuditLogEntry[];
+  studentGamificationProfiles: StudentGamificationProfile[];
+  learningCheckins: LearningCheckin[];
+  studentGoals: StudentGoal[];
+  learningActivityEvents: LearningActivityEvent[];
+  xpLedger: XpLedgerEntry[];
+  gamificationBadges: GamificationBadgeDefinition[];
+  studentBadges: StudentBadgeRecord[];
+  streakRecords: StreakRecord[];
+  weeklyRecaps: WeeklyRecapRecord[];
+  classChallenges: ClassChallenge[];
+  gamificationConfig: GamificationConfig;
+  studentLessonCompletions: StudentLessonCompletion[];
   toasts: ToastMessage[];
   toggleTheme: () => void;
   setLanguage: (lang: LanguageCode) => void;
@@ -526,6 +555,71 @@ interface LearnOSContextValue {
     }
   ) => Promise<AssessmentAttempt>;
   markNotificationRead: (notificationId: string) => Promise<void>;
+  submitDailyCheckin: (payload: {
+    selectedSubject: string;
+    selectedGoal: string;
+    completionState?: 'active' | 'completed';
+  }) => Promise<{ checkin: LearningCheckin; gamification: any }>;
+  completeStudentLesson: (
+    lessonId: string,
+    practiceCompleted?: boolean
+  ) => Promise<{ completion: StudentLessonCompletion; gamification: any }>;
+  completeStudentLessonPractice: (lessonId: string) => Promise<{ gamification: any }>;
+  createStudentGoal: (payload: {
+    period: 'daily' | 'weekly';
+    subject: string;
+    title: string;
+    targetCount: number;
+  }) => Promise<StudentGoal>;
+  updateStudentGoal: (
+    goalId: string,
+    updates: {
+      title?: string;
+      targetCount?: number;
+      currentCount?: number;
+      status?: 'active' | 'completed';
+    }
+  ) => Promise<StudentGoal>;
+  updateStudentProfilePreferences: (updates: {
+    avatarIcon?: StudentAvatarIconKey;
+    streakRemindersEnabled?: boolean;
+    notificationsEnabled?: boolean;
+  }) => Promise<StudentGamificationProfile>;
+  reorderLesson: (payload: {
+    lessonId?: string;
+    direction?: 'up' | 'down';
+    orderedLessonIds?: string[];
+  }) => Promise<void>;
+  updateGamificationConfig: (
+    updates: Partial<GamificationConfig> & {
+      badgeUpdates?: Array<{
+        code: string;
+        thresholdValue?: number;
+        isActive?: boolean;
+        title?: string;
+        description?: string;
+      }>;
+    }
+  ) => Promise<void>;
+  createClassChallenge: (payload: {
+    classCode: string;
+    title: string;
+    description?: string;
+    targetType?: 'lessons' | 'assessments' | 'checkins' | 'activities';
+    targetCount: number;
+    subject?: string;
+    startDate?: string;
+    endDate?: string;
+  }) => Promise<ClassChallenge>;
+  updateClassChallenge: (
+    id: string,
+    updates: {
+      title?: string;
+      description?: string;
+      targetCount?: number;
+      isActive?: boolean;
+    }
+  ) => Promise<ClassChallenge>;
 }
 
 const LearnOSContext = createContext<LearnOSContextValue | undefined>(undefined);
@@ -598,6 +692,26 @@ export const LearnOSProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [teacherNotes, setTeacherNotes] = useState<TeacherNote[]>([]);
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [auditLogs, setAuditLogs] = useState<AuditLogEntry[]>([]);
+  const [studentGamificationProfiles, setStudentGamificationProfiles] = useState<
+    StudentGamificationProfile[]
+  >([]);
+  const [learningCheckins, setLearningCheckins] = useState<LearningCheckin[]>([]);
+  const [studentGoals, setStudentGoals] = useState<StudentGoal[]>([]);
+  const [learningActivityEvents, setLearningActivityEvents] = useState<LearningActivityEvent[]>([]);
+  const [xpLedger, setXpLedger] = useState<XpLedgerEntry[]>([]);
+  const [gamificationBadges, setGamificationBadges] = useState<GamificationBadgeDefinition[]>(
+    DEFAULT_GAMIFICATION_BADGES
+  );
+  const [studentBadges, setStudentBadges] = useState<StudentBadgeRecord[]>([]);
+  const [streakRecords, setStreakRecords] = useState<StreakRecord[]>([]);
+  const [weeklyRecaps, setWeeklyRecaps] = useState<WeeklyRecapRecord[]>([]);
+  const [classChallenges, setClassChallenges] = useState<ClassChallenge[]>([]);
+  const [gamificationConfig, setGamificationConfig] = useState<GamificationConfig>(
+    DEFAULT_GAMIFICATION_CONFIG
+  );
+  const [studentLessonCompletions, setStudentLessonCompletions] = useState<
+    StudentLessonCompletion[]
+  >([]);
 
   const isPlatformOwner = canAccessPlatformAdminConsole(currentUser, PLATFORM_OWNER_EMAIL);
 
@@ -696,6 +810,24 @@ export const LearnOSProvider: React.FC<{ children: React.ReactNode }> = ({ child
     if (Array.isArray(data.teacherNotes)) setTeacherNotes(data.teacherNotes);
     if (Array.isArray(data.notifications)) setNotifications(data.notifications);
     if (Array.isArray(data.auditLogs)) setAuditLogs(data.auditLogs);
+    if (Array.isArray(data.studentGamificationProfiles)) {
+      setStudentGamificationProfiles(data.studentGamificationProfiles);
+    }
+    if (Array.isArray(data.learningCheckins)) setLearningCheckins(data.learningCheckins);
+    if (Array.isArray(data.studentGoals)) setStudentGoals(data.studentGoals);
+    if (Array.isArray(data.learningActivityEvents)) {
+      setLearningActivityEvents(data.learningActivityEvents);
+    }
+    if (Array.isArray(data.xpLedger)) setXpLedger(data.xpLedger);
+    if (Array.isArray(data.gamificationBadges)) setGamificationBadges(data.gamificationBadges);
+    if (Array.isArray(data.studentBadges)) setStudentBadges(data.studentBadges);
+    if (Array.isArray(data.streakRecords)) setStreakRecords(data.streakRecords);
+    if (Array.isArray(data.weeklyRecaps)) setWeeklyRecaps(data.weeklyRecaps);
+    if (Array.isArray(data.classChallenges)) setClassChallenges(data.classChallenges);
+    if (data.gamificationConfig) setGamificationConfig(data.gamificationConfig);
+    if (Array.isArray(data.studentLessonCompletions)) {
+      setStudentLessonCompletions(data.studentLessonCompletions);
+    }
   }, []);
 
   const refreshState = useCallback(
@@ -2398,6 +2530,235 @@ export const LearnOSProvider: React.FC<{ children: React.ReactNode }> = ({ child
     [apiFetch, refreshState, addToast]
   );
 
+  const submitDailyCheckin = useCallback(
+    async (payload: {
+      selectedSubject: string;
+      selectedGoal: string;
+      completionState?: 'active' | 'completed';
+    }) => {
+      const res = await apiFetch('/api/student/checkin', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Maqsadni belgilashda xatolik');
+      await refreshState();
+      const xp = data.gamification?.xpAwarded || 0;
+      addToast(
+        'success',
+        'Bugungi maqsading belgilandi!',
+        xp > 0 ? `+${xp} XP qo'shildi` : `${payload.selectedSubject}: ${payload.selectedGoal}`
+      );
+      return data;
+    },
+    [apiFetch, refreshState, addToast]
+  );
+
+  const completeStudentLesson = useCallback(
+    async (lessonId: string, practiceCompleted?: boolean) => {
+      const res = await apiFetch(`/api/student/lessons/${encodeURIComponent(lessonId)}/complete`, {
+        method: 'POST',
+        body: JSON.stringify({ practiceCompleted }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Darsni yakunlashda xatolik');
+      await refreshState();
+      const xp = data.gamification?.xpAwarded || 0;
+      const newBadges = data.gamification?.newlyEarnedBadges || [];
+      if (newBadges.length > 0) {
+        addToast(
+          'success',
+          `Yangi nishon: ${newBadges[0].title}!`,
+          xp > 0 ? `+${xp} XP va yangi yutuq qo'lga kiritildi` : newBadges[0].description
+        );
+      } else {
+        addToast(
+          'success',
+          'Dars muvaffaqiyatli yakunlandi!',
+          xp > 0 ? `+${xp} XP hisobingizga qo'shildi` : undefined
+        );
+      }
+      return data;
+    },
+    [apiFetch, refreshState, addToast]
+  );
+
+  const completeStudentLessonPractice = useCallback(
+    async (lessonId: string) => {
+      const res = await apiFetch(`/api/student/lessons/${encodeURIComponent(lessonId)}/practice`, {
+        method: 'POST',
+        body: JSON.stringify({}),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Mashqni tasdiqlashda xatolik');
+      await refreshState();
+      const xp = data.gamification?.xpAwarded || 0;
+      addToast(
+        'success',
+        'Amaliy mashq bajarildi!',
+        xp > 0 ? `+${xp} XP hisobingizga qo'shildi` : undefined
+      );
+      return data;
+    },
+    [apiFetch, refreshState, addToast]
+  );
+
+  const createStudentGoal = useCallback(
+    async (payload: {
+      period: 'daily' | 'weekly';
+      subject: string;
+      title: string;
+      targetCount: number;
+    }): Promise<StudentGoal> => {
+      const res = await apiFetch('/api/student/goals', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Maqsad yaratishda xatolik');
+      await refreshState();
+      addToast('success', "Shaxsiy o'quv maqsadi saqlandi");
+      return data.goal;
+    },
+    [apiFetch, refreshState, addToast]
+  );
+
+  const updateStudentGoal = useCallback(
+    async (
+      goalId: string,
+      updates: {
+        title?: string;
+        targetCount?: number;
+        currentCount?: number;
+        status?: 'active' | 'completed';
+      }
+    ): Promise<StudentGoal> => {
+      const res = await apiFetch(`/api/student/goals/${encodeURIComponent(goalId)}`, {
+        method: 'PUT',
+        body: JSON.stringify(updates),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Maqsadni yangilashda xatolik');
+      await refreshState();
+      const xp = data.gamification?.xpAwarded || 0;
+      if (xp > 0) {
+        addToast('success', `Maqsad bajarildi! +${xp} XP`);
+      } else {
+        addToast('success', 'Maqsad holati yangilandi');
+      }
+      return data.goal;
+    },
+    [apiFetch, refreshState, addToast]
+  );
+
+  const updateStudentProfilePreferences = useCallback(
+    async (updates: {
+      avatarIcon?: StudentAvatarIconKey;
+      streakRemindersEnabled?: boolean;
+      notificationsEnabled?: boolean;
+    }): Promise<StudentGamificationProfile> => {
+      const res = await apiFetch('/api/student/profile-preferences', {
+        method: 'PUT',
+        body: JSON.stringify(updates),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Profil sozlamalarini saqlashda xatolik');
+      await refreshState();
+      addToast('success', 'Profil sozlamalari saqlandi');
+      return data.profile;
+    },
+    [apiFetch, refreshState, addToast]
+  );
+
+  const reorderLesson = useCallback(
+    async (payload: {
+      lessonId?: string;
+      direction?: 'up' | 'down';
+      orderedLessonIds?: string[];
+    }) => {
+      const res = await apiFetch('/api/lessons/reorder', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Dars tartibini o'zgartirishda xatolik");
+      await refreshState();
+      addToast('success', 'Darslar ketma-ketligi yangilandi');
+    },
+    [apiFetch, refreshState, addToast]
+  );
+
+  const updateGamificationConfig = useCallback(
+    async (
+      updates: Partial<GamificationConfig> & {
+        badgeUpdates?: Array<{
+          code: string;
+          thresholdValue?: number;
+          isActive?: boolean;
+          title?: string;
+          description?: string;
+        }>;
+      }
+    ) => {
+      const res = await apiFetch('/api/admin/gamification-config', {
+        method: 'PUT',
+        body: JSON.stringify(updates),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Gamifikatsiya sozlamalarini saqlashda xatolik');
+      await refreshState();
+      addToast('success', 'Gamifikatsiya tizimi sozlamalari saqlandi');
+    },
+    [apiFetch, refreshState, addToast]
+  );
+
+  const createClassChallenge = useCallback(
+    async (payload: {
+      classCode: string;
+      title: string;
+      description?: string;
+      targetType?: 'lessons' | 'assessments' | 'checkins' | 'activities';
+      targetCount: number;
+      subject?: string;
+      startDate?: string;
+      endDate?: string;
+    }): Promise<ClassChallenge> => {
+      const res = await apiFetch('/api/admin/class-challenges', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Sinf maqsadini yaratishda xatolik');
+      await refreshState();
+      addToast('success', `${payload.classCode.toUpperCase()} sinfi uchun jamoaviy maqsad yaratildi`);
+      return data.challenge;
+    },
+    [apiFetch, refreshState, addToast]
+  );
+
+  const updateClassChallenge = useCallback(
+    async (
+      id: string,
+      updates: {
+        title?: string;
+        description?: string;
+        targetCount?: number;
+        isActive?: boolean;
+      }
+    ): Promise<ClassChallenge> => {
+      const res = await apiFetch(`/api/admin/class-challenges/${encodeURIComponent(id)}`, {
+        method: 'PUT',
+        body: JSON.stringify(updates),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Sinf maqsadini yangilashda xatolik');
+      await refreshState();
+      addToast('success', 'Jamoaviy sinf maqsadi yangilandi');
+      return data.challenge;
+    },
+    [apiFetch, refreshState, addToast]
+  );
+
   return (
     <LearnOSContext.Provider
       value={{
@@ -2433,6 +2794,18 @@ export const LearnOSProvider: React.FC<{ children: React.ReactNode }> = ({ child
         teacherNotes,
         notifications,
         auditLogs,
+        studentGamificationProfiles,
+        learningCheckins,
+        studentGoals,
+        learningActivityEvents,
+        xpLedger,
+        gamificationBadges,
+        studentBadges,
+        streakRecords,
+        weeklyRecaps,
+        classChallenges,
+        gamificationConfig,
+        studentLessonCompletions,
         toasts,
         toggleTheme,
         setLanguage,
@@ -2504,6 +2877,16 @@ export const LearnOSProvider: React.FC<{ children: React.ReactNode }> = ({ child
         suggestWrittenGrade,
         confirmWrittenGrade,
         markNotificationRead,
+        submitDailyCheckin,
+        completeStudentLesson,
+        completeStudentLessonPractice,
+        createStudentGoal,
+        updateStudentGoal,
+        updateStudentProfilePreferences,
+        reorderLesson,
+        updateGamificationConfig,
+        createClassChallenge,
+        updateClassChallenge,
       }}
     >
       {children}

@@ -60,6 +60,8 @@ import {
   OFFICIAL_T_TRACK_CLASSES,
   isSubjectCompatibleWithClass,
 } from '../constants/curriculum';
+import { Roadmap2View } from '../components/Roadmap2View';
+import { AdminGamificationPanel } from '../components/AdminGamificationPanel';
 
 /* ==========================================================================
    1. BOSH SAHIFA — MINIMALIST OVERVIEW (SECTION 01, 02, 14)
@@ -3734,7 +3736,7 @@ export const AdminCurriculumMapPage: React.FC = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
 
-  const [viewMode, setViewMode] = useState<'lessons' | 'calendar'>('lessons');
+  const [viewMode, setViewMode] = useState<'roadmap2' | 'lessons' | 'calendar'>('roadmap2');
   const [calendarSubView, setCalendarSubView] = useState<'month' | 'week' | 'agenda'>('agenda');
   const [calendarEvents, setCalendarEvents] = useState<CalendarEventItem[]>([]);
 
@@ -4010,6 +4012,17 @@ export const AdminCurriculumMapPage: React.FC = () => {
         <div className="flex items-center gap-1.5 bg-slate-100 dark:bg-slate-800 p-1 rounded-lg">
           <button
             type="button"
+            onClick={() => setViewMode('roadmap2')}
+            className={`px-3 py-1.5 rounded-md text-xs font-semibold cursor-pointer ${
+              viewMode === 'roadmap2'
+                ? 'bg-white dark:bg-slate-900 text-blue-600 dark:text-blue-400 shadow-xs'
+                : 'text-slate-600 dark:text-slate-400'
+            }`}
+          >
+            Roadmap 2.0 (Choraklar bo‘yicha)
+          </button>
+          <button
+            type="button"
             onClick={() => setViewMode('lessons')}
             className={`px-3 py-1.5 rounded-md text-xs font-semibold cursor-pointer ${
               viewMode === 'lessons'
@@ -4017,7 +4030,7 @@ export const AdminCurriculumMapPage: React.FC = () => {
                 : 'text-slate-600 dark:text-slate-400'
             }`}
           >
-            O‘quv xaritasi · Darslar ({filteredLessons.length})
+            Barcha darslar qidiruvi ({filteredLessons.length})
           </button>
           <button
             type="button"
@@ -4123,7 +4136,11 @@ export const AdminCurriculumMapPage: React.FC = () => {
         </div>
       )}
 
+      {/* Roadmap 2.0 Interactive Quarter Journey */}
+      {viewMode === 'roadmap2' && <Roadmap2View mode="admin" />}
+
       {/* Multi-Dimensional Filter Controls */}
+      {viewMode !== 'roadmap2' && (
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-7 gap-2.5">
         <select
           aria-label="Sinf darajasi"
@@ -4239,6 +4256,7 @@ export const AdminCurriculumMapPage: React.FC = () => {
           </select>
         )}
       </div>
+      )}
 
       {/* View 1: Interactive Curriculum Roadmap Table & Cards */}
       {viewMode === 'lessons' && (
@@ -5759,10 +5777,10 @@ export const AdminSettingsPage: React.FC = () => {
   };
 
   return (
-    <div className="max-w-2xl space-y-5">
+    <div className="space-y-6">
       <form
         onSubmit={handleSave}
-        className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 space-y-4 text-xs"
+        className="max-w-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 space-y-4 text-xs"
       >
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
           <div>
@@ -5811,13 +5829,17 @@ export const AdminSettingsPage: React.FC = () => {
         </button>
       </form>
 
-      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 space-y-2 text-xs text-slate-600 dark:text-slate-400">
+      <div className="max-w-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 space-y-2 text-xs text-slate-600 dark:text-slate-400">
         <div>
           Sinflar: <strong className="text-slate-900 dark:text-white">{classes.length} ta</strong> (14 A + 5 T)
         </div>
         <div>
           Fanlar: <strong className="text-slate-900 dark:text-white">{subjects.map((s) => s.name).join(', ')}</strong>
         </div>
+      </div>
+
+      <div className="pt-4 border-t border-slate-200 dark:border-slate-800">
+        <AdminGamificationPanel />
       </div>
     </div>
   );

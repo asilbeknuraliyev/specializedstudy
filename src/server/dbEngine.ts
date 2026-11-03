@@ -32,6 +32,18 @@ import {
   AuditLogEntry,
   StudentImportJob,
   CurriculumImportJob,
+  StudentGamificationProfile,
+  LearningCheckin,
+  StudentGoal,
+  LearningActivityEvent,
+  XpLedgerEntry,
+  GamificationBadgeDefinition,
+  StudentBadgeRecord,
+  StreakRecord,
+  WeeklyRecapRecord,
+  ClassChallenge,
+  GamificationConfig,
+  StudentLessonCompletion,
 } from '../types';
 import {
   DEFAULT_SUBJECTS,
@@ -44,6 +56,10 @@ import {
   buildOfficial19Classes,
 } from '../constants/curriculum';
 import { computeSimpleHash, isAuthorizedAdminEmail } from '../utils/security';
+import {
+  DEFAULT_GAMIFICATION_BADGES,
+  DEFAULT_GAMIFICATION_CONFIG,
+} from '../utils/gamificationEngine';
 
 export interface PersistentDatabaseState {
   institutions: Institution[];
@@ -78,6 +94,19 @@ export interface PersistentDatabaseState {
   notifications: AppNotification[];
   teacherNotes: TeacherNote[];
   auditLogs: AuditLogEntry[];
+  // Gamification & Roadmap 2.0 Collections
+  studentGamificationProfiles?: StudentGamificationProfile[];
+  learningCheckins?: LearningCheckin[];
+  studentGoals?: StudentGoal[];
+  learningActivityEvents?: LearningActivityEvent[];
+  xpLedger?: XpLedgerEntry[];
+  gamificationBadges?: GamificationBadgeDefinition[];
+  studentBadges?: StudentBadgeRecord[];
+  streakRecords?: StreakRecord[];
+  weeklyRecaps?: WeeklyRecapRecord[];
+  classChallenges?: ClassChallenge[];
+  gamificationConfig?: GamificationConfig;
+  studentLessonCompletions?: StudentLessonCompletion[];
 }
 
 const DATA_DIR = path.resolve(process.cwd(), '.data');
@@ -302,6 +331,48 @@ export function ensureSpecializedStudyStructure(
     state.topics = [...DEFAULT_CURRICULUM_TOPICS];
   }
 
+  // Ensure Gamification & Roadmap 2.0 collections exist
+  if (!Array.isArray(state.studentGamificationProfiles)) {
+    state.studentGamificationProfiles = [];
+  }
+  if (!Array.isArray(state.learningCheckins)) {
+    state.learningCheckins = [];
+  }
+  if (!Array.isArray(state.studentGoals)) {
+    state.studentGoals = [];
+  }
+  if (!Array.isArray(state.learningActivityEvents)) {
+    state.learningActivityEvents = [];
+  }
+  if (!Array.isArray(state.xpLedger)) {
+    state.xpLedger = [];
+  }
+  if (!Array.isArray(state.gamificationBadges) || state.gamificationBadges.length === 0) {
+    state.gamificationBadges = DEFAULT_GAMIFICATION_BADGES.map((b) => ({ ...b }));
+  }
+  if (!Array.isArray(state.studentBadges)) {
+    state.studentBadges = [];
+  }
+  if (!Array.isArray(state.streakRecords)) {
+    state.streakRecords = [];
+  }
+  if (!Array.isArray(state.weeklyRecaps)) {
+    state.weeklyRecaps = [];
+  }
+  if (!Array.isArray(state.classChallenges)) {
+    state.classChallenges = [];
+  }
+  if (!state.gamificationConfig) {
+    state.gamificationConfig = {
+      ...DEFAULT_GAMIFICATION_CONFIG,
+      xpRewards: { ...DEFAULT_GAMIFICATION_CONFIG.xpRewards },
+      goalTemplates: [...DEFAULT_GAMIFICATION_CONFIG.goalTemplates],
+    };
+  }
+  if (!Array.isArray(state.studentLessonCompletions)) {
+    state.studentLessonCompletions = [];
+  }
+
   return state;
 }
 
@@ -360,6 +431,22 @@ export function createEmptyDatabaseState(): PersistentDatabaseState {
     notifications: [],
     teacherNotes: [],
     auditLogs: [],
+    studentGamificationProfiles: [],
+    learningCheckins: [],
+    studentGoals: [],
+    learningActivityEvents: [],
+    xpLedger: [],
+    gamificationBadges: DEFAULT_GAMIFICATION_BADGES.map((b) => ({ ...b })),
+    studentBadges: [],
+    streakRecords: [],
+    weeklyRecaps: [],
+    classChallenges: [],
+    gamificationConfig: {
+      ...DEFAULT_GAMIFICATION_CONFIG,
+      xpRewards: { ...DEFAULT_GAMIFICATION_CONFIG.xpRewards },
+      goalTemplates: [...DEFAULT_GAMIFICATION_CONFIG.goalTemplates],
+    },
+    studentLessonCompletions: [],
   };
   return ensureSpecializedStudyStructure(base);
 }
@@ -367,14 +454,14 @@ export function createEmptyDatabaseState(): PersistentDatabaseState {
 function ensureDataDir(): string {
   try {
     if (!fs.existsSync(DATA_DIR)) {
-      fs.mkdirSync(DATA_DIR, { recursive: true });
+      fs.mkdirSync(DATA_DIR, { recursive: true, mode: 0o777 });
     }
     fs.accessSync(DATA_DIR, fs.constants.W_OK);
     return DATA_DIR;
   } catch {
     const tmpDir = path.join('/tmp', '.data');
     if (!fs.existsSync(tmpDir)) {
-      fs.mkdirSync(tmpDir, { recursive: true });
+      fs.mkdirSync(tmpDir, { recursive: true, mode: 0o777 });
     }
     return tmpDir;
   }
@@ -428,19 +515,24 @@ export function saveDbState(env: 'prod' | 'test', state: PersistentDatabaseState
   memoryCache[env] = state;
   const { writePath } = resolveDbPaths(env);
   try {
-    fs.writeFileSync(writePath, JSON.stringify(state, null, 2), 'utf-8');
+    fs.writeFileSync(writePath, JSON.stringify(state, null, 2), { encoding: 'utf-8', mode: 0o666 });
+    try {
+      fs.chmodSync(writePath, 0o666);
+    } catch {
+      // ignore chmod errors if not owner
+    }
   } catch (err) {
     // Fallback to /tmp/.data if primary DATA_DIR becomes read-only
     try {
       const fallbackDir = path.join('/tmp', '.data');
       if (!fs.existsSync(fallbackDir)) {
-        fs.mkdirSync(fallbackDir, { recursive: true });
+        fs.mkdirSync(fallbackDir, { recursive: true, mode: 0o777 });
       }
       const fallbackFile = path.join(
         fallbackDir,
         env === 'test' ? 'learnos_test.json' : 'learnos_prod.json'
       );
-      fs.writeFileSync(fallbackFile, JSON.stringify(state, null, 2), 'utf-8');
+      fs.writeFileSync(fallbackFile, JSON.stringify(state, null, 2), { encoding: 'utf-8', mode: 0o666 });
     } catch {
       console.warn('In-memory state preserved; disk write skipped:', err);
     }
