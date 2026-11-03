@@ -179,7 +179,7 @@ export const LoginPage: React.FC = () => {
               </p>
 
               {authError.code === 'auth/unauthorized-domain' && (
-                <div className="p-2.5 rounded-lg bg-white/80 dark:bg-slate-900/80 border border-rose-200 dark:border-rose-800/80 space-y-2">
+                <div className="p-3 rounded-lg bg-white/90 dark:bg-slate-900/90 border border-rose-200 dark:border-rose-800/80 space-y-2.5">
                   <div className="flex items-center justify-between gap-2">
                     <div className="min-w-0">
                       <span className="block text-[10px] uppercase tracking-wider text-slate-500 dark:text-slate-400">
@@ -207,9 +207,32 @@ export const LoginPage: React.FC = () => {
                       )}
                     </button>
                   </div>
-                  <p className="text-[11px] text-slate-600 dark:text-slate-400">
-                    Firebase loyiha ID: <strong className="font-mono">{runtimeDiag.projectId}</strong>
-                  </p>
+                  <div className="text-[11px] text-slate-600 dark:text-slate-400 space-y-1">
+                    <p>
+                      Firebase loyiha ID: <strong className="font-mono">{runtimeDiag.projectId}</strong>
+                    </p>
+                    <ol className="list-decimal list-inside space-y-0.5 text-[11px] text-slate-700 dark:text-slate-300">
+                      <li>Yuqoridagi «Nusxalash» tugmasini bosing.</li>
+                      <li>Quyidagi tugma orqali Firebase Console oynasini ochib, «Add domain» tugmasini bosing.</li>
+                      <li>
+                        <strong className="font-mono">
+                          {authError.detectedHostname || runtimeDiag.hostname}
+                        </strong>{' '}
+                        domenini kiritib «Add» tugmasini bosing va qayta kiring.
+                      </li>
+                    </ol>
+                  </div>
+                  <a
+                    href={`https://console.firebase.google.com/project/${encodeURIComponent(
+                      runtimeDiag.projectId || 'specialized-study'
+                    )}/authentication/settings`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="w-full min-h-[38px] inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-[11px] font-semibold transition-colors"
+                  >
+                    <ExternalLink className="w-3.5 h-3.5 shrink-0" />
+                    <span>Firebase Console → Authorized domains oynasini ochish</span>
+                  </a>
                 </div>
               )}
 

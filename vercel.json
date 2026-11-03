@@ -1,0 +1,21 @@
+{
+  "version": 2,
+  "rewrites": [
+    {
+      "source": "/__/auth/:path*",
+      "destination": "https://specialized-study.firebaseapp.com/__/auth/:path*"
+    },
+    {
+      "source": "/__/firebase/:path*",
+      "destination": "https://specialized-study.firebaseapp.com/__/firebase/:path*"
+    },
+    {
+      "source": "/api/:path*",
+      "destination": "/api/index"
+    },
+    {
+      "source": "/((?!api/|assets/|__/).*)",
+      "destination": "/index.html"
+    }
+  ]
+}

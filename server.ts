@@ -2,7 +2,6 @@ import 'dotenv/config';
 import express, { Request, Response } from 'express';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { createServer as createViteServer } from 'vite';
 import { GoogleGenAI, Type } from '@google/genai';
 import { z } from 'zod';
 import {
@@ -346,8 +345,9 @@ function pushNotification(
   db.notifications.unshift(notif);
 }
 
+export const app = express();
+
 async function startServer() {
-  const app = express();
   app.disable('x-powered-by');
 
   app.use((req, res, next) => {
@@ -8332,20 +8332,6 @@ Savollar va javoblar: ${JSON.stringify(anonymizedAnswers)}
     return res.json({ challenge: ch });
   });
 
-  if (process.env.NODE_ENV !== 'production') {
-    const vite = await createViteServer({
-      server: { middlewareMode: true },
-      appType: 'spa',
-    });
-    app.use(vite.middlewares);
-  } else {
-    const distPath = path.join(__dirname, 'dist');
-    app.use(express.static(distPath));
-    app.get('*', (_req, res) => {
-      res.sendFile(path.join(distPath, 'index.html'));
-    });
-  }
-
   // Ensure the official 21-workbook Mathematics curriculum archive is imported into the prod database on startup
   try {
     const prodDb = getDbState('prod');
@@ -8380,6 +8366,25 @@ Savollar va javoblar: ${JSON.stringify(anonymizedAnswers)}
     }
   } catch (seedErr) {
     console.warn('Official math curriculum startup check:', seedErr);
+  }
+
+  if (process.env.VERCEL) {
+    return;
+  }
+
+  if (process.env.NODE_ENV !== 'production') {
+    const { createServer: createViteServer } = await import('vite');
+    const vite = await createViteServer({
+      server: { middlewareMode: true },
+      appType: 'spa',
+    });
+    app.use(vite.middlewares);
+  } else {
+    const distPath = path.join(__dirname, 'dist');
+    app.use(express.static(distPath));
+    app.get('*', (_req, res) => {
+      res.sendFile(path.join(distPath, 'index.html'));
+    });
   }
 
   const PORT = Number(process.env.PORT) || 3000;

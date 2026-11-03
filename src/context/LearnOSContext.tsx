@@ -12,6 +12,7 @@ import {
 } from 'firebase/auth';
 import {
   doc,
+  getDoc,
   setDoc,
   deleteDoc,
   onSnapshot,
@@ -92,12 +93,13 @@ import {
   DEFAULT_CURRICULUM_TOPICS,
   DEFAULT_ACADEMIC_YEARS,
   PLATFORM_OWNER_EMAIL,
+  buildOfficial19Classes,
 } from '../constants/curriculum';
 import {
   DEFAULT_GAMIFICATION_BADGES,
   DEFAULT_GAMIFICATION_CONFIG,
 } from '../utils/gamificationEngine';
-import { canAccessPlatformAdminConsole } from '../utils/security';
+import { canAccessPlatformAdminConsole, isAuthorizedAdminEmail } from '../utils/security';
 import { LanguageCode } from '../i18n/translations';
 
 export interface ToastMessage {
@@ -655,7 +657,14 @@ export const LearnOSProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [sessionToken, setSessionToken] = useState<string | null>(() => {
     return localStorage.getItem('learnos_session_token');
   });
-  const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
+  const [currentUser, setCurrentUser] = useState<UserProfile | null>(() => {
+    try {
+      const cached = localStorage.getItem('learnos_cached_user');
+      return cached ? (JSON.parse(cached) as UserProfile) : null;
+    } catch {
+      return null;
+    }
+  });
   const [authReady, setAuthReady] = useState<boolean>(false);
   const [isGoogleSigningIn, setIsGoogleSigningIn] = useState<boolean>(false);
   const [authError, setAuthError] = useState<SanitizedFirebaseAuthError | null>(null);
@@ -673,7 +682,7 @@ export const LearnOSProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [subjects, setSubjects] = useState<SubjectItem[]>(DEFAULT_SUBJECTS);
   const [topics, setTopics] = useState<Topic[]>(DEFAULT_CURRICULUM_TOPICS);
   const [users, setUsers] = useState<UserProfile[]>([]);
-  const [classes, setClasses] = useState<ClassRoom[]>([]);
+  const [classes, setClasses] = useState<ClassRoom[]>(() => buildOfficial19Classes());
   const [invitations, setInvitations] = useState<Invitation[]>([]);
   const [questions, setQuestions] = useState<QuestionItem[]>([]);
   const [questionRevisions, setQuestionRevisions] = useState<QuestionRevision[]>([]);
@@ -839,13 +848,62 @@ export const LearnOSProvider: React.FC<{ children: React.ReactNode }> = ({ child
       }
       try {
         const res = await apiFetch('/api/state', { method: 'GET' }, activeTok);
-        if (res.ok) {
+        const contentType = res.headers.get('content-type') || '';
+        const isJson = contentType.includes('application/json');
+        if (res.ok && isJson) {
           const data = await res.json();
+          if (data.user) {
+            try {
+              localStorage.setItem('learnos_cached_user', JSON.stringify(data.user));
+            } catch {
+              // Ignore storage quota
+            }
+          }
           applyServerState(data);
         } else if (res.status === 401 || res.status === 403) {
+          // If Firebase Auth has a live signed-in user (e.g. Vercel serverless cold-start),
+          // re-hydrate backend state using the verified Firebase user instead of logging out.
+          if (auth.currentUser) {
+            try {
+              const idToken = await getIdToken(auth.currentUser, false);
+              const tokenResult = await getIdTokenResult(auth.currentUser, false);
+              const syncRes = await apiFetch('/api/auth/firebase-sync', {
+                method: 'POST',
+                body: JSON.stringify({
+                  idToken,
+                  uid: auth.currentUser.uid,
+                  email: auth.currentUser.email,
+                  emailVerified: auth.currentUser.emailVerified,
+                  displayName: auth.currentUser.displayName,
+                  photoURL: auth.currentUser.photoURL,
+                  customClaims: tokenResult.claims,
+                }),
+              });
+              const syncCt = syncRes.headers.get('content-type') || '';
+              if (syncRes.ok && syncCt.includes('application/json')) {
+                const syncData = await syncRes.json();
+                if (syncData.token && syncData.user) {
+                  setSessionToken(syncData.token);
+                  setCurrentUser(syncData.user);
+                  localStorage.setItem('learnos_session_token', syncData.token);
+                  localStorage.setItem('learnos_cached_user', JSON.stringify(syncData.user));
+                  const retryRes = await apiFetch('/api/state', { method: 'GET' }, syncData.token);
+                  if (retryRes.ok) {
+                    const retryData = await retryRes.json();
+                    applyServerState(retryData);
+                  }
+                  return;
+                }
+              }
+            } catch {
+              // Keep existing Firebase session active if offline
+              return;
+            }
+          }
           setSessionToken(null);
           setCurrentUser(null);
           localStorage.removeItem('learnos_session_token');
+          localStorage.removeItem('learnos_cached_user');
         }
       } catch (err) {
         console.warn('State fetch error:', err);
@@ -864,7 +922,7 @@ export const LearnOSProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   // Real-time Server-Sent Events (SSE) subscription for multi-role synchronization
   useEffect(() => {
-    if (!sessionToken || !currentUser) return;
+    if (!sessionToken || !currentUser || sessionToken.startsWith('fb-direct-')) return;
     const testParam = isIsolatedTestMode() ? '&testEnv=1' : '';
     const es = new EventSource(
       `/api/events?token=${encodeURIComponent(sessionToken)}${testParam}`
@@ -881,6 +939,11 @@ export const LearnOSProvider: React.FC<{ children: React.ReactNode }> = ({ child
       }
     };
 
+    es.onerror = () => {
+      // Avoid infinite rapid reconnect loops on stateless serverless edge hosts
+      es.close();
+    };
+
     return () => {
       es.close();
     };
@@ -891,21 +954,36 @@ export const LearnOSProvider: React.FC<{ children: React.ReactNode }> = ({ child
       const idToken = await getIdToken(fbUser, false);
       const tokenResult = await getIdTokenResult(fbUser, false);
 
-      const res = await apiFetch('/api/auth/firebase-sync', {
-        method: 'POST',
-        body: JSON.stringify({
-          idToken,
-          uid: fbUser.uid,
-          email: fbUser.email,
-          emailVerified: fbUser.emailVerified,
-          displayName: fbUser.displayName,
-          photoURL: fbUser.photoURL,
-          customClaims: tokenResult.claims,
-          inviteToken,
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
+      let data: any = null;
+      let resOk = false;
+      let resStatus = 0;
+
+      try {
+        const res = await apiFetch('/api/auth/firebase-sync', {
+          method: 'POST',
+          body: JSON.stringify({
+            idToken,
+            uid: fbUser.uid,
+            email: fbUser.email,
+            emailVerified: fbUser.emailVerified,
+            displayName: fbUser.displayName,
+            photoURL: fbUser.photoURL,
+            customClaims: tokenResult.claims,
+            inviteToken,
+          }),
+        });
+        resOk = res.ok;
+        resStatus = res.status;
+        const contentType = res.headers.get('content-type') || '';
+        if (contentType.includes('application/json')) {
+          data = await res.json();
+        }
+      } catch {
+        // Network or static host fallback handled below
+      }
+
+      // If /api/auth/firebase-sync returned a structured 4xx error (e.g. unverified email or suspended account)
+      if (!resOk && data && resStatus >= 400 && resStatus !== 404 && resStatus < 500) {
         const mapped = mapFirebaseAuthError({
           code: data.code || 'auth/invalid-credential',
           message: data.error || 'Google orqali kirishda ruxsat rad etildi',
@@ -917,6 +995,66 @@ export const LearnOSProvider: React.FC<{ children: React.ReactNode }> = ({ child
         });
         addToast('error', data.error || mapped.userMessage);
         return null;
+      }
+
+      // Fallback when deployed to a static host where /api/auth/firebase-sync returns 404 or non-JSON
+      if (!resOk || !data || !data.user) {
+        const normalizedEmail = String(fbUser.email || '').trim().toLowerCase();
+        if (!normalizedEmail || !fbUser.emailVerified) {
+          const mapped = mapFirebaseAuthError({
+            code: 'auth/invalid-credential',
+            message: 'Google hisobingizdagi elektron pochta tasdiqlanmagan.',
+          });
+          setAuthError(mapped);
+          addToast('error', mapped.userMessage);
+          return null;
+        }
+
+        const isOwnerAdmin = isAuthorizedAdminEmail(normalizedEmail, PLATFORM_OWNER_EMAIL);
+        const nowIso = new Date().toISOString();
+        let existingFirestoreProfile: Partial<UserProfile> | null = null;
+        try {
+          const snap = await getDoc(doc(db, 'users', fbUser.uid));
+          if (snap.exists()) {
+            existingFirestoreProfile = snap.data() as Partial<UserProfile>;
+          }
+        } catch {
+          // Continue if Firestore read is offline
+        }
+
+        const fallbackUser: UserProfile = {
+          uid: fbUser.uid,
+          displayName:
+            fbUser.displayName ||
+            existingFirestoreProfile?.displayName ||
+            (isOwnerAdmin ? 'Asilbek Nuraliyev' : normalizedEmail.split('@')[0] || 'O‘quvchi'),
+          email: normalizedEmail,
+          emailVerified: true,
+          role: isOwnerAdmin ? 'platform_owner' : 'student',
+          platformOwner: isOwnerAdmin,
+          platformAdmin: isOwnerAdmin,
+          institutionId: existingFirestoreProfile?.institutionId || 'inst-specialized-study',
+          classId: isOwnerAdmin ? undefined : existingFirestoreProfile?.classId,
+          classCode: isOwnerAdmin ? undefined : existingFirestoreProfile?.classCode,
+          grade: isOwnerAdmin ? undefined : existingFirestoreProfile?.grade,
+          track: isOwnerAdmin ? undefined : existingFirestoreProfile?.track,
+          studentCode:
+            isOwnerAdmin
+              ? undefined
+              : existingFirestoreProfile?.studentCode ||
+                `STD-${Math.floor(1000 + Math.random() * 9000)}`,
+          status: 'active',
+          lastLoginAt: nowIso,
+          createdAt: existingFirestoreProfile?.createdAt || nowIso,
+          updatedAt: nowIso,
+        };
+
+        data = {
+          status: 'active',
+          activationStatus: 'active',
+          user: fallbackUser,
+          token: `fb-direct-${fbUser.uid}`,
+        };
       }
 
       if (data.activationStatus === 'pending_admin_claim') {
@@ -961,8 +1099,18 @@ export const LearnOSProvider: React.FC<{ children: React.ReactNode }> = ({ child
         }
       }
 
+      setCurrentUser(data.user);
+      setUsers((prev) => {
+        const filtered = prev.filter((u) => u.uid !== data.user.uid && u.email !== data.user.email);
+        return [data.user, ...filtered];
+      });
       setSessionToken(data.token);
       localStorage.setItem('learnos_session_token', data.token);
+      try {
+        localStorage.setItem('learnos_cached_user', JSON.stringify(data.user));
+      } catch {
+        // Ignore storage quota
+      }
       setIsBootstrapped(true);
       await refreshState(data.token);
       return data.user;
@@ -1259,6 +1407,7 @@ export const LearnOSProvider: React.FC<{ children: React.ReactNode }> = ({ child
     setAuthError(null);
     setActivationPendingMessage(null);
     localStorage.removeItem('learnos_session_token');
+    localStorage.removeItem('learnos_cached_user');
     addToast('info', 'Tizimdan chiqdingiz');
   }, [apiFetch, addToast]);
 
