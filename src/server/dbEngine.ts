@@ -44,6 +44,25 @@ import {
   ClassChallenge,
   GamificationConfig,
   StudentLessonCompletion,
+  AttendanceSession,
+  AttendanceRecord,
+  StudentAssignment,
+  AssignmentSubmission,
+  StudentAlert,
+  StudentSupportPlan,
+  AcademicReportItem,
+  Timetable,
+  TimetableEntry,
+  SubmissionRevision,
+  Announcement,
+  AnnouncementRead,
+  AnnouncementAcknowledgement,
+  LearningMaterial,
+  GradingRubric,
+  FeedbackComment,
+  GradingHistoryEntry,
+  AcademicCalendarEvent,
+  LessonDeliveryRecord,
 } from '../types';
 import {
   DEFAULT_SUBJECTS,
@@ -60,6 +79,10 @@ import {
   DEFAULT_GAMIFICATION_BADGES,
   DEFAULT_GAMIFICATION_CONFIG,
 } from '../utils/gamificationEngine';
+import {
+  DEFAULT_GRADING_RUBRICS,
+  DEFAULT_FEEDBACK_COMMENTS,
+} from '../utils/academicOsEngine';
 
 export interface PersistentDatabaseState {
   institutions: Institution[];
@@ -107,6 +130,27 @@ export interface PersistentDatabaseState {
   classChallenges?: ClassChallenge[];
   gamificationConfig?: GamificationConfig;
   studentLessonCompletions?: StudentLessonCompletion[];
+  // Student Monitoring & Academic Intelligence Collections
+  attendanceSessions?: AttendanceSession[];
+  attendanceRecords?: AttendanceRecord[];
+  studentAssignments?: StudentAssignment[];
+  assignmentSubmissions?: AssignmentSubmission[];
+  studentAlerts?: StudentAlert[];
+  studentSupportPlans?: StudentSupportPlan[];
+  academicReports?: AcademicReportItem[];
+  // Academic Operating System 2.0 Collections
+  timetables?: Timetable[];
+  timetableEntries?: TimetableEntry[];
+  submissionRevisions?: SubmissionRevision[];
+  announcements?: Announcement[];
+  announcementReads?: AnnouncementRead[];
+  announcementAcknowledgements?: AnnouncementAcknowledgement[];
+  learningMaterials?: LearningMaterial[];
+  gradingRubrics?: GradingRubric[];
+  feedbackComments?: FeedbackComment[];
+  gradingHistory?: GradingHistoryEntry[];
+  academicEvents?: AcademicCalendarEvent[];
+  lessonDeliveryRecords?: LessonDeliveryRecord[];
 }
 
 const DATA_DIR = path.resolve(process.cwd(), '.data');
@@ -373,6 +417,67 @@ export function ensureSpecializedStudyStructure(
     state.studentLessonCompletions = [];
   }
 
+  // Ensure Monitoring & Intelligence collections exist
+  if (!Array.isArray(state.attendanceSessions)) {
+    state.attendanceSessions = [];
+  }
+  if (!Array.isArray(state.attendanceRecords)) {
+    state.attendanceRecords = [];
+  }
+  if (!Array.isArray(state.studentAssignments)) {
+    state.studentAssignments = [];
+  }
+  if (!Array.isArray(state.assignmentSubmissions)) {
+    state.assignmentSubmissions = [];
+  }
+  if (!Array.isArray(state.studentAlerts)) {
+    state.studentAlerts = [];
+  }
+  if (!Array.isArray(state.studentSupportPlans)) {
+    state.studentSupportPlans = [];
+  }
+  if (!Array.isArray(state.academicReports)) {
+    state.academicReports = [];
+  }
+
+  // Ensure Academic OS 2.0 collections exist
+  if (!Array.isArray(state.timetables)) {
+    state.timetables = [];
+  }
+  if (!Array.isArray(state.timetableEntries)) {
+    state.timetableEntries = [];
+  }
+  if (!Array.isArray(state.submissionRevisions)) {
+    state.submissionRevisions = [];
+  }
+  if (!Array.isArray(state.announcements)) {
+    state.announcements = [];
+  }
+  if (!Array.isArray(state.announcementReads)) {
+    state.announcementReads = [];
+  }
+  if (!Array.isArray(state.announcementAcknowledgements)) {
+    state.announcementAcknowledgements = [];
+  }
+  if (!Array.isArray(state.learningMaterials)) {
+    state.learningMaterials = [];
+  }
+  if (!Array.isArray(state.gradingRubrics) || state.gradingRubrics.length === 0) {
+    state.gradingRubrics = DEFAULT_GRADING_RUBRICS.map((r) => ({ ...r, institutionId: instId }));
+  }
+  if (!Array.isArray(state.feedbackComments) || state.feedbackComments.length === 0) {
+    state.feedbackComments = DEFAULT_FEEDBACK_COMMENTS.map((c) => ({ ...c, institutionId: instId }));
+  }
+  if (!Array.isArray(state.gradingHistory)) {
+    state.gradingHistory = [];
+  }
+  if (!Array.isArray(state.academicEvents)) {
+    state.academicEvents = [];
+  }
+  if (!Array.isArray(state.lessonDeliveryRecords)) {
+    state.lessonDeliveryRecords = [];
+  }
+
   return state;
 }
 
@@ -447,6 +552,25 @@ export function createEmptyDatabaseState(): PersistentDatabaseState {
       goalTemplates: [...DEFAULT_GAMIFICATION_CONFIG.goalTemplates],
     },
     studentLessonCompletions: [],
+    attendanceSessions: [],
+    attendanceRecords: [],
+    studentAssignments: [],
+    assignmentSubmissions: [],
+    studentAlerts: [],
+    studentSupportPlans: [],
+    academicReports: [],
+    timetables: [],
+    timetableEntries: [],
+    submissionRevisions: [],
+    announcements: [],
+    announcementReads: [],
+    announcementAcknowledgements: [],
+    learningMaterials: [],
+    gradingRubrics: DEFAULT_GRADING_RUBRICS.map((r) => ({ ...r, institutionId: DEFAULT_INSTITUTION_ID })),
+    feedbackComments: DEFAULT_FEEDBACK_COMMENTS.map((c) => ({ ...c, institutionId: DEFAULT_INSTITUTION_ID })),
+    gradingHistory: [],
+    academicEvents: [],
+    lessonDeliveryRecords: [],
   };
   return ensureSpecializedStudyStructure(base);
 }
@@ -514,8 +638,9 @@ export function getDbState(env: 'prod' | 'test' = 'prod'): PersistentDatabaseSta
 export function saveDbState(env: 'prod' | 'test', state: PersistentDatabaseState): void {
   memoryCache[env] = state;
   const { writePath } = resolveDbPaths(env);
+  const serialized = JSON.stringify(state);
   try {
-    fs.writeFileSync(writePath, JSON.stringify(state, null, 2), { encoding: 'utf-8', mode: 0o666 });
+    fs.writeFileSync(writePath, serialized, { encoding: 'utf-8', mode: 0o666 });
     try {
       fs.chmodSync(writePath, 0o666);
     } catch {
@@ -532,7 +657,7 @@ export function saveDbState(env: 'prod' | 'test', state: PersistentDatabaseState
         fallbackDir,
         env === 'test' ? 'learnos_test.json' : 'learnos_prod.json'
       );
-      fs.writeFileSync(fallbackFile, JSON.stringify(state, null, 2), { encoding: 'utf-8', mode: 0o666 });
+      fs.writeFileSync(fallbackFile, serialized, { encoding: 'utf-8', mode: 0o666 });
     } catch {
       console.warn('In-memory state preserved; disk write skipped:', err);
     }

@@ -443,6 +443,124 @@ service cloud.firestore {
       allow create, update, delete: if isPlatformOwner();
     }
 
+    // 19. Attendance Management (Admin Authoritative; Students can only view their own attendance)
+    match /attendance_sessions/{sessionId} {
+      allow get, list: if isSignedIn();
+      allow create, update, delete: if isPlatformOwner();
+    }
+
+    match /attendance_records/{recordId} {
+      allow get, list: if isPlatformOwner() || (isSignedIn() && existing().studentId == request.auth.uid);
+      allow create, update, delete: if isPlatformOwner();
+    }
+
+    // 20. Student Assignments & Submissions
+    match /student_assignments/{assignmentId} {
+      allow get, list: if isSignedIn();
+      allow create, update, delete: if isPlatformOwner();
+    }
+
+    match /assignment_submissions/{submissionId} {
+      allow get, list: if isPlatformOwner() || (isSignedIn() && existing().studentId == request.auth.uid);
+      allow create: if isPlatformOwner() || (
+        isSignedIn()
+        && incoming().studentId == request.auth.uid
+        && validStr(incoming().assignmentId, 1, 128)
+      );
+      allow update: if isPlatformOwner() || (
+        isSignedIn()
+        && existing().studentId == request.auth.uid
+        && incoming().studentId == existing().studentId
+        && incoming().assignmentId == existing().assignmentId
+      );
+      allow delete: if isPlatformOwner();
+    }
+
+    // 21. Student Intelligence, Risk Alerts & Confidential Support Plans (Strictly Platform Admin Only)
+    match /student_alerts/{alertId} {
+      allow get, list, create, update, delete: if isPlatformOwner();
+    }
+
+    match /student_support_plans/{planId} {
+      allow get, list, create, update, delete: if isPlatformOwner();
+    }
+
+    match /academic_reports/{reportId} {
+      allow get, list, create, update, delete: if isPlatformOwner();
+    }
+
+    // 22. Academic Operating System 2.0 Collections
+    match /timetables/{timetableId} {
+      allow get, list: if isPlatformOwner() || (isSignedIn() && existing().classCode == currentUser().classCode);
+      allow create, update, delete: if isPlatformOwner();
+    }
+
+    match /timetable_entries/{entryId} {
+      allow get, list: if isPlatformOwner() || (isSignedIn() && existing().classCode == currentUser().classCode);
+      allow create, update, delete: if isPlatformOwner();
+    }
+
+    match /submission_revisions/{revisionId} {
+      allow get, list: if isPlatformOwner() || (isSignedIn() && existing().studentId == request.auth.uid);
+      allow create: if isPlatformOwner() || (isSignedIn() && incoming().studentId == request.auth.uid);
+      allow update, delete: if isPlatformOwner();
+    }
+
+    match /announcements/{announcementId} {
+      allow get, list: if isPlatformOwner() || (
+        isSignedIn() && (
+          existing().audienceType == 'entire_school'
+          || currentUser().classCode in existing().targetClassCodes
+        )
+      );
+      allow create, update, delete: if isPlatformOwner();
+    }
+
+    match /announcement_reads/{readId} {
+      allow get, list: if isPlatformOwner() || (isSignedIn() && existing().studentId == request.auth.uid);
+      allow create, update: if isPlatformOwner() || (isSignedIn() && incoming().studentId == request.auth.uid);
+      allow delete: if isPlatformOwner();
+    }
+
+    match /announcement_acknowledgements/{ackId} {
+      allow get, list: if isPlatformOwner() || (isSignedIn() && existing().studentId == request.auth.uid);
+      allow create, update: if isPlatformOwner() || (isSignedIn() && incoming().studentId == request.auth.uid);
+      allow delete: if isPlatformOwner();
+    }
+
+    match /learning_materials/{materialId} {
+      allow get, list: if isPlatformOwner() || (
+        isSignedIn()
+        && existing().status == 'published'
+        && (existing().classCode == currentUser().classCode || currentUser().classCode in existing().targetClassCodes)
+      );
+      allow create, update, delete: if isPlatformOwner();
+    }
+
+    match /grading_rubrics/{rubricId} {
+      allow get, list: if isSignedIn();
+      allow create, update, delete: if isPlatformOwner();
+    }
+
+    match /feedback_comments/{commentId} {
+      allow get, list, create, update, delete: if isPlatformOwner();
+    }
+
+    match /academic_events/{eventId} {
+      allow get, list: if isPlatformOwner() || (
+        isSignedIn() && (
+          !('classCode' in existing())
+          || existing().classCode == currentUser().classCode
+        )
+      );
+      allow create, update, delete: if isPlatformOwner();
+    }
+
+    match /lesson_delivery_records/{recordId} {
+      allow get, list: if isPlatformOwner() || (isSignedIn() && existing().classCode == currentUser().classCode);
+      allow create, update, delete: if isPlatformOwner();
+    }
+
     // Default deny-all fallback
     match /{document=**} {
       allow read, write: if false;

@@ -27,6 +27,8 @@ service firebase.storage {
     function isAllowedDocumentMime() {
       return request.resource.contentType in [
         'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        'application/vnd.openxmlformats-officedocument.presentationml.presentation',
         'text/csv',
         'application/pdf',
         'image/jpeg',
@@ -73,6 +75,24 @@ service firebase.storage {
       allow create, update: if isVerifiedPlatformOwner()
         && isAllowedDocumentMime()
         && isUnderMaxBytes(10 * 1024 * 1024);
+      allow delete: if isVerifiedPlatformOwner();
+    }
+
+    // 5. Learning Materials Library (PDF, DOCX, PPTX, XLSX, Images — max 25 MB; Admin upload, authenticated read)
+    match /institutions/{institutionId}/materials/{allPaths=**} {
+      allow read: if isSignedIn();
+      allow create, update: if isVerifiedPlatformOwner()
+        && isAllowedDocumentMime()
+        && isUnderMaxBytes(25 * 1024 * 1024);
+      allow delete: if isVerifiedPlatformOwner();
+    }
+
+    // 6. Student Homework & Assignment Submissions (Student can upload/read own folder; Admin can read/manage all)
+    match /institutions/{institutionId}/submissions/{studentId}/{allPaths=**} {
+      allow read: if isVerifiedPlatformOwner() || (isSignedIn() && request.auth.uid == studentId);
+      allow create, update: if (isVerifiedPlatformOwner() || (isSignedIn() && request.auth.uid == studentId))
+        && isAllowedDocumentMime()
+        && isUnderMaxBytes(15 * 1024 * 1024);
       allow delete: if isVerifiedPlatformOwner();
     }
 

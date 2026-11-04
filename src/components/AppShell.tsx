@@ -26,6 +26,14 @@ import {
   Plus,
   Upload,
   User as UserIcon,
+  CalendarCheck,
+  FileText,
+  AlertTriangle,
+  HeartHandshake,
+  Calendar,
+  Megaphone,
+  Library,
+  Award,
 } from 'lucide-react';
 import { useLearnOS } from '../context/LearnOSContext';
 import { AICommandExecutionResult, GlobalSearchResultItem } from '../types';
@@ -120,22 +128,36 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
 
   const isActiveTestRunner = /^\/student\/assessments\/[^/]+$/.test(location.pathname);
 
-  // Desktop sidebar items (10 for Admin per Section 05, 5 for Student)
   const navItems = isAdminAccount
     ? [
         { to: '/admin/dashboard', label: 'Bosh sahifa', icon: LayoutDashboard, end: true },
         { to: '/admin/classes', label: 'Sinflar', icon: Users },
         { to: '/admin/students', label: "O'quvchilar", icon: GraduationCap },
+        { to: '/admin/timetable', label: 'Jadval', icon: Calendar },
+        { to: '/admin/assignments', label: 'Topshiriqlar', icon: FileText },
+        { to: '/admin/announcements', label: "E'lonlar", icon: Megaphone },
+        { to: '/admin/materials', label: 'Materiallar', icon: Library },
+        { to: '/admin/grading', label: 'Tekshiruv', icon: Award },
+        { to: '/admin/calendar', label: 'Kalendar', icon: CalendarCheck },
+        { to: '/admin/attendance', label: 'Davomat', icon: CalendarCheck },
         { to: '/admin/subjects', label: 'Fanlar', icon: Layers },
         { to: '/admin/work-plans', label: 'Ish rejalari', icon: FileSpreadsheet },
         { to: '/admin/lessons', label: 'Darslar', icon: BookOpen },
         { to: '/admin/curriculum-map', label: "O'quv xaritasi", icon: Compass },
         { to: '/admin/assessments', label: 'Testlar', icon: ClipboardCheck },
         { to: '/admin/results', label: 'Natijalar', icon: BarChart3 },
+        { to: '/admin/reports', label: 'Hisobotlar', icon: FileSpreadsheet },
+        { to: '/admin/alerts', label: 'Ogohlantirishlar', icon: AlertTriangle },
+        { to: '/admin/support-plans', label: 'Yordam rejalari', icon: HeartHandshake },
         { to: '/admin/settings', label: 'Sozlamalar', icon: Settings },
       ]
     : [
         { to: '/student/dashboard', label: 'Bosh sahifa', icon: LayoutDashboard, end: true },
+        { to: '/student/timetable', label: 'Jadval', icon: Calendar },
+        { to: '/student/assignments', label: 'Topshiriqlar', icon: FileText },
+        { to: '/student/materials', label: 'Materiallar', icon: Library },
+        { to: '/student/announcements', label: "E'lonlar", icon: Megaphone },
+        { to: '/student/calendar', label: 'Kalendar', icon: CalendarCheck },
         { to: '/student/lessons', label: 'Darslar', icon: BookOpen },
         { to: '/student/assessments', label: 'Testlar', icon: ClipboardCheck },
         { to: '/student/knowledge-map', label: "O'quv xaritasi", icon: Compass },
@@ -179,6 +201,16 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
     if (p.startsWith('/student/assessments')) return 'Testlar';
     if (p.startsWith('/student/knowledge-map') || p.startsWith('/student/map')) return "O'quv xaritasi";
     if (p.startsWith('/student/results') || p.startsWith('/student/progress')) return 'Natijalar';
+    if (p.startsWith('/admin/timetable') || p.startsWith('/student/timetable')) return 'Jadval';
+    if (p.startsWith('/admin/assignments') || p.startsWith('/student/assignments')) return 'Topshiriqlar';
+    if (p.startsWith('/admin/announcements') || p.startsWith('/student/announcements')) return "E'lonlar";
+    if (p.startsWith('/admin/materials') || p.startsWith('/student/materials')) return 'Materiallar';
+    if (p.startsWith('/admin/grading')) return 'Tekshiruv (Smart Grading)';
+    if (p.startsWith('/admin/calendar') || p.startsWith('/student/calendar')) return 'Akademik Kalendar';
+    if (p.startsWith('/admin/reports')) return 'Hisobotlar';
+    if (p.startsWith('/admin/attendance')) return 'Davomat';
+    if (p.startsWith('/admin/alerts')) return 'Ogohlantirishlar';
+    if (p.startsWith('/admin/support-plans')) return 'Yordam rejalari';
     if (p.startsWith('/student/profile')) return 'Profil';
     return 'Bosh sahifa';
   };

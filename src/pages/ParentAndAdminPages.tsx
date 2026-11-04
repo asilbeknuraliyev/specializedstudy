@@ -63,6 +63,17 @@ import {
 } from '../constants/curriculum';
 import { Roadmap2View } from '../components/Roadmap2View';
 import { AdminGamificationPanel } from '../components/AdminGamificationPanel';
+import { StudentIntelligenceView } from '../components/StudentIntelligenceView';
+import { AdminAttendancePanel } from '../components/AdminAttendancePanel';
+import { AdminAssignmentsPanel } from '../components/AdminAssignmentsPanel';
+import { AdminAlertCenterPanel } from '../components/AdminAlertCenterPanel';
+import { AdminSupportPlansPanel } from '../components/AdminSupportPlansPanel';
+import { AdminReportsPanel } from '../components/AdminReportsPanel';
+import { AdminTimetablePanel } from '../components/AdminTimetablePanel';
+import { AdminAnnouncementsPanel } from '../components/AdminAnnouncementsPanel';
+import { AdminMaterialsLibraryPanel } from '../components/AdminMaterialsLibraryPanel';
+import { AdminSmartGradingPanel } from '../components/AdminSmartGradingPanel';
+import { AdminAcademicCalendarPanel } from '../components/AdminAcademicCalendarPanel';
 
 /* ==========================================================================
    1. BOSH SAHIFA — MINIMALIST OVERVIEW (SECTION 01, 02, 14)
@@ -965,6 +976,7 @@ export const AdminStudentsPage: React.FC = () => {
   const [detailStudentUid, setDetailStudentUid] = useState<string | null>(
     searchParams.get('student')
   );
+  const [intelligenceStudentUid, setIntelligenceStudentUid] = useState<string | null>(null);
   const [detailTab, setDetailTab] = useState<
     'profile' | 'learning' | 'activity' | 'progress' | 'actions'
   >('profile');
@@ -1644,14 +1656,24 @@ export const AdminStudentsPage: React.FC = () => {
                             ))}
                           </select>
 
-                          <button
-                            type="button"
-                            onClick={() => setDetailStudentUid(stu.uid)}
-                            className="min-h-[38px] inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 text-blue-600 font-semibold cursor-pointer"
-                          >
-                            <Eye className="w-3.5 h-3.5" />
-                            <span>Profilni ochish</span>
-                          </button>
+                          <div className="flex items-center gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() => setIntelligenceStudentUid(stu.uid)}
+                              className="min-h-[38px] inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 font-semibold cursor-pointer"
+                            >
+                              <Sparkles className="w-3.5 h-3.5" />
+                              <span>Tahlil</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setDetailStudentUid(stu.uid)}
+                              className="min-h-[38px] inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 text-blue-600 font-semibold cursor-pointer"
+                            >
+                              <Eye className="w-3.5 h-3.5" />
+                              <span>Profil</span>
+                            </button>
+                          </div>
                         </div>
                       </div>
                     );
@@ -1750,14 +1772,24 @@ export const AdminStudentsPage: React.FC = () => {
                             </td>
                             <td className="py-2.5 px-3">{statusBadge(stu.status)}</td>
                             <td className="py-2.5 px-3 text-right">
-                              <div className="inline-flex items-center gap-2">
+                              <div className="inline-flex items-center gap-1.5">
+                                <button
+                                  type="button"
+                                  onClick={() => setIntelligenceStudentUid(stu.uid)}
+                                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-indigo-50 dark:bg-indigo-950/60 hover:bg-indigo-100 dark:hover:bg-indigo-900 text-indigo-700 dark:text-indigo-300 font-semibold text-xs cursor-pointer transition-colors"
+                                  title="8 ta bo'limdan iborat tahliliy profil"
+                                >
+                                  <Sparkles className="w-3.5 h-3.5" />
+                                  <span>Tahlil</span>
+                                </button>
                                 <button
                                   type="button"
                                   onClick={() => setDetailStudentUid(stu.uid)}
-                                  className="inline-flex items-center gap-1 px-2 py-1 rounded hover:bg-slate-100 dark:hover:bg-slate-800 text-blue-600 font-medium cursor-pointer"
+                                  className="inline-flex items-center gap-1 px-2 py-1 rounded hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 font-medium cursor-pointer"
+                                  title="Ma'lumotlarni tahrirlash"
                                 >
                                   <Eye className="w-3.5 h-3.5" />
-                                  <span>Ochish</span>
+                                  <span>Tahrir</span>
                                 </button>
                               </div>
                             </td>
@@ -2787,6 +2819,26 @@ export const AdminStudentsPage: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Student Intelligence View Modal (8 Compact Tabs) */}
+      {intelligenceStudentUid && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 backdrop-blur-xs p-3 sm:p-6 overflow-y-auto">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl max-w-5xl w-full max-h-[92vh] overflow-y-auto p-4 sm:p-6 shadow-2xl relative">
+            <button
+              type="button"
+              onClick={() => setIntelligenceStudentUid(null)}
+              className="absolute top-4 right-4 p-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-500 hover:text-slate-900 dark:hover:text-white cursor-pointer z-10"
+              aria-label="Yopish"
+            >
+              <X className="w-5 h-5" />
+            </button>
+            <StudentIntelligenceView
+              studentId={intelligenceStudentUid}
+              onClose={() => setIntelligenceStudentUid(null)}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 };
@@ -3656,7 +3708,7 @@ export const AdminWorkPlansPage: React.FC = () => {
         {filteredWorkPlans.map((wp) => {
           const assignedCodes =
             wp.classCodes && wp.classCodes.length > 0 ? wp.classCodes : [wp.classCode];
-          const areaLabel = wp.curriculumArea || wp.subjectName || wp.subject;
+          const areaLabel = wp.curriculumArea || wp.subjectName || wp.subject || '';
           return (
             <div
               key={wp.id}
@@ -3677,7 +3729,7 @@ export const AdminWorkPlansPage: React.FC = () => {
                     {wp.title || wp.fileName}
                   </p>
                   <p className="text-slate-500 mt-0.5">
-                    Bo‘lim: <strong className="text-slate-700 dark:text-slate-300">{areaLabel}</strong> ·{' '}
+                    Bo‘lim: <strong className="text-slate-700 dark:text-slate-300">{areaLabel || 'Umumiy'}</strong> ·{' '}
                     {wp.totalLessons || wp.rows.length} ta dars ({wp.totalHours || wp.rows.length} soat)
                   </p>
                 </div>
@@ -5280,6 +5332,7 @@ export const AdminAssessmentsPage: React.FC = () => {
     uploadMediaFile,
     suggestWrittenGrade,
     confirmWrittenGrade,
+    refreshState,
   } = useLearnOS();
   const [searchParams] = useSearchParams();
 
@@ -5613,13 +5666,8 @@ export const AdminAssessmentsPage: React.FC = () => {
 
       {activeTab === 'import' && (
         <ExcelImportCenterPanel
-          institutionId={institution.id}
-          classes={classes}
-          importBatches={importBatches}
-          onValidate={(fileName, b64) => validateImportPackage(fileName, b64, institution.id)}
-          onConfirm={(payload) =>
-            confirmImportPackage({ ...payload, institutionId: institution.id })
-          }
+          targetInstitutionId={institution.id}
+          onImportSuccess={() => refreshState()}
         />
       )}
 
@@ -5662,12 +5710,7 @@ export const AdminAssessmentsPage: React.FC = () => {
       )}
 
       {activeTab === 'grading' && (
-        <WrittenGradingPanel
-          attempts={attempts}
-          questions={questions}
-          onSuggestAI={suggestWrittenGrade}
-          onConfirmGrade={confirmWrittenGrade}
-        />
+        <WrittenGradingPanel attempts={attempts} />
       )}
 
       {/* Preview Assessment Modal */}
@@ -5711,8 +5754,8 @@ export const AdminAssessmentsPage: React.FC = () => {
                           <li
                             key={oIdx}
                             className={
-                              oIdx === q.correctIndex ||
-                              (Array.isArray(q.correctIndices) && q.correctIndices.includes(oIdx))
+                              opt === q.correctAnswer ||
+                              (Array.isArray(q.correctAnswers) && q.correctAnswers.includes(opt))
                                 ? 'font-bold text-emerald-600 dark:text-emerald-400'
                                 : ''
                             }
@@ -5893,22 +5936,9 @@ export const AdminAssessmentsPage: React.FC = () => {
 
       {showQuestionEditor && (
         <AdvancedQuestionEditorModal
-          isOpen={showQuestionEditor}
-          onClose={() => setShowQuestionEditor(false)}
-          topics={topics}
-          subjects={subjects}
           initialQuestion={editingQuestion}
-          onUploadMedia={(fileName, dataUrl) =>
-            uploadMediaFile({ fileName, dataUrl, institutionId: institution.id })
-          }
-          onSave={async (payload) => {
-            if (editingQuestion) {
-              await updateQuestion(editingQuestion.id, payload);
-            } else {
-              await createQuestion(payload as any);
-            }
-            setShowQuestionEditor(false);
-          }}
+          onClose={() => setShowQuestionEditor(false)}
+          onSaved={() => setShowQuestionEditor(false)}
         />
       )}
     </div>
@@ -6183,6 +6213,46 @@ export const AdminSettingsPage: React.FC = () => {
   );
 };
 
+export const AdminAttendancePage: React.FC = () => {
+  return <AdminAttendancePanel />;
+};
+
+export const AdminAssignmentsPage: React.FC = () => {
+  return <AdminAssignmentsPanel />;
+};
+
+export const AdminAlertsPage: React.FC = () => {
+  return <AdminAlertCenterPanel />;
+};
+
+export const AdminSupportPlansPage: React.FC = () => {
+  return <AdminSupportPlansPanel />;
+};
+
+export const AdminReportsPage: React.FC = () => {
+  return <AdminReportsPanel />;
+};
+
+export const AdminTimetablePage: React.FC = () => {
+  return <AdminTimetablePanel />;
+};
+
+export const AdminAnnouncementsPage: React.FC = () => {
+  return <AdminAnnouncementsPanel />;
+};
+
+export const AdminMaterialsLibraryPage: React.FC = () => {
+  return <AdminMaterialsLibraryPanel />;
+};
+
+export const AdminSmartGradingPage: React.FC = () => {
+  return <AdminSmartGradingPanel />;
+};
+
+export const AdminAcademicCalendarPage: React.FC = () => {
+  return <AdminAcademicCalendarPanel />;
+};
+
 // Legacy exports aliased cleanly for backward compatibility
 export const ParentDashboardPage = AdminDashboardPage;
 export const ParentChildrenPage = AdminStudentsPage;
@@ -6194,7 +6264,6 @@ export const AdminTeachersPage = AdminStudentsPage;
 export const AdminInvitationsPage = AdminStudentsPage;
 export const AdminAIIntelligencePage = AdminAssessmentsPage;
 export const AdminAnalyticsPage = AdminResultsPage;
-export const AdminReportsPage = AdminResultsPage;
 export const AdminNotificationsPage = AdminDashboardPage;
 export const AdminAuditLogsPage = AdminSettingsPage;
 export const AdminHelpDocsPage = AdminSettingsPage;

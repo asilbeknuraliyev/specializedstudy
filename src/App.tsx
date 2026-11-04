@@ -35,6 +35,15 @@ import {
   AdminAIIntelligencePage,
   AdminAnalyticsPage,
   AdminReportsPage,
+  AdminAttendancePage,
+  AdminAssignmentsPage,
+  AdminAlertsPage,
+  AdminSupportPlansPage,
+  AdminTimetablePage,
+  AdminAnnouncementsPage,
+  AdminMaterialsLibraryPage,
+  AdminSmartGradingPage,
+  AdminAcademicCalendarPage,
   AdminNotificationsPage,
   AdminAuditLogsPage,
   AdminSettingsPage,
@@ -147,12 +156,52 @@ export default function App() {
           <Route path="/privacy" element={<PrivacyPage />} />
           <Route path="/terms" element={<TermsPage />} />
 
-          {/* Student Routes (6 Primary Workspace Items) */}
+          {/* Student Routes */}
           <Route
             path="/student/dashboard"
             element={
               <ProtectedRoute allowedRole="student">
                 <StudentDashboardPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/student/timetable"
+            element={
+              <ProtectedRoute allowedRole="student">
+                <AdminTimetablePage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/student/assignments"
+            element={
+              <ProtectedRoute allowedRole="student">
+                <AdminAssignmentsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/student/materials"
+            element={
+              <ProtectedRoute allowedRole="student">
+                <AdminMaterialsLibraryPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/student/announcements"
+            element={
+              <ProtectedRoute allowedRole="student">
+                <AdminAnnouncementsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/student/calendar"
+            element={
+              <ProtectedRoute allowedRole="student">
+                <AdminAcademicCalendarPage />
               </ProtectedRoute>
             }
           />
@@ -271,6 +320,78 @@ export default function App() {
             element={
               <ProtectedRoute allowedRole="admin">
                 <AdminStudentsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/timetable"
+            element={
+              <ProtectedRoute allowedRole="admin">
+                <AdminTimetablePage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/assignments"
+            element={
+              <ProtectedRoute allowedRole="admin">
+                <AdminAssignmentsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/announcements"
+            element={
+              <ProtectedRoute allowedRole="admin">
+                <AdminAnnouncementsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/materials"
+            element={
+              <ProtectedRoute allowedRole="admin">
+                <AdminMaterialsLibraryPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/grading"
+            element={
+              <ProtectedRoute allowedRole="admin">
+                <AdminSmartGradingPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/calendar"
+            element={
+              <ProtectedRoute allowedRole="admin">
+                <AdminAcademicCalendarPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/attendance"
+            element={
+              <ProtectedRoute allowedRole="admin">
+                <AdminAttendancePage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/alerts"
+            element={
+              <ProtectedRoute allowedRole="admin">
+                <AdminAlertsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/support-plans"
+            element={
+              <ProtectedRoute allowedRole="admin">
+                <AdminSupportPlansPage />
               </ProtectedRoute>
             }
           />

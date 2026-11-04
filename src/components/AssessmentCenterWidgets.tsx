@@ -31,9 +31,11 @@ import {
 export const QUESTION_TYPE_LABELS: Record<QuestionType, string> = {
   single_choice: 'Bir tanlovli test (Single Choice)',
   multiple_choice: "Ko'p tanlovli test (Multiple Choice)",
+  multi_select: "Ko'p tanlovli (Multi-select)",
   numeric: 'Sonli javob (Numeric + Tolerance)',
   short_text: 'Qisqa matnli javob (Short Text)',
   long_text: 'Yozma / kengaytirilgan javob (Long Text / Essay)',
+  written_open: 'Ochiq yozma javob (Written Open)',
 };
 
 export const ExcelImportCenterPanel: React.FC<{

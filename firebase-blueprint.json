@@ -346,6 +346,142 @@
         "createdAt": { "type": "string", "maxLength": 64 }
       },
       "required": ["id", "institutionId", "uploadedByUid", "fileName", "packageType", "status", "createdAt"]
+    },
+    "AttendanceSession": {
+      "title": "AttendanceSession",
+      "description": "Official attendance session for a class and date",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "institutionId": { "type": "string", "maxLength": 128 },
+        "classCode": { "type": "string", "maxLength": 16 },
+        "classId": { "type": "string", "maxLength": 128 },
+        "date": { "type": "string", "maxLength": 32 },
+        "totalStudents": { "type": "number" },
+        "presentCount": { "type": "number" },
+        "absentCount": { "type": "number" },
+        "lateCount": { "type": "number" },
+        "excusedCount": { "type": "number" },
+        "recordedByUid": { "type": "string", "maxLength": 128 },
+        "recordedByName": { "type": "string", "maxLength": 128 },
+        "createdAt": { "type": "string", "maxLength": 64 },
+        "updatedAt": { "type": "string", "maxLength": 64 }
+      },
+      "required": ["id", "institutionId", "classCode", "date", "recordedByUid", "createdAt"]
+    },
+    "AttendanceRecord": {
+      "title": "AttendanceRecord",
+      "description": "Single student attendance record for an attendance session",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "institutionId": { "type": "string", "maxLength": 128 },
+        "sessionId": { "type": "string", "maxLength": 128 },
+        "studentId": { "type": "string", "maxLength": 128 },
+        "studentName": { "type": "string", "maxLength": 128 },
+        "classCode": { "type": "string", "maxLength": 16 },
+        "date": { "type": "string", "maxLength": 32 },
+        "status": { "type": "string", "enum": ["PRESENT", "ABSENT", "LATE", "EXCUSED_ABSENCE"] },
+        "markedByUid": { "type": "string", "maxLength": 128 },
+        "createdAt": { "type": "string", "maxLength": 64 },
+        "updatedAt": { "type": "string", "maxLength": 64 }
+      },
+      "required": ["id", "institutionId", "studentId", "classCode", "date", "status", "markedByUid", "createdAt"]
+    },
+    "StudentAssignment": {
+      "title": "StudentAssignment",
+      "description": "Admin published class assignment with deadline and grading criteria",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "institutionId": { "type": "string", "maxLength": 128 },
+        "title": { "type": "string", "maxLength": 200 },
+        "description": { "type": "string", "maxLength": 4000 },
+        "subject": { "type": "string", "maxLength": 80 },
+        "targetClasses": { "type": "array", "items": { "type": "string" } },
+        "dueDate": { "type": "string", "maxLength": 64 },
+        "maxScore": { "type": "number" },
+        "isAvailable": { "type": "boolean" },
+        "createdByUid": { "type": "string", "maxLength": 128 },
+        "createdAt": { "type": "string", "maxLength": 64 }
+      },
+      "required": ["id", "institutionId", "title", "subject", "targetClasses", "dueDate", "maxScore", "createdByUid", "createdAt"]
+    },
+    "AssignmentSubmission": {
+      "title": "AssignmentSubmission",
+      "description": "Student homework submission with review status and score",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "assignmentId": { "type": "string", "maxLength": 128 },
+        "institutionId": { "type": "string", "maxLength": 128 },
+        "studentId": { "type": "string", "maxLength": 128 },
+        "studentName": { "type": "string", "maxLength": 128 },
+        "classCode": { "type": "string", "maxLength": 16 },
+        "status": { "type": "string", "enum": ["Yangi", "Jarayonda", "Topshirildi", "Muddati o'tgan"] },
+        "submissionDate": { "type": "string", "maxLength": 64 },
+        "score": { "type": "number" },
+        "maxScore": { "type": "number" },
+        "createdAt": { "type": "string", "maxLength": 64 }
+      },
+      "required": ["id", "assignmentId", "institutionId", "studentId", "classCode", "status", "maxScore", "createdAt"]
+    },
+    "StudentAlert": {
+      "title": "StudentAlert",
+      "description": "Evidence-based smart risk detection alert with neutral educational phrasing",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "institutionId": { "type": "string", "maxLength": 128 },
+        "studentId": { "type": "string", "maxLength": 128 },
+        "studentName": { "type": "string", "maxLength": 128 },
+        "classCode": { "type": "string", "maxLength": 16 },
+        "category": { "type": "string", "enum": ["attendance", "academic_decline", "overdue_assignment", "missed_assessment", "practice_needed"] },
+        "severity": { "type": "string", "enum": ["low", "medium", "high"] },
+        "title": { "type": "string", "maxLength": 200 },
+        "evidence": { "type": "string", "maxLength": 2000 },
+        "status": { "type": "string", "enum": ["open", "acknowledged", "resolved"] },
+        "createdAt": { "type": "string", "maxLength": 64 }
+      },
+      "required": ["id", "institutionId", "studentId", "category", "severity", "title", "evidence", "status", "createdAt"]
+    },
+    "StudentSupportPlan": {
+      "title": "StudentSupportPlan",
+      "description": "Confidential individual academic support plan created by Admin",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "institutionId": { "type": "string", "maxLength": 128 },
+        "studentId": { "type": "string", "maxLength": 128 },
+        "studentName": { "type": "string", "maxLength": 128 },
+        "classCode": { "type": "string", "maxLength": 16 },
+        "subject": { "type": "string", "maxLength": 80 },
+        "topic": { "type": "string", "maxLength": 200 },
+        "observedNeed": { "type": "string", "maxLength": 1000 },
+        "goal": { "type": "string", "maxLength": 1000 },
+        "recommendedActivity": { "type": "string", "maxLength": 1000 },
+        "reviewDate": { "type": "string", "maxLength": 32 },
+        "status": { "type": "string", "enum": ["Yangi", "Jarayonda", "Yakunlandi"] },
+        "createdByUid": { "type": "string", "maxLength": 128 },
+        "createdAt": { "type": "string", "maxLength": 64 }
+      },
+      "required": ["id", "institutionId", "studentId", "classCode", "subject", "topic", "observedNeed", "goal", "recommendedActivity", "reviewDate", "status", "createdByUid", "createdAt"]
+    },
+    "AcademicReport": {
+      "title": "AcademicReport",
+      "description": "Institutional academic report snapshot",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "institutionId": { "type": "string", "maxLength": 128 },
+        "reportType": { "type": "string", "maxLength": 64 },
+        "title": { "type": "string", "maxLength": 200 },
+        "targetId": { "type": "string", "maxLength": 128 },
+        "period": { "type": "string", "maxLength": 64 },
+        "generatedByUid": { "type": "string", "maxLength": 128 },
+        "createdAt": { "type": "string", "maxLength": 64 }
+      },
+      "required": ["id", "institutionId", "reportType", "title", "period", "generatedByUid", "createdAt"]
     }
   },
   "firestore": {
@@ -424,6 +560,34 @@
     "/import_batches/{batchId}": {
       "schema": { "$ref": "#/entities/ImportBatch" },
       "description": "Assessment Excel/ZIP import batches"
+    },
+    "/attendance_sessions/{sessionId}": {
+      "schema": { "$ref": "#/entities/AttendanceSession" },
+      "description": "Official class attendance sessions"
+    },
+    "/attendance_records/{recordId}": {
+      "schema": { "$ref": "#/entities/AttendanceRecord" },
+      "description": "Individual student attendance records"
+    },
+    "/student_assignments/{assignmentId}": {
+      "schema": { "$ref": "#/entities/StudentAssignment" },
+      "description": "Student homework and task assignments"
+    },
+    "/assignment_submissions/{submissionId}": {
+      "schema": { "$ref": "#/entities/AssignmentSubmission" },
+      "description": "Student assignment submissions and evaluations"
+    },
+    "/student_alerts/{alertId}": {
+      "schema": { "$ref": "#/entities/StudentAlert" },
+      "description": "Strictly confidential student learning alerts"
+    },
+    "/student_support_plans/{planId}": {
+      "schema": { "$ref": "#/entities/StudentSupportPlan" },
+      "description": "Confidential individual student support plans"
+    },
+    "/academic_reports/{reportId}": {
+      "schema": { "$ref": "#/entities/AcademicReport" },
+      "description": "Historical academic reports and analytics snapshots"
     }
   }
 }

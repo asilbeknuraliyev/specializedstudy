@@ -3,6 +3,7 @@ import express, { Request, Response } from 'express';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { GoogleGenAI, Type } from '@google/genai';
+import * as XLSX from 'xlsx';
 import { z } from 'zod';
 import {
   scoreAssessmentSubmission,
@@ -130,6 +131,31 @@ import {
   StudentLessonCompletion,
   GamificationActivityType,
   StudentAvatarIconKey,
+  AttendanceSession,
+  AttendanceRecord,
+  AttendanceStatus,
+  OfficialClassCode,
+  StudentAssignment,
+  AssignmentSubmission,
+  StudentAlert,
+  StudentSupportPlan,
+  AcademicReportItem,
+  Timetable,
+  TimetableEntry,
+  TimetableWeekday,
+  SubmissionRevision,
+  Announcement,
+  AnnouncementRead,
+  AnnouncementAcknowledgement,
+  LearningMaterial,
+  GradingRubric,
+  FeedbackComment,
+  GradingHistoryEntry,
+  AcademicCalendarEvent,
+  LessonDeliveryRecord,
+  LessonDeliveryStatus,
+  AISuggestedEvaluation,
+  AssignmentCriterionScore,
 } from './src/types';
 import {
   DEFAULT_GAMIFICATION_BADGES,
@@ -145,6 +171,29 @@ import {
   buildSmartNextSteps,
   classifyRoadmap2LessonBadge,
 } from './src/utils/gamificationEngine';
+import {
+  calculateAttendanceStats,
+  normalizeAttendanceStatus,
+  buildMonthlyAttendanceGrid,
+  validateAttendanceImportRows,
+  calculateStudentAcademicMetrics,
+  generateSmartRiskAlerts,
+  calculateClassMonitoringSnapshot,
+  ATTENDANCE_STATUS_LABELS,
+} from './src/utils/studentMonitoringEngine';
+import {
+  validateTimetableEntry,
+  resolveStudentTimetableView,
+  saveStudentAssignmentDraft,
+  submitStudentAssignmentWork,
+  isAnnouncementRelevantToStudent,
+  filterAuthorizedMaterialsForStudent,
+  calculateRubricTotalScore,
+  computeFourAcademicStatesForLesson,
+  buildUnifiedAcademicCalendarEvents,
+  DEFAULT_GRADING_RUBRICS,
+  DEFAULT_FEEDBACK_COMMENTS,
+} from './src/utils/academicOsEngine';
 
 const CONFIGURED_OWNER_EMAIL = (
   process.env.PLATFORM_OWNER_EMAIL || PLATFORM_OWNER_EMAIL
@@ -998,7 +1047,7 @@ async function startServer() {
       if (verifiedDisplayName && (!existingStudent.displayName || existingStudent.displayName.includes('@'))) {
         existingStudent.displayName = verifiedDisplayName;
       }
-      if (existingStudent.status === 'invited' || existingStudent.status === 'pending_activation') {
+      if ((existingStudent.status as string) === 'invited' || existingStudent.status === 'pending_activation') {
         existingStudent.status = 'active';
       }
       existingStudent.lastLoginAt = nowIso;
@@ -1541,8 +1590,26 @@ async function startServer() {
         streakRecords: db.streakRecords || [],
         weeklyRecaps: db.weeklyRecaps || [],
         classChallenges: db.classChallenges || [],
-        gamificationConfig: db.gamificationConfig || DEFAULT_GAMIFICATION_CONFIG,
         studentLessonCompletions: db.studentLessonCompletions || [],
+        attendanceSessions: db.attendanceSessions || [],
+        attendanceRecords: db.attendanceRecords || [],
+        studentAssignments: db.studentAssignments || [],
+        assignmentSubmissions: db.assignmentSubmissions || [],
+        studentAlerts: db.studentAlerts || [],
+        studentSupportPlans: db.studentSupportPlans || [],
+        academicReports: db.academicReports || [],
+        timetables: db.timetables || [],
+        timetableEntries: db.timetableEntries || [],
+        submissionRevisions: db.submissionRevisions || [],
+        announcements: db.announcements || [],
+        announcementReads: db.announcementReads || [],
+        announcementAcknowledgements: db.announcementAcknowledgements || [],
+        learningMaterials: db.learningMaterials || [],
+        gradingRubrics: db.gradingRubrics || DEFAULT_GRADING_RUBRICS,
+        feedbackComments: db.feedbackComments || DEFAULT_FEEDBACK_COMMENTS,
+        gradingHistory: db.gradingHistory || [],
+        academicEvents: db.academicEvents || [],
+        lessonDeliveryRecords: db.lessonDeliveryRecords || [],
       });
     }
 
@@ -1784,8 +1851,49 @@ async function startServer() {
         classChallenges: (db.classChallenges || []).filter(
           (ch) => !myClass || ch.classCode.toLowerCase() === myClass.code.toLowerCase()
         ),
-        gamificationConfig: gConfig,
         studentLessonCompletions: myCompletions,
+        attendanceSessions: (db.attendanceSessions || []).filter(
+          (s) => !myClass || s.classCode.toLowerCase() === myClass.code.toLowerCase()
+        ),
+        attendanceRecords: (db.attendanceRecords || []).filter((r) => r.studentId === user.uid),
+        studentAssignments: (db.studentAssignments || []).filter(
+          (a) =>
+            a.status !== 'draft' &&
+            (!myClass ||
+              a.targetClassCodes.length === 0 ||
+              a.targetClassCodes.some((tc: string) => tc.toLowerCase() === myClass.code.toLowerCase()))
+        ),
+        assignmentSubmissions: (db.assignmentSubmissions || []).filter((s) => s.studentId === user.uid),
+        studentAlerts: [], // Strictly confidential
+        studentSupportPlans: [], // Strictly confidential
+        academicReports: [], // Strictly confidential
+        timetables: (db.timetables || []).filter(
+          (t) => myClass && t.classCode.toLowerCase() === myClass.code.toLowerCase() && t.status === 'active'
+        ),
+        timetableEntries: (db.timetableEntries || []).filter(
+          (e) => myClass && e.classCode.toLowerCase() === myClass.code.toLowerCase()
+        ),
+        submissionRevisions: (db.submissionRevisions || []).filter((r) => r.studentId === user.uid),
+        announcements: (db.announcements || []).filter((ann) =>
+          myClass ? isAnnouncementRelevantToStudent(ann, myClass.code as OfficialClassCode, getTashkentDateString()) : ann.audienceType === 'entire_school'
+        ),
+        announcementReads: (db.announcementReads || []).filter((r) => r.studentId === user.uid),
+        announcementAcknowledgements: (db.announcementAcknowledgements || []).filter((a) => a.studentId === user.uid),
+        learningMaterials: myClass
+          ? filterAuthorizedMaterialsForStudent(db.learningMaterials || [], myClass.code as OfficialClassCode, myClass.grade)
+          : [],
+        gradingRubrics: db.gradingRubrics || DEFAULT_GRADING_RUBRICS,
+        feedbackComments: [],
+        gradingHistory: (db.gradingHistory || []).filter((h) => h.studentId === user.uid),
+        academicEvents: (db.academicEvents || []).filter(
+          (ev) =>
+            !ev.classCode ||
+            (myClass && ev.classCode.toLowerCase() === myClass.code.toLowerCase()) ||
+            (myClass && ev.targetClassCodes?.some((c) => c.toLowerCase() === myClass.code.toLowerCase()))
+        ),
+        lessonDeliveryRecords: (db.lessonDeliveryRecords || []).filter(
+          (r) => myClass && r.classCode.toLowerCase() === myClass.code.toLowerCase()
+        ),
       });
     }
 
@@ -2086,16 +2194,23 @@ async function startServer() {
       for (const ic of initialClasses) {
         if (ic && ic.name && String(ic.name).trim()) {
           const classId = `class-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+          const parsedGrade = Number(ic.grade) || 8;
           db.classes.push({
             id: classId,
+            code: (ic.code || `${parsedGrade}a1`) as OfficialClassCode,
             name: String(ic.name).trim(),
-            grade: Number(ic.grade) || 8,
+            grade: parsedGrade,
+            track: (ic.track as 'A' | 'T') || 'A',
+            trackLabel: ic.track === 'T' ? 'Tabiiy fanlar' : 'Aniq fanlar',
+            section: '1',
             subject: String(ic.subject || 'Matematika').trim(),
+            subjectIds: [],
+            subjectNames: [String(ic.subject || 'Matematika').trim()],
             academicYear: newInst.academicYear,
             teacherId: user.uid,
             teacherName: user.displayName,
             institutionId: instId,
-            inviteCode: `MAT${Number(ic.grade) || 8}-${Math.floor(1000 + Math.random() * 9000)}`,
+            inviteCode: `MAT${parsedGrade}-${Math.floor(1000 + Math.random() * 9000)}`,
             studentCount: 0,
             status: 'active',
             createdAt: nowIso,
@@ -6664,7 +6779,10 @@ async function startServer() {
   });
 
   // Create Assignment linking an Assessment to a Class
-  app.post('/api/assignments', (req, res) => {
+  app.post('/api/assignments', (req, res, next) => {
+    if (req.body?.title || req.body?.targetClassCodes || req.body?.targetClasses || !req.body?.assessmentId) {
+      return next();
+    }
     const authCtx = authenticateRequest(req);
     if (!authCtx) return res.status(401).json({ error: 'Avtorizatsiya talab qilinadi.' });
     const { user, env, db } = authCtx;
@@ -8332,53 +8450,2307 @@ Savollar va javoblar: ${JSON.stringify(anonymizedAnswers)}
     return res.json({ challenge: ch });
   });
 
-  // Ensure the official 21-workbook Mathematics curriculum archive is imported into the prod database on startup
-  try {
-    const prodDb = getDbState('prod');
-    if (!Array.isArray(prodDb.curriculumImportJobs)) {
-      prodDb.curriculumImportJobs = [];
+  /* ==========================================================================
+     STUDENT MONITORING & ACADEMIC INTELLIGENCE REST APIS
+     ========================================================================== */
+
+  // 1. GET /api/attendance
+  app.get('/api/attendance', (req, res) => {
+    const authCtx = authenticateRequest(req);
+    if (!authCtx) return res.status(401).json({ error: 'Avtorizatsiya talab qilinadi.' });
+    const { user, db } = authCtx;
+
+    if (!Array.isArray(db.attendanceRecords)) db.attendanceRecords = [];
+    if (!Array.isArray(db.attendanceSessions)) db.attendanceSessions = [];
+
+    const { classCode, studentId, startDate, endDate, status } = req.query;
+
+    // Student role can only inspect their own attendance
+    const effectiveStudentId = user.role === 'student' ? user.uid : (studentId ? String(studentId) : undefined);
+
+    let filtered = db.attendanceRecords.filter((r) => {
+      if (effectiveStudentId && r.studentId !== effectiveStudentId) return false;
+      if (classCode && classCode !== 'ALL' && r.classCode?.toLowerCase() !== String(classCode).toLowerCase()) return false;
+      if (status && status !== 'ALL' && r.status !== status) return false;
+      if (startDate && r.date < String(startDate)) return false;
+      if (endDate && r.date > String(endDate)) return false;
+      return true;
+    });
+
+    const stats = calculateAttendanceStats(filtered);
+    const sessions = db.attendanceSessions.filter((s) => {
+      if (classCode && classCode !== 'ALL' && s.classCode?.toLowerCase() !== String(classCode).toLowerCase()) return false;
+      if (startDate && s.date < String(startDate)) return false;
+      if (endDate && s.date > String(endDate)) return false;
+      return true;
+    });
+
+    return res.json({
+      records: filtered,
+      stats,
+      sessions,
+    });
+  });
+
+  // 2. POST /api/attendance/mark
+  app.post('/api/attendance/mark', (req, res) => {
+    const authCtx = authenticateRequest(req);
+    if (!authCtx) return res.status(401).json({ error: 'Avtorizatsiya talab qilinadi.' });
+    const { user, env, db } = authCtx;
+
+    if (user.role !== 'admin' && user.role !== 'platform_owner') {
+      return res.status(403).json({ error: 'Faqat vakolatli administrator davomatni qayd eta oladi.' });
     }
-    const hasOfficialMathImport = prodDb.workPlans.some((wp) =>
-      wp.id.startsWith('wp-math-wb-')
+
+    const { classCode, date, records } = req.body;
+    if (!classCode || !date || !Array.isArray(records)) {
+      return res.status(400).json({ error: 'Sinf, sana va davomat ro‘yxatini kiriting.' });
+    }
+
+    const normClass = String(classCode).toLowerCase() as OfficialClassCode;
+    const normDate = String(date).slice(0, 10);
+    const inst = db.institutions[0];
+    const instId = inst?.id || 'inst-spec-study';
+    const cls = db.classes.find((c) => (c.code || c.name).toLowerCase() === normClass);
+    const classId = cls?.id || normClass;
+
+    if (!Array.isArray(db.attendanceRecords)) db.attendanceRecords = [];
+    if (!Array.isArray(db.attendanceSessions)) db.attendanceSessions = [];
+
+    const nowIso = new Date().toISOString();
+    let presentCount = 0;
+    let absentCount = 0;
+    let lateCount = 0;
+    let excusedCount = 0;
+
+    const sessionId = `session_${classId}_${normDate}`;
+
+    const attRecords = db.attendanceRecords || (db.attendanceRecords = []);
+    records.forEach((item: { studentId: string; status: AttendanceStatus; reasonCategory?: string; notes?: string }) => {
+      const student = db.users.find((u) => u.uid === item.studentId);
+      const studentName = student?.displayName || 'O‘quvchi';
+      const status = item.status;
+
+      if (status === 'PRESENT') presentCount++;
+      else if (status === 'ABSENT') absentCount++;
+      else if (status === 'LATE') lateCount++;
+      else if (status === 'EXCUSED_ABSENCE') excusedCount++;
+
+      const recordId = `att_${item.studentId}_${normDate}`;
+      const existingIdx = attRecords.findIndex((r) => r.id === recordId || (r.studentId === item.studentId && r.date === normDate));
+
+      const newRecord: AttendanceRecord = {
+        id: recordId,
+        sessionId,
+        institutionId: instId,
+        classId,
+        classCode: normClass,
+        studentId: item.studentId,
+        studentName,
+        date: normDate,
+        status,
+        reasonCategory: item.reasonCategory,
+        notes: item.notes,
+        recordedByUid: user.uid,
+        recordedByName: user.displayName,
+        recordedAt: existingIdx >= 0 ? attRecords[existingIdx].recordedAt : nowIso,
+        updatedAt: nowIso,
+      };
+
+      if (existingIdx >= 0) {
+        attRecords[existingIdx] = newRecord;
+      } else {
+        attRecords.push(newRecord);
+      }
+    });
+
+    const totalEnrolled = records.length;
+    const attendedCount = presentCount + lateCount;
+    const attendancePercent = totalEnrolled === 0 ? 100 : Math.round((attendedCount / totalEnrolled) * 100);
+
+    const session: AttendanceSession = {
+      id: sessionId,
+      institutionId: instId,
+      classId,
+      classCode: normClass,
+      date: normDate,
+      academicYear: inst?.academicYear || '2026-2027',
+      recordedByUid: user.uid,
+      recordedByName: user.displayName,
+      totalEnrolled,
+      presentCount,
+      absentCount,
+      lateCount,
+      excusedCount,
+      attendancePercent,
+      createdAt: nowIso,
+      updatedAt: nowIso,
+    };
+
+    const sessList = db.attendanceSessions || (db.attendanceSessions = []);
+    const sessIdx = sessList.findIndex((s) => s.id === sessionId || (s.classId === classId && s.date === normDate));
+    if (sessIdx >= 0) {
+      sessList[sessIdx] = session;
+    } else {
+      sessList.push(session);
+    }
+
+    appendAuditLog(
+      db,
+      instId,
+      user,
+      `Davomat saqlandi (${normClass}, ${normDate}): ${attendedCount}/${totalEnrolled}`,
+      normClass,
+      sessionId,
+      { eventType: 'ATTENDANCE_RECORDED', outcome: 'success', severity: 'INFO' }
     );
-    if (!hasOfficialMathImport) {
-      const officialPreview = await getOfficialMathArchivePreview();
-      if (officialPreview && officialPreview.totalWorkbooks === 21) {
-        const inst = prodDb.institutions[0];
-        applyCurriculumZipPreviewToDatabase(
-          officialPreview,
-          prodDb.workPlans,
-          prodDb.lessons,
-          prodDb.topics,
-          prodDb.curriculumImportJobs,
-          {
-            institutionId: inst?.id || 'inst-specialized-study',
-            academicYear: inst?.academicYear || '2026-2027',
-            actorUid: 'admin-owner',
-            actorName: 'Asilbek Nuraliyev',
-            tTrackVisibilityApproved: false,
-            publishImmediately: true,
-            duplicatePolicy: 'update_existing',
-          }
-        );
-        saveDbState('prod', prodDb);
+
+    saveDbState(env, db);
+    return res.json({ success: true, count: records.length, session });
+  });
+
+  // 3. POST /api/attendance/import
+  app.post('/api/attendance/import', (req, res) => {
+    const authCtx = authenticateRequest(req);
+    if (!authCtx) return res.status(401).json({ error: 'Avtorizatsiya talab qilinadi.' });
+    const { user, env, db } = authCtx;
+
+    if (user.role !== 'admin' && user.role !== 'platform_owner') {
+      return res.status(403).json({ error: 'Faqat administrator davomat import qila oladi.' });
+    }
+
+    const { rows, confirm, duplicatePolicy } = req.body;
+    if (!Array.isArray(rows)) {
+      return res.status(400).json({ error: 'Jadval qatorlari topilmadi.' });
+    }
+
+    if (!Array.isArray(db.attendanceRecords)) db.attendanceRecords = [];
+    const preview = validateAttendanceImportRows(rows, db.attendanceRecords, db.users);
+
+    if (!confirm) {
+      return res.json({ preview });
+    }
+
+    // Confirm import
+    const nowIso = new Date().toISOString();
+    const instId = db.institutions[0]?.id || 'inst-spec-study';
+    let importedCount = 0;
+    const records = db.attendanceRecords || (db.attendanceRecords = []);
+
+    preview.rows.forEach((p) => {
+      if (p.status === 'error') return;
+      if (p.status === 'conflict' && duplicatePolicy === 'skip_existing') return;
+      if (!p.normalizedStudentId || !p.normalizedDate || !p.normalizedStatus) return;
+
+      const recordId = `att_${p.normalizedStudentId}_${p.normalizedDate}`;
+      const existingIdx = records.findIndex((r) => r.id === recordId);
+      const student = db.users.find((u) => u.uid === p.normalizedStudentId);
+
+      const record: AttendanceRecord = {
+        id: recordId,
+        institutionId: instId,
+        classId: student?.classId || (p.normalizedClassCode as string) || '',
+        classCode: (p.normalizedClassCode || student?.classCode || '7a1') as OfficialClassCode,
+        studentId: p.normalizedStudentId,
+        studentName: student?.displayName || p.rawStudentName,
+        date: p.normalizedDate,
+        status: p.normalizedStatus,
+        recordedByUid: user.uid,
+        recordedByName: user.displayName,
+        recordedAt: existingIdx >= 0 ? records[existingIdx].recordedAt : nowIso,
+        updatedAt: nowIso,
+      };
+
+      if (existingIdx >= 0) {
+        records[existingIdx] = record;
+      } else {
+        records.push(record);
+      }
+      importedCount++;
+    });
+
+    saveDbState(env, db);
+    return res.json({ success: true, importedCount });
+  });
+
+  // 4. GET /api/attendance/export.xlsx
+  app.get('/api/attendance/export.xlsx', (req, res) => {
+    const authCtx = authenticateRequest(req);
+    if (!authCtx) return res.status(401).json({ error: 'Avtorizatsiya talab qilinadi.' });
+    const { user, db } = authCtx;
+
+    if (user.role !== 'admin' && user.role !== 'platform_owner') {
+      return res.status(403).json({ error: 'Ruxsat yo‘q.' });
+    }
+
+    if (!Array.isArray(db.attendanceRecords)) db.attendanceRecords = [];
+    const classCode = req.query.classCode ? String(req.query.classCode).toLowerCase() : undefined;
+
+    const filtered = db.attendanceRecords.filter((r) => {
+      if (classCode && classCode !== 'all' && r.classCode?.toLowerCase() !== classCode) return false;
+      return true;
+    });
+
+    const rows = [
+      ['O‘quvchi ID', 'F.I.Sh.', 'Sinf', 'Sana', 'Holat', 'Sabab / Izoh', 'Qayd etgan shaxs', 'Qayd etilgan vaqt'],
+      ...filtered.map((r) => {
+        const stu = db.users.find((u) => u.uid === r.studentId);
+        return [
+          stu?.studentCode || r.studentId,
+          r.studentName,
+          r.classCode,
+          r.date,
+          ATTENDANCE_STATUS_LABELS[r.status] || r.status,
+          r.notes || r.reasonCategory || '',
+          r.recordedByName,
+          new Date(r.recordedAt).toLocaleString('uz-UZ'),
+        ];
+      }),
+    ];
+
+    const ws = XLSX.utils.aoa_to_sheet(rows);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Davomat');
+    const buf = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
+
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', `attachment; filename=specialized_study_davomat_${classCode || 'barcha'}.xlsx`);
+    return res.send(buf);
+  });
+
+  // 5. GET /api/student-intelligence/:studentId
+  app.get('/api/student-intelligence/:studentId', (req, res) => {
+    const authCtx = authenticateRequest(req);
+    if (!authCtx) return res.status(401).json({ error: 'Avtorizatsiya talab qilinadi.' });
+    const { user, db } = authCtx;
+
+    const targetStudentId = req.params.studentId;
+    if (user.role === 'student' && user.uid !== targetStudentId) {
+      return res.status(403).json({ error: 'Boshqa o‘quvchining ma’lumotlariga ruxsat berilmagan.' });
+    }
+
+    const student = db.users.find((u) => u.uid === targetStudentId && u.role === 'student');
+    if (!student) {
+      return res.status(404).json({ error: 'O‘quvchi topilmadi.' });
+    }
+
+    if (!Array.isArray(db.attendanceRecords)) db.attendanceRecords = [];
+    if (!Array.isArray(db.studentAssignments)) db.studentAssignments = [];
+    if (!Array.isArray(db.assignmentSubmissions)) db.assignmentSubmissions = [];
+    if (!Array.isArray(db.studentAlerts)) db.studentAlerts = [];
+    if (!Array.isArray(db.studentSupportPlans)) db.studentSupportPlans = [];
+
+    const studentAttRecords = db.attendanceRecords.filter((r) => r.studentId === targetStudentId);
+    const attStats = calculateAttendanceStats(studentAttRecords);
+
+    const academicMetrics = calculateStudentAcademicMetrics(
+      student,
+      db.attempts || [],
+      db.assessments || [],
+      db.topics || [],
+      db.lessons || []
+    );
+
+    const studentSubmissions = db.assignmentSubmissions.filter((s) => s.studentId === targetStudentId);
+    const studentAlerts = db.studentAlerts.filter((a) => a.studentId === targetStudentId);
+    const studentSupportPlans = db.studentSupportPlans.filter((p) => p.studentId === targetStudentId);
+
+    // If Admin, also compute real-time generated alert previews if not yet saved
+    let activeAlerts = studentAlerts;
+    if (user.role === 'admin' || user.role === 'platform_owner') {
+      const generated = generateSmartRiskAlerts(
+        student,
+        attStats,
+        academicMetrics,
+        studentSubmissions,
+        db.studentAssignments,
+        studentAlerts
+      );
+      // Auto-merge unsaved generated alerts into memory for complete intelligence
+      if (generated.length > 0) {
+        db.studentAlerts.push(...generated);
+        activeAlerts = db.studentAlerts.filter((a) => a.studentId === targetStudentId);
       }
     }
-  } catch (seedErr) {
-    console.warn('Official math curriculum startup check:', seedErr);
-  }
+
+    // Monthly attendance calendar for current month
+    const now = new Date();
+    const monthlyGrid = buildMonthlyAttendanceGrid(now.getFullYear(), now.getMonth() + 1, studentAttRecords);
+
+    return res.json({
+      student,
+      attendanceStats: attStats,
+      monthlyAttendanceGrid: monthlyGrid,
+      academicMetrics,
+      submissions: studentSubmissions,
+      alerts: user.role === 'student' ? [] : activeAlerts, // Administrative alerts are private to Admin
+      supportPlans: user.role === 'student' ? [] : studentSupportPlans, // Private to Admin
+      attempts: (db.attempts || []).filter((a) => a.studentId === targetStudentId),
+    });
+  });
+
+  // 6. GET /api/class-monitoring/:classCode
+  app.get('/api/class-monitoring/:classCode', (req, res) => {
+    const authCtx = authenticateRequest(req);
+    if (!authCtx) return res.status(401).json({ error: 'Avtorizatsiya talab qilinadi.' });
+    const { user, db } = authCtx;
+
+    if (user.role !== 'admin' && user.role !== 'platform_owner') {
+      return res.status(403).json({ error: 'Ruxsat yo‘q.' });
+    }
+
+    const code = String(req.params.classCode).toLowerCase() as OfficialClassCode;
+    const cls = db.classes.find((c) => (c.code || c.name).toLowerCase() === code);
+    if (!cls) return res.status(404).json({ error: 'Sinf topilmadi.' });
+
+    const enrolled = db.users.filter((u) => u.role === 'student' && (u.classId === cls.id || u.classCode?.toLowerCase() === code));
+    const snapshot = calculateClassMonitoringSnapshot(
+      code,
+      cls.grade,
+      cls.track,
+      enrolled,
+      db.attendanceRecords || [],
+      db.studentAssignments || [],
+      db.assignmentSubmissions || [],
+      db.attempts || [],
+      db.studentAlerts || [],
+      db.studentSupportPlans || []
+    );
+
+    return res.json({ snapshot, enrolledStudents: enrolled });
+  });
+
+  // 7. GET /api/class-monitoring-all
+  app.get('/api/class-monitoring-all', (req, res) => {
+    const authCtx = authenticateRequest(req);
+    if (!authCtx) return res.status(401).json({ error: 'Avtorizatsiya talab qilinadi.' });
+    const { user, db } = authCtx;
+
+    if (user.role !== 'admin' && user.role !== 'platform_owner') {
+      return res.status(403).json({ error: 'Ruxsat yo‘q.' });
+    }
+
+    const snapshots = db.classes.map((cls) => {
+      const code = (cls.code || cls.name).toLowerCase() as OfficialClassCode;
+      const enrolled = db.users.filter((u) => u.role === 'student' && (u.classId === cls.id || u.classCode?.toLowerCase() === code));
+      return calculateClassMonitoringSnapshot(
+        code,
+        cls.grade,
+        cls.track,
+        enrolled,
+        db.attendanceRecords || [],
+        db.studentAssignments || [],
+        db.assignmentSubmissions || [],
+        db.attempts || [],
+        db.studentAlerts || [],
+        db.studentSupportPlans || []
+      );
+    });
+
+    return res.json({ snapshots });
+  });
+
+  // 8. GET /api/assignments & POST /api/assignments
+  app.get('/api/assignments', (req, res) => {
+    const authCtx = authenticateRequest(req);
+    if (!authCtx) return res.status(401).json({ error: 'Avtorizatsiya talab qilinadi.' });
+    const { user, db } = authCtx;
+
+    if (!Array.isArray(db.studentAssignments)) db.studentAssignments = [];
+    if (!Array.isArray(db.assignmentSubmissions)) db.assignmentSubmissions = [];
+
+    if (user.role === 'student') {
+      const classCode = (user.classCode || '').toLowerCase();
+      const visibleAssignments = db.studentAssignments.filter(
+        (a) => a.targetClassCodes.some((c) => c.toLowerCase() === classCode)
+      );
+      const mySubmissions = db.assignmentSubmissions.filter((s) => s.studentId === user.uid);
+      return res.json({ assignments: visibleAssignments, submissions: mySubmissions });
+    }
+
+    // Admin sees all
+    return res.json({
+      assignments: db.studentAssignments,
+      submissions: db.assignmentSubmissions,
+    });
+  });
+
+  app.post('/api/assignments', (req, res) => {
+    const authCtx = authenticateRequest(req);
+    if (!authCtx) return res.status(401).json({ error: 'Avtorizatsiya talab qilinadi.' });
+    const { user, env, db } = authCtx;
+
+    if (user.role !== 'admin' && user.role !== 'platform_owner') {
+      return res.status(403).json({ error: 'Faqat administrator topshiriq e’lon qila oladi.' });
+    }
+
+    const {
+      title,
+      description,
+      subject,
+      curriculumArea,
+      targetClassCodes,
+      assignedDate,
+      dueDate,
+      maxScore,
+      instructions,
+      status: requestedStatus,
+      sourceType,
+      relatedLessonId,
+      relatedLessonTitle,
+      relatedTopicId,
+      relatedTopicName,
+      relatedAssessmentId,
+      submissionType,
+      allowResubmission,
+      resubmissionPolicy,
+      rubricId,
+      attachmentUrls,
+    } = req.body;
+    if (!title || !subject || !Array.isArray(targetClassCodes) || targetClassCodes.length === 0) {
+      return res.status(400).json({ error: 'Topshiriq nomi, fan va kamida bitta sinfni tanlang.' });
+    }
+
+    if (!Array.isArray(db.studentAssignments)) db.studentAssignments = [];
+    if (!Array.isArray(db.assignmentSubmissions)) db.assignmentSubmissions = [];
+
+    const nowIso = new Date().toISOString();
+    const instId = db.institutions[0]?.id || 'inst-spec-study';
+    const assignmentId = `asg_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+    const normalizedStatus: 'draft' | 'published' | 'closed' =
+      requestedStatus === 'draft' || requestedStatus === 'closed' ? requestedStatus : 'published';
+
+    const assignment: StudentAssignment = {
+      id: assignmentId,
+      institutionId: instId,
+      title: String(title).trim(),
+      description: String(description || '').trim(),
+      subject: String(subject).trim(),
+      curriculumArea: curriculumArea ? String(curriculumArea).trim() : undefined,
+      classCode: targetClassCodes[0]?.toLowerCase() as OfficialClassCode,
+      targetClassCodes: targetClassCodes.map((c: string) => c.toLowerCase() as OfficialClassCode),
+      targetClassIds: targetClassCodes.map((c: string) => {
+        const found = db.classes.find((cls) => (cls.code || cls.name).toLowerCase() === c.toLowerCase());
+        return found?.id || c;
+      }),
+      assignedDate: assignedDate || nowIso.slice(0, 10),
+      dueDate: dueDate || new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10),
+      maxScore: Number(maxScore) || 20,
+      status: normalizedStatus,
+      sourceType: sourceType || 'custom',
+      relatedLessonId: relatedLessonId || undefined,
+      relatedLessonTitle: relatedLessonTitle || undefined,
+      relatedTopicId: relatedTopicId || undefined,
+      relatedTopicName: relatedTopicName || undefined,
+      relatedAssessmentId: relatedAssessmentId || undefined,
+      submissionType: submissionType || 'written_text',
+      allowResubmission: allowResubmission !== false,
+      resubmissionPolicy: resubmissionPolicy ? String(resubmissionPolicy).trim() : undefined,
+      rubricId: rubricId || undefined,
+      attachmentUrls: Array.isArray(attachmentUrls) ? attachmentUrls : undefined,
+      instructions: instructions ? String(instructions).trim() : undefined,
+      createdByUid: user.uid,
+      createdByName: user.displayName,
+      createdAt: nowIso,
+      updatedAt: nowIso,
+    };
+
+    const asgs = db.studentAssignments || (db.studentAssignments = []);
+    asgs.unshift(assignment);
+
+    // Auto-create initial submission placeholders for enrolled students when published
+    if (normalizedStatus === 'published') {
+      const targetCodes = new Set(assignment.targetClassCodes.map((c) => c.toLowerCase()));
+      const enrolledStudents = db.users.filter((u) => u.role === 'student' && targetCodes.has((u.classCode || '').toLowerCase()));
+      const subs = db.assignmentSubmissions || (db.assignmentSubmissions = []);
+
+      enrolledStudents.forEach((stu) => {
+        const subId = `sub_${assignmentId}_${stu.uid}`;
+        const sub: AssignmentSubmission = {
+          id: subId,
+          assignmentId,
+          assignmentTitle: assignment.title,
+          institutionId: instId,
+          studentId: stu.uid,
+          studentName: stu.displayName,
+          classCode: (stu.classCode || '7a1') as OfficialClassCode,
+          classId: stu.classId || '',
+          status: 'Yangi',
+          assignedDate: assignment.assignedDate,
+          dueDate: assignment.dueDate,
+          attemptCount: 0,
+          maxScore: assignment.maxScore,
+          createdAt: nowIso,
+          updatedAt: nowIso,
+        };
+        subs.push(sub);
+      });
+    }
+
+    saveDbState(env, db);
+    return res.json({ assignment });
+  });
+
+  app.put('/api/assignments/:id', (req, res) => {
+    const authCtx = authenticateRequest(req);
+    if (!authCtx) return res.status(401).json({ error: 'Avtorizatsiya talab qilinadi.' });
+    const { user, env, db } = authCtx;
+    if (user.role !== 'admin' && user.role !== 'platform_owner') {
+      return res.status(403).json({ error: 'Faqat administrator tahrirlay oladi.' });
+    }
+    const asg = db.studentAssignments?.find((a) => a.id === req.params.id);
+    if (!asg) return res.status(404).json({ error: 'Topshiriq topilmadi.' });
+
+    const wasDraft = asg.status === 'draft';
+    if (req.body.title) asg.title = String(req.body.title).trim();
+    if (req.body.description !== undefined) asg.description = String(req.body.description).trim();
+    if (req.body.instructions !== undefined) asg.instructions = String(req.body.instructions).trim();
+    if (req.body.dueDate) asg.dueDate = String(req.body.dueDate);
+    if (req.body.maxScore) asg.maxScore = Number(req.body.maxScore);
+    if (req.body.status) asg.status = req.body.status;
+    if (req.body.allowResubmission !== undefined) asg.allowResubmission = Boolean(req.body.allowResubmission);
+    if (req.body.submissionType) asg.submissionType = req.body.submissionType;
+    if (req.body.rubricId !== undefined) asg.rubricId = req.body.rubricId || undefined;
+    asg.updatedAt = new Date().toISOString();
+
+    if (wasDraft && asg.status === 'published') {
+      const targetCodes = new Set(asg.targetClassCodes.map((c) => c.toLowerCase()));
+      const enrolledStudents = db.users.filter((u) => u.role === 'student' && targetCodes.has((u.classCode || '').toLowerCase()));
+      const subs = db.assignmentSubmissions || (db.assignmentSubmissions = []);
+      enrolledStudents.forEach((stu) => {
+        if (!subs.some((s) => s.assignmentId === asg.id && s.studentId === stu.uid)) {
+          subs.push({
+            id: `sub_${asg.id}_${stu.uid}`,
+            assignmentId: asg.id,
+            assignmentTitle: asg.title,
+            institutionId: asg.institutionId,
+            studentId: stu.uid,
+            studentName: stu.displayName,
+            classCode: (stu.classCode || '7a1') as OfficialClassCode,
+            classId: stu.classId || '',
+            status: 'Yangi',
+            assignedDate: asg.assignedDate,
+            dueDate: asg.dueDate,
+            attemptCount: 0,
+            maxScore: asg.maxScore,
+            createdAt: asg.updatedAt,
+            updatedAt: asg.updatedAt,
+          });
+        }
+      });
+    }
+
+    saveDbState(env, db);
+    return res.json({ assignment: asg });
+  });
+
+  // 9. POST /api/submissions/save-draft, POST /api/submissions/submit, POST /api/submissions/grade, POST /api/submissions/return
+  app.post('/api/submissions/save-draft', (req, res) => {
+    const authCtx = authenticateRequest(req);
+    if (!authCtx) return res.status(401).json({ error: 'Avtorizatsiya talab qilinadi.' });
+    const { user, env, db } = authCtx;
+
+    const { assignmentId, draftContent, draftAttachmentUrl } = req.body;
+    if (!assignmentId) return res.status(400).json({ error: 'Topshiriq ID ko‘rsatilmadi.' });
+
+    if (!Array.isArray(db.assignmentSubmissions)) db.assignmentSubmissions = [];
+    const asg = db.studentAssignments?.find((a) => a.id === assignmentId);
+    if (!asg) return res.status(404).json({ error: 'Topshiriq topilmadi.' });
+
+    const nowIso = new Date().toISOString();
+    let sub = db.assignmentSubmissions.find((s) => s.assignmentId === assignmentId && s.studentId === user.uid);
+    if (!sub) {
+      sub = {
+        id: `sub_${assignmentId}_${user.uid}`,
+        assignmentId,
+        assignmentTitle: asg.title,
+        institutionId: user.institutionId || 'inst-spec-study',
+        studentId: user.uid,
+        studentName: user.displayName,
+        classCode: (user.classCode || '7a1') as OfficialClassCode,
+        classId: user.classId || '',
+        status: 'Jarayonda',
+        assignedDate: asg.assignedDate || nowIso.slice(0, 10),
+        dueDate: asg.dueDate || nowIso.slice(0, 10),
+        attemptCount: 0,
+        draftContent: draftContent ? String(draftContent) : '',
+        draftAttachmentUrl: draftAttachmentUrl ? String(draftAttachmentUrl) : undefined,
+        draftSavedAt: nowIso,
+        maxScore: asg.maxScore || 20,
+        createdAt: nowIso,
+        updatedAt: nowIso,
+      };
+      db.assignmentSubmissions.push(sub);
+    } else {
+      const updated = saveStudentAssignmentDraft(
+        sub,
+        draftContent !== undefined ? String(draftContent) : sub.draftContent || '',
+        draftAttachmentUrl !== undefined ? String(draftAttachmentUrl) : sub.draftAttachmentUrl,
+        nowIso
+      );
+      Object.assign(sub, updated);
+    }
+
+    saveDbState(env, db);
+    return res.json({ submission: sub });
+  });
+
+  app.post('/api/submissions/submit', (req, res) => {
+    const authCtx = authenticateRequest(req);
+    if (!authCtx) return res.status(401).json({ error: 'Avtorizatsiya talab qilinadi.' });
+    const { user, env, db } = authCtx;
+
+    const { assignmentId, content, attachmentUrl, attachmentName, attachmentMimeType } = req.body;
+    if (!assignmentId) return res.status(400).json({ error: 'Topshiriq ID ko‘rsatilmadi.' });
+
+    if (!Array.isArray(db.assignmentSubmissions)) db.assignmentSubmissions = [];
+    if (!Array.isArray(db.submissionRevisions)) db.submissionRevisions = [];
+    const asg = db.studentAssignments?.find((a) => a.id === assignmentId);
+    if (!asg) return res.status(404).json({ error: 'Topshiriq topilmadi.' });
+
+    if (
+      user.role === 'student' &&
+      user.classCode &&
+      asg.targetClassCodes.length > 0 &&
+      !asg.targetClassCodes.some((c) => c.toLowerCase() === user.classCode!.toLowerCase())
+    ) {
+      return res.status(403).json({ error: 'Ushbu topshiriq sizning sinfingiz uchun mo‘ljallanmagan.' });
+    }
+
+    let sub = db.assignmentSubmissions.find((s) => s.assignmentId === assignmentId && s.studentId === user.uid);
+    const nowIso = new Date().toISOString();
+
+    if (!sub) {
+      sub = {
+        id: `sub_${assignmentId}_${user.uid}`,
+        assignmentId,
+        assignmentTitle: asg.title || 'Topshiriq',
+        institutionId: user.institutionId || 'inst-spec-study',
+        studentId: user.uid,
+        studentName: user.displayName,
+        classCode: (user.classCode || '7a1') as OfficialClassCode,
+        classId: user.classId || '',
+        status: 'Yangi',
+        assignedDate: asg.assignedDate || nowIso.slice(0, 10),
+        dueDate: asg.dueDate || nowIso.slice(0, 10),
+        attemptCount: 0,
+        maxScore: asg.maxScore || 20,
+        createdAt: nowIso,
+        updatedAt: nowIso,
+      };
+      db.assignmentSubmissions.push(sub);
+    }
+
+    try {
+      const { updatedSubmission, archivedRevision } = submitStudentAssignmentWork({
+        assignment: asg,
+        existingSubmission: sub,
+        content: content ? String(content).trim() : '',
+        attachmentUrl: attachmentUrl ? String(attachmentUrl).trim() : undefined,
+        attachmentName: attachmentName ? String(attachmentName).trim() : undefined,
+        attachmentMimeType: attachmentMimeType ? String(attachmentMimeType).trim() : undefined,
+        nowIso,
+      });
+
+      Object.assign(sub, updatedSubmission);
+      if (archivedRevision) {
+        db.submissionRevisions.unshift(archivedRevision);
+      }
+
+      saveDbState(env, db);
+      return res.json({ submission: sub, archivedRevision });
+    } catch (err: any) {
+      return res.status(400).json({ error: err?.message || 'Topshiriqni yuborishda xatolik.' });
+    }
+  });
+
+  app.post('/api/submissions/grade', (req, res) => {
+    const authCtx = authenticateRequest(req);
+    if (!authCtx) return res.status(401).json({ error: 'Avtorizatsiya talab qilinadi.' });
+    const { user, env, db } = authCtx;
+
+    if (user.role !== 'admin' && user.role !== 'platform_owner') {
+      return res.status(403).json({ error: 'Faqat administrator baholay oladi.' });
+    }
+
+    const {
+      submissionId,
+      score,
+      feedback,
+      status: requestedStatus,
+      rubricId,
+      criterionScores,
+      reusableComments,
+      recommendedLessonId,
+      recommendedLessonTitle,
+    } = req.body;
+    if (!submissionId) return res.status(400).json({ error: 'Topshiriq ID ko‘rsatilmadi.' });
+
+    if (!Array.isArray(db.assignmentSubmissions)) db.assignmentSubmissions = [];
+    if (!Array.isArray(db.gradingHistory)) db.gradingHistory = [];
+    const sub = db.assignmentSubmissions.find((s) => s.id === submissionId);
+    if (!sub) return res.status(404).json({ error: 'Topshiriq javobi topilmadi.' });
+
+    const nowIso = new Date().toISOString();
+    const previousScore = sub.score;
+    const numericScore = Math.max(0, Math.min(sub.maxScore, Number(score) || 0));
+
+    sub.score = numericScore;
+    sub.feedback = feedback ? String(feedback).trim() : sub.feedback;
+    sub.status = requestedStatus === 'Qaytarildi' ? 'Qaytarildi' : 'Tekshirildi';
+    if (rubricId) sub.rubricId = String(rubricId);
+    if (Array.isArray(criterionScores)) sub.criterionScores = criterionScores;
+    if (Array.isArray(reusableComments)) sub.reusableComments = reusableComments;
+    if (recommendedLessonId !== undefined) sub.recommendedLessonId = recommendedLessonId || undefined;
+    if (recommendedLessonTitle !== undefined) sub.recommendedLessonTitle = recommendedLessonTitle || undefined;
+    if (sub.aiSuggestion) {
+      sub.aiSuggestion.approvalStatus =
+        sub.aiSuggestion.suggestedTotalPoints === numericScore ? 'approved_by_admin' : 'modified_by_admin';
+    }
+    sub.gradedByUid = user.uid;
+    sub.gradedByName = user.displayName;
+    sub.gradedAt = nowIso;
+    if (sub.status === 'Qaytarildi') {
+      sub.returnedAt = nowIso;
+    }
+    sub.updatedAt = nowIso;
+
+    const asg = db.studentAssignments?.find((a) => a.id === sub.assignmentId);
+    const historyEntry: GradingHistoryEntry = {
+      id: `gh_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+      institutionId: sub.institutionId,
+      targetType: 'assignment_submission',
+      targetId: sub.id,
+      studentId: sub.studentId,
+      studentName: sub.studentName,
+      classCode: sub.classCode,
+      subject: asg?.subject || 'Matematika',
+      previousScore,
+      newScore: numericScore,
+      maxScore: sub.maxScore,
+      rubricId: sub.rubricId,
+      criterionScores: sub.criterionScores,
+      feedback: sub.feedback || '',
+      aiSuggestedPoints: sub.aiSuggestion?.suggestedTotalPoints,
+      action:
+        sub.status === 'Qaytarildi'
+          ? 'returned_for_improvement'
+          : previousScore !== undefined
+          ? 'regraded'
+          : 'graded',
+      confirmedByUid: user.uid,
+      confirmedByName: user.displayName,
+      confirmedAt: nowIso,
+    };
+    db.gradingHistory.unshift(historyEntry);
+
+    pushNotification(
+      db,
+      sub.institutionId,
+      sub.studentId,
+      sub.status === 'Qaytarildi'
+        ? `Topshiriq qayta ishlash uchun qaytarildi: ${sub.assignmentTitle}`
+        : `Topshiriq tekshirildi: ${sub.assignmentTitle}`,
+      `${numericScore}/${sub.maxScore} ball. ${sub.feedback || ''}`.trim(),
+      '/student/dashboard'
+    );
+
+    saveDbState(env, db);
+    return res.json({ submission: sub, historyEntry });
+  });
+
+  // 10. ALERTS: GET /api/alerts, POST /api/alerts/generate, POST /api/alerts/:id/acknowledge, POST /api/alerts/:id/resolve
+  app.get('/api/alerts', (req, res) => {
+    const authCtx = authenticateRequest(req);
+    if (!authCtx) return res.status(401).json({ error: 'Avtorizatsiya talab qilinadi.' });
+    const { user, db } = authCtx;
+
+    if (user.role !== 'admin' && user.role !== 'platform_owner') {
+      return res.status(403).json({ error: 'Ruxsat yo‘q.' });
+    }
+
+    if (!Array.isArray(db.studentAlerts)) db.studentAlerts = [];
+    const { status, category, classCode, studentId } = req.query;
+
+    const filtered = db.studentAlerts.filter((a) => {
+      if (status && status !== 'ALL' && a.status !== status) return false;
+      if (category && category !== 'ALL' && a.category !== category) return false;
+      if (classCode && classCode !== 'ALL' && a.classCode?.toLowerCase() !== String(classCode).toLowerCase()) return false;
+      if (studentId && a.studentId !== String(studentId)) return false;
+      return true;
+    });
+
+    return res.json({ alerts: filtered });
+  });
+
+  app.post('/api/alerts/generate', (req, res) => {
+    const authCtx = authenticateRequest(req);
+    if (!authCtx) return res.status(401).json({ error: 'Avtorizatsiya talab qilinadi.' });
+    const { user, env, db } = authCtx;
+
+    if (user.role !== 'admin' && user.role !== 'platform_owner') {
+      return res.status(403).json({ error: 'Ruxsat yo‘q.' });
+    }
+
+    const existingAlerts = db.studentAlerts || (db.studentAlerts = []);
+    const students = db.users.filter((u) => u.role === 'student' && u.status !== 'archived');
+    let generatedTotal = 0;
+
+    students.forEach((stu) => {
+      const stuAtt = (db.attendanceRecords || []).filter((r) => r.studentId === stu.uid);
+      const attStats = calculateAttendanceStats(stuAtt);
+      const metrics = calculateStudentAcademicMetrics(
+        stu,
+        db.attempts || [],
+        db.assessments || [],
+        db.topics || [],
+        db.lessons || []
+      );
+      const subs = (db.assignmentSubmissions || []).filter((s) => s.studentId === stu.uid);
+
+      const newAlerts = generateSmartRiskAlerts(stu, attStats, metrics, subs, db.studentAssignments || [], existingAlerts);
+      newAlerts.forEach((a) => {
+        existingAlerts.unshift(a);
+        generatedTotal++;
+      });
+    });
+
+    saveDbState(env, db);
+    return res.json({ success: true, count: generatedTotal, totalAlerts: db.studentAlerts.length });
+  });
+
+  app.post('/api/alerts/:id/acknowledge', (req, res) => {
+    const authCtx = authenticateRequest(req);
+    if (!authCtx) return res.status(401).json({ error: 'Avtorizatsiya talab qilinadi.' });
+    const { user, env, db } = authCtx;
+
+    if (user.role !== 'admin' && user.role !== 'platform_owner') {
+      return res.status(403).json({ error: 'Ruxsat yo‘q.' });
+    }
+
+    const alert = db.studentAlerts?.find((a) => a.id === req.params.id);
+    if (!alert) return res.status(404).json({ error: 'Ogohlantirish topilmadi.' });
+
+    alert.status = 'acknowledged';
+    alert.acknowledgedByUid = user.uid;
+    alert.acknowledgedByName = user.displayName;
+    alert.acknowledgedAt = new Date().toISOString();
+    alert.updatedAt = new Date().toISOString();
+
+    saveDbState(env, db);
+    return res.json({ alert });
+  });
+
+  app.post('/api/alerts/:id/resolve', (req, res) => {
+    const authCtx = authenticateRequest(req);
+    if (!authCtx) return res.status(401).json({ error: 'Avtorizatsiya talab qilinadi.' });
+    const { user, env, db } = authCtx;
+
+    if (user.role !== 'admin' && user.role !== 'platform_owner') {
+      return res.status(403).json({ error: 'Ruxsat yo‘q.' });
+    }
+
+    const alert = db.studentAlerts?.find((a) => a.id === req.params.id);
+    if (!alert) return res.status(404).json({ error: 'Ogohlantirish topilmadi.' });
+
+    const { actionTaken, adminNote } = req.body;
+    alert.status = 'resolved';
+    alert.actionTaken = actionTaken ? String(actionTaken).trim() : alert.actionTaken;
+    alert.adminNote = adminNote ? String(adminNote).trim() : alert.adminNote;
+    alert.resolvedByUid = user.uid;
+    alert.resolvedByName = user.displayName;
+    alert.resolvedAt = new Date().toISOString();
+    alert.updatedAt = new Date().toISOString();
+
+    saveDbState(env, db);
+    return res.json({ alert });
+  });
+
+  // 11. SUPPORT PLANS: GET /api/support-plans, POST /api/support-plans, PUT /api/support-plans/:id
+  app.get('/api/support-plans', (req, res) => {
+    const authCtx = authenticateRequest(req);
+    if (!authCtx) return res.status(401).json({ error: 'Avtorizatsiya talab qilinadi.' });
+    const { user, db } = authCtx;
+
+    if (user.role !== 'admin' && user.role !== 'platform_owner') {
+      return res.status(403).json({ error: 'Ruxsat yo‘q.' });
+    }
+
+    if (!Array.isArray(db.studentSupportPlans)) db.studentSupportPlans = [];
+    const { studentId, classCode, status } = req.query;
+
+    const filtered = db.studentSupportPlans.filter((p) => {
+      if (studentId && p.studentId !== String(studentId)) return false;
+      if (classCode && classCode !== 'ALL' && p.classCode?.toLowerCase() !== String(classCode).toLowerCase()) return false;
+      if (status && status !== 'ALL' && p.status !== status) return false;
+      return true;
+    });
+
+    return res.json({ supportPlans: filtered });
+  });
+
+  app.post('/api/support-plans', (req, res) => {
+    const authCtx = authenticateRequest(req);
+    if (!authCtx) return res.status(401).json({ error: 'Avtorizatsiya talab qilinadi.' });
+    const { user, env, db } = authCtx;
+
+    if (user.role !== 'admin' && user.role !== 'platform_owner') {
+      return res.status(403).json({ error: 'Ruxsat yo‘q.' });
+    }
+
+    const { studentId, subject, topic, observedNeed, goal, recommendedActivity, reviewDate, status, progressNotes } = req.body;
+    if (!studentId || !subject || !topic || !observedNeed || !goal) {
+      return res.status(400).json({ error: 'O‘quvchi, fan, mavzu, aniqlangan ehtiyoj va maqsadni kiriting.' });
+    }
+
+    const stu = db.users.find((u) => u.uid === studentId);
+    if (!stu) return res.status(404).json({ error: 'O‘quvchi topilmadi.' });
+
+    if (!Array.isArray(db.studentSupportPlans)) db.studentSupportPlans = [];
+    const nowIso = new Date().toISOString();
+    const planId = `plan_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+
+    const plan: StudentSupportPlan = {
+      id: planId,
+      institutionId: db.institutions[0]?.id || 'inst-spec-study',
+      studentId: stu.uid,
+      studentName: stu.displayName,
+      classCode: (stu.classCode || '7a1') as OfficialClassCode,
+      classId: stu.classId || '',
+      subject: String(subject).trim(),
+      topic: String(topic).trim(),
+      observedNeed: String(observedNeed).trim(),
+      goal: String(goal).trim(),
+      recommendedActivity: String(recommendedActivity || '').trim(),
+      reviewDate: reviewDate || new Date(Date.now() + 14 * 86400000).toISOString().slice(0, 10),
+      status: status || 'Yangi',
+      progressNotes: String(progressNotes || '').trim(),
+      createdByUid: user.uid,
+      createdByName: user.displayName,
+      createdAt: nowIso,
+      updatedAt: nowIso,
+    };
+
+    db.studentSupportPlans.unshift(plan);
+    saveDbState(env, db);
+    return res.json({ supportPlan: plan });
+  });
+
+  app.put('/api/support-plans/:id', (req, res) => {
+    const authCtx = authenticateRequest(req);
+    if (!authCtx) return res.status(401).json({ error: 'Avtorizatsiya talab qilinadi.' });
+    const { user, env, db } = authCtx;
+
+    if (user.role !== 'admin' && user.role !== 'platform_owner') {
+      return res.status(403).json({ error: 'Ruxsat yo‘q.' });
+    }
+
+    const plan = db.studentSupportPlans?.find((p) => p.id === req.params.id);
+    if (!plan) return res.status(404).json({ error: 'Yordam rejasi topilmadi.' });
+
+    if (req.body.status) plan.status = req.body.status;
+    if (req.body.progressNotes !== undefined) plan.progressNotes = String(req.body.progressNotes).trim();
+    if (req.body.reviewDate) plan.reviewDate = req.body.reviewDate;
+    if (req.body.goal) plan.goal = String(req.body.goal).trim();
+    if (req.body.recommendedActivity) plan.recommendedActivity = String(req.body.recommendedActivity).trim();
+    plan.updatedAt = new Date().toISOString();
+
+    saveDbState(env, db);
+    return res.json({ supportPlan: plan });
+  });
+
+  // 12. GET /api/academic-calendar
+  app.get('/api/academic-calendar', (req, res) => {
+    const authCtx = authenticateRequest(req);
+    if (!authCtx) return res.status(401).json({ error: 'Avtorizatsiya talab qilinadi.' });
+    const { user, db } = authCtx;
+
+    const { classCode, subject, quarter, type } = req.query;
+    const targetClass = user.role === 'student' ? user.classCode : (classCode && classCode !== 'ALL' ? String(classCode) : undefined);
+
+    const events: Array<{
+      id: string;
+      title: string;
+      type: 'lesson' | 'bsb' | 'chsb' | 'assessment' | 'assignment' | 'project';
+      date: string;
+      classCode: string;
+      subject: string;
+      quarter?: number;
+      targetRoute: string;
+    }> = [];
+
+    // Lessons and BSB/CHSB
+    (db.lessons || []).forEach((l) => {
+      if (targetClass && l.classCode?.toLowerCase() !== targetClass.toLowerCase()) return;
+      if (subject && subject !== 'ALL' && l.subjectName !== subject && l.curriculumArea !== subject) return;
+      if (quarter && quarter !== 'ALL' && String(l.quarter) !== String(quarter)) return;
+      if (!l.scheduledDate) return;
+
+      let evType: 'lesson' | 'bsb' | 'chsb' | 'project' = 'lesson';
+      if (l.eventCategory === 'WRITTEN_ASSESSMENT') evType = 'bsb';
+      else if (l.eventCategory === 'QUARTERLY_ASSESSMENT') evType = 'chsb';
+      else if (l.eventCategory === 'PROJECT_WORK') evType = 'project';
+
+      if (type && type !== 'ALL' && evType !== type) return;
+
+      events.push({
+        id: `cal_l_${l.id}`,
+        title: `${l.lessonNumber}-dars: ${l.topicTitle || l.title}`,
+        type: evType,
+        date: l.scheduledDate,
+        classCode: l.classCode || '',
+        subject: l.curriculumArea || l.subjectName || 'Matematika',
+        quarter: l.quarter,
+        targetRoute: user.role === 'student' ? '/student/lessons' : `/admin/lessons?class=${l.classCode}`,
+      });
+    });
+
+    // Assessments
+    (db.assessments || []).forEach((a) => {
+      if (targetClass && a.classCode?.toLowerCase() !== targetClass.toLowerCase()) return;
+      if (subject && subject !== 'ALL' && a.subject !== subject) return;
+      if (!a.dueDate) return;
+      if (type && type !== 'ALL' && type !== 'assessment') return;
+
+      events.push({
+        id: `cal_a_${a.id}`,
+        title: `Test: ${a.title}`,
+        type: 'assessment',
+        date: a.dueDate,
+        classCode: a.classCode || '',
+        subject: a.subject,
+        targetRoute: user.role === 'student' ? `/student/assessments/${a.id}` : `/admin/assessments`,
+      });
+    });
+
+    // Assignments
+    (db.studentAssignments || []).forEach((asg) => {
+      if (targetClass && !asg.targetClassCodes.some((c) => c.toLowerCase() === targetClass.toLowerCase())) return;
+      if (subject && subject !== 'ALL' && asg.subject !== subject) return;
+      if (type && type !== 'ALL' && type !== 'assignment') return;
+
+      events.push({
+        id: `cal_asg_${asg.id}`,
+        title: `Vazifa muddati: ${asg.title}`,
+        type: 'assignment',
+        date: asg.dueDate,
+        classCode: asg.targetClassCodes.join(', '),
+        subject: asg.subject,
+        targetRoute: user.role === 'student' ? '/student/dashboard' : '/admin/assignments',
+      });
+    });
+
+    events.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    return res.json({ events });
+  });
+
+  // 13. REPORTS: GET /api/reports & POST /api/reports/generate
+  app.get('/api/reports', (req, res) => {
+    const authCtx = authenticateRequest(req);
+    if (!authCtx) return res.status(401).json({ error: 'Avtorizatsiya talab qilinadi.' });
+    const { user, db } = authCtx;
+
+    if (user.role !== 'admin' && user.role !== 'platform_owner') {
+      return res.status(403).json({ error: 'Ruxsat yo‘q.' });
+    }
+
+    if (!Array.isArray(db.academicReports)) db.academicReports = [];
+    return res.json({ reports: db.academicReports });
+  });
+
+  app.post('/api/reports/generate', (req, res) => {
+    const authCtx = authenticateRequest(req);
+    if (!authCtx) return res.status(401).json({ error: 'Avtorizatsiya talab qilinadi.' });
+    const { user, env, db } = authCtx;
+
+    if (user.role !== 'admin' && user.role !== 'platform_owner') {
+      return res.status(403).json({ error: 'Ruxsat yo‘q.' });
+    }
+
+    const { reportType, targetId, period, title, classCode, subject, grade, quarter } = req.body;
+    if (!reportType || !targetId) {
+      return res.status(400).json({ error: 'Hisobot turi va nishonni tanlang.' });
+    }
+
+    if (!Array.isArray(db.academicReports)) db.academicReports = [];
+    const nowIso = new Date().toISOString();
+    const reportId = `rep_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+
+    let summaryData: Record<string, unknown> = {};
+    let methodology = 'Haqiqiy tasdiqlangan ma’lumotlar asosida alohida hisoblangan ko‘rsatkichlar.';
+
+    if (reportType === 'individual_student') {
+      const stu = db.users.find((u) => u.uid === targetId);
+      const att = (db.attendanceRecords || []).filter((r) => r.studentId === targetId);
+      const stats = calculateAttendanceStats(att);
+      const metrics = stu
+        ? calculateStudentAcademicMetrics(stu, db.attempts || [], db.assessments || [], db.topics || [], db.lessons || [])
+        : null;
+      const stuSubs = (db.assignmentSubmissions || []).filter((s) => s.studentId === targetId);
+      summaryData = {
+        student: stu ? { uid: stu.uid, displayName: stu.displayName, classCode: stu.classCode, email: stu.email } : null,
+        attendanceStats: stats,
+        academicMetrics: metrics,
+        assignmentsTotal: stuSubs.length,
+        assignmentsSubmitted: stuSubs.filter((s) => s.status === 'Topshirildi' || s.status === 'Tekshirildi').length,
+      };
+      methodology = "O'quvchining davomat ulushi, fanlar kesimidagi nazorat natijalari va topshiriq bajarilishi alohida hisoblandi.";
+    } else if (reportType === 'class_attendance' || reportType === 'class_report') {
+      const cls = db.classes.find((c) => (c.code || c.name).toLowerCase() === String(targetId).toLowerCase());
+      const enrolled = db.users.filter((u) => u.role === 'student' && (u.classId === cls?.id || u.classCode?.toLowerCase() === String(targetId).toLowerCase()));
+      const att = (db.attendanceRecords || []).filter((r) => r.classCode?.toLowerCase() === String(targetId).toLowerCase());
+      const classAttempts = (db.attempts || []).filter((a) => a.classCode?.toLowerCase() === String(targetId).toLowerCase());
+      const classSubs = (db.assignmentSubmissions || []).filter((s) => s.classCode?.toLowerCase() === String(targetId).toLowerCase());
+      const plannedLessons = (db.lessons || []).filter((l) => l.classCode?.toLowerCase() === String(targetId).toLowerCase());
+      const deliveredLessons = (db.lessonDeliveryRecords || []).filter(
+        (d) => d.classCode?.toLowerCase() === String(targetId).toLowerCase() && d.deliveryStatus === "O'tildi"
+      );
+      summaryData = {
+        classCode: cls?.code || targetId,
+        enrolledCount: enrolled.length,
+        attendanceStats: calculateAttendanceStats(att),
+        assessmentsCompletedCount: classAttempts.length,
+        averageAssessmentScorePercent:
+          classAttempts.length > 0
+            ? Math.round(classAttempts.reduce((acc, item) => acc + item.scorePercent, 0) / classAttempts.length)
+            : 0,
+        assignmentsSubmittedCount: classSubs.filter((s) => s.status === 'Topshirildi' || s.status === 'Tekshirildi').length,
+        assignmentsTotalCount: classSubs.length,
+        plannedLessonsCount: plannedLessons.length,
+        deliveredLessonsCount: deliveredLessons.length,
+      };
+      methodology = "Sinf o'quvchilarining davomat, nazorat va uyga vazifa ko'rsatkichlari bir-biriga qo'shib yuborilmasdan alohida hisoblandi.";
+    } else if (reportType === 'curriculum_progress') {
+      const targetCls = classCode && classCode !== 'ALL' ? String(classCode).toLowerCase() : String(targetId).toLowerCase();
+      const planned = (db.lessons || []).filter(
+        (l) =>
+          (targetCls === 'all' || l.classCode?.toLowerCase() === targetCls) &&
+          (!subject || subject === 'ALL' || l.subject === subject) &&
+          (!quarter || Number(quarter) === l.quarter)
+      );
+      const deliveries = (db.lessonDeliveryRecords || []).filter(
+        (d) =>
+          (targetCls === 'all' || d.classCode?.toLowerCase() === targetCls) &&
+          (!subject || subject === 'ALL' || d.subject === subject) &&
+          (!quarter || Number(quarter) === d.quarter)
+      );
+      const deliveredCount = deliveries.filter((d) => d.deliveryStatus === "O'tildi").length;
+      const rescheduledCount = deliveries.filter((d) => d.deliveryStatus === "Ko'chirildi").length;
+      const cancelledCount = deliveries.filter((d) => d.deliveryStatus === 'Bekor qilindi').length;
+      summaryData = {
+        targetClass: targetCls,
+        subject: subject || 'Barcha fanlar',
+        quarter: quarter || 'Barcha choraklar',
+        plannedLessonsCount: planned.length,
+        publishedLessonsCount: planned.filter((l) => l.isPublished).length,
+        deliveredLessonsCount: deliveredCount,
+        rescheduledLessonsCount: rescheduledCount,
+        cancelledLessonsCount: cancelledCount,
+        deliveryCompletionPercent: planned.length > 0 ? Math.round((deliveredCount / planned.length) * 100) : 0,
+      };
+      methodology = "Rejalashtirilgan darslar, e'lon qilingan darslar va amalda o'tilgan darslar (Lesson Delivery Tracker) alohida hisoblandi.";
+    } else if (reportType === 'assignment_report') {
+      const targetCls = classCode && classCode !== 'ALL' ? String(classCode).toLowerCase() : undefined;
+      const asgs = (db.studentAssignments || []).filter(
+        (a) =>
+          (!targetCls || a.targetClassCodes.some((c) => c.toLowerCase() === targetCls)) &&
+          (!subject || subject === 'ALL' || a.subject === subject)
+      );
+      const subs = (db.assignmentSubmissions || []).filter(
+        (s) => !targetCls || s.classCode?.toLowerCase() === targetCls
+      );
+      summaryData = {
+        totalAssignments: asgs.length,
+        totalSubmissions: subs.length,
+        submittedCount: subs.filter((s) => s.status === 'Topshirildi').length,
+        gradedCount: subs.filter((s) => s.status === 'Tekshirildi').length,
+        returnedCount: subs.filter((s) => s.status === 'Qaytarildi').length,
+        overdueCount: subs.filter((s) => s.status === "Muddati o'tgan").length,
+      };
+      methodology = 'Topshiriqlar holati (Yangi, Jarayonda, Topshirildi, Tekshirildi, Qaytarildi) bo‘yicha aniq hisob.';
+    } else {
+      const targetCls = classCode && classCode !== 'ALL' ? String(classCode).toLowerCase() : undefined;
+      const relevantAttempts = (db.attempts || []).filter(
+        (a) =>
+          (!targetCls || a.classCode?.toLowerCase() === targetCls) &&
+          (!subject || subject === 'ALL' || a.subject === subject)
+      );
+      summaryData = {
+        targetId,
+        classCode: classCode || 'ALL',
+        subject: subject || 'ALL',
+        period: period || '2026-2027',
+        attemptsCount: relevantAttempts.length,
+        averageScorePercent:
+          relevantAttempts.length > 0
+            ? Math.round(relevantAttempts.reduce((s, a) => s + a.scorePercent, 0) / relevantAttempts.length)
+            : 0,
+        timestamp: nowIso,
+      };
+    }
+
+    const report: AcademicReportItem = {
+      id: reportId,
+      institutionId: db.institutions[0]?.id || 'inst-spec-study',
+      reportType,
+      title: title || `${reportType.replace(/_/g, ' ').toUpperCase()} hisoboti (${targetId})`,
+      targetId: String(targetId),
+      classCode: classCode && classCode !== 'ALL' ? (String(classCode).toLowerCase() as OfficialClassCode) : undefined,
+      subject: subject && subject !== 'ALL' ? String(subject) : undefined,
+      grade: grade ? Number(grade) : undefined,
+      quarter: quarter ? (Number(quarter) as 1 | 2 | 3 | 4) : undefined,
+      period: period || '2026-2027',
+      methodology,
+      generatedByUid: user.uid,
+      generatedByName: user.displayName,
+      createdAt: nowIso,
+      summaryData,
+    };
+
+    db.academicReports.unshift(report);
+    saveDbState(env, db);
+    return res.json({ report });
+  });
+
+  app.get('/api/reports/:id/export', (req, res) => {
+    const authCtx = authenticateRequest(req);
+    if (!authCtx) return res.status(401).json({ error: 'Avtorizatsiya talab qilinadi.' });
+    const { user, db } = authCtx;
+    if (user.role !== 'admin' && user.role !== 'platform_owner') {
+      return res.status(403).json({ error: 'Ruxsat yo‘q.' });
+    }
+    const report = (db.academicReports || []).find((r) => r.id === req.params.id);
+    if (!report) return res.status(404).json({ error: 'Hisobot topilmadi.' });
+
+    const format = String(req.query.format || 'csv').toLowerCase();
+    const flatRows: Record<string, string | number>[] = [
+      { Ko_rsatkich: 'Hisobot nomi', Qiymat: report.title },
+      { Ko_rsatkich: 'Hisobot turi', Qiymat: report.reportType },
+      { Ko_rsatkich: 'Nishon / Sinf', Qiymat: report.classCode || report.targetId },
+      { Ko_rsatkich: 'Fan', Qiymat: report.subject || 'Barcha fanlar' },
+      { Ko_rsatkich: 'Davr', Qiymat: report.period },
+      { Ko_rsatkich: 'Shakllantirilgan sana', Qiymat: report.createdAt },
+      { Ko_rsatkich: 'Metodologiya', Qiymat: report.methodology || '' },
+    ];
+
+    for (const [k, v] of Object.entries(report.summaryData || {})) {
+      if (v !== null && typeof v !== 'object') {
+        flatRows.push({ Ko_rsatkich: k, Qiymat: String(v) });
+      } else if (v && typeof v === 'object') {
+        flatRows.push({ Ko_rsatkich: k, Qiymat: JSON.stringify(v) });
+      }
+    }
+
+    if (format === 'xlsx') {
+      const wb = XLSX.utils.book_new();
+      const ws = XLSX.utils.json_to_sheet(flatRows);
+      XLSX.utils.book_append_sheet(wb, ws, 'Hisobot');
+      const buf = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
+      res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+      res.setHeader('Content-Disposition', `attachment; filename="report_${report.id}.xlsx"`);
+      return res.send(buf);
+    }
+
+    const csvLines = ['Ko_rsatkich,Qiymat'];
+    for (const row of flatRows) {
+      const k = String(row.Ko_rsatkich).replace(/"/g, '""');
+      const v = String(row.Qiymat).replace(/"/g, '""');
+      csvLines.push(`"${k}","${v}"`);
+    }
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="report_${report.id}.csv"`);
+    return res.send(csvLines.join('\n'));
+  });
+
+  // =========================================================================
+  // ACADEMIC OPERATING SYSTEM 2.0 ENDPOINTS
+  // =========================================================================
+
+  // 14. SMART TIMETABLE: /api/timetables & /api/timetables/entries
+  app.get('/api/timetables', (req, res) => {
+    const authCtx = authenticateRequest(req);
+    if (!authCtx) return res.status(401).json({ error: 'Avtorizatsiya talab qilinadi.' });
+    const { user, db } = authCtx;
+
+    if (!Array.isArray(db.timetables)) db.timetables = [];
+    if (!Array.isArray(db.timetableEntries)) db.timetableEntries = [];
+
+    if (user.role === 'student') {
+      const studentClass = (user.classCode || '').toLowerCase() as OfficialClassCode;
+      const view = resolveStudentTimetableView({
+        classCode: studentClass,
+        timetables: db.timetables,
+        entries: db.timetableEntries,
+      });
+      return res.json({
+        timetables: view.activeTimetable ? [view.activeTimetable] : [],
+        entries: view.allEntries,
+        studentView: view,
+      });
+    }
+
+    const { classCode, status } = req.query;
+    const filteredTimetables = db.timetables.filter((t) => {
+      if (classCode && classCode !== 'ALL' && t.classCode.toLowerCase() !== String(classCode).toLowerCase()) return false;
+      if (status && status !== 'ALL' && t.status !== status) return false;
+      return true;
+    });
+    const timetableIds = new Set(filteredTimetables.map((t) => t.id));
+    const filteredEntries = db.timetableEntries.filter((e) => timetableIds.has(e.timetableId));
+
+    return res.json({ timetables: filteredTimetables, entries: filteredEntries });
+  });
+
+  app.post('/api/timetables', (req, res) => {
+    const authCtx = authenticateRequest(req);
+    if (!authCtx) return res.status(401).json({ error: 'Avtorizatsiya talab qilinadi.' });
+    const { user, env, db } = authCtx;
+    if (user.role !== 'admin' && user.role !== 'platform_owner') {
+      return res.status(403).json({ error: 'Faqat administrator dars jadvali yarata oladi.' });
+    }
+
+    const { classCode, title, effectiveFrom, effectiveTo, archivePrevious } = req.body;
+    if (!classCode) return res.status(400).json({ error: 'Sinf kodini tanlang.' });
+
+    const normalizedCode = String(classCode).toLowerCase() as OfficialClassCode;
+    const cls = db.classes.find((c) => (c.code || c.name).toLowerCase() === normalizedCode);
+    if (!cls) return res.status(404).json({ error: 'Sinf topilmadi.' });
+
+    if (!Array.isArray(db.timetables)) db.timetables = [];
+    const existingForClass = db.timetables.filter((t) => t.classCode.toLowerCase() === normalizedCode);
+    const maxVersion = existingForClass.reduce((max, t) => Math.max(max, t.version || 1), 0);
+
+    if (archivePrevious !== false) {
+      existingForClass.forEach((t) => {
+        if (t.status === 'active') t.status = 'archived';
+      });
+    }
+
+    const nowIso = new Date().toISOString();
+    const newTimetable: Timetable = {
+      id: `tt_${normalizedCode}_v${maxVersion + 1}_${Date.now()}`,
+      institutionId: cls.institutionId || 'inst-spec-study',
+      classCode: normalizedCode,
+      classId: cls.id,
+      title: title ? String(title).trim() : `${normalizedCode.toUpperCase()} haftalik dars jadvali (v${maxVersion + 1})`,
+      effectiveFrom: effectiveFrom || nowIso.slice(0, 10),
+      effectiveTo: effectiveTo || undefined,
+      version: maxVersion + 1,
+      status: 'active',
+      createdByUid: user.uid,
+      createdByName: user.displayName,
+      createdAt: nowIso,
+      updatedAt: nowIso,
+    };
+
+    db.timetables.unshift(newTimetable);
+    saveDbState(env, db);
+    return res.json({ timetable: newTimetable });
+  });
+
+  app.post('/api/timetables/:id/duplicate', (req, res) => {
+    const authCtx = authenticateRequest(req);
+    if (!authCtx) return res.status(401).json({ error: 'Avtorizatsiya talab qilinadi.' });
+    const { user, env, db } = authCtx;
+    if (user.role !== 'admin' && user.role !== 'platform_owner') {
+      return res.status(403).json({ error: 'Faqat administrator nusxa ko‘chira oladi.' });
+    }
+
+    if (!Array.isArray(db.timetables)) db.timetables = [];
+    if (!Array.isArray(db.timetableEntries)) db.timetableEntries = [];
+
+    const source = db.timetables.find((t) => t.id === req.params.id);
+    if (!source) return res.status(404).json({ error: 'Jadval topilmadi.' });
+
+    const targetClassCode = (req.body.targetClassCode || source.classCode).toLowerCase() as OfficialClassCode;
+    const targetCls = db.classes.find((c) => (c.code || c.name).toLowerCase() === targetClassCode);
+    const existingForClass = db.timetables.filter((t) => t.classCode.toLowerCase() === targetClassCode);
+    const nextVersion = existingForClass.reduce((max, t) => Math.max(max, t.version || 1), 0) + 1;
+
+    if (req.body.activateImmediately) {
+      existingForClass.forEach((t) => {
+        if (t.status === 'active') t.status = 'archived';
+      });
+    }
+
+    const nowIso = new Date().toISOString();
+    const duplicated: Timetable = {
+      id: `tt_${targetClassCode}_v${nextVersion}_${Date.now()}`,
+      institutionId: source.institutionId,
+      classCode: targetClassCode,
+      classId: targetCls?.id || source.classId,
+      title: req.body.title || `${targetClassCode.toUpperCase()} dars jadvali (v${nextVersion} nusxa)`,
+      effectiveFrom: req.body.effectiveFrom || nowIso.slice(0, 10),
+      version: nextVersion,
+      status: req.body.activateImmediately ? 'active' : 'draft',
+      parentTimetableId: source.id,
+      createdByUid: user.uid,
+      createdByName: user.displayName,
+      createdAt: nowIso,
+      updatedAt: nowIso,
+    };
+    db.timetables.unshift(duplicated);
+
+    const sourceEntries = db.timetableEntries.filter((e) => e.timetableId === source.id);
+    const clonedEntries: TimetableEntry[] = sourceEntries.map((e, idx) => ({
+      ...e,
+      id: `tte_${duplicated.id}_${idx}_${Date.now()}`,
+      timetableId: duplicated.id,
+      classCode: targetClassCode,
+      classId: targetCls?.id || source.classId,
+      createdAt: nowIso,
+      updatedAt: nowIso,
+    }));
+    db.timetableEntries.push(...clonedEntries);
+
+    saveDbState(env, db);
+    return res.json({ timetable: duplicated, entries: clonedEntries });
+  });
+
+  app.post('/api/timetables/:id/archive', (req, res) => {
+    const authCtx = authenticateRequest(req);
+    if (!authCtx) return res.status(401).json({ error: 'Avtorizatsiya talab qilinadi.' });
+    const { user, env, db } = authCtx;
+    if (user.role !== 'admin' && user.role !== 'platform_owner') {
+      return res.status(403).json({ error: 'Ruxsat yo‘q.' });
+    }
+    const tt = db.timetables?.find((t) => t.id === req.params.id);
+    if (!tt) return res.status(404).json({ error: 'Jadval topilmadi.' });
+    tt.status = req.body.status === 'active' ? 'active' : 'archived';
+    tt.updatedAt = new Date().toISOString();
+    saveDbState(env, db);
+    return res.json({ timetable: tt });
+  });
+
+  app.post('/api/timetables/entries', (req, res) => {
+    const authCtx = authenticateRequest(req);
+    if (!authCtx) return res.status(401).json({ error: 'Avtorizatsiya talab qilinadi.' });
+    const { user, env, db } = authCtx;
+    if (user.role !== 'admin' && user.role !== 'platform_owner') {
+      return res.status(403).json({ error: 'Faqat administrator dars soatini qo‘sha oladi.' });
+    }
+
+    if (!Array.isArray(db.timetables)) db.timetables = [];
+    if (!Array.isArray(db.timetableEntries)) db.timetableEntries = [];
+
+    const {
+      timetableId,
+      classCode,
+      weekday,
+      weekdayIndex,
+      lessonNumber,
+      subject,
+      curriculumArea,
+      startTime,
+      endTime,
+      room,
+      relatedLessonId,
+      relatedLessonTitle,
+      notes,
+    } = req.body;
+
+    if (!classCode || !subject || !weekday || !lessonNumber || !startTime || !endTime) {
+      return res.status(400).json({ error: 'Sinf, fan, hafta kuni, dars soati va vaqtlarini kiriting.' });
+    }
+
+    const normalizedCode = String(classCode).toLowerCase() as OfficialClassCode;
+    const cls = db.classes.find((c) => (c.code || c.name).toLowerCase() === normalizedCode);
+    const nowIso = new Date().toISOString();
+
+    let targetTimetable = db.timetables.find(
+      (t) => (timetableId && t.id === timetableId) || (!timetableId && t.classCode === normalizedCode && t.status === 'active')
+    );
+    if (!targetTimetable) {
+      targetTimetable = {
+        id: `tt_${normalizedCode}_v1_${Date.now()}`,
+        institutionId: cls?.institutionId || 'inst-spec-study',
+        classCode: normalizedCode,
+        classId: cls?.id || `class-${normalizedCode}`,
+        title: `${normalizedCode.toUpperCase()} haftalik dars jadvali`,
+        effectiveFrom: nowIso.slice(0, 10),
+        version: 1,
+        status: 'active',
+        createdByUid: user.uid,
+        createdByName: user.displayName,
+        createdAt: nowIso,
+        updatedAt: nowIso,
+      };
+      db.timetables.unshift(targetTimetable);
+    }
+
+    const weekdayIdxMap: Record<string, 1 | 2 | 3 | 4 | 5 | 6> = {
+      Dushanba: 1,
+      Seshanba: 2,
+      Chorshanba: 3,
+      Payshanba: 4,
+      Juma: 5,
+      Shanba: 6,
+    };
+    const resolvedWeekdayIndex = (Number(weekdayIndex) || weekdayIdxMap[String(weekday)] || 1) as 1 | 2 | 3 | 4 | 5 | 6;
+
+    const candidate = {
+      institutionId: targetTimetable.institutionId,
+      timetableId: targetTimetable.id,
+      classCode: normalizedCode,
+      classId: targetTimetable.classId,
+      weekday: String(weekday) as TimetableWeekday,
+      weekdayIndex: resolvedWeekdayIndex,
+      lessonNumber: Number(lessonNumber),
+      subject: String(subject).trim(),
+      curriculumArea: curriculumArea ? String(curriculumArea).trim() : undefined,
+      startTime: String(startTime).trim(),
+      endTime: String(endTime).trim(),
+      room: room ? String(room).trim() : undefined,
+      relatedLessonId: relatedLessonId || undefined,
+      relatedLessonTitle: relatedLessonTitle || undefined,
+      notes: notes ? String(notes).trim() : undefined,
+    };
+
+    const issues = validateTimetableEntry(candidate, db.timetableEntries);
+    const blockingErrors = issues.filter((i) => i.severity === 'error');
+    if (blockingErrors.length > 0) {
+      return res.status(400).json({
+        error: blockingErrors[0].message,
+        validationIssues: issues,
+      });
+    }
+
+    const newEntry: TimetableEntry = {
+      ...candidate,
+      id: `tte_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+      createdAt: nowIso,
+      updatedAt: nowIso,
+    };
+    db.timetableEntries.push(newEntry);
+    saveDbState(env, db);
+
+    return res.json({
+      entry: newEntry,
+      timetable: targetTimetable,
+      warnings: issues.filter((i) => i.severity === 'warning'),
+    });
+  });
+
+  app.put('/api/timetables/entries/:id', (req, res) => {
+    const authCtx = authenticateRequest(req);
+    if (!authCtx) return res.status(401).json({ error: 'Avtorizatsiya talab qilinadi.' });
+    const { user, env, db } = authCtx;
+    if (user.role !== 'admin' && user.role !== 'platform_owner') {
+      return res.status(403).json({ error: 'Ruxsat yo‘q.' });
+    }
+    if (!Array.isArray(db.timetableEntries)) db.timetableEntries = [];
+    const entry = db.timetableEntries.find((e) => e.id === req.params.id);
+    if (!entry) return res.status(404).json({ error: 'Jadval qatori topilmadi.' });
+
+    const weekdayIdxMap: Record<string, 1 | 2 | 3 | 4 | 5 | 6> = {
+      Dushanba: 1,
+      Seshanba: 2,
+      Chorshanba: 3,
+      Payshanba: 4,
+      Juma: 5,
+      Shanba: 6,
+    };
+
+    const updatedCandidate: TimetableEntry = {
+      ...entry,
+      weekday: (req.body.weekday || entry.weekday) as TimetableWeekday,
+      weekdayIndex: (req.body.weekday ? weekdayIdxMap[String(req.body.weekday)] || entry.weekdayIndex : entry.weekdayIndex) as 1 | 2 | 3 | 4 | 5 | 6,
+      lessonNumber: req.body.lessonNumber !== undefined ? Number(req.body.lessonNumber) : entry.lessonNumber,
+      subject: req.body.subject ? String(req.body.subject).trim() : entry.subject,
+      startTime: req.body.startTime ? String(req.body.startTime).trim() : entry.startTime,
+      endTime: req.body.endTime ? String(req.body.endTime).trim() : entry.endTime,
+      room: req.body.room !== undefined ? String(req.body.room).trim() : entry.room,
+      relatedLessonId: req.body.relatedLessonId !== undefined ? req.body.relatedLessonId : entry.relatedLessonId,
+      relatedLessonTitle: req.body.relatedLessonTitle !== undefined ? req.body.relatedLessonTitle : entry.relatedLessonTitle,
+      updatedAt: new Date().toISOString(),
+    };
+
+    const issues = validateTimetableEntry(updatedCandidate, db.timetableEntries);
+    const blockingErrors = issues.filter((i) => i.severity === 'error');
+    if (blockingErrors.length > 0) {
+      return res.status(400).json({ error: blockingErrors[0].message, validationIssues: issues });
+    }
+
+    Object.assign(entry, updatedCandidate);
+    saveDbState(env, db);
+    return res.json({ entry, warnings: issues.filter((i) => i.severity === 'warning') });
+  });
+
+  app.delete('/api/timetables/entries/:id', (req, res) => {
+    const authCtx = authenticateRequest(req);
+    if (!authCtx) return res.status(401).json({ error: 'Avtorizatsiya talab qilinadi.' });
+    const { user, env, db } = authCtx;
+    if (user.role !== 'admin' && user.role !== 'platform_owner') {
+      return res.status(403).json({ error: 'Ruxsat yo‘q.' });
+    }
+    if (!Array.isArray(db.timetableEntries)) db.timetableEntries = [];
+    const idx = db.timetableEntries.findIndex((e) => e.id === req.params.id);
+    if (idx === -1) return res.status(404).json({ error: 'Jadval qatori topilmadi.' });
+    db.timetableEntries.splice(idx, 1);
+    saveDbState(env, db);
+    return res.json({ success: true });
+  });
+
+  // 15. ANNOUNCEMENT CENTER: /api/announcements, /api/announcements/:id/read, /api/announcements/:id/acknowledge
+  app.get('/api/announcements', (req, res) => {
+    const authCtx = authenticateRequest(req);
+    if (!authCtx) return res.status(401).json({ error: 'Avtorizatsiya talab qilinadi.' });
+    const { user, db } = authCtx;
+
+    if (!Array.isArray(db.announcements)) db.announcements = [];
+    if (!Array.isArray(db.announcementReads)) db.announcementReads = [];
+    if (!Array.isArray(db.announcementAcknowledgements)) db.announcementAcknowledgements = [];
+
+    if (user.role === 'student') {
+      const cls = (user.classCode || '7a1').toLowerCase() as OfficialClassCode;
+      const visible = db.announcements.filter((a) => isAnnouncementRelevantToStudent(a, cls, getTashkentDateString()));
+      const myReads = db.announcementReads.filter((r) => r.studentId === user.uid);
+      const myAcks = db.announcementAcknowledgements.filter((a) => a.studentId === user.uid);
+      return res.json({ announcements: visible, reads: myReads, acknowledgements: myAcks });
+    }
+
+    return res.json({
+      announcements: db.announcements,
+      reads: db.announcementReads,
+      acknowledgements: db.announcementAcknowledgements,
+    });
+  });
+
+  app.post('/api/announcements', (req, res) => {
+    const authCtx = authenticateRequest(req);
+    if (!authCtx) return res.status(401).json({ error: 'Avtorizatsiya talab qilinadi.' });
+    const { user, env, db } = authCtx;
+    if (user.role !== 'admin' && user.role !== 'platform_owner') {
+      return res.status(403).json({ error: "Faqat administrator e'lon joylay oladi." });
+    }
+
+    const {
+      title,
+      shortContent,
+      type,
+      audienceType,
+      targetClassCodes,
+      targetSubjects,
+      attachmentUrl,
+      attachmentName,
+      publicationDate,
+      expirationDate,
+      priority,
+      requiresAcknowledgment,
+    } = req.body;
+
+    if (!title || !shortContent) {
+      return res.status(400).json({ error: "E'lon sarlavhasi va qisqa matnini kiriting." });
+    }
+
+    if (!Array.isArray(db.announcements)) db.announcements = [];
+    const nowIso = new Date().toISOString();
+    const ann: Announcement = {
+      id: `ann_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+      institutionId: db.institutions[0]?.id || 'inst-spec-study',
+      title: String(title).trim(),
+      shortContent: String(shortContent).trim(),
+      type: type || 'school',
+      audienceType: audienceType || 'entire_school',
+      targetClassCodes: Array.isArray(targetClassCodes)
+        ? targetClassCodes.map((c: string) => c.toLowerCase() as OfficialClassCode)
+        : [],
+      targetSubjects: Array.isArray(targetSubjects) ? targetSubjects.map((s: string) => String(s).trim()) : [],
+      attachmentUrl: attachmentUrl ? String(attachmentUrl).trim() : undefined,
+      attachmentName: attachmentName ? String(attachmentName).trim() : undefined,
+      publicationDate: publicationDate || nowIso.slice(0, 10),
+      expirationDate: expirationDate || undefined,
+      priority: priority || 'normal',
+      requiresAcknowledgment: Boolean(requiresAcknowledgment),
+      status: 'published',
+      createdByUid: user.uid,
+      createdByName: user.displayName,
+      createdAt: nowIso,
+      updatedAt: nowIso,
+    };
+
+    db.announcements.unshift(ann);
+    saveDbState(env, db);
+    return res.json({ announcement: ann });
+  });
+
+  app.post('/api/announcements/:id/read', (req, res) => {
+    const authCtx = authenticateRequest(req);
+    if (!authCtx) return res.status(401).json({ error: 'Avtorizatsiya talab qilinadi.' });
+    const { user, env, db } = authCtx;
+    if (!Array.isArray(db.announcements)) db.announcements = [];
+    if (!Array.isArray(db.announcementReads)) db.announcementReads = [];
+
+    const ann = db.announcements.find((a) => a.id === req.params.id);
+    if (!ann) return res.status(404).json({ error: "E'lon topilmadi." });
+
+    const id = `${ann.id}_${user.uid}`;
+    let readRecord = db.announcementReads.find((r) => r.id === id);
+    if (!readRecord) {
+      readRecord = {
+        id,
+        institutionId: ann.institutionId,
+        announcementId: ann.id,
+        audience: ann.audienceType,
+        studentId: user.uid,
+        classCode: (user.classCode || '7a1') as OfficialClassCode,
+        readAt: new Date().toISOString(),
+      };
+      db.announcementReads.push(readRecord);
+      saveDbState(env, db);
+    }
+    return res.json({ readRecord });
+  });
+
+  app.post('/api/announcements/:id/acknowledge', (req, res) => {
+    const authCtx = authenticateRequest(req);
+    if (!authCtx) return res.status(401).json({ error: 'Avtorizatsiya talab qilinadi.' });
+    const { user, env, db } = authCtx;
+    if (!Array.isArray(db.announcements)) db.announcements = [];
+    if (!Array.isArray(db.announcementReads)) db.announcementReads = [];
+    if (!Array.isArray(db.announcementAcknowledgements)) db.announcementAcknowledgements = [];
+
+    const ann = db.announcements.find((a) => a.id === req.params.id);
+    if (!ann) return res.status(404).json({ error: "E'lon topilmadi." });
+
+    const nowIso = new Date().toISOString();
+    const id = `${ann.id}_${user.uid}`;
+
+    if (!db.announcementReads.some((r) => r.id === id)) {
+      db.announcementReads.push({
+        id,
+        institutionId: ann.institutionId,
+        announcementId: ann.id,
+        audience: ann.audienceType,
+        studentId: user.uid,
+        classCode: (user.classCode || '7a1') as OfficialClassCode,
+        readAt: nowIso,
+      });
+    }
+
+    let ackRecord = db.announcementAcknowledgements.find((a) => a.id === id);
+    if (!ackRecord) {
+      ackRecord = {
+        id,
+        institutionId: ann.institutionId,
+        announcementId: ann.id,
+        audience: ann.audienceType,
+        studentId: user.uid,
+        classCode: (user.classCode || '7a1') as OfficialClassCode,
+        acknowledgedAt: nowIso,
+      };
+      db.announcementAcknowledgements.push(ackRecord);
+      saveDbState(env, db);
+    }
+    return res.json({ acknowledgement: ackRecord });
+  });
+
+  // 16. LEARNING MATERIALS LIBRARY: /api/materials
+  app.get('/api/materials', (req, res) => {
+    const authCtx = authenticateRequest(req);
+    if (!authCtx) return res.status(401).json({ error: 'Avtorizatsiya talab qilinadi.' });
+    const { user, db } = authCtx;
+    if (!Array.isArray(db.learningMaterials)) db.learningMaterials = [];
+
+    if (user.role === 'student') {
+      const cls = (user.classCode || '7a1').toLowerCase() as OfficialClassCode;
+      const authorized = filterAuthorizedMaterialsForStudent(db.learningMaterials, cls, user.grade || 7);
+      return res.json({ materials: authorized });
+    }
+
+    return res.json({ materials: db.learningMaterials });
+  });
+
+  app.post('/api/materials', (req, res) => {
+    const authCtx = authenticateRequest(req);
+    if (!authCtx) return res.status(401).json({ error: 'Avtorizatsiya talab qilinadi.' });
+    const { user, env, db } = authCtx;
+    if (user.role !== 'admin' && user.role !== 'platform_owner') {
+      return res.status(403).json({ error: 'Faqat administrator o‘quv materiali yuklay oladi.' });
+    }
+
+    const {
+      title,
+      description,
+      materialType,
+      fileUrl,
+      fileName,
+      fileSizeBytes,
+      folder,
+      grade,
+      classCode,
+      targetClassCodes,
+      subject,
+      curriculumArea,
+      quarter,
+      lessonId,
+      lessonTitle,
+      learningObjective,
+      allowDownload,
+      status,
+    } = req.body;
+
+    if (!title || !subject || !fileUrl) {
+      return res.status(400).json({ error: 'Material sarlavhasi, fan va fayl/havola manzilini kiriting.' });
+    }
+
+    if (!Array.isArray(db.learningMaterials)) db.learningMaterials = [];
+    const nowIso = new Date().toISOString();
+    const resolvedClassCodes: OfficialClassCode[] = Array.isArray(targetClassCodes) && targetClassCodes.length > 0
+      ? targetClassCodes.map((c: string) => c.toLowerCase() as OfficialClassCode)
+      : classCode
+      ? [String(classCode).toLowerCase() as OfficialClassCode]
+      : [];
+
+    const material: LearningMaterial = {
+      id: `mat_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+      institutionId: db.institutions[0]?.id || 'inst-spec-study',
+      title: String(title).trim(),
+      description: String(description || '').trim(),
+      materialType: materialType || 'pdf',
+      fileUrl: String(fileUrl).trim(),
+      fileName: fileName ? String(fileName).trim() : undefined,
+      fileSizeBytes: fileSizeBytes ? Number(fileSizeBytes) : undefined,
+      folder: folder ? String(folder).trim() : `${subject} / ${quarter || 1}-chorak`,
+      grade: Number(grade) || 9,
+      classCode: resolvedClassCodes[0],
+      targetClassCodes: resolvedClassCodes,
+      subject: String(subject).trim(),
+      curriculumArea: curriculumArea ? String(curriculumArea).trim() : undefined,
+      quarter: (Number(quarter) as 1 | 2 | 3 | 4) || 1,
+      lessonId: lessonId || undefined,
+      lessonTitle: lessonTitle || undefined,
+      learningObjective: learningObjective ? String(learningObjective).trim() : undefined,
+      status: status === 'archived' ? 'archived' : 'published',
+      allowDownload: allowDownload !== false,
+      uploadedByUid: user.uid,
+      uploadedByName: user.displayName,
+      createdAt: nowIso,
+      updatedAt: nowIso,
+    };
+
+    db.learningMaterials.unshift(material);
+    saveDbState(env, db);
+    return res.json({ material });
+  });
+
+  app.put('/api/materials/:id', (req, res) => {
+    const authCtx = authenticateRequest(req);
+    if (!authCtx) return res.status(401).json({ error: 'Avtorizatsiya talab qilinadi.' });
+    const { user, env, db } = authCtx;
+    if (user.role !== 'admin' && user.role !== 'platform_owner') {
+      return res.status(403).json({ error: 'Ruxsat yo‘q.' });
+    }
+    const mat = db.learningMaterials?.find((m) => m.id === req.params.id);
+    if (!mat) return res.status(404).json({ error: 'Material topilmadi.' });
+
+    if (req.body.title) mat.title = String(req.body.title).trim();
+    if (req.body.description !== undefined) mat.description = String(req.body.description).trim();
+    if (req.body.folder) mat.folder = String(req.body.folder).trim();
+    if (req.body.fileUrl) mat.fileUrl = String(req.body.fileUrl).trim();
+    if (req.body.fileName) mat.fileName = String(req.body.fileName).trim();
+    if (req.body.status) mat.status = req.body.status;
+    if (req.body.lessonId !== undefined) mat.lessonId = req.body.lessonId || undefined;
+    if (req.body.lessonTitle !== undefined) mat.lessonTitle = req.body.lessonTitle || undefined;
+    mat.updatedAt = new Date().toISOString();
+
+    saveDbState(env, db);
+    return res.json({ material: mat });
+  });
+
+  // 17. SMART GRADING ENGINE: /api/grading/queue, /api/grading/rubrics, /api/grading/ai-suggest
+  app.get('/api/grading/queue', (req, res) => {
+    const authCtx = authenticateRequest(req);
+    if (!authCtx) return res.status(401).json({ error: 'Avtorizatsiya talab qilinadi.' });
+    const { user, db } = authCtx;
+    if (user.role !== 'admin' && user.role !== 'platform_owner') {
+      return res.status(403).json({ error: 'Faqat administrator tekshiruv markazini ko‘ra oladi.' });
+    }
+
+    const assignmentSubmissions = (db.assignmentSubmissions || []).filter((s) => s.attemptCount > 0 || s.status !== 'Yangi');
+    const pendingAttempts = (db.attempts || []).filter((a) => a.status === 'pending_manual_review' || (a.pendingManualCount || 0) > 0);
+    return res.json({
+      assignmentSubmissions,
+      pendingAttempts,
+      rubrics: db.gradingRubrics || DEFAULT_GRADING_RUBRICS,
+      feedbackComments: db.feedbackComments || DEFAULT_FEEDBACK_COMMENTS,
+      gradingHistory: db.gradingHistory || [],
+    });
+  });
+
+  app.post('/api/grading/rubrics', (req, res) => {
+    const authCtx = authenticateRequest(req);
+    if (!authCtx) return res.status(401).json({ error: 'Avtorizatsiya talab qilinadi.' });
+    const { user, env, db } = authCtx;
+    if (user.role !== 'admin' && user.role !== 'platform_owner') {
+      return res.status(403).json({ error: 'Ruxsat yo‘q.' });
+    }
+    const { title, subject, description, criteria } = req.body;
+    if (!title || !Array.isArray(criteria) || criteria.length === 0) {
+      return res.status(400).json({ error: 'Rubrika nomi va mezonlarini kiriting.' });
+    }
+    if (!Array.isArray(db.gradingRubrics)) db.gradingRubrics = [...DEFAULT_GRADING_RUBRICS];
+    const nowIso = new Date().toISOString();
+    const totalMaxPoints = criteria.reduce((sum: number, c: any) => sum + (Number(c.maxPoints) || 0), 0);
+    const rubric: GradingRubric = {
+      id: `rubric_${Date.now()}`,
+      institutionId: db.institutions[0]?.id || 'inst-spec-study',
+      title: String(title).trim(),
+      subject: subject ? String(subject).trim() : undefined,
+      description: String(description || '').trim(),
+      criteria: criteria.map((c: any, idx: number) => ({
+        id: c.id || `crit_${idx + 1}_${Date.now()}`,
+        title: String(c.title).trim(),
+        description: String(c.description || '').trim(),
+        maxPoints: Number(c.maxPoints) || 2,
+        partialCreditRules: String(c.partialCreditRules || '').trim(),
+      })),
+      totalMaxPoints,
+      createdByUid: user.uid,
+      createdByName: user.displayName,
+      createdAt: nowIso,
+      updatedAt: nowIso,
+    };
+    db.gradingRubrics.unshift(rubric);
+    saveDbState(env, db);
+    return res.json({ rubric });
+  });
+
+  app.post('/api/grading/ai-suggest', async (req, res) => {
+    const authCtx = authenticateRequest(req);
+    if (!authCtx) return res.status(401).json({ error: 'Avtorizatsiya talab qilinadi.' });
+    const { user, env, db } = authCtx;
+    if (user.role !== 'admin' && user.role !== 'platform_owner') {
+      return res.status(403).json({ error: 'Faqat administrator AI tavsiyasini so‘ray oladi.' });
+    }
+
+    const { submissionId, rubricId } = req.body;
+    const sub = (db.assignmentSubmissions || []).find((s) => s.id === submissionId);
+    if (!sub) return res.status(404).json({ error: 'Topshiriq javobi topilmadi.' });
+
+    const asg = (db.studentAssignments || []).find((a) => a.id === sub.assignmentId);
+    const rubrics = db.gradingRubrics || DEFAULT_GRADING_RUBRICS;
+    const rubric = rubrics.find((r) => r.id === (rubricId || asg?.rubricId)) || rubrics[0];
+
+    const studentText = (sub.content || '').trim();
+    const nowIso = new Date().toISOString();
+
+    // Deterministic rubric-grounded evaluation fallback if Gemini key is not configured
+    const buildDeterministicSuggestion = (): AISuggestedEvaluation => {
+      const hasFormulaOrSteps = studentText.length > 25;
+      const criterionBreakdown: AssignmentCriterionScore[] = rubric.criteria.map((c) => {
+        const ratio = hasFormulaOrSteps ? 0.85 : studentText.length > 5 ? 0.5 : 0.2;
+        const pts = Math.round(c.maxPoints * ratio * 2) / 2;
+        return {
+          criterionId: c.id,
+          criterionTitle: c.title,
+          awardedPoints: pts,
+          maxPoints: c.maxPoints,
+          comment: hasFormulaOrSteps
+            ? `${c.title} bo‘yicha yechim asoslangan.`
+            : `${c.title} bo‘yicha izohni kengaytirish tavsiya etiladi.`,
+        };
+      });
+      const rawSum = criterionBreakdown.reduce((s, c) => s + c.awardedPoints, 0);
+      const scaleFactor = rubric.totalMaxPoints > 0 ? sub.maxScore / rubric.totalMaxPoints : 1;
+      const scaledTotal = Math.min(sub.maxScore, Math.round(rawSum * scaleFactor * 2) / 2);
+
+      return {
+        suggestedTotalPoints: scaledTotal,
+        maxPoints: sub.maxScore,
+        criterionBreakdown,
+        suggestedFeedback: hasFormulaOrSteps
+          ? "O'quvchi masala yechish bosqichlarini keltirgan. Oraliq hisoblash va yakuniy birliklarni tekshirib tasdiqlash tavsiya etiladi."
+          : "Javob qisqa yozilgan; mantiqiy qadamlar va izohlarni to'ldirish tavsiya etiladi.",
+        mistakeExplanation: hasFormulaOrSteps
+          ? "Katta mantiqiy xato kuzatilmadi; yakuniy ifodani rubrika mezonlari bilan solishtiring."
+          : "Oraliq yechish bosqichlari to'liq ko'rsatilmagan.",
+        recommendedLessonTitle: asg?.relatedLessonTitle || `${asg?.subject || 'Matematika'} amaliy mashg'uloti`,
+        confidence: hasFormulaOrSteps ? 'high' : 'medium',
+        generatedAt: nowIso,
+        approvalStatus: 'pending_admin_approval',
+      };
+    };
+
+    let aiSuggestion: AISuggestedEvaluation;
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (apiKey && apiKey !== 'MY_GEMINI_API_KEY') {
+      try {
+        const ai = new GoogleGenAI({ apiKey });
+        const prompt = `Siz ixtisoslashtirilgan maktabning akademik baholash yordamchisisiz.
+Topshiriq: "${asg?.title || sub.assignmentTitle}" (${asg?.subject || 'Matematika'}).
+Ko'rsatma: "${asg?.instructions || asg?.description || ''}"
+O'quvchining javobi: "${studentText || '[Fayl biriktirilgan]'}"
+Rubrika mezonlari: ${JSON.stringify(rubric.criteria)}
+Maksimal ball: ${sub.maxScore}.
+MUHIM: Bu faqat administrator ko'rib chiqishi uchun dastlabki tavsiya. O'zbek tilida javob qaytaring.`;
+
+        const response = await ai.models.generateContent({
+          model: 'gemini-3-flash-preview',
+          contents: prompt,
+          config: {
+            responseMimeType: 'application/json',
+            responseSchema: {
+              type: Type.OBJECT,
+              properties: {
+                suggestedTotalPoints: { type: Type.NUMBER },
+                suggestedFeedback: { type: Type.STRING },
+                mistakeExplanation: { type: Type.STRING },
+                recommendedLessonTitle: { type: Type.STRING },
+              },
+              required: ['suggestedTotalPoints', 'suggestedFeedback', 'mistakeExplanation'],
+            },
+          },
+        });
+        const parsed = JSON.parse(response.text || '{}');
+        const baseFallback = buildDeterministicSuggestion();
+        aiSuggestion = {
+          ...baseFallback,
+          suggestedTotalPoints: Math.max(0, Math.min(sub.maxScore, Number(parsed.suggestedTotalPoints) || baseFallback.suggestedTotalPoints)),
+          suggestedFeedback: parsed.suggestedFeedback || baseFallback.suggestedFeedback,
+          mistakeExplanation: parsed.mistakeExplanation || baseFallback.mistakeExplanation,
+          recommendedLessonTitle: parsed.recommendedLessonTitle || baseFallback.recommendedLessonTitle,
+          approvalStatus: 'pending_admin_approval',
+        };
+      } catch {
+        aiSuggestion = buildDeterministicSuggestion();
+      }
+    } else {
+      aiSuggestion = buildDeterministicSuggestion();
+    }
+
+    // CRITICAL GUARDRAIL: Never overwrite sub.score or mark sub.status as 'Tekshirildi' automatically!
+    sub.aiSuggestion = aiSuggestion;
+    if (sub.status === 'Topshirildi') {
+      sub.status = 'Tekshirilmoqda';
+    }
+    sub.updatedAt = nowIso;
+    saveDbState(env, db);
+
+    return res.json({
+      submission: sub,
+      aiSuggestion,
+      notice: "AI tavsiyasi yaratildi. Rasmiy baho faqat Administrator ko'rib chiqib tasdiqlaganidan so'ng kuchga kiradi.",
+    });
+  });
+
+  // 18. LESSON DELIVERY TRACKER: /api/lesson-delivery
+  app.get('/api/lesson-delivery', (req, res) => {
+    const authCtx = authenticateRequest(req);
+    if (!authCtx) return res.status(401).json({ error: 'Avtorizatsiya talab qilinadi.' });
+    const { user, db } = authCtx;
+    if (!Array.isArray(db.lessonDeliveryRecords)) db.lessonDeliveryRecords = [];
+
+    if (user.role === 'student') {
+      const cls = (user.classCode || '').toLowerCase();
+      return res.json({
+        records: db.lessonDeliveryRecords.filter((r) => r.classCode.toLowerCase() === cls),
+      });
+    }
+    return res.json({ records: db.lessonDeliveryRecords });
+  });
+
+  app.post('/api/lesson-delivery', (req, res) => {
+    const authCtx = authenticateRequest(req);
+    if (!authCtx) return res.status(401).json({ error: 'Avtorizatsiya talab qilinadi.' });
+    const { user, env, db } = authCtx;
+
+    // Strictly Admin only: Students cannot mark official school delivery records as completed
+    if (user.role !== 'admin' && user.role !== 'platform_owner') {
+      return res.status(403).json({
+        error: "Faqat vakolatli Administrator rasmiy dars o'tilganlik holatini o'zgartira oladi.",
+      });
+    }
+
+    const {
+      lessonId,
+      classCode,
+      deliveryStatus,
+      actualDeliveryDate,
+      plannedDate,
+      rescheduledToDate,
+      completionNote,
+    } = req.body;
+
+    if (!lessonId || !classCode || !deliveryStatus) {
+      return res.status(400).json({ error: 'Dars ID, sinf kodi va dars holatini ko‘rsating.' });
+    }
+
+    const normalizedCode = String(classCode).toLowerCase() as OfficialClassCode;
+    const lesson = (db.lessons || []).find((l) => l.id === lessonId);
+    const cls = db.classes.find((c) => (c.code || c.name).toLowerCase() === normalizedCode);
+
+    if (!Array.isArray(db.lessonDeliveryRecords)) db.lessonDeliveryRecords = [];
+    const recordId = `${normalizedCode}_${lessonId}`;
+    const nowIso = new Date().toISOString();
+
+    let record = db.lessonDeliveryRecords.find((r) => r.id === recordId);
+    const previousStatus = record?.deliveryStatus;
+
+    const auditEntry = {
+      changedAt: nowIso,
+      changedByUid: user.uid,
+      changedByName: user.displayName,
+      previousStatus,
+      newStatus: deliveryStatus as LessonDeliveryStatus,
+      actualDeliveryDate: actualDeliveryDate || (deliveryStatus === "O'tildi" ? nowIso.slice(0, 10) : undefined),
+      note: completionNote ? String(completionNote).trim() : undefined,
+    };
+
+    if (!record) {
+      record = {
+        id: recordId,
+        institutionId: cls?.institutionId || 'inst-spec-study',
+        lessonId,
+        lessonNumber: lesson?.lessonNumber || 1,
+        lessonTitle: lesson?.topicTitle || lesson?.title || 'Dars',
+        workPlanId: lesson?.workPlanId || '',
+        classCode: normalizedCode,
+        classId: cls?.id || `class-${normalizedCode}`,
+        subject: lesson?.subject || lesson?.subjectName || 'Matematika',
+        curriculumArea: lesson?.curriculumArea,
+        quarter: lesson?.quarter || 1,
+        plannedDate: plannedDate || lesson?.scheduledDate || undefined,
+        actualDeliveryDate:
+          actualDeliveryDate || (deliveryStatus === "O'tildi" ? nowIso.slice(0, 10) : undefined),
+        rescheduledToDate: rescheduledToDate || undefined,
+        deliveryStatus: deliveryStatus as LessonDeliveryStatus,
+        completionNote: completionNote ? String(completionNote).trim() : undefined,
+        updatedByUid: user.uid,
+        updatedByName: user.displayName,
+        updatedAt: nowIso,
+        auditHistory: [auditEntry],
+      };
+      db.lessonDeliveryRecords.unshift(record);
+    } else {
+      record.deliveryStatus = deliveryStatus as LessonDeliveryStatus;
+      if (actualDeliveryDate !== undefined) {
+        record.actualDeliveryDate = actualDeliveryDate;
+      } else if (deliveryStatus === "O'tildi" && !record.actualDeliveryDate) {
+        record.actualDeliveryDate = nowIso.slice(0, 10);
+      }
+      if (plannedDate !== undefined) record.plannedDate = plannedDate;
+      if (rescheduledToDate !== undefined) record.rescheduledToDate = rescheduledToDate;
+      if (completionNote !== undefined) record.completionNote = String(completionNote).trim();
+      record.updatedByUid = user.uid;
+      record.updatedByName = user.displayName;
+      record.updatedAt = nowIso;
+      record.auditHistory.unshift(auditEntry);
+    }
+
+    saveDbState(env, db);
+    return res.json({ record });
+  });
+
+  // 19. ACADEMIC CALENDAR 2.0: /api/calendar-v2 & /api/calendar-v2/events
+  app.get('/api/calendar-v2', (req, res) => {
+    const authCtx = authenticateRequest(req);
+    if (!authCtx) return res.status(401).json({ error: 'Avtorizatsiya talab qilinadi.' });
+    const { user, db } = authCtx;
+
+    const referenceWeekMondayDate = String(req.query.referenceWeekMondayDate || '');
+    const allUnified = buildUnifiedAcademicCalendarEvents({
+      institutionId: db.institutions[0]?.id || 'inst-spec-study',
+      timetableEntries: db.timetableEntries || [],
+      timetables: db.timetables || [],
+      lessons: db.lessons || [],
+      deliveryRecords: db.lessonDeliveryRecords || [],
+      assignments: db.studentAssignments || [],
+      assessments: db.assessments || [],
+      announcements: db.announcements || [],
+      customEvents: db.academicEvents || [],
+      referenceWeekMondayDate: referenceWeekMondayDate || undefined,
+    });
+
+    const targetClass =
+      user.role === 'student'
+        ? (user.classCode || '').toLowerCase()
+        : req.query.classCode && req.query.classCode !== 'ALL'
+        ? String(req.query.classCode).toLowerCase()
+        : '';
+
+    const subjectFilter = req.query.subject && req.query.subject !== 'ALL' ? String(req.query.subject) : '';
+    const categoryFilter = req.query.category && req.query.category !== 'ALL' ? String(req.query.category) : '';
+
+    const filtered = allUnified.filter((ev) => {
+      if (targetClass) {
+        const matchesSingle = ev.classCode?.toLowerCase() === targetClass;
+        const matchesTargetList = ev.targetClassCodes?.some((c) => c.toLowerCase() === targetClass);
+        const isSchoolWideAnnouncement = ev.category === 'announcement' && (!ev.targetClassCodes || ev.targetClassCodes.length === 0);
+        if (!matchesSingle && !matchesTargetList && !isSchoolWideAnnouncement) return false;
+      }
+      if (subjectFilter && ev.subject && ev.subject.toLowerCase() !== subjectFilter.toLowerCase()) return false;
+      if (categoryFilter && ev.category !== categoryFilter) return false;
+      return true;
+    });
+
+    return res.json({ events: filtered });
+  });
+
+  app.post('/api/calendar-v2/events', (req, res) => {
+    const authCtx = authenticateRequest(req);
+    if (!authCtx) return res.status(401).json({ error: 'Avtorizatsiya talab qilinadi.' });
+    const { user, env, db } = authCtx;
+    if (user.role !== 'admin' && user.role !== 'platform_owner') {
+      return res.status(403).json({ error: 'Faqat administrator akademik sana qo‘sha oladi.' });
+    }
+    const { title, description, category, date, startTime, endTime, classCode, subject } = req.body;
+    if (!title || !date) {
+      return res.status(400).json({ error: 'Tadbir nomi va haqiqiy sanasini kiriting.' });
+    }
+    if (!Array.isArray(db.academicEvents)) db.academicEvents = [];
+    const nowIso = new Date().toISOString();
+    const id = `acev_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+    const ev: AcademicCalendarEvent = {
+      id,
+      institutionId: db.institutions[0]?.id || 'inst-spec-study',
+      title: String(title).trim(),
+      description: description ? String(description).trim() : undefined,
+      category: category || 'academic_date',
+      date: String(date).slice(0, 10),
+      startTime: startTime || undefined,
+      endTime: endTime || undefined,
+      classCode: classCode && classCode !== 'ALL' ? (String(classCode).toLowerCase() as OfficialClassCode) : undefined,
+      subject: subject && subject !== 'ALL' ? String(subject) : undefined,
+      sourceRecordId: id,
+      sourceCollection: 'academic_events',
+      targetRoute: '/admin/calendar',
+      createdAt: nowIso,
+    };
+    db.academicEvents.unshift(ev);
+    saveDbState(env, db);
+    return res.json({ event: ev });
+  });
 
   if (process.env.VERCEL) {
     return;
   }
 
+  let viteReadyPromise: Promise<any> | null = null;
   if (process.env.NODE_ENV !== 'production') {
-    const { createServer: createViteServer } = await import('vite');
-    const vite = await createViteServer({
-      server: { middlewareMode: true },
-      appType: 'spa',
+    viteReadyPromise = import('vite')
+      .then(({ createServer: createViteServer }) =>
+        createViteServer({
+          server: { middlewareMode: true, hmr: false },
+          appType: 'spa',
+        })
+      )
+      .then((vite) => vite.middlewares)
+      .catch((err) => {
+        console.error('Vite middleware initialization error:', err);
+        return null;
+      });
+
+    app.use(async (req, res, next) => {
+      if (req.path.startsWith('/api/')) {
+        return next();
+      }
+      const middlewares = await viteReadyPromise;
+      if (middlewares) {
+        return middlewares(req, res, next);
+      }
+      next();
     });
-    app.use(vite.middlewares);
   } else {
     const distPath = path.join(__dirname, 'dist');
     app.use(express.static(distPath));
@@ -8388,9 +10760,61 @@ Savollar va javoblar: ${JSON.stringify(anonymizedAnswers)}
   }
 
   const PORT = Number(process.env.PORT) || 3000;
-  app.listen(PORT, '0.0.0.0', () => {
+  const server = app.listen(PORT, '0.0.0.0', () => {
     console.log(`LearnOS server running on http://0.0.0.0:${PORT}`);
+
+    // Run the 21-workbook Mathematics curriculum archive check asynchronously after listening
+    setTimeout(async () => {
+      try {
+        const prodDb = getDbState('prod');
+        if (!Array.isArray(prodDb.curriculumImportJobs)) {
+          prodDb.curriculumImportJobs = [];
+        }
+        const hasOfficialMathImport = prodDb.workPlans.some((wp) =>
+          wp.id.startsWith('wp-math-wb-')
+        );
+        if (!hasOfficialMathImport) {
+          const officialPreview = await getOfficialMathArchivePreview();
+          if (officialPreview && officialPreview.totalWorkbooks === 21) {
+            const inst = prodDb.institutions[0];
+            applyCurriculumZipPreviewToDatabase(
+              officialPreview,
+              prodDb.workPlans,
+              prodDb.lessons,
+              prodDb.topics,
+              prodDb.curriculumImportJobs,
+              {
+                institutionId: inst?.id || 'inst-specialized-study',
+                academicYear: inst?.academicYear || '2026-2027',
+                actorUid: 'admin-owner',
+                actorName: 'Asilbek Nuraliyev',
+                tTrackVisibilityApproved: false,
+                publishImmediately: true,
+                duplicatePolicy: 'update_existing',
+              }
+            );
+            saveDbState('prod', prodDb);
+          }
+        }
+      } catch (seedErr) {
+        console.warn('Official math curriculum startup check:', seedErr);
+      }
+    }, 250);
+  });
+
+  server.on('error', (err: NodeJS.ErrnoException) => {
+    console.error('Server socket error:', err);
   });
 }
 
-startServer();
+process.on('uncaughtException', (err) => {
+  console.error('Uncaught Exception:', err);
+});
+
+process.on('unhandledRejection', (reason) => {
+  console.error('Unhandled Rejection:', reason);
+});
+
+startServer().catch((err) => {
+  console.error('Failed to start server:', err);
+});

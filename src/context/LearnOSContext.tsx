@@ -87,6 +87,45 @@ import {
   GamificationConfig,
   StudentLessonCompletion,
   StudentAvatarIconKey,
+  AttendanceStatus,
+  AttendanceSession,
+  AttendanceRecord,
+  AttendanceSummaryStats,
+  AttendanceImportRowPreview,
+  AttendanceImportPreviewResult,
+  StudentAssignment,
+  AssignmentSubmissionStatus,
+  AssignmentSubmission,
+  StudentAlertCategory,
+  StudentAlertSeverity,
+  StudentAlertStatus,
+  StudentAlert,
+  SupportPlanStatus,
+  StudentSupportPlan,
+  LearningEvidenceLevel,
+  TopicEvidenceRecord,
+  StudentAcademicMetrics,
+  ClassMonitoringSnapshot,
+  AcademicReportItem,
+  Timetable,
+  TimetableEntry,
+  TimetableWeekday,
+  SubmissionRevision,
+  Announcement,
+  AnnouncementRead,
+  AnnouncementAcknowledgement,
+  LearningMaterial,
+  LearningMaterialType,
+  GradingRubric,
+  FeedbackComment,
+  GradingHistoryEntry,
+  AcademicCalendarEvent,
+  LessonDeliveryRecord,
+  LessonDeliveryStatus,
+  AssignmentSourceType,
+  AssignmentSubmissionType,
+  AssignmentCriterionScore,
+  AISuggestedEvaluation,
 } from '../types';
 import {
   DEFAULT_SUBJECTS,
@@ -99,6 +138,10 @@ import {
   DEFAULT_GAMIFICATION_BADGES,
   DEFAULT_GAMIFICATION_CONFIG,
 } from '../utils/gamificationEngine';
+import {
+  DEFAULT_GRADING_RUBRICS,
+  DEFAULT_FEEDBACK_COMMENTS,
+} from '../utils/academicOsEngine';
 import { canAccessPlatformAdminConsole, isAuthorizedAdminEmail } from '../utils/security';
 import { LanguageCode } from '../i18n/translations';
 
@@ -158,6 +201,25 @@ interface LearnOSContextValue {
   classChallenges: ClassChallenge[];
   gamificationConfig: GamificationConfig;
   studentLessonCompletions: StudentLessonCompletion[];
+  attendanceSessions: AttendanceSession[];
+  attendanceRecords: AttendanceRecord[];
+  studentAssignments: StudentAssignment[];
+  assignmentSubmissions: AssignmentSubmission[];
+  studentAlerts: StudentAlert[];
+  studentSupportPlans: StudentSupportPlan[];
+  academicReports: AcademicReportItem[];
+  timetables: Timetable[];
+  timetableEntries: TimetableEntry[];
+  submissionRevisions: SubmissionRevision[];
+  announcements: Announcement[];
+  announcementReads: AnnouncementRead[];
+  announcementAcknowledgements: AnnouncementAcknowledgement[];
+  learningMaterials: LearningMaterial[];
+  gradingRubrics: GradingRubric[];
+  feedbackComments: FeedbackComment[];
+  gradingHistory: GradingHistoryEntry[];
+  academicEvents: AcademicCalendarEvent[];
+  lessonDeliveryRecords: LessonDeliveryRecord[];
   toasts: ToastMessage[];
   toggleTheme: () => void;
   setLanguage: (lang: LanguageCode) => void;
@@ -622,6 +684,196 @@ interface LearnOSContextValue {
       isActive?: boolean;
     }
   ) => Promise<ClassChallenge>;
+  fetchStudentIntelligence: (studentId: string) => Promise<StudentAcademicMetrics>;
+  fetchClassMonitoring: (classCode?: OfficialClassCode) => Promise<ClassMonitoringSnapshot[]>;
+  markAttendance: (payload: {
+    classCode: OfficialClassCode;
+    date: string;
+    records: Array<{ studentId: string; studentName?: string; status: AttendanceStatus }>;
+  }) => Promise<AttendanceSession>;
+  importAttendanceRecords: (payload: {
+    classCode: OfficialClassCode;
+    date: string;
+    rows: AttendanceImportRowPreview[];
+    duplicatePolicy?: 'skip_existing' | 'update_existing';
+    confirm: boolean;
+  }) => Promise<AttendanceImportPreviewResult>;
+  createStudentAssignment: (payload: {
+    title: string;
+    description: string;
+    subject: string;
+    targetClasses?: OfficialClassCode[];
+    targetClassCodes?: OfficialClassCode[];
+    dueDate: string;
+    maxScore: number;
+    isAvailable?: boolean;
+    status?: 'draft' | 'published' | 'closed';
+    sourceType?: AssignmentSourceType;
+    relatedLessonId?: string;
+    relatedLessonTitle?: string;
+    relatedTopicId?: string;
+    relatedTopicName?: string;
+    relatedAssessmentId?: string;
+    submissionType?: AssignmentSubmissionType;
+    allowResubmission?: boolean;
+    resubmissionPolicy?: string;
+    rubricId?: string;
+    instructions?: string;
+    attachmentUrls?: string[];
+  }) => Promise<StudentAssignment>;
+  updateStudentAssignment: (id: string, updates: Partial<StudentAssignment>) => Promise<StudentAssignment>;
+  saveAssignmentDraft: (payload: {
+    assignmentId: string;
+    draftContent: string;
+    draftAttachmentUrl?: string;
+  }) => Promise<AssignmentSubmission>;
+  submitAssignment: (payload: {
+    assignmentId: string;
+    content: string;
+    attachmentUrl?: string;
+    attachmentName?: string;
+    attachmentMimeType?: string;
+  }) => Promise<AssignmentSubmission>;
+  gradeAssignment: (payload: {
+    submissionId: string;
+    score: number;
+    feedback?: string;
+    status?: 'Tekshirildi' | 'Qaytarildi';
+    rubricId?: string;
+    criterionScores?: AssignmentCriterionScore[];
+    reusableComments?: string[];
+    recommendedLessonId?: string;
+    recommendedLessonTitle?: string;
+  }) => Promise<AssignmentSubmission>;
+  requestAiAssignmentEvaluation: (payload: {
+    submissionId: string;
+    rubricId?: string;
+  }) => Promise<{ submission: AssignmentSubmission; aiSuggestion: AISuggestedEvaluation; notice: string }>;
+  createGradingRubric: (payload: {
+    title: string;
+    subject?: string;
+    description: string;
+    criteria: Array<{
+      id?: string;
+      title: string;
+      description: string;
+      maxPoints: number;
+      partialCreditRules: string;
+    }>;
+  }) => Promise<GradingRubric>;
+  createTimetable: (payload: {
+    classCode: OfficialClassCode;
+    title?: string;
+    effectiveFrom?: string;
+    effectiveTo?: string;
+    archivePrevious?: boolean;
+  }) => Promise<Timetable>;
+  duplicateTimetable: (
+    timetableId: string,
+    payload?: { targetClassCode?: OfficialClassCode; title?: string; effectiveFrom?: string; activateImmediately?: boolean }
+  ) => Promise<Timetable>;
+  archiveTimetable: (timetableId: string, status?: 'active' | 'archived') => Promise<Timetable>;
+  createTimetableEntry: (payload: {
+    timetableId?: string;
+    classCode: OfficialClassCode;
+    weekday: TimetableWeekday;
+    weekdayIndex?: 1 | 2 | 3 | 4 | 5 | 6;
+    lessonNumber: number;
+    subject: string;
+    curriculumArea?: string;
+    startTime: string;
+    endTime: string;
+    room?: string;
+    relatedLessonId?: string;
+    relatedLessonTitle?: string;
+    notes?: string;
+  }) => Promise<TimetableEntry>;
+  updateTimetableEntry: (id: string, updates: Partial<TimetableEntry>) => Promise<TimetableEntry>;
+  deleteTimetableEntry: (id: string) => Promise<void>;
+  createAnnouncement: (payload: {
+    title: string;
+    shortContent: string;
+    type: Announcement['type'];
+    audienceType: Announcement['audienceType'];
+    targetClassCodes?: OfficialClassCode[];
+    targetSubjects?: string[];
+    attachmentUrl?: string;
+    attachmentName?: string;
+    publicationDate?: string;
+    expirationDate?: string;
+    priority?: Announcement['priority'];
+    requiresAcknowledgment?: boolean;
+  }) => Promise<Announcement>;
+  markAnnouncementRead: (announcementId: string) => Promise<void>;
+  acknowledgeAnnouncement: (announcementId: string) => Promise<void>;
+  createLearningMaterial: (payload: {
+    title: string;
+    description?: string;
+    materialType: LearningMaterialType;
+    fileUrl: string;
+    fileName?: string;
+    fileSizeBytes?: number;
+    folder?: string;
+    grade: number;
+    classCode?: OfficialClassCode;
+    targetClassCodes?: OfficialClassCode[];
+    subject: string;
+    curriculumArea?: string;
+    quarter: 1 | 2 | 3 | 4;
+    lessonId?: string;
+    lessonTitle?: string;
+    learningObjective?: string;
+    allowDownload?: boolean;
+  }) => Promise<LearningMaterial>;
+  updateLearningMaterial: (id: string, updates: Partial<LearningMaterial>) => Promise<LearningMaterial>;
+  updateLessonDeliveryStatus: (payload: {
+    lessonId: string;
+    classCode: OfficialClassCode;
+    deliveryStatus: LessonDeliveryStatus;
+    actualDeliveryDate?: string;
+    plannedDate?: string;
+    rescheduledToDate?: string;
+    completionNote?: string;
+  }) => Promise<LessonDeliveryRecord>;
+  createAcademicCalendarEvent: (payload: {
+    title: string;
+    description?: string;
+    category?: AcademicCalendarEvent['category'];
+    date: string;
+    startTime?: string;
+    endTime?: string;
+    classCode?: OfficialClassCode | 'ALL';
+    subject?: string;
+  }) => Promise<AcademicCalendarEvent>;
+  generateRiskAlerts: () => Promise<StudentAlert[]>;
+  acknowledgeAlert: (alertId: string) => Promise<StudentAlert>;
+  resolveAlert: (
+    alertId: string,
+    payload: { actionTaken: string; adminNote?: string }
+  ) => Promise<StudentAlert>;
+  createSupportPlan: (payload: {
+    studentId: string;
+    subject: string;
+    topic: string;
+    observedNeed: string;
+    goal: string;
+    recommendedActivity: string;
+    reviewDate: string;
+  }) => Promise<StudentSupportPlan>;
+  updateSupportPlan: (
+    planId: string,
+    updates: Partial<StudentSupportPlan>
+  ) => Promise<StudentSupportPlan>;
+  generateAcademicReport: (payload: {
+    reportType: AcademicReportItem['reportType'];
+    title: string;
+    targetId: string;
+    period: string;
+    classCode?: string;
+    subject?: string;
+    grade?: number;
+    quarter?: number;
+  }) => Promise<AcademicReportItem>;
 }
 
 const LearnOSContext = createContext<LearnOSContextValue | undefined>(undefined);
@@ -721,6 +973,25 @@ export const LearnOSProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [studentLessonCompletions, setStudentLessonCompletions] = useState<
     StudentLessonCompletion[]
   >([]);
+  const [attendanceSessions, setAttendanceSessions] = useState<AttendanceSession[]>([]);
+  const [attendanceRecords, setAttendanceRecords] = useState<AttendanceRecord[]>([]);
+  const [studentAssignments, setStudentAssignments] = useState<StudentAssignment[]>([]);
+  const [assignmentSubmissions, setAssignmentSubmissions] = useState<AssignmentSubmission[]>([]);
+  const [studentAlerts, setStudentAlerts] = useState<StudentAlert[]>([]);
+  const [studentSupportPlans, setStudentSupportPlans] = useState<StudentSupportPlan[]>([]);
+  const [academicReports, setAcademicReports] = useState<AcademicReportItem[]>([]);
+  const [timetables, setTimetables] = useState<Timetable[]>([]);
+  const [timetableEntries, setTimetableEntries] = useState<TimetableEntry[]>([]);
+  const [submissionRevisions, setSubmissionRevisions] = useState<SubmissionRevision[]>([]);
+  const [announcements, setAnnouncements] = useState<Announcement[]>([]);
+  const [announcementReads, setAnnouncementReads] = useState<AnnouncementRead[]>([]);
+  const [announcementAcknowledgements, setAnnouncementAcknowledgements] = useState<AnnouncementAcknowledgement[]>([]);
+  const [learningMaterials, setLearningMaterials] = useState<LearningMaterial[]>([]);
+  const [gradingRubrics, setGradingRubrics] = useState<GradingRubric[]>(DEFAULT_GRADING_RUBRICS);
+  const [feedbackComments, setFeedbackComments] = useState<FeedbackComment[]>(DEFAULT_FEEDBACK_COMMENTS);
+  const [gradingHistory, setGradingHistory] = useState<GradingHistoryEntry[]>([]);
+  const [academicEvents, setAcademicEvents] = useState<AcademicCalendarEvent[]>([]);
+  const [lessonDeliveryRecords, setLessonDeliveryRecords] = useState<LessonDeliveryRecord[]>([]);
 
   const isPlatformOwner = canAccessPlatformAdminConsole(currentUser, PLATFORM_OWNER_EMAIL);
 
@@ -837,6 +1108,27 @@ export const LearnOSProvider: React.FC<{ children: React.ReactNode }> = ({ child
     if (Array.isArray(data.studentLessonCompletions)) {
       setStudentLessonCompletions(data.studentLessonCompletions);
     }
+    if (Array.isArray(data.attendanceSessions)) setAttendanceSessions(data.attendanceSessions);
+    if (Array.isArray(data.attendanceRecords)) setAttendanceRecords(data.attendanceRecords);
+    if (Array.isArray(data.studentAssignments)) setStudentAssignments(data.studentAssignments);
+    if (Array.isArray(data.assignmentSubmissions)) setAssignmentSubmissions(data.assignmentSubmissions);
+    if (Array.isArray(data.studentAlerts)) setStudentAlerts(data.studentAlerts);
+    if (Array.isArray(data.studentSupportPlans)) setStudentSupportPlans(data.studentSupportPlans);
+    if (Array.isArray(data.academicReports)) setAcademicReports(data.academicReports);
+    if (Array.isArray(data.timetables)) setTimetables(data.timetables);
+    if (Array.isArray(data.timetableEntries)) setTimetableEntries(data.timetableEntries);
+    if (Array.isArray(data.submissionRevisions)) setSubmissionRevisions(data.submissionRevisions);
+    if (Array.isArray(data.announcements)) setAnnouncements(data.announcements);
+    if (Array.isArray(data.announcementReads)) setAnnouncementReads(data.announcementReads);
+    if (Array.isArray(data.announcementAcknowledgements)) {
+      setAnnouncementAcknowledgements(data.announcementAcknowledgements);
+    }
+    if (Array.isArray(data.learningMaterials)) setLearningMaterials(data.learningMaterials);
+    if (Array.isArray(data.gradingRubrics)) setGradingRubrics(data.gradingRubrics);
+    if (Array.isArray(data.feedbackComments)) setFeedbackComments(data.feedbackComments);
+    if (Array.isArray(data.gradingHistory)) setGradingHistory(data.gradingHistory);
+    if (Array.isArray(data.academicEvents)) setAcademicEvents(data.academicEvents);
+    if (Array.isArray(data.lessonDeliveryRecords)) setLessonDeliveryRecords(data.lessonDeliveryRecords);
   }, []);
 
   const refreshState = useCallback(
@@ -2908,6 +3200,606 @@ export const LearnOSProvider: React.FC<{ children: React.ReactNode }> = ({ child
     [apiFetch, refreshState, addToast]
   );
 
+  const fetchStudentIntelligence = useCallback(
+    async (studentId: string): Promise<StudentAcademicMetrics> => {
+      const res = await apiFetch(`/api/student-intelligence/${encodeURIComponent(studentId)}`);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "O'quvchi tahlilini yuklashda xatolik");
+      return data.metrics;
+    },
+    [apiFetch]
+  );
+
+  const fetchClassMonitoring = useCallback(
+    async (classCode?: OfficialClassCode): Promise<ClassMonitoringSnapshot[]> => {
+      const url = classCode
+        ? `/api/class-monitoring/${encodeURIComponent(classCode)}`
+        : '/api/class-monitoring-all';
+      const res = await apiFetch(url);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Sinf monitoringini yuklashda xatolik');
+      return classCode ? [data.snapshot] : data.snapshots;
+    },
+    [apiFetch]
+  );
+
+  const markAttendance = useCallback(
+    async (payload: {
+      classCode: OfficialClassCode;
+      date: string;
+      records: Array<{ studentId: string; studentName?: string; status: AttendanceStatus }>;
+    }): Promise<AttendanceSession> => {
+      const res = await apiFetch('/api/attendance/mark', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Davomatni saqlashda xatolik');
+      await refreshState();
+      addToast('success', `${payload.classCode.toUpperCase()} sinfi uchun davomat saqlandi`);
+      return data.session;
+    },
+    [apiFetch, refreshState, addToast]
+  );
+
+  const importAttendanceRecords = useCallback(
+    async (payload: {
+      classCode: OfficialClassCode;
+      date: string;
+      rows: AttendanceImportRowPreview[];
+      duplicatePolicy?: 'skip_existing' | 'update_existing';
+      confirm: boolean;
+    }): Promise<AttendanceImportPreviewResult> => {
+      const res = await apiFetch('/api/attendance/import', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Davomatni import qilishda xatolik');
+      if (payload.confirm) {
+        await refreshState();
+        addToast('success', `${data.importedCount || 0} ta davomat yozuvi muvaffaqiyatli import qilindi`);
+      }
+      return data;
+    },
+    [apiFetch, refreshState, addToast]
+  );
+
+  const createStudentAssignment = useCallback(
+    async (payload: {
+      title: string;
+      description: string;
+      subject: string;
+      targetClasses?: OfficialClassCode[];
+      targetClassCodes?: OfficialClassCode[];
+      dueDate: string;
+      maxScore: number;
+      isAvailable?: boolean;
+      status?: 'draft' | 'published' | 'closed';
+      sourceType?: AssignmentSourceType;
+      relatedLessonId?: string;
+      relatedLessonTitle?: string;
+      relatedTopicId?: string;
+      relatedTopicName?: string;
+      relatedAssessmentId?: string;
+      submissionType?: AssignmentSubmissionType;
+      allowResubmission?: boolean;
+      resubmissionPolicy?: string;
+      rubricId?: string;
+      instructions?: string;
+      attachmentUrls?: string[];
+    }): Promise<StudentAssignment> => {
+      const targetClassCodes = payload.targetClassCodes || payload.targetClasses || [];
+      const res = await apiFetch('/api/assignments', {
+        method: 'POST',
+        body: JSON.stringify({
+          ...payload,
+          targetClassCodes,
+          status: payload.status || (payload.isAvailable === false ? 'draft' : 'published'),
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Topshiriq yaratishda xatolik');
+      await refreshState();
+      addToast('success', `"${payload.title}" topshirig'i saqlandi`);
+      return data.assignment;
+    },
+    [apiFetch, refreshState, addToast]
+  );
+
+  const updateStudentAssignment = useCallback(
+    async (id: string, updates: Partial<StudentAssignment>): Promise<StudentAssignment> => {
+      const res = await apiFetch(`/api/assignments/${encodeURIComponent(id)}`, {
+        method: 'PUT',
+        body: JSON.stringify(updates),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Topshiriqni yangilashda xatolik');
+      await refreshState();
+      addToast('success', 'Topshiriq yangilandi');
+      return data.assignment;
+    },
+    [apiFetch, refreshState, addToast]
+  );
+
+  const saveAssignmentDraft = useCallback(
+    async (payload: {
+      assignmentId: string;
+      draftContent: string;
+      draftAttachmentUrl?: string;
+    }): Promise<AssignmentSubmission> => {
+      const res = await apiFetch('/api/submissions/save-draft', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Qoralamani saqlashda xatolik');
+      await refreshState();
+      addToast('info', 'Javob qoralamasi saqlandi');
+      return data.submission;
+    },
+    [apiFetch, refreshState, addToast]
+  );
+
+  const submitAssignment = useCallback(
+    async (payload: {
+      assignmentId: string;
+      content: string;
+      attachmentUrl?: string;
+      attachmentName?: string;
+      attachmentMimeType?: string;
+    }): Promise<AssignmentSubmission> => {
+      const res = await apiFetch('/api/submissions/submit', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Topshiriqni topshirishda xatolik');
+      await refreshState();
+      addToast('success', 'Topshirig‘ingiz muvaffaqiyatli topshirildi!');
+      return data.submission;
+    },
+    [apiFetch, refreshState, addToast]
+  );
+
+  const gradeAssignment = useCallback(
+    async (payload: {
+      submissionId: string;
+      score: number;
+      feedback?: string;
+      status?: 'Tekshirildi' | 'Qaytarildi';
+      rubricId?: string;
+      criterionScores?: AssignmentCriterionScore[];
+      reusableComments?: string[];
+      recommendedLessonId?: string;
+      recommendedLessonTitle?: string;
+    }): Promise<AssignmentSubmission> => {
+      const res = await apiFetch('/api/submissions/grade', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Topshiriqni baholashda xatolik');
+      await refreshState();
+      addToast(
+        'success',
+        payload.status === 'Qaytarildi' ? 'Topshiriq qayta ishlashga qaytarildi' : 'Rasmiy baho va izoh saqlandi'
+      );
+      return data.submission;
+    },
+    [apiFetch, refreshState, addToast]
+  );
+
+  const requestAiAssignmentEvaluation = useCallback(
+    async (payload: {
+      submissionId: string;
+      rubricId?: string;
+    }): Promise<{ submission: AssignmentSubmission; aiSuggestion: AISuggestedEvaluation; notice: string }> => {
+      const res = await apiFetch('/api/grading/ai-suggest', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'AI tavsiyasini olishda xatolik');
+      await refreshState();
+      addToast('info', 'AI dastlabki baholash tavsiyasi tayyor. Tasdiqlashdan oldin ko‘rib chiqing.');
+      return data;
+    },
+    [apiFetch, refreshState, addToast]
+  );
+
+  const createGradingRubric = useCallback(
+    async (payload: {
+      title: string;
+      subject?: string;
+      description: string;
+      criteria: Array<{
+        id?: string;
+        title: string;
+        description: string;
+        maxPoints: number;
+        partialCreditRules: string;
+      }>;
+    }): Promise<GradingRubric> => {
+      const res = await apiFetch('/api/grading/rubrics', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Rubrika yaratishda xatolik');
+      await refreshState();
+      addToast('success', `"${payload.title}" rubrikasi saqlandi`);
+      return data.rubric;
+    },
+    [apiFetch, refreshState, addToast]
+  );
+
+  const createTimetable = useCallback(
+    async (payload: {
+      classCode: OfficialClassCode;
+      title?: string;
+      effectiveFrom?: string;
+      effectiveTo?: string;
+      archivePrevious?: boolean;
+    }): Promise<Timetable> => {
+      const res = await apiFetch('/api/timetables', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Dars jadvali yaratishda xatolik');
+      await refreshState();
+      addToast('success', `${payload.classCode.toUpperCase()} sinfi dars jadvali yaratildi`);
+      return data.timetable;
+    },
+    [apiFetch, refreshState, addToast]
+  );
+
+  const duplicateTimetable = useCallback(
+    async (
+      timetableId: string,
+      payload?: { targetClassCode?: OfficialClassCode; title?: string; effectiveFrom?: string; activateImmediately?: boolean }
+    ): Promise<Timetable> => {
+      const res = await apiFetch(`/api/timetables/${encodeURIComponent(timetableId)}/duplicate`, {
+        method: 'POST',
+        body: JSON.stringify(payload || {}),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Jadvaldan nusxa ko‘chirishda xatolik');
+      await refreshState();
+      addToast('success', 'Dars jadvalidan nusxa olindi');
+      return data.timetable;
+    },
+    [apiFetch, refreshState, addToast]
+  );
+
+  const archiveTimetable = useCallback(
+    async (timetableId: string, status: 'active' | 'archived' = 'archived'): Promise<Timetable> => {
+      const res = await apiFetch(`/api/timetables/${encodeURIComponent(timetableId)}/archive`, {
+        method: 'POST',
+        body: JSON.stringify({ status }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Jadval holatini yangilashda xatolik');
+      await refreshState();
+      addToast('info', status === 'archived' ? 'Jadval arxivlandi' : 'Jadval faollashtirildi');
+      return data.timetable;
+    },
+    [apiFetch, refreshState, addToast]
+  );
+
+  const createTimetableEntry = useCallback(
+    async (payload: {
+      timetableId?: string;
+      classCode: OfficialClassCode;
+      weekday: TimetableWeekday;
+      weekdayIndex?: 1 | 2 | 3 | 4 | 5 | 6;
+      lessonNumber: number;
+      subject: string;
+      curriculumArea?: string;
+      startTime: string;
+      endTime: string;
+      room?: string;
+      relatedLessonId?: string;
+      relatedLessonTitle?: string;
+      notes?: string;
+    }): Promise<TimetableEntry> => {
+      const res = await apiFetch('/api/timetables/entries', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Dars soatini qo‘shishda xatolik');
+      await refreshState();
+      addToast('success', `${payload.weekday} ${payload.lessonNumber}-soat (${payload.subject}) qo‘shildi`);
+      return data.entry;
+    },
+    [apiFetch, refreshState, addToast]
+  );
+
+  const updateTimetableEntry = useCallback(
+    async (id: string, updates: Partial<TimetableEntry>): Promise<TimetableEntry> => {
+      const res = await apiFetch(`/api/timetables/entries/${encodeURIComponent(id)}`, {
+        method: 'PUT',
+        body: JSON.stringify(updates),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Dars soatini yangilashda xatolik');
+      await refreshState();
+      addToast('success', 'Jadval qatori yangilandi');
+      return data.entry;
+    },
+    [apiFetch, refreshState, addToast]
+  );
+
+  const deleteTimetableEntry = useCallback(
+    async (id: string): Promise<void> => {
+      const res = await apiFetch(`/api/timetables/entries/${encodeURIComponent(id)}`, {
+        method: 'DELETE',
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Dars soatini o‘chirishda xatolik');
+      await refreshState();
+      addToast('info', 'Dars soati o‘chirildi');
+    },
+    [apiFetch, refreshState, addToast]
+  );
+
+  const createAnnouncement = useCallback(
+    async (payload: {
+      title: string;
+      shortContent: string;
+      type: Announcement['type'];
+      audienceType: Announcement['audienceType'];
+      targetClassCodes?: OfficialClassCode[];
+      targetSubjects?: string[];
+      attachmentUrl?: string;
+      attachmentName?: string;
+      publicationDate?: string;
+      expirationDate?: string;
+      priority?: Announcement['priority'];
+      requiresAcknowledgment?: boolean;
+    }): Promise<Announcement> => {
+      const res = await apiFetch('/api/announcements', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "E'lon joylashda xatolik");
+      await refreshState();
+      addToast('success', `"${payload.title}" e'loni chop etildi`);
+      return data.announcement;
+    },
+    [apiFetch, refreshState, addToast]
+  );
+
+  const markAnnouncementRead = useCallback(
+    async (announcementId: string): Promise<void> => {
+      const res = await apiFetch(`/api/announcements/${encodeURIComponent(announcementId)}/read`, {
+        method: 'POST',
+      });
+      if (res.ok) {
+        await refreshState();
+      }
+    },
+    [apiFetch, refreshState]
+  );
+
+  const acknowledgeAnnouncement = useCallback(
+    async (announcementId: string): Promise<void> => {
+      const res = await apiFetch(`/api/announcements/${encodeURIComponent(announcementId)}/acknowledge`, {
+        method: 'POST',
+      });
+      if (!res.ok) {
+        const d = await res.json();
+        throw new Error(d.error || "E'lonni tasdiqlashda xatolik");
+      }
+      await refreshState();
+      addToast('success', "Muhim e'lon bilan tanishganingiz tasdiqlandi");
+    },
+    [apiFetch, refreshState, addToast]
+  );
+
+  const createLearningMaterial = useCallback(
+    async (payload: {
+      title: string;
+      description?: string;
+      materialType: LearningMaterialType;
+      fileUrl: string;
+      fileName?: string;
+      fileSizeBytes?: number;
+      folder?: string;
+      grade: number;
+      classCode?: OfficialClassCode;
+      targetClassCodes?: OfficialClassCode[];
+      subject: string;
+      curriculumArea?: string;
+      quarter: 1 | 2 | 3 | 4;
+      lessonId?: string;
+      lessonTitle?: string;
+      learningObjective?: string;
+      allowDownload?: boolean;
+    }): Promise<LearningMaterial> => {
+      const res = await apiFetch('/api/materials', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Material yuklashda xatolik');
+      await refreshState();
+      addToast('success', `"${payload.title}" o‘quv materiali kutubxonaga qo‘shildi`);
+      return data.material;
+    },
+    [apiFetch, refreshState, addToast]
+  );
+
+  const updateLearningMaterial = useCallback(
+    async (id: string, updates: Partial<LearningMaterial>): Promise<LearningMaterial> => {
+      const res = await apiFetch(`/api/materials/${encodeURIComponent(id)}`, {
+        method: 'PUT',
+        body: JSON.stringify(updates),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Materialni yangilashda xatolik');
+      await refreshState();
+      addToast('success', 'O‘quv materiali yangilandi');
+      return data.material;
+    },
+    [apiFetch, refreshState, addToast]
+  );
+
+  const updateLessonDeliveryStatus = useCallback(
+    async (payload: {
+      lessonId: string;
+      classCode: OfficialClassCode;
+      deliveryStatus: LessonDeliveryStatus;
+      actualDeliveryDate?: string;
+      plannedDate?: string;
+      rescheduledToDate?: string;
+      completionNote?: string;
+    }): Promise<LessonDeliveryRecord> => {
+      const res = await apiFetch('/api/lesson-delivery', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Dars o'tilganlik holatini yangilashda xatolik");
+      await refreshState();
+      addToast('success', `Dars holati "${payload.deliveryStatus}" deb belgilandi`);
+      return data.record;
+    },
+    [apiFetch, refreshState, addToast]
+  );
+
+  const createAcademicCalendarEvent = useCallback(
+    async (payload: {
+      title: string;
+      description?: string;
+      category?: AcademicCalendarEvent['category'];
+      date: string;
+      startTime?: string;
+      endTime?: string;
+      classCode?: OfficialClassCode | 'ALL';
+      subject?: string;
+    }): Promise<AcademicCalendarEvent> => {
+      const res = await apiFetch('/api/calendar-v2/events', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Kalendar tadbirini qo‘shishda xatolik');
+      await refreshState();
+      addToast('success', `"${payload.title}" kalendarga qo‘shildi`);
+      return data.event;
+    },
+    [apiFetch, refreshState, addToast]
+  );
+
+  const generateRiskAlerts = useCallback(async (): Promise<StudentAlert[]> => {
+    const res = await apiFetch('/api/alerts/generate', { method: 'POST' });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Ogohlantirishlarni yangilashda xatolik');
+    await refreshState();
+    return data.alerts || [];
+  }, [apiFetch, refreshState]);
+
+  const acknowledgeAlert = useCallback(
+    async (alertId: string): Promise<StudentAlert> => {
+      const res = await apiFetch(`/api/alerts/${encodeURIComponent(alertId)}/acknowledge`, {
+        method: 'POST',
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Ogohlantirishni tasdiqlashda xatolik');
+      await refreshState();
+      addToast('info', 'Ogohlantirish ko‘rib chiqildi deb belgilandi');
+      return data.alert;
+    },
+    [apiFetch, refreshState, addToast]
+  );
+
+  const resolveAlert = useCallback(
+    async (
+      alertId: string,
+      payload: { actionTaken: string; adminNote?: string }
+    ): Promise<StudentAlert> => {
+      const res = await apiFetch(`/api/alerts/${encodeURIComponent(alertId)}/resolve`, {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Ogohlantirishni yopishda xatolik');
+      await refreshState();
+      addToast('success', 'Ogohlantirish hal etildi');
+      return data.alert;
+    },
+    [apiFetch, refreshState, addToast]
+  );
+
+  const createSupportPlan = useCallback(
+    async (payload: {
+      studentId: string;
+      subject: string;
+      topic: string;
+      observedNeed: string;
+      goal: string;
+      recommendedActivity: string;
+      reviewDate: string;
+    }): Promise<StudentSupportPlan> => {
+      const res = await apiFetch('/api/support-plans', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Yordam rejasini yaratishda xatolik');
+      await refreshState();
+      addToast('success', 'Yakka tartibdagi o‘quv yordam rejasi yaratildi');
+      return data.plan;
+    },
+    [apiFetch, refreshState, addToast]
+  );
+
+  const updateSupportPlan = useCallback(
+    async (
+      planId: string,
+      updates: Partial<StudentSupportPlan>
+    ): Promise<StudentSupportPlan> => {
+      const res = await apiFetch(`/api/support-plans/${encodeURIComponent(planId)}`, {
+        method: 'PUT',
+        body: JSON.stringify(updates),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Yordam rejasini yangilashda xatolik');
+      await refreshState();
+      addToast('success', 'Yordam rejasi yangilandi');
+      return data.plan;
+    },
+    [apiFetch, refreshState, addToast]
+  );
+
+  const generateAcademicReport = useCallback(
+    async (payload: {
+      reportType: AcademicReportItem['reportType'];
+      title: string;
+      targetId: string;
+      period: string;
+      classCode?: string;
+      subject?: string;
+      grade?: number;
+      quarter?: number;
+    }): Promise<AcademicReportItem> => {
+      const res = await apiFetch('/api/reports/generate', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Hisobotni shakllantirishda xatolik');
+      await refreshState();
+      addToast('success', `"${payload.title}" hisoboti shakllantirildi`);
+      return data.report;
+    },
+    [apiFetch, refreshState, addToast]
+  );
+
   return (
     <LearnOSContext.Provider
       value={{
@@ -2955,6 +3847,25 @@ export const LearnOSProvider: React.FC<{ children: React.ReactNode }> = ({ child
         classChallenges,
         gamificationConfig,
         studentLessonCompletions,
+        attendanceSessions,
+        attendanceRecords,
+        studentAssignments,
+        assignmentSubmissions,
+        studentAlerts,
+        studentSupportPlans,
+        academicReports,
+        timetables,
+        timetableEntries,
+        submissionRevisions,
+        announcements,
+        announcementReads,
+        announcementAcknowledgements,
+        learningMaterials,
+        gradingRubrics,
+        feedbackComments,
+        gradingHistory,
+        academicEvents,
+        lessonDeliveryRecords,
         toasts,
         toggleTheme,
         setLanguage,
@@ -3036,6 +3947,36 @@ export const LearnOSProvider: React.FC<{ children: React.ReactNode }> = ({ child
         updateGamificationConfig,
         createClassChallenge,
         updateClassChallenge,
+        fetchStudentIntelligence,
+        fetchClassMonitoring,
+        markAttendance,
+        importAttendanceRecords,
+        createStudentAssignment,
+        updateStudentAssignment,
+        saveAssignmentDraft,
+        submitAssignment,
+        gradeAssignment,
+        requestAiAssignmentEvaluation,
+        createGradingRubric,
+        createTimetable,
+        duplicateTimetable,
+        archiveTimetable,
+        createTimetableEntry,
+        updateTimetableEntry,
+        deleteTimetableEntry,
+        createAnnouncement,
+        markAnnouncementRead,
+        acknowledgeAnnouncement,
+        createLearningMaterial,
+        updateLearningMaterial,
+        updateLessonDeliveryStatus,
+        createAcademicCalendarEvent,
+        generateRiskAlerts,
+        acknowledgeAlert,
+        resolveAlert,
+        createSupportPlan,
+        updateSupportPlan,
+        generateAcademicReport,
       }}
     >
       {children}

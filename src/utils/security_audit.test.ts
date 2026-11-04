@@ -165,9 +165,8 @@ describe('SPECIALIZED STUDY — GOOGLE AUTHENTICATION REPAIR, MULTI-ADMIN & SECU
       uid: 'google-uid-asilbek-1',
       email: 'asilbeknuraliyev43@gmail.com',
       emailVerified: true,
-      name: 'Asilbek Nuraliyev',
-      signInProvider: 'google.com',
-      platformAdmin: true,
+      displayName: 'Asilbek Nuraliyev',
+      customClaims: { platformAdmin: true },
     });
 
     const syncAdmin1 = await apiRequest('/api/auth/firebase-sync', 'POST', {
@@ -201,9 +200,8 @@ describe('SPECIALIZED STUDY — GOOGLE AUTHENTICATION REPAIR, MULTI-ADMIN & SECU
       uid: 'google-uid-bahodir-2',
       email: 'bahodirboliqulov3@gmail.com',
       emailVerified: true,
-      name: 'Bahodir Boliqulov',
-      signInProvider: 'google.com',
-      platformAdmin: true,
+      displayName: 'Bahodir Boliqulov',
+      customClaims: { platformAdmin: true },
     });
 
     const syncAdmin2 = await apiRequest('/api/auth/firebase-sync', 'POST', {
@@ -275,9 +273,8 @@ describe('SPECIALIZED STUDY — GOOGLE AUTHENTICATION REPAIR, MULTI-ADMIN & SECU
       uid: 'google-uid-otabek',
       email: 'otabek.9a1@gmail.com',
       emailVerified: true,
-      name: 'Otabek Tursunov',
-      signInProvider: 'google.com',
-      platformAdmin: false,
+      displayName: 'Otabek Tursunov',
+      customClaims: { platformAdmin: false },
     });
     const syncExistingStudent = await apiRequest('/api/auth/firebase-sync', 'POST', {
       idToken: stuGoogleToken,
@@ -368,7 +365,8 @@ describe('SPECIALIZED STUDY — GOOGLE AUTHENTICATION REPAIR, MULTI-ADMIN & SECU
       uid: 'google-uid-noclaim',
       email: 'bahodirboliqulov3@gmail.com',
       emailVerified: true,
-      platformAdmin: false,
+      displayName: 'Bahodir Boliqulov',
+      customClaims: { platformAdmin: false },
     });
     const syncMissingClaim = await apiRequest('/api/auth/firebase-sync', 'POST', {
       idToken: missingClaimToken,
@@ -440,20 +438,28 @@ describe('SPECIALIZED STUDY — GOOGLE AUTHENTICATION REPAIR, MULTI-ADMIN & SECU
     assert.equal(isAuthorizedAdminEmail('other@gmail.com'), false);
     assert.equal(
       isAuthorizedAdmin({
+        uid: 'u-1',
+        displayName: 'Bahodir',
+        institutionId: 'inst-1',
+        createdAt: '2026-11-01',
         email: 'bahodirboliqulov3@gmail.com',
         emailVerified: true,
         role: 'platform_owner',
         platformAdmin: true,
-      }),
+      } as any),
       true
     );
     assert.equal(
       canAccessPlatformAdminConsole({
+        uid: 'u-1',
+        displayName: 'Bahodir',
+        institutionId: 'inst-1',
+        createdAt: '2026-11-01',
         email: 'bahodirboliqulov3@gmail.com',
         emailVerified: true,
         role: 'platform_owner',
         platformAdmin: true,
-      }),
+      } as any),
       true
     );
   });
@@ -832,7 +838,7 @@ describe('SPECIALIZED STUDY — GOOGLE AUTHENTICATION REPAIR, MULTI-ADMIN & SECU
     const codes = classesRes.data.classes.map((c: any) => c.code);
     assert.equal(codes.length, 19);
     assert.deepEqual(codes, [...OFFICIAL_19_CLASS_CODES]);
-    assert.ok(!codes.includes('5t') && !codes.includes('6t'));
+    assert.ok(!codes.includes('5t' as any) && !codes.includes('6t' as any));
 
     const startMs = Date.now();
     const concurrentPromises = Array.from({ length: 30 }, () =>

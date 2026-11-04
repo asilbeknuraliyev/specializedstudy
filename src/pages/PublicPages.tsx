@@ -362,9 +362,9 @@ export const LandingPage: React.FC = () => {
                       {subj.code}
                     </span>
                     <span className="text-[11px] font-semibold text-slate-500">
-                      {subj.track === 'BOTH' || (subj.allowedTracks && subj.allowedTracks.length > 1)
+                      {subj.trackTypes?.length > 1
                         ? 'A va T (19 sinf)'
-                        : `${subj.track || subj.allowedTracks?.[0] || 'A'} yo‘nalishi`}
+                        : `${subj.trackTypes?.[0] || 'A'} yo‘nalishi`}
                     </span>
                   </div>
                   <h3 className="text-base font-bold text-slate-900 dark:text-white">
@@ -375,7 +375,7 @@ export const LandingPage: React.FC = () => {
                   </p>
                 </div>
                 <div className="pt-2 border-t border-slate-100 dark:border-slate-800 text-[11px] font-mono text-slate-500">
-                  Sinflar: {subj.applicableClassCodes?.length || subj.allowedClassCodes?.length || 0} ta
+                  Sinflar: {subj.applicableClassCodes?.length || 0} ta
                 </div>
               </div>
             ))}

@@ -117,7 +117,7 @@ export const LoginPage: React.FC = () => {
   const handleGoogleLogin = async (forceRedirect = false) => {
     setErrorMsg('');
     clearAuthError();
-    const profile = await loginWithGoogle({ forceRedirect, preferPopup: !forceRedirect });
+    const profile = await loginWithGoogle({ forceRedirect });
     if (profile) {
       navigateForRole(profile.role);
     }

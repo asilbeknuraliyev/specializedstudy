@@ -15,6 +15,13 @@ import {
   Target,
   TrendingUp,
   Users,
+  CalendarCheck,
+  FileText,
+  Send,
+  Clock,
+  ExternalLink,
+  FileCheck2,
+  X,
 } from 'lucide-react';
 import { useLearnOS } from '../context/LearnOSContext';
 import {
@@ -32,6 +39,8 @@ import {
   LevelCrestSvg,
   StudentAvatarSvg,
 } from './GamificationIcons';
+import { calculateAttendanceStats } from '../utils/studentMonitoringEngine';
+import { StudentAssignment } from '../types';
 
 interface StudentDashboard2Props {
   onNavigate?: (page: string) => void;
@@ -86,10 +95,24 @@ export const StudentDashboard2: React.FC<StudentDashboard2Props> = ({
     classChallenges,
     gamificationConfig,
     studentLessonCompletions,
+    studentAssignments,
+    assignmentSubmissions,
+    submissionRevisions,
+    attendanceRecords,
+    timetables,
+    timetableEntries,
+    announcements,
+    announcementReads,
+    announcementAcknowledgements,
+    learningMaterials,
     submitDailyCheckin,
     completeStudentLesson,
     createStudentGoal,
     updateStudentGoal,
+    saveAssignmentDraft,
+    submitAssignment,
+    markAnnouncementRead,
+    acknowledgeAnnouncement,
   } = useLearnOS();
 
   const studentId = currentUser?.uid || '';
@@ -162,6 +185,128 @@ export const StudentDashboard2: React.FC<StudentDashboard2Props> = ({
   const [newGoalSubject, setNewGoalSubject] = useState(applicableSubjects[0] || 'Matematika');
   const [newGoalTarget, setNewGoalTarget] = useState(3);
   const [busyLessonId, setBusyLessonId] = useState<string | null>(null);
+
+  // Assignment submission modal state
+  const [submissionModalAssignment, setSubmissionModalAssignment] = useState<StudentAssignment | null>(null);
+  const [submissionContent, setSubmissionContent] = useState('');
+  const [submissionAttachmentUrl, setSubmissionAttachmentUrl] = useState('');
+  const [isSubmittingAssignment, setIsSubmittingAssignment] = useState(false);
+
+  // Filter assignments for student's class
+  const myAssignments = useMemo(() => {
+    return studentAssignments.filter((a) => {
+      if (a.status !== 'published') return false;
+      const targetCodes = a.targetClassCodes || (a.classCode ? [a.classCode] : []);
+      if (targetCodes.length > 0 && !targetCodes.some((c) => c.toLowerCase() === classCode.toLowerCase())) {
+        return false;
+      }
+      return true;
+    });
+  }, [studentAssignments, classCode]);
+
+  // Submissions map
+  const mySubmissionsMap = useMemo(() => {
+    const map = new Map<string, any>();
+    assignmentSubmissions
+      .filter((s) => s.studentId === studentId)
+      .forEach((s) => map.set(s.assignmentId, s));
+    return map;
+  }, [assignmentSubmissions, studentId]);
+
+  // Attendance stats for current student
+  const myAttendanceStats = useMemo(() => {
+    const myRecords = attendanceRecords.filter((r) => r.studentId === studentId);
+    return calculateAttendanceStats(myRecords);
+  }, [attendanceRecords, studentId]);
+
+  // Student's Active Timetable & Today's Schedule
+  const myActiveTimetable = useMemo(() => {
+    return timetables.find(
+      (t) => t.classCode.toLowerCase() === classCode.toLowerCase() && t.status === 'active'
+    );
+  }, [timetables, classCode]);
+
+  const myTimetableEntries = useMemo(() => {
+    if (!myActiveTimetable) return [];
+    return timetableEntries
+      .filter((e) => e.timetableId === myActiveTimetable.id)
+      .sort((a, b) => a.lessonNumber - b.lessonNumber);
+  }, [myActiveTimetable, timetableEntries]);
+
+  const todayWeekday = useMemo(() => {
+    const jsDay = new Date().getDay();
+    const map: Record<number, string> = {
+      1: 'Dushanba',
+      2: 'Seshanba',
+      3: 'Chorshanba',
+      4: 'Payshanba',
+      5: 'Juma',
+      6: 'Shanba',
+      0: 'Dushanba',
+    };
+    return map[jsDay] || 'Dushanba';
+  }, []);
+
+  const todaysTimetableLessons = useMemo(
+    () => myTimetableEntries.filter((e) => e.weekday === todayWeekday),
+    [myTimetableEntries, todayWeekday]
+  );
+
+  // Relevant Announcements for Student's Class
+  const myAnnouncements = useMemo(() => {
+    const now = Date.now();
+    return announcements.filter((a) => {
+      if (a.expirationDate && new Date(a.expirationDate).getTime() < now) return false;
+      if (a.audienceType === 'entire_school') return true;
+      return (a.targetClassCodes || []).some((c) => c.toLowerCase() === classCode.toLowerCase());
+    });
+  }, [announcements, classCode]);
+
+  // Authorized Learning Materials for Student's Class
+  const myMaterials = useMemo(() => {
+    return learningMaterials.filter(
+      (m) =>
+        m.status === 'published' &&
+        (!m.classCode ||
+          (m.classCode as string) === 'All' ||
+          m.classCode.toLowerCase() === classCode.toLowerCase())
+    );
+  }, [learningMaterials, classCode]);
+
+  const handleSaveDraftForm = async () => {
+    if (!submissionModalAssignment || !submissionContent.trim()) return;
+    setIsSubmittingAssignment(true);
+    try {
+      await saveAssignmentDraft({
+        assignmentId: submissionModalAssignment.id,
+        draftContent: submissionContent.trim(),
+        draftAttachmentUrl: submissionAttachmentUrl.trim() || undefined,
+      });
+      setSubmissionModalAssignment(null);
+      setSubmissionContent('');
+      setSubmissionAttachmentUrl('');
+    } finally {
+      setIsSubmittingAssignment(false);
+    }
+  };
+
+  const handleSubmitAssignmentForm = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!submissionModalAssignment) return;
+    setIsSubmittingAssignment(true);
+    try {
+      await submitAssignment({
+        assignmentId: submissionModalAssignment.id,
+        content: submissionContent.trim(),
+        attachmentUrl: submissionAttachmentUrl.trim() || undefined,
+      });
+      setSubmissionModalAssignment(null);
+      setSubmissionContent('');
+      setSubmissionAttachmentUrl('');
+    } finally {
+      setIsSubmittingAssignment(false);
+    }
+  };
 
   const myCompletions = useMemo(
     () => studentLessonCompletions.filter((c) => c.studentId === studentId),
@@ -774,6 +919,391 @@ export const StudentDashboard2: React.FC<StudentDashboard2Props> = ({
       )}
 
       {/* =====================================================================
+          ACADEMIC OS 2.0: TODAY'S TIMETABLE & ANNOUNCEMENTS
+         ===================================================================== */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
+        {/* Today's Class Timetable */}
+        <div className="lg:col-span-6 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-5 shadow-xs flex flex-col justify-between">
+          <div>
+            <div className="flex items-center justify-between mb-3">
+              <div>
+                <h2 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                  <Calendar className="w-4 h-4 text-blue-600" />
+                  <span>Bugungi dars jadvali ({todayWeekday})</span>
+                </h2>
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  {classCode.toUpperCase()} sinfi uchun tasdiqlangan rasmiy jadval
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => onNavigate('timetable')}
+                className="text-xs font-semibold text-blue-600 dark:text-blue-400 hover:underline"
+              >
+                To'liq jadval →
+              </button>
+            </div>
+
+            {!myActiveTimetable ? (
+              <div className="p-5 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-dashed border-slate-200 dark:border-slate-700 text-center">
+                <p className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                  Sinfingiz uchun dars jadvali hali kiritilmagan
+                </p>
+                <p className="text-[11px] text-slate-500 mt-0.5">
+                  Ma'muriyat tomonidan rasmiy jadval tasdiqlangach shu yerda ko'rinadi.
+                </p>
+              </div>
+            ) : todaysTimetableLessons.length === 0 ? (
+              <div className="p-5 rounded-xl bg-slate-50 dark:bg-slate-800/50 text-center text-xs text-slate-500">
+                Bugun ({todayWeekday}) uchun jadvalda darslar belgilanmagan.
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {todaysTimetableLessons.map((entry, idx) => (
+                  <div
+                    key={entry.id}
+                    className={`p-3 rounded-xl border flex items-center justify-between gap-3 text-xs ${
+                      idx === 0
+                        ? 'bg-blue-50/70 dark:bg-blue-950/30 border-blue-200 dark:border-blue-800/70'
+                        : 'bg-slate-50 dark:bg-slate-800/60 border-slate-200/70 dark:border-slate-700'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <span className="w-7 h-7 rounded-lg bg-blue-600 text-white font-bold flex items-center justify-center shrink-0">
+                        {entry.lessonNumber}
+                      </span>
+                      <div className="min-w-0">
+                        <div className="font-bold text-slate-900 dark:text-white truncate">
+                          {entry.subject}
+                          {idx === 0 && (
+                            <span className="ml-2 px-1.5 py-0.5 rounded bg-blue-600 text-white text-[10px]">
+                              Keyingi dars
+                            </span>
+                          )}
+                        </div>
+                        {entry.roadmapTopic && (
+                          <div className="text-[11px] text-slate-500 truncate">
+                            Mavzu: {entry.roadmapTopic}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    <div className="text-right shrink-0 font-mono text-[11px] text-slate-600 dark:text-slate-300">
+                      <div>
+                        {entry.startTime} – {entry.endTime}
+                      </div>
+                      {entry.room && <div className="text-[10px] text-slate-400">Xona: {entry.room}</div>}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* School & Class Announcements */}
+        <div className="lg:col-span-6 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-5 shadow-xs flex flex-col justify-between">
+          <div>
+            <div className="flex items-center justify-between mb-3">
+              <div>
+                <h2 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                  <Sparkles className="w-4 h-4 text-amber-500" />
+                  <span>Maktab va Sinf E'lonlari</span>
+                </h2>
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  Muhim xabarlar, imtihon sanalari va jadval o'zgarishlari
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => onNavigate('announcements')}
+                className="text-xs font-semibold text-blue-600 dark:text-blue-400 hover:underline"
+              >
+                Barchasi ({myAnnouncements.length}) →
+              </button>
+            </div>
+
+            {myAnnouncements.length === 0 ? (
+              <div className="p-5 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-dashed border-slate-200 dark:border-slate-700 text-center text-xs text-slate-500">
+                Sinfingiz uchun yangi e'lonlar mavjud emas.
+              </div>
+            ) : (
+              <div className="space-y-2.5">
+                {myAnnouncements.slice(0, 3).map((ann) => {
+                  const isRead = announcementReads.some(
+                    (r) => r.announcementId === ann.id && r.studentId === studentId
+                  );
+                  const isAck = announcementAcknowledgements.some(
+                    (a) => a.announcementId === ann.id && a.studentId === studentId
+                  );
+
+                  return (
+                    <div
+                      key={ann.id}
+                      className={`p-3 rounded-xl border text-xs space-y-2 ${
+                        ann.priority === 'urgent' || ann.priority === 'high'
+                          ? 'bg-amber-50/60 dark:bg-amber-950/20 border-amber-200 dark:border-amber-800/60'
+                          : 'bg-slate-50 dark:bg-slate-800/60 border-slate-200/70 dark:border-slate-700'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="font-bold text-slate-900 dark:text-white">{ann.title}</span>
+                        <span className="text-[10px] text-slate-400">
+                          {new Date(ann.publicationDate || ann.createdAt).toLocaleDateString('uz-UZ')}
+                        </span>
+                      </div>
+                      <p className="text-slate-600 dark:text-slate-300 line-clamp-2">
+                        {ann.shortContent || ann.content}
+                      </p>
+                      <div className="flex items-center justify-end gap-2 pt-1">
+                        {!isRead ? (
+                          <button
+                            type="button"
+                            onClick={() => markAnnouncementRead(ann.id)}
+                            className="px-2.5 py-1 rounded-lg bg-slate-200 dark:bg-slate-700 text-slate-800 dark:text-slate-200 text-[11px] font-medium"
+                          >
+                            O'qidim
+                          </button>
+                        ) : (
+                          <span className="text-[11px] text-emerald-600 dark:text-emerald-400 font-medium">
+                            ✓ O'qilgan
+                          </span>
+                        )}
+
+                        {(ann.requiresAcknowledgment || ann.requiresAcknowledgement) &&
+                          (!isAck ? (
+                            <button
+                              type="button"
+                              onClick={() => acknowledgeAnnouncement(ann.id)}
+                              className="px-2.5 py-1 rounded-lg bg-amber-600 hover:bg-amber-500 text-white text-[11px] font-semibold"
+                            >
+                              Tanishdim va tasdiqlayman
+                            </button>
+                          ) : (
+                            <span className="text-[11px] text-amber-600 dark:text-amber-400 font-semibold">
+                              ✓ Tasdiqlangan
+                            </span>
+                          ))}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {myMaterials.length > 0 && (
+            <div className="mt-3 pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-xs">
+              <span className="text-slate-600 dark:text-slate-300">
+                O'quv materiallari kutubxonasi: <strong>{myMaterials.length} ta resurs</strong>
+              </span>
+              <button
+                type="button"
+                onClick={() => onNavigate('materials')}
+                className="font-semibold text-blue-600 dark:text-blue-400 hover:underline"
+              >
+                Kutubxonani ochish →
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* =====================================================================
+          ACADEMIC MONITORING: ASSIGNMENTS & OFFICIAL ATTENDANCE SUMMARY
+         ===================================================================== */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
+        {/* Assignments widget */}
+        <div className="lg:col-span-7 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-5 shadow-xs flex flex-col justify-between">
+          <div>
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-lg bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 flex items-center justify-center">
+                  <FileText className="w-4 h-4" />
+                </div>
+                <div>
+                  <h2 className="text-base font-bold text-slate-900 dark:text-white">
+                    Mening vazifalarim
+                  </h2>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                    Sinfingiz uchun berilgan amaliy va mustaqil topshiriqlar
+                  </p>
+                </div>
+              </div>
+              <span className="px-2.5 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-xs font-semibold text-slate-700 dark:text-slate-300">
+                {myAssignments.length} ta vazifa
+              </span>
+            </div>
+
+            {myAssignments.length === 0 ? (
+              <div className="p-6 text-center rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-dashed border-slate-200 dark:border-slate-700">
+                <FileCheck2 className="w-8 h-8 text-slate-400 mx-auto mb-2" />
+                <p className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                  Hozirda yangi topshiriqlar yo‘q
+                </p>
+                <p className="text-[11px] text-slate-500 mt-0.5">
+                  Ustoz tomonidan yangi vazifalar berilganda shu yerda ko‘rinadi.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-2.5">
+                {myAssignments.slice(0, 4).map((assign) => {
+                  const submission = mySubmissionsMap.get(assign.id);
+                  const isGraded = submission?.status === 'graded';
+                  const isSubmitted = submission?.status === 'submitted' || isGraded;
+                  const isLate = !isSubmitted && new Date(assign.dueDate) < new Date();
+
+                  return (
+                    <div
+                      key={assign.id}
+                      className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs"
+                    >
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2">
+                          <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300">
+                            {assign.subject || assign.subjectName}
+                          </span>
+                          <span className="font-bold text-slate-900 dark:text-white truncate">
+                            {assign.title}
+                          </span>
+                        </div>
+                        <p className="text-slate-500 text-[11px] mt-1 line-clamp-1">
+                          {assign.description}
+                        </p>
+                        <div className="flex items-center gap-3 mt-1.5 text-[11px] text-slate-400">
+                          <span className="flex items-center gap-1">
+                            <Clock className="w-3 h-3" />
+                            Muddati: {new Date(assign.dueDate).toLocaleDateString('uz-UZ', { day: '2-digit', month: 'short' })}
+                          </span>
+                          <span>Maks. ball: {assign.maxScore}</span>
+                          {submission?.score !== undefined && (
+                            <span className="font-bold text-emerald-600 dark:text-emerald-400">
+                              Natija: {submission.score} / {assign.maxScore}
+                            </span>
+                          )}
+                        </div>
+                        {submission?.feedback && (
+                          <div className="mt-1.5 p-2 rounded-lg bg-emerald-50/80 dark:bg-emerald-950/40 border border-emerald-200/60 dark:border-emerald-800/60 text-[11px] text-emerald-900 dark:text-emerald-200">
+                            <span className="font-semibold">O‘qituvchi fikri:</span> {submission.feedback}
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="flex items-center gap-2 shrink-0">
+                        {isGraded ? (
+                          <span className="px-2.5 py-1 rounded-md bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-200 font-semibold text-[11px]">
+                            Baholandi
+                          </span>
+                        ) : isSubmitted ? (
+                          <span className="px-2.5 py-1 rounded-md bg-blue-100 dark:bg-blue-950 text-blue-800 dark:text-blue-200 font-semibold text-[11px]">
+                            Topshirildi
+                          </span>
+                        ) : isLate ? (
+                          <span className="px-2.5 py-1 rounded-md bg-rose-100 dark:bg-rose-950 text-rose-800 dark:text-rose-200 font-semibold text-[11px]">
+                            Muddati o‘tgan
+                          </span>
+                        ) : null}
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSubmissionModalAssignment(assign);
+                            setSubmissionContent(submission?.content || '');
+                            setSubmissionAttachmentUrl(submission?.attachmentUrl || '');
+                          }}
+                          className={`px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer transition ${
+                            isSubmitted
+                              ? 'bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-100'
+                              : 'bg-blue-600 hover:bg-blue-700 text-white shadow-xs'
+                          }`}
+                        >
+                          {isSubmitted ? 'Qayta yuborish' : 'Topshirish'}
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Attendance widget */}
+        <div className="lg:col-span-5 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-5 shadow-xs flex flex-col justify-between">
+          <div>
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-lg bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
+                  <CalendarCheck className="w-4 h-4" />
+                </div>
+                <div>
+                  <h2 className="text-base font-bold text-slate-900 dark:text-white">
+                    Mening davomatim
+                  </h2>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                    Jurnalga qayd etilgan rasmiy darslar ko‘rsatkichi
+                  </p>
+                </div>
+              </div>
+              <div className="text-right">
+                <span className="text-xl font-extrabold text-slate-900 dark:text-white font-mono">
+                  {myAttendanceStats.attendanceRate}%
+                </span>
+                <span className="block text-[10px] text-slate-400 font-medium">davomat</span>
+              </div>
+            </div>
+
+            {/* 4 Attendance Status Counts */}
+            <div className="grid grid-cols-4 gap-2 mt-4 text-center">
+              <div className="p-2.5 rounded-xl bg-emerald-50/80 dark:bg-emerald-950/40 border border-emerald-200/60 dark:border-emerald-800/60">
+                <div className="text-base font-bold text-emerald-700 dark:text-emerald-300 font-mono">
+                  {myAttendanceStats.presentCount}
+                </div>
+                <div className="text-[10px] font-semibold text-emerald-800 dark:text-emerald-200">
+                  Keldi
+                </div>
+              </div>
+
+              <div className="p-2.5 rounded-xl bg-amber-50/80 dark:bg-amber-950/40 border border-amber-200/60 dark:border-amber-800/60">
+                <div className="text-base font-bold text-amber-700 dark:text-amber-300 font-mono">
+                  {myAttendanceStats.lateCount}
+                </div>
+                <div className="text-[10px] font-semibold text-amber-800 dark:text-amber-200">
+                  Kechikdi
+                </div>
+              </div>
+
+              <div className="p-2.5 rounded-xl bg-blue-50/80 dark:bg-blue-950/40 border border-blue-200/60 dark:border-blue-800/60">
+                <div className="text-base font-bold text-blue-700 dark:text-blue-300 font-mono">
+                  {myAttendanceStats.excusedCount}
+                </div>
+                <div className="text-[10px] font-semibold text-blue-800 dark:text-blue-200">
+                  Sababli
+                </div>
+              </div>
+
+              <div className="p-2.5 rounded-xl bg-rose-50/80 dark:bg-rose-950/40 border border-rose-200/60 dark:border-rose-800/60">
+                <div className="text-base font-bold text-rose-700 dark:text-rose-300 font-mono">
+                  {myAttendanceStats.absentCount}
+                </div>
+                <div className="text-[10px] font-semibold text-rose-800 dark:text-rose-200">
+                  Kelmagan
+                </div>
+              </div>
+            </div>
+
+            {/* Explanatory Note */}
+            <div className="mt-4 p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/60 dark:border-slate-700 text-[11px] text-slate-500 leading-relaxed">
+              <span className="font-semibold text-slate-700 dark:text-slate-300 block mb-0.5">
+                Rasmiy qayd: {myAttendanceStats.totalSessions} ta dars sessiyasi
+              </span>
+              Davomat faqat haqiqatda dars o‘tilgan va jurnalga qayd etilgan rasmiy kunlar bo‘yicha hisoblanadi. Ta'tillar hisobga olinmaydi.
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* =====================================================================
           SECTION 4 — SUBJECTS ("SINF FANLARI")
          ===================================================================== */}
       <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-5 shadow-xs">
@@ -1096,6 +1626,87 @@ export const StudentDashboard2: React.FC<StudentDashboard2Props> = ({
           </div>
         </div>
       </div>
+
+      {/* Assignment Submission Modal */}
+      {submissionModalAssignment && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 backdrop-blur-xs p-4">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl max-w-lg w-full p-5 space-y-4 shadow-xl">
+            <div className="flex items-center justify-between">
+              <div>
+                <span className="text-[10px] font-bold uppercase tracking-wider text-blue-600 dark:text-blue-400">
+                  {submissionModalAssignment.subject || submissionModalAssignment.subjectName}
+                </span>
+                <h3 className="text-sm font-bold text-slate-900 dark:text-white">
+                  {submissionModalAssignment.title}
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSubmissionModalAssignment(null)}
+                className="p-1 rounded-md text-slate-400 hover:text-slate-600 cursor-pointer"
+                aria-label="Yopish"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSubmitAssignmentForm} className="space-y-3 text-xs">
+              <div>
+                <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">
+                  Javob matni yoki izoh
+                </label>
+                <textarea
+                  rows={4}
+                  required
+                  value={submissionContent}
+                  onChange={(e) => setSubmissionContent(e.target.value)}
+                  placeholder="Vazifa bo‘yicha yozma javobingizni yoki hisobotingizni yozing..."
+                  className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 resize-none text-slate-900 dark:text-white"
+                />
+              </div>
+
+              <div>
+                <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">
+                  Fayl yoki havola (Google Drive, Docs, GitHub va h.k.)
+                </label>
+                <input
+                  type="url"
+                  value={submissionAttachmentUrl}
+                  onChange={(e) => setSubmissionAttachmentUrl(e.target.value)}
+                  placeholder="https://docs.google.com/..."
+                  className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 font-mono text-slate-900 dark:text-white"
+                />
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setSubmissionModalAssignment(null)}
+                  className="px-3.5 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 font-semibold cursor-pointer text-slate-700 dark:text-slate-300"
+                >
+                  Bekor qilish
+                </button>
+                <button
+                  type="button"
+                  disabled={isSubmittingAssignment || !submissionContent.trim()}
+                  onClick={handleSaveDraftForm}
+                  className="px-3.5 py-1.5 rounded-xl bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 text-slate-800 dark:text-slate-200 font-semibold cursor-pointer disabled:opacity-50"
+                >
+                  Qoralama saqlash
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSubmittingAssignment || !submissionContent.trim()}
+                  className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold cursor-pointer shadow-xs disabled:opacity-50"
+                >
+                  <Send className="w-3.5 h-3.5" />
+                  <span>{isSubmittingAssignment ? 'Yuborilmoqda...' : 'Tasdiqlab yuborish'}</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -437,6 +437,10 @@ export interface LessonItem {
   relatedAssessmentIds: string[];
   linkedAssessmentIds?: string[];
   publicationStatus?: LessonPublicationStatus;
+  isPublished?: boolean;
+  lessonKind?: string;
+  learningObjective?: string;
+  topic?: string;
   status: LessonStatus;
   createdAt: string;
   updatedAt?: string;
@@ -1283,6 +1287,9 @@ export interface LearningActivityEvent {
   studentId: string;
   classCode: string;
   activityType: GamificationActivityType;
+  title?: string;
+  description?: string;
+  timestamp?: string;
   subject?: string;
   curriculumArea?: string;
   topicId?: string;
@@ -1446,5 +1453,680 @@ export interface SmartLearningRecommendation {
   lessonId?: string;
   assessmentId?: string;
 }
+
+/* ==========================================================================
+   ADVANCED STUDENT MONITORING & ACADEMIC INTELLIGENCE TYPES
+   ========================================================================== */
+
+export type AttendanceStatus = 'PRESENT' | 'ABSENT' | 'LATE' | 'EXCUSED_ABSENCE';
+
+export interface AttendanceSession {
+  id: string; // e.g. `${classId}_${date}`
+  institutionId: string;
+  classId: string;
+  classCode: OfficialClassCode;
+  date: string; // YYYY-MM-DD
+  academicYear: string;
+  recordedByUid: string;
+  recordedByName: string;
+  totalEnrolled: number;
+  presentCount: number;
+  absentCount: number;
+  lateCount: number;
+  excusedCount: number;
+  attendancePercent: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AttendanceRecord {
+  id: string; // e.g. `${studentId}_${date}`
+  sessionId?: string;
+  institutionId: string;
+  classId: string;
+  classCode: OfficialClassCode;
+  studentId: string;
+  studentName: string;
+  date: string; // YYYY-MM-DD
+  status: AttendanceStatus;
+  reasonCategory?: 'illness' | 'family' | 'competition' | 'other' | string;
+  notes?: string;
+  recordedByUid: string;
+  recordedByName: string;
+  recordedAt: string;
+  updatedAt: string;
+}
+
+export interface AttendanceSummaryStats {
+  totalRecordedDays: number;
+  totalSessions?: number;
+  presentDays: number;
+  presentCount?: number;
+  absentDays: number;
+  absentCount?: number;
+  lateArrivals: number;
+  lateDays?: number;
+  lateCount?: number;
+  excusedAbsences: number;
+  excusedDays?: number;
+  excusedCount?: number;
+  attendancePercentage: number;
+  attendancePercent?: number;
+  attendanceRate?: number;
+  consecutiveAbsences: number;
+}
+
+export interface AttendanceImportRowPreview {
+  rowNumber: number;
+  rawStudentId: string;
+  rawStudentName: string;
+  rawClassCode: string;
+  rawDate: string;
+  rawStatus: string;
+  normalizedStudentId?: string;
+  normalizedStudentName?: string;
+  normalizedClassCode?: OfficialClassCode;
+  normalizedDate?: string;
+  normalizedStatus?: AttendanceStatus;
+  status: 'valid' | 'conflict' | 'error';
+  existingRecord?: AttendanceRecord;
+  message?: string;
+}
+
+export interface AttendanceImportPreviewResult {
+  fileName: string;
+  totalRows: number;
+  validCount: number;
+  conflictCount: number;
+  errorCount: number;
+  rows: AttendanceImportRowPreview[];
+}
+
+export type AssignmentSubmissionStatus =
+  | 'Yangi'
+  | 'Jarayonda'
+  | 'Topshirildi'
+  | 'Muddati o\'tgan'
+  | 'Tekshirilmoqda'
+  | 'Tekshirildi'
+  | 'Qaytarildi';
+
+export type AssignmentSubmissionType =
+  | 'written_text'
+  | 'image'
+  | 'pdf'
+  | 'docx'
+  | 'xlsx';
+
+export type AssignmentSourceType =
+  | 'lesson'
+  | 'topic'
+  | 'assessment'
+  | 'custom';
+
+export interface StudentAssignment {
+  id: string;
+  institutionId: string;
+  title: string;
+  description: string;
+  subject: string;
+  subjectName?: string;
+  classCode?: OfficialClassCode;
+  curriculumArea?: string;
+  grade?: number;
+  targetClassCodes: OfficialClassCode[];
+  targetClassIds: string[];
+  assignedDate: string; // YYYY-MM-DD
+  dueDate: string; // YYYY-MM-DD
+  maxScore: number;
+  status: 'draft' | 'published' | 'closed';
+  sourceType?: AssignmentSourceType;
+  relatedLessonId?: string;
+  relatedLessonTitle?: string;
+  relatedTopicId?: string;
+  relatedTopicName?: string;
+  relatedAssessmentId?: string;
+  submissionType?: AssignmentSubmissionType;
+  allowResubmission?: boolean;
+  resubmissionPolicy?: string;
+  rubricId?: string;
+  instructions?: string;
+  topic?: string;
+  maxPoints?: number;
+  attachmentUrl?: string;
+  attachmentName?: string;
+  attachmentUrls?: string[];
+  createdByUid: string;
+  createdByName: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AssignmentCriterionScore {
+  criterionId: string;
+  criterionTitle: string;
+  awardedPoints: number;
+  maxPoints: number;
+  comment?: string;
+}
+
+export interface AssignmentSubmission {
+  id: string; // `${assignmentId}_${studentId}`
+  assignmentId: string;
+  assignmentTitle: string;
+  institutionId: string;
+  studentId: string;
+  studentName: string;
+  classCode: OfficialClassCode;
+  classId: string;
+  status: AssignmentSubmissionStatus;
+  assignedDate: string;
+  dueDate: string;
+  submissionDate?: string;
+  attemptCount: number;
+  draftContent?: string;
+  draftAttachmentUrl?: string;
+  draftSavedAt?: string;
+  content?: string;
+  answerText?: string;
+  submittedAt?: string;
+  attachmentUrl?: string;
+  attachmentName?: string;
+  attachmentMimeType?: string;
+  score?: number;
+  maxScore: number;
+  feedback?: string;
+  reusableComments?: string[];
+  recommendedLessonId?: string;
+  recommendedLessonTitle?: string;
+  rubricId?: string;
+  criterionScores?: AssignmentCriterionScore[];
+  aiSuggestion?: AISuggestedEvaluation;
+  gradedByUid?: string;
+  gradedByName?: string;
+  gradedAt?: string;
+  returnedAt?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface SubmissionRevision {
+  id: string;
+  institutionId: string;
+  submissionId: string;
+  assignmentId: string;
+  studentId: string;
+  studentName: string;
+  classCode: OfficialClassCode;
+  revisionNumber: number;
+  content?: string;
+  answerText?: string;
+  attachmentUrl?: string;
+  attachmentName?: string;
+  submittedAt: string;
+  score?: number;
+  feedback?: string;
+  gradedByUid?: string;
+  gradedByName?: string;
+  gradedAt?: string;
+  statusAtArchive: AssignmentSubmissionStatus;
+}
+
+export type StudentAlertCategory =
+  | 'attendance'
+  | 'academic_decline'
+  | 'overdue_assignment'
+  | 'missed_assessment'
+  | 'practice_needed';
+
+export type StudentAlertSeverity = 'low' | 'medium' | 'high';
+export type StudentAlertStatus = 'open' | 'acknowledged' | 'resolved';
+
+export interface StudentAlert {
+  id: string;
+  institutionId: string;
+  studentId: string;
+  studentName: string;
+  classCode: OfficialClassCode;
+  classId: string;
+  category: StudentAlertCategory;
+  severity: StudentAlertSeverity;
+  title: string;
+  evidence: string;
+  status: StudentAlertStatus;
+  adminNote?: string;
+  actionTaken?: string;
+  acknowledgedByUid?: string;
+  acknowledgedByName?: string;
+  acknowledgedAt?: string;
+  resolvedByUid?: string;
+  resolvedByName?: string;
+  resolvedAt?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type SupportPlanStatus = 'Yangi' | 'Jarayonda' | 'Yakunlandi';
+
+export interface StudentSupportPlan {
+  id: string;
+  institutionId: string;
+  studentId: string;
+  studentName: string;
+  classCode: OfficialClassCode;
+  classId: string;
+  subject: string;
+  topic: string;
+  observedNeed: string;
+  goal: string;
+  recommendedActivity: string;
+  reviewDate: string; // YYYY-MM-DD
+  status: SupportPlanStatus;
+  progressNotes: string;
+  createdByUid: string;
+  createdByName: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type LearningEvidenceLevel =
+  | 'Ma\'lumot yetarli emas'
+  | 'O\'rganilmoqda'
+  | 'Mustahkamlanmoqda'
+  | 'Yaxshi o\'zlashtirilgan';
+
+export interface TopicEvidenceRecord {
+  topicId: string;
+  topicName: string;
+  subject: string;
+  accuracy: number;
+  assessmentsCount: number;
+  evidenceLevel: LearningEvidenceLevel;
+  decliningTrend?: boolean;
+  recentScore?: number;
+  previousScore?: number;
+}
+
+export interface StudentAcademicMetrics {
+  studentId: string;
+  studentName: string;
+  classCode: OfficialClassCode;
+  overallAverageScore: number;
+  subjectAverages: Record<string, {
+    averageScore: number;
+    assessmentsCompleted: number;
+    bsbScore?: number;
+    chsbScore?: number;
+    masteredTopicsCount: number;
+    needingPracticeTopicsCount: number;
+    evidenceLevel: LearningEvidenceLevel;
+  }>;
+  comparisonPeriods: {
+    currentMonthScore: number;
+    previousMonthScore: number;
+    currentQuarterScore: number;
+    previousQuarterScore: number;
+  };
+  topicsEvidence: TopicEvidenceRecord[];
+  completedLessonsCount: number;
+  pendingLessonsCount: number;
+}
+
+export interface ClassMonitoringSnapshot {
+  classCode: OfficialClassCode;
+  grade: number;
+  track: ClassTrack;
+  enrolledStudentsCount: number;
+  attendancePercentage: number;
+  assessmentParticipationRate: number;
+  assignmentCompletionRate: number;
+  subjectAverages: Record<string, number>;
+  activeAlertsCount: number;
+  activeSupportPlansCount: number;
+}
+
+export type AcademicReportType =
+  | 'individual_student'
+  | 'class_report'
+  | 'class_attendance'
+  | 'subject_results'
+  | 'assignment_report'
+  | 'assessment_completion'
+  | 'curriculum_progress'
+  | 'quarter'
+  | 'learning_progress'
+  | 'support_plan';
+
+export interface AcademicReportItem {
+  id: string;
+  institutionId: string;
+  reportType: AcademicReportType;
+  title: string;
+  targetId: string;
+  classCode?: OfficialClassCode;
+  subject?: string;
+  grade?: number;
+  quarter?: 1 | 2 | 3 | 4;
+  period: string;
+  methodology?: string;
+  generatedByUid: string;
+  generatedByName: string;
+  createdAt: string;
+  generatedAt?: string;
+  type?: AcademicReportType;
+  metrics?: {
+    averageMastery: number;
+    attendanceRate: number;
+    assessmentsCompleted: number;
+    assignmentsCompleted?: number;
+    plannedLessonsCount?: number;
+    deliveredLessonsCount?: number;
+    atRiskStudents: number;
+    topPerformers: number;
+  };
+  summaryData: Record<string, unknown>;
+}
+
+/* ==========================================================================
+   ACADEMIC OPERATING SYSTEM 2.0 TYPES
+   (TIMETABLE + ANNOUNCEMENTS + MATERIALS + SMART GRADING + CALENDAR + DELIVERY)
+   ========================================================================== */
+
+export type TimetableWeekday =
+  | 'Dushanba'
+  | 'Seshanba'
+  | 'Chorshanba'
+  | 'Payshanba'
+  | 'Juma'
+  | 'Shanba';
+
+export interface Timetable {
+  id: string;
+  institutionId: string;
+  classCode: OfficialClassCode;
+  classId: string;
+  title: string;
+  effectiveFrom: string; // YYYY-MM-DD
+  effectiveTo?: string; // YYYY-MM-DD
+  version: number;
+  status: 'active' | 'archived' | 'draft';
+  parentTimetableId?: string;
+  createdByUid: string;
+  createdByName: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface TimetableEntry {
+  id: string;
+  institutionId: string;
+  timetableId: string;
+  classCode: OfficialClassCode;
+  classId: string;
+  weekday: TimetableWeekday;
+  weekdayIndex: 1 | 2 | 3 | 4 | 5 | 6; // 1 = Monday ... 6 = Saturday
+  lessonNumber: number; // 1..8
+  subject: string;
+  curriculumArea?: string;
+  startTime: string; // HH:mm (24h)
+  endTime: string; // HH:mm (24h)
+  room?: string;
+  relatedLessonId?: string;
+  relatedLessonTitle?: string;
+  roadmapTopic?: string;
+  notes?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface TimetableValidationIssue {
+  type: 'time_conflict' | 'duplicate_entry' | 'invalid_duration' | 'subject_track_mismatch';
+  severity: 'error' | 'warning';
+  message: string;
+  conflictingEntryId?: string;
+}
+
+export type AnnouncementType =
+  | 'school'
+  | 'academic'
+  | 'examination'
+  | 'schedule_change'
+  | 'important_notice';
+
+export type AnnouncementAudienceType =
+  | 'entire_school'
+  | 'specific_classes'
+  | 'class_group'
+  | 'subjects';
+
+export type AnnouncementPriority = 'normal' | 'high' | 'urgent';
+
+export interface Announcement {
+  id: string;
+  institutionId: string;
+  title: string;
+  shortContent: string;
+  content?: string;
+  type: AnnouncementType;
+  audienceType: AnnouncementAudienceType;
+  targetClassCodes: OfficialClassCode[];
+  targetSubjects: string[];
+  attachmentUrl?: string;
+  attachmentName?: string;
+  publicationDate: string; // YYYY-MM-DD
+  expirationDate?: string; // YYYY-MM-DD
+  priority: AnnouncementPriority;
+  requiresAcknowledgment: boolean;
+  requiresAcknowledgement?: boolean;
+  status: 'published' | 'archived';
+  createdByUid: string;
+  createdByName: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AnnouncementRead {
+  id: string; // `${announcementId}_${studentId}`
+  institutionId: string;
+  announcementId: string;
+  audience: AnnouncementAudienceType;
+  studentId: string;
+  classCode: OfficialClassCode;
+  readAt: string;
+}
+
+export interface AnnouncementAcknowledgement {
+  id: string; // `${announcementId}_${studentId}`
+  institutionId: string;
+  announcementId: string;
+  audience: AnnouncementAudienceType;
+  studentId: string;
+  classCode: OfficialClassCode;
+  acknowledgedAt: string;
+}
+
+export type LearningMaterialType =
+  | 'pdf'
+  | 'docx'
+  | 'pptx'
+  | 'xlsx'
+  | 'jpeg'
+  | 'png'
+  | 'webp'
+  | 'video_link';
+
+export interface LearningMaterial {
+  id: string;
+  institutionId: string;
+  title: string;
+  description: string;
+  materialType: LearningMaterialType;
+  fileUrl: string;
+  fileName?: string;
+  fileSizeBytes?: number;
+  folder: string;
+  grade: number;
+  classCode?: OfficialClassCode;
+  targetClassCodes: OfficialClassCode[];
+  subject: string;
+  curriculumArea?: string;
+  quarter: 1 | 2 | 3 | 4;
+  lessonId?: string;
+  lessonTitle?: string;
+  learningObjective?: string;
+  status: 'published' | 'archived';
+  allowDownload: boolean;
+  uploadedByUid: string;
+  uploadedByName: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface GradingCriterion {
+  id: string;
+  title: string; // e.g., "To'g'ri yechim", "Mantiqiy fikrlash", "Hisoblash aniqligi", "Tushuntirish", "Yakuniy javob"
+  description: string;
+  maxPoints: number;
+  partialCreditRules: string;
+}
+
+export interface GradingRubric {
+  id: string;
+  institutionId: string;
+  title: string;
+  subject?: string;
+  description: string;
+  criteria: GradingCriterion[];
+  totalMaxPoints: number;
+  isDefault?: boolean;
+  createdByUid: string;
+  createdByName: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface FeedbackComment {
+  id: string;
+  institutionId: string;
+  category: 'praise' | 'correction' | 'methodology' | 'next_step';
+  subject?: string;
+  text: string;
+  recommendedLessonId?: string;
+  recommendedLessonTitle?: string;
+  createdByUid: string;
+  createdAt: string;
+}
+
+export interface AISuggestedEvaluation {
+  suggestedTotalPoints: number;
+  maxPoints: number;
+  criterionBreakdown: AssignmentCriterionScore[];
+  suggestedFeedback: string;
+  mistakeExplanation: string;
+  recommendedLessonTitle?: string;
+  confidence: 'low' | 'medium' | 'high';
+  generatedAt: string;
+  approvalStatus: 'pending_admin_approval' | 'approved_by_admin' | 'modified_by_admin';
+}
+
+export interface GradingHistoryEntry {
+  id: string;
+  institutionId: string;
+  targetType: 'assignment_submission' | 'assessment_attempt';
+  targetId: string;
+  studentId: string;
+  studentName: string;
+  classCode: OfficialClassCode;
+  subject: string;
+  previousScore?: number;
+  newScore: number;
+  maxScore: number;
+  rubricId?: string;
+  criterionScores?: AssignmentCriterionScore[];
+  feedback: string;
+  aiSuggestedPoints?: number;
+  action: 'graded' | 'returned_for_improvement' | 'regraded';
+  confirmedByUid: string;
+  confirmedByName: string;
+  confirmedAt: string;
+}
+
+export type AcademicCalendarEventCategory =
+  | 'timetable'
+  | 'published_lesson'
+  | 'assignment'
+  | 'assessment'
+  | 'bsb'
+  | 'chsb'
+  | 'project_work'
+  | 'announcement'
+  | 'academic_date';
+
+export interface AcademicCalendarEvent {
+  id: string;
+  institutionId: string;
+  title: string;
+  description?: string;
+  category: AcademicCalendarEventCategory;
+  date: string; // YYYY-MM-DD in Asia/Tashkent
+  startTime?: string; // HH:mm
+  endTime?: string; // HH:mm
+  classCode?: OfficialClassCode;
+  targetClassCodes?: OfficialClassCode[];
+  subject?: string;
+  quarter?: 1 | 2 | 3 | 4;
+  sourceRecordId: string;
+  sourceCollection:
+    | 'timetable_entries'
+    | 'lessons'
+    | 'assignments'
+    | 'assessments'
+    | 'announcements'
+    | 'academic_events';
+  targetRoute: string;
+  hasConflictWarning?: boolean;
+  conflictMessage?: string;
+  createdAt: string;
+}
+
+export type LessonDeliveryStatus =
+  | 'Rejalashtirilgan'
+  | 'O\'tildi'
+  | 'Ko\'chirildi'
+  | 'Bekor qilindi';
+
+export interface LessonDeliveryAuditEntry {
+  changedAt: string;
+  changedByUid: string;
+  changedByName: string;
+  previousStatus?: LessonDeliveryStatus;
+  newStatus: LessonDeliveryStatus;
+  actualDeliveryDate?: string;
+  note?: string;
+}
+
+export interface LessonDeliveryRecord {
+  id: string; // `${classCode}_${lessonId}`
+  institutionId: string;
+  lessonId: string;
+  lessonNumber: number;
+  lessonTitle: string;
+  workPlanId: string;
+  classCode: OfficialClassCode;
+  classId: string;
+  subject: string;
+  curriculumArea?: string;
+  quarter: 1 | 2 | 3 | 4;
+  plannedDate?: string; // YYYY-MM-DD if scheduled
+  actualDeliveryDate?: string; // YYYY-MM-DD
+  rescheduledToDate?: string; // YYYY-MM-DD
+  deliveryStatus: LessonDeliveryStatus;
+  completionNote?: string;
+  updatedByUid: string;
+  updatedByName: string;
+  updatedAt: string;
+  auditHistory: LessonDeliveryAuditEntry[];
+}
+
 
 
