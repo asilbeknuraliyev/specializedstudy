@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   UserPlus,
   Copy,
@@ -28,6 +28,7 @@ import {
 import * as XLSX from 'xlsx';
 import { useLearnOS } from '../context/LearnOSContext';
 import {
+  Assessment,
   CalendarEventItem,
   ClassRoom,
   CurriculumAreaName,
@@ -95,40 +96,40 @@ export const AdminDashboardPage: React.FC = () => {
           <span>19 ta sinf (14 A + 5 T)</span>
         </div>
 
-        {/* 4 Essential Quick Actions (Section 14) */}
+        {/* 4 Essential Quick Actions (Section 06) */}
         <div className="flex flex-wrap items-center gap-2">
           <Link
-            to="/admin/students?action=import"
+            to="/admin/students?action=add"
             className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors"
           >
-            <Upload className="w-3.5 h-3.5" />
+            <UserPlus className="w-3.5 h-3.5" />
+            <span>O‘quvchi qo‘shish</span>
+          </Link>
+          <Link
+            to="/admin/students?action=import"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-lg transition-colors"
+          >
+            <Upload className="w-3.5 h-3.5 text-blue-600" />
             <span>Excel yuklash</span>
           </Link>
           <Link
             to="/admin/work-plans"
             className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-lg transition-colors"
           >
-            <FileSpreadsheet className="w-3.5 h-3.5 text-blue-600" />
-            <span>Ish rejasi</span>
+            <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600" />
+            <span>Ish rejasi yuklash</span>
           </Link>
           <Link
-            to="/admin/assessments"
+            to="/admin/assessments?action=create"
             className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-lg transition-colors"
           >
-            <FileCheck2 className="w-3.5 h-3.5 text-emerald-600" />
-            <span>Test yarat</span>
-          </Link>
-          <Link
-            to="/admin/students?action=add"
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-lg transition-colors"
-          >
-            <UserPlus className="w-3.5 h-3.5 text-indigo-600" />
-            <span>O‘quvchi qo‘sh</span>
+            <FileCheck2 className="w-3.5 h-3.5 text-indigo-600" />
+            <span>Test yaratish</span>
           </Link>
         </div>
       </div>
 
-      {/* 4 Live Real KPIs (Section 14) */}
+      {/* 4 Live Real KPIs (Section 06) */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <Link
           to="/admin/students"
@@ -154,7 +155,7 @@ export const AdminDashboardPage: React.FC = () => {
           to="/admin/work-plans"
           className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-blue-500/60 rounded-lg p-4 transition-colors"
         >
-          <p className="text-xs text-slate-500">Ish rejalari</p>
+          <p className="text-xs text-slate-500">Faol ish rejalari</p>
           <p className="text-2xl font-bold font-mono tabular-nums text-emerald-600 dark:text-emerald-400 mt-1">
             {workPlans.length}
           </p>
@@ -164,9 +165,9 @@ export const AdminDashboardPage: React.FC = () => {
           to="/admin/assessments"
           className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-blue-500/60 rounded-lg p-4 transition-colors"
         >
-          <p className="text-xs text-slate-500">Testlar</p>
+          <p className="text-xs text-slate-500">Nashr qilingan testlar</p>
           <p className="text-2xl font-bold font-mono tabular-nums text-indigo-600 dark:text-indigo-400 mt-1">
-            {assessments.length}
+            {publishedAssessments.length}
           </p>
         </Link>
       </div>
@@ -356,6 +357,7 @@ export const AdminClassesPage: React.FC = () => {
     attempts,
     addUserByAdmin,
     removeStudentFromClass,
+    updateClassRoom,
   } = useLearnOS();
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -373,6 +375,12 @@ export const AdminClassesPage: React.FC = () => {
   const [newStuEmail, setNewStuEmail] = useState('');
   const [newStuPassword, setNewStuPassword] = useState('Student123!');
   const [addingStu, setAddingStu] = useState(false);
+
+  // Edit Class Modal State
+  const [editingClass, setEditingClass] = useState<ClassRoom | null>(null);
+  const [editTrackLabel, setEditTrackLabel] = useState('');
+  const [editAcademicYear, setEditAcademicYear] = useState('');
+  const [savingClass, setSavingClass] = useState(false);
 
   useEffect(() => {
     const qClass = searchParams.get('class');
@@ -417,6 +425,21 @@ export const AdminClassesPage: React.FC = () => {
       setNewStuEmail('');
     } finally {
       setAddingStu(false);
+    }
+  };
+
+  const handleSaveClassEdit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingClass) return;
+    setSavingClass(true);
+    try {
+      await updateClassRoom(editingClass.id, {
+        trackLabel: editTrackLabel.trim() || editingClass.trackLabel,
+        academicYear: editAcademicYear.trim() || editingClass.academicYear,
+      });
+      setEditingClass(null);
+    } finally {
+      setSavingClass(false);
     }
   };
 
@@ -486,14 +509,32 @@ export const AdminClassesPage: React.FC = () => {
               </div>
             </div>
 
-            {/* Class Actions (Section 10) */}
+            {/* Class Actions (Section 02 & 10) */}
             <div className="flex flex-wrap items-center gap-1.5">
+              <button
+                type="button"
+                onClick={() => {
+                  setEditingClass(activeClass);
+                  setEditTrackLabel(activeClass.trackLabel || '');
+                  setEditAcademicYear(activeClass.academicYear || '2026-2027');
+                }}
+                className="px-2.5 py-1.5 rounded-md bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-xs font-medium cursor-pointer"
+              >
+                Sinfni tahrirlash
+              </button>
               <button
                 type="button"
                 onClick={() => navigate(`/admin/students?class=${activeClass.code}`)}
                 className="px-2.5 py-1.5 rounded-md bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-xs font-medium cursor-pointer"
               >
                 O‘quvchilarni ko‘rish
+              </button>
+              <button
+                type="button"
+                onClick={() => navigate(`/admin/curriculum-map?class=${activeClass.code}`)}
+                className="px-2.5 py-1.5 rounded-md bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-xs font-medium cursor-pointer"
+              >
+                O‘quv xaritasi
               </button>
               <button
                 type="button"
@@ -815,6 +856,64 @@ export const AdminClassesPage: React.FC = () => {
           );
         })}
       </div>
+
+      {/* Edit Class Modal */}
+      {editingClass && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl max-w-md w-full p-5 space-y-4 ss-modal-enter">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-bold text-slate-900 dark:text-white">
+                Sinfni tahrirlash ({editingClass.code || editingClass.name})
+              </h3>
+              <button
+                type="button"
+                onClick={() => setEditingClass(null)}
+                className="p-1 rounded-md text-slate-400 hover:text-slate-600 cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <form onSubmit={handleSaveClassEdit} className="space-y-3 text-xs">
+              <div>
+                <label className="block font-semibold mb-1">Yo‘nalish tavsifi</label>
+                <input
+                  type="text"
+                  required
+                  value={editTrackLabel}
+                  onChange={(e) => setEditTrackLabel(e.target.value)}
+                  className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950"
+                />
+              </div>
+              <div>
+                <label className="block font-semibold mb-1">O‘quv yili</label>
+                <input
+                  type="text"
+                  required
+                  value={editAcademicYear}
+                  onChange={(e) => setEditAcademicYear(e.target.value)}
+                  className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 font-mono"
+                />
+              </div>
+              <div className="flex justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setEditingClass(null)}
+                  className="px-3.5 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 font-semibold cursor-pointer"
+                >
+                  Bekor qilish
+                </button>
+                <button
+                  type="submit"
+                  disabled={savingClass}
+                  className="px-3.5 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-semibold cursor-pointer"
+                >
+                  {savingClass ? 'Saqlanmoqda...' : 'Saqlash'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
@@ -3735,10 +3834,21 @@ export const AdminCurriculumMapPage: React.FC = () => {
   } = useLearnOS();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  const location = useLocation();
 
-  const [viewMode, setViewMode] = useState<'roadmap2' | 'lessons' | 'calendar'>('roadmap2');
+  const [viewMode, setViewMode] = useState<'roadmap2' | 'lessons' | 'calendar'>(
+    location.pathname.includes('/admin/lessons') ? 'lessons' : 'roadmap2'
+  );
   const [calendarSubView, setCalendarSubView] = useState<'month' | 'week' | 'agenda'>('agenda');
   const [calendarEvents, setCalendarEvents] = useState<CalendarEventItem[]>([]);
+
+  useEffect(() => {
+    if (location.pathname.includes('/admin/lessons')) {
+      setViewMode('lessons');
+    } else if (location.pathname.includes('/admin/curriculum-map')) {
+      setViewMode('roadmap2');
+    }
+  }, [location.pathname]);
 
   // Multi-Dimensional Curriculum Filters
   const [gradeFilter, setGradeFilter] = useState<string>(searchParams.get('grade') || 'ALL');
@@ -4019,7 +4129,7 @@ export const AdminCurriculumMapPage: React.FC = () => {
                 : 'text-slate-600 dark:text-slate-400'
             }`}
           >
-            Roadmap 2.0 (Choraklar bo‘yicha)
+            O‘quv xaritasi (Choraklar bo‘yicha)
           </button>
           <button
             type="button"
@@ -4030,7 +4140,7 @@ export const AdminCurriculumMapPage: React.FC = () => {
                 : 'text-slate-600 dark:text-slate-400'
             }`}
           >
-            Barcha darslar qidiruvi ({filteredLessons.length})
+            Darslar ro‘yxati ({filteredLessons.length})
           </button>
           <button
             type="button"
@@ -5196,6 +5306,19 @@ export const AdminAssessmentsPage: React.FC = () => {
   const [editingQuestion, setEditingQuestion] = useState<QuestionItem | null>(null);
   const [showQuestionEditor, setShowQuestionEditor] = useState(false);
 
+  // Assessment Preview & Edit Modals
+  const [previewAssessment, setPreviewAssessment] = useState<Assessment | null>(null);
+  const [editingAssessment, setEditingAssessment] = useState<Assessment | null>(null);
+  const [editAssessTitle, setEditAssessTitle] = useState('');
+  const [editAssessDuration, setEditAssessDuration] = useState(25);
+  const [editAssessDueDate, setEditAssessDueDate] = useState('');
+
+  useEffect(() => {
+    if (searchParams.get('action') === 'create') {
+      setShowManualModal(true);
+    }
+  }, [searchParams]);
+
   useEffect(() => {
     const compat = subjects.filter(
       (s) => isSubjectCompatibleWithClass(s.name, aiClassCode, subjects).compatible
@@ -5241,6 +5364,17 @@ export const AdminAssessmentsPage: React.FC = () => {
     setManTitle('');
     setManSelectedQIds([]);
     setShowManualModal(false);
+  };
+
+  const handleSaveEditedAssessment = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingAssessment) return;
+    await updateAssessment(editingAssessment.id, {
+      title: editAssessTitle.trim() || editingAssessment.title,
+      durationMinutes: Number(editAssessDuration) || editingAssessment.durationMinutes,
+      dueDate: editAssessDueDate || editingAssessment.dueDate,
+    });
+    setEditingAssessment(null);
   };
 
   return (
@@ -5324,24 +5458,54 @@ export const AdminAssessmentsPage: React.FC = () => {
                   </p>
                 </div>
 
-                <div className="pt-2.5 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between gap-2">
-                  <select
-                    aria-label="Test sinfi"
-                    value={assess.classCode || ''}
-                    onChange={(e) =>
-                      updateAssessment(assess.id, {
-                        classCode: e.target.value as OfficialClassCode,
-                      })
-                    }
-                    className="px-2 py-1 rounded border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs font-mono font-bold"
-                  >
-                    <option value="">Sinf</option>
-                    {OFFICIAL_19_CLASS_CODES.map((c) => (
-                      <option key={c} value={c}>
-                        {c}
-                      </option>
-                    ))}
-                  </select>
+                <div className="pt-2.5 border-t border-slate-100 dark:border-slate-800 flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex items-center gap-1.5">
+                    <select
+                      aria-label="Test sinfi"
+                      value={assess.classCode || ''}
+                      onChange={(e) =>
+                        updateAssessment(assess.id, {
+                          classCode: e.target.value as OfficialClassCode,
+                        })
+                      }
+                      className="px-2 py-1 rounded border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs font-mono font-bold"
+                    >
+                      <option value="">Sinf</option>
+                      {OFFICIAL_19_CLASS_CODES.map((c) => (
+                        <option key={c} value={c}>
+                          {c}
+                        </option>
+                      ))}
+                    </select>
+
+                    <button
+                      type="button"
+                      onClick={() => setPreviewAssessment(assess)}
+                      className="px-2.5 py-1 rounded-md bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-xs font-medium cursor-pointer"
+                    >
+                      Ko‘rib chiqish
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEditingAssessment(assess);
+                        setEditAssessTitle(assess.title);
+                        setEditAssessDuration(assess.durationMinutes || 25);
+                        setEditAssessDueDate(assess.dueDate || '');
+                      }}
+                      className="px-2.5 py-1 rounded-md bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-xs font-medium cursor-pointer"
+                    >
+                      Tahrirlash
+                    </button>
+
+                    <Link
+                      to={`/admin/results?assessmentId=${encodeURIComponent(assess.id)}`}
+                      className="px-2.5 py-1 rounded-md bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-xs font-medium"
+                    >
+                      Natijalar
+                    </Link>
+                  </div>
 
                   {assess.status !== 'published' ? (
                     <button
@@ -5506,9 +5670,136 @@ export const AdminAssessmentsPage: React.FC = () => {
         />
       )}
 
+      {/* Preview Assessment Modal */}
+      {previewAssessment && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl max-w-2xl w-full p-5 space-y-4 max-h-[85vh] overflow-y-auto ss-modal-enter">
+            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+              <div>
+                <span className="text-xs font-mono font-bold text-blue-600">
+                  {previewAssessment.classCode || `${previewAssessment.grade}-sinf`} · {previewAssessment.subject}
+                </span>
+                <h3 className="text-sm font-bold text-slate-900 dark:text-white mt-0.5">
+                  {previewAssessment.title}
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setPreviewAssessment(null)}
+                className="p-1 rounded-md text-slate-400 hover:text-slate-600 cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="space-y-3 text-xs">
+              {previewAssessment.questionIds.map((qId, idx) => {
+                const q = questions.find((item) => item.id === qId);
+                if (!q) return null;
+                return (
+                  <div
+                    key={q.id}
+                    className="p-3.5 rounded-lg bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 space-y-2"
+                  >
+                    <div className="flex items-center justify-between text-[11px] font-mono text-slate-500">
+                      <span>Savol #{idx + 1}</span>
+                      <span>{q.points || 1} ball · {q.type}</span>
+                    </div>
+                    <p className="font-semibold text-slate-900 dark:text-white">{q.prompt}</p>
+                    {Array.isArray(q.options) && q.options.length > 0 && (
+                      <ul className="space-y-1 pl-3 text-slate-600 dark:text-slate-300">
+                        {q.options.map((opt, oIdx) => (
+                          <li
+                            key={oIdx}
+                            className={
+                              oIdx === q.correctIndex ||
+                              (Array.isArray(q.correctIndices) && q.correctIndices.includes(oIdx))
+                                ? 'font-bold text-emerald-600 dark:text-emerald-400'
+                                : ''
+                            }
+                          >
+                            {String.fromCharCode(65 + oIdx)}) {opt}
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Assessment Modal */}
+      {editingAssessment && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl max-w-md w-full p-5 space-y-4 ss-modal-enter">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-bold text-slate-900 dark:text-white">Testni tahrirlash</h3>
+              <button
+                type="button"
+                onClick={() => setEditingAssessment(null)}
+                className="p-1 rounded-md text-slate-400 hover:text-slate-600 cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <form onSubmit={handleSaveEditedAssessment} className="space-y-3 text-xs">
+              <div>
+                <label className="block font-semibold mb-1">Test nomi</label>
+                <input
+                  type="text"
+                  required
+                  value={editAssessTitle}
+                  onChange={(e) => setEditAssessTitle(e.target.value)}
+                  className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-semibold mb-1">Vaqt (daqiqa)</label>
+                  <input
+                    type="number"
+                    min={5}
+                    max={180}
+                    value={editAssessDuration}
+                    onChange={(e) => setEditAssessDuration(Number(e.target.value))}
+                    className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 font-mono"
+                  />
+                </div>
+                <div>
+                  <label className="block font-semibold mb-1">Muddat</label>
+                  <input
+                    type="date"
+                    value={editAssessDueDate}
+                    onChange={(e) => setEditAssessDueDate(e.target.value)}
+                    className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 font-mono"
+                  />
+                </div>
+              </div>
+              <div className="flex justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setEditingAssessment(null)}
+                  className="px-3.5 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 font-semibold cursor-pointer"
+                >
+                  Bekor qilish
+                </button>
+                <button
+                  type="submit"
+                  className="px-3.5 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-semibold cursor-pointer"
+                >
+                  Saqlash
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       {showManualModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4">
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl max-w-lg w-full p-5 space-y-4">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl max-w-lg w-full p-5 space-y-4 ss-modal-enter">
             <div className="flex items-center justify-between">
               <h3 className="text-sm font-bold">Test yaratish</h3>
               <button type="button" onClick={() => setShowManualModal(false)}>
@@ -5630,10 +5921,13 @@ export const AdminAssessmentsPage: React.FC = () => {
 
 export const AdminResultsPage: React.FC = () => {
   const { classes, users, attempts, masteryRecords } = useLearnOS();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [classFilter, setClassFilter] = useState<string>('ALL');
+  const assessmentFilter = searchParams.get('assessmentId') || '';
 
   const students = users.filter((u) => u.role === 'student');
   const filteredAttempts = attempts.filter((att) => {
+    if (assessmentFilter && att.assessmentId !== assessmentFilter) return false;
     if (classFilter === 'ALL') return true;
     const cls = classes.find((c) => c.id === att.classId);
     const stu = students.find((s) => s.uid === att.studentId);
@@ -5643,23 +5937,67 @@ export const AdminResultsPage: React.FC = () => {
     );
   });
 
+  const handleExportResultsXlsx = () => {
+    const rows = [
+      ['O\'quvchi', 'Sinf', 'Test', 'Natija (%)', 'To\'g\'ri javoblar', 'Jami savollar', 'Sana'],
+      ...filteredAttempts.map((att) => {
+        const stu = students.find((s) => s.uid === att.studentId);
+        const cls = classes.find((c) => c.id === att.classId);
+        return [
+          att.studentName,
+          cls?.code || stu?.classCode || '',
+          att.assessmentTitle,
+          att.scorePercent,
+          att.correctCount,
+          att.totalQuestions,
+          new Date(att.submittedAt).toLocaleDateString('uz-UZ'),
+        ];
+      }),
+    ];
+    const ws = XLSX.utils.aoa_to_sheet(rows);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Natijalar');
+    XLSX.writeFile(wb, `specialized_study_natijalar_${classFilter.toLowerCase()}.xlsx`);
+  };
+
   return (
     <div className="space-y-5">
-      <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-4">
-        <span className="text-xs text-slate-500">Jami urinishlar: {filteredAttempts.length} ta</span>
-        <select
-          aria-label="Sinf"
-          value={classFilter}
-          onChange={(e) => setClassFilter(e.target.value)}
-          className="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-xs font-medium"
-        >
-          <option value="ALL">Barcha 19 sinf</option>
-          {OFFICIAL_19_CLASS_CODES.map((c) => (
-            <option key={c} value={c}>
-              {c}
-            </option>
-          ))}
-        </select>
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 dark:border-slate-800 pb-4">
+        <div className="flex items-center gap-2 text-xs text-slate-500">
+          <span>Jami urinishlar: {filteredAttempts.length} ta</span>
+          {assessmentFilter && (
+            <button
+              type="button"
+              onClick={() => setSearchParams({})}
+              className="px-2 py-0.5 rounded bg-blue-50 dark:bg-blue-950/60 text-blue-600 font-semibold cursor-pointer"
+            >
+              Test filtrini tozalash ×
+            </button>
+          )}
+        </div>
+        <div className="flex items-center gap-2">
+          <select
+            aria-label="Sinf"
+            value={classFilter}
+            onChange={(e) => setClassFilter(e.target.value)}
+            className="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-xs font-medium"
+          >
+            <option value="ALL">Barcha 19 sinf</option>
+            {OFFICIAL_19_CLASS_CODES.map((c) => (
+              <option key={c} value={c}>
+                {c}
+              </option>
+            ))}
+          </select>
+          <button
+            type="button"
+            onClick={handleExportResultsXlsx}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800 text-xs font-semibold cursor-pointer"
+          >
+            <Download className="w-3.5 h-3.5 text-emerald-600" />
+            <span>Eksport (.xlsx)</span>
+          </button>
+        </div>
       </div>
 
       {filteredAttempts.length === 0 ? (

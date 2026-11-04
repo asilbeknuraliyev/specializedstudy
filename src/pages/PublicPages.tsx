@@ -124,12 +124,12 @@ export const PublicFooter: React.FC = () => {
           <ul className="space-y-2 text-sm text-slate-600 dark:text-slate-400">
             <li>
               <a href="#tizim" className="hover:text-blue-600">
-                Ish rejalari importi (Work Plan)
+                Ish rejalari importi
               </a>
             </li>
             <li>
               <a href="#tizim" className="hover:text-blue-600">
-                O‘quv xaritasi (Curriculum Map)
+                O‘quv xaritasi
               </a>
             </li>
             <li>
@@ -474,7 +474,7 @@ export const PrivacyPage: React.FC = () => (
           <ShieldCheck className="w-4 h-4" />
           <span>Maxfiylik va ma’lumotlar xavfsizligi</span>
         </div>
-        <h1 className="text-3xl font-bold">Maxfiylik siyosati (Privacy Policy)</h1>
+        <h1 className="text-3xl font-bold">Maxfiylik siyosati</h1>
       </div>
       <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-8 space-y-4 text-sm text-slate-600 dark:text-slate-300 leading-relaxed">
         <h2 className="text-base font-bold text-slate-900 dark:text-white">
@@ -501,7 +501,7 @@ export const TermsPage: React.FC = () => (
     <main className="flex-1 max-w-4xl mx-auto py-16 px-6 space-y-8">
       <div className="space-y-2">
         <p className="text-xs font-semibold text-blue-600">Qoidalar va majburiyatlar</p>
-        <h1 className="text-3xl font-bold">Foydalanish shartlari (Terms of Use)</h1>
+        <h1 className="text-3xl font-bold">Foydalanish shartlari</h1>
       </div>
       <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-8 space-y-4 text-sm text-slate-600 dark:text-slate-300 leading-relaxed">
         <p>

@@ -144,7 +144,7 @@ export const StudentProfile2: React.FC = () => {
               <Flame className="w-7 h-7 text-amber-500" />
               <div>
                 <div className="text-xs font-semibold text-amber-800 dark:text-amber-300">
-                  Izchillik (Streak)
+                  Izchillik
                 </div>
                 <div className="text-lg font-extrabold text-slate-900 dark:text-white">
                   {streak.currentStreakDays} kun
@@ -205,7 +205,7 @@ export const StudentProfile2: React.FC = () => {
       <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-5 shadow-xs">
         <h2 className="text-base font-bold text-slate-900 dark:text-white mb-3 flex items-center gap-2">
           <Sparkles className="w-4 h-4 text-blue-600" />
-          <span>Akademik Darajalar Tizimi (Level 1 — Level 7)</span>
+          <span>Akademik darajalar</span>
         </h2>
         <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2.5">
           {GAMIFICATION_LEVELS.map((lvl) => {
@@ -281,7 +281,7 @@ export const StudentProfile2: React.FC = () => {
         <div className="lg:col-span-5 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-5 shadow-xs">
           <h2 className="text-base font-bold text-slate-900 dark:text-white mb-3 flex items-center gap-2">
             <Layers className="w-4 h-4 text-blue-600" />
-            <span>Tasdiqlangan XP Tarixi (XP Ledger)</span>
+            <span>XP tarixi</span>
           </h2>
           {myLedger.length > 0 ? (
             <div className="space-y-2 max-h-80 overflow-y-auto pr-1">

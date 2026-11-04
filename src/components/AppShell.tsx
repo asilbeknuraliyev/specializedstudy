@@ -120,7 +120,7 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
 
   const isActiveTestRunner = /^\/student\/assessments\/[^/]+$/.test(location.pathname);
 
-  // Desktop sidebar items (9 for Admin, 5 for Student)
+  // Desktop sidebar items (10 for Admin per Section 05, 5 for Student)
   const navItems = isAdminAccount
     ? [
         { to: '/admin/dashboard', label: 'Bosh sahifa', icon: LayoutDashboard, end: true },
@@ -129,6 +129,7 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
         { to: '/admin/subjects', label: 'Fanlar', icon: Layers },
         { to: '/admin/work-plans', label: 'Ish rejalari', icon: FileSpreadsheet },
         { to: '/admin/lessons', label: 'Darslar', icon: BookOpen },
+        { to: '/admin/curriculum-map', label: "O'quv xaritasi", icon: Compass },
         { to: '/admin/assessments', label: 'Testlar', icon: ClipboardCheck },
         { to: '/admin/results', label: 'Natijalar', icon: BarChart3 },
         { to: '/admin/settings', label: 'Sozlamalar', icon: Settings },
@@ -137,7 +138,7 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
         { to: '/student/dashboard', label: 'Bosh sahifa', icon: LayoutDashboard, end: true },
         { to: '/student/lessons', label: 'Darslar', icon: BookOpen },
         { to: '/student/assessments', label: 'Testlar', icon: ClipboardCheck },
-        { to: '/student/knowledge-map', label: "O'quv xaritam", icon: Compass },
+        { to: '/student/knowledge-map', label: "O'quv xaritasi", icon: Compass },
         { to: '/student/results', label: 'Natijalar', icon: BarChart3 },
       ];
 
@@ -146,7 +147,7 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
     { to: '/student/dashboard', label: 'Bosh sahifa', icon: LayoutDashboard, end: true },
     { to: '/student/lessons', label: 'Darslar', icon: BookOpen, end: false },
     { to: '/student/assessments', label: 'Testlar', icon: ClipboardCheck, end: false },
-    { to: '/student/knowledge-map', label: 'Xaritam', icon: Compass, end: false },
+    { to: '/student/knowledge-map', label: "O'quv xaritasi", icon: Compass, end: false },
     { to: '/student/profile', label: 'Profil', icon: UserIcon, end: false },
   ];
 
@@ -168,14 +169,16 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
     if (p.startsWith('/admin/students')) return "O'quvchilar";
     if (p.startsWith('/admin/subjects')) return 'Fanlar';
     if (p.startsWith('/admin/work-plans')) return 'Ish rejalari';
-    if (p.startsWith('/admin/lessons') || p.startsWith('/admin/curriculum-map')) return 'Darslar';
+    if (p.startsWith('/admin/curriculum-map')) return "O'quv xaritasi";
+    if (p.startsWith('/admin/lessons')) return 'Darslar';
     if (p.startsWith('/admin/assessments') || p.startsWith('/admin/questions') || p.startsWith('/admin/import')) return 'Testlar';
     if (p.startsWith('/admin/results') || p.startsWith('/admin/analytics')) return 'Natijalar';
     if (p.startsWith('/admin/settings') || p.startsWith('/admin/ai-commands')) return 'Sozlamalar';
+    if (p.startsWith('/student/learning-path')) return "O'quv xaritasi";
     if (p.startsWith('/student/lessons')) return 'Darslar';
     if (p.startsWith('/student/assessments')) return 'Testlar';
-    if (p.startsWith('/student/knowledge-map') || p.startsWith('/student/map')) return "O'quv xaritam";
-    if (p.startsWith('/student/results')) return 'Natijalar';
+    if (p.startsWith('/student/knowledge-map') || p.startsWith('/student/map')) return "O'quv xaritasi";
+    if (p.startsWith('/student/results') || p.startsWith('/student/progress')) return 'Natijalar';
     if (p.startsWith('/student/profile')) return 'Profil';
     return 'Bosh sahifa';
   };
@@ -184,7 +187,7 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
     ? [
         {
           id: 'qa-add-student',
-          label: "Yangi o'quvchi qo'sh",
+          label: "O'quvchi qo'shish",
           hint: "O'quvchilar",
           icon: Plus,
           onSelect: () => {
@@ -194,7 +197,7 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
         },
         {
           id: 'qa-import-excel',
-          label: 'Excel yukla',
+          label: 'Excel yuklash',
           hint: "O'quvchilar ro'yxatini yuklash",
           icon: Upload,
           onSelect: () => {
@@ -203,23 +206,23 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
           },
         },
         {
-          id: 'qa-create-test',
-          label: 'Test yarat',
-          hint: 'Testlar',
-          icon: ClipboardCheck,
-          onSelect: () => {
-            setCommandOpen(false);
-            navigate('/admin/assessments?action=create');
-          },
-        },
-        {
           id: 'qa-upload-workplan',
-          label: 'Ish rejasini yukla',
+          label: 'Ish rejasi yuklash',
           hint: 'Ish rejalari',
           icon: FileSpreadsheet,
           onSelect: () => {
             setCommandOpen(false);
             navigate('/admin/work-plans');
+          },
+        },
+        {
+          id: 'qa-create-test',
+          label: 'Test yaratish',
+          hint: 'Testlar',
+          icon: ClipboardCheck,
+          onSelect: () => {
+            setCommandOpen(false);
+            navigate('/admin/assessments?action=create');
           },
         },
       ]
@@ -485,7 +488,8 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
 
         {/* Page Viewport */}
         <main
-          className={`flex-1 p-3.5 sm:p-5 lg:p-6 max-w-7xl w-full mx-auto min-w-0 ${
+          key={location.pathname}
+          className={`flex-1 p-3.5 sm:p-5 lg:p-6 max-w-7xl w-full mx-auto min-w-0 ss-page-enter ${
             !isAdminAccount && !isActiveTestRunner ? 'pb-24 lg:pb-6' : 'pb-8 lg:pb-6'
           }`}
         >

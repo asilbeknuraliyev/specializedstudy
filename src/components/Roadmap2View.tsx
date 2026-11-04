@@ -348,12 +348,12 @@ export const Roadmap2View: React.FC<Roadmap2ViewProps> = ({
           <div>
             <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-blue-600 dark:text-blue-400">
               <Layers className="w-3.5 h-3.5" />
-              <span>Roadmap 2.0 • O'quv xaritasi</span>
+              <span>O'quv xaritasi</span>
             </div>
             <h1 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white mt-1">
               {mode === 'student'
-                ? `${activeClassCode.toUpperCase()} sinf o'quv yo'li`
-                : "Akademik O'quv Rejalar va Darslar Xaritasi"}
+                ? `${activeClassCode.toUpperCase()} sinf o'quv xaritasi`
+                : "O'quv rejalar va darslar xaritasi"}
             </h1>
             <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-0.5">
               {parsedClass.grade}-sinf • {parsedClass.track === 'A' ? 'Aniq fanlar' : 'Tabiiy fanlar'} yo'nalishi •{' '}
@@ -646,7 +646,7 @@ export const Roadmap2View: React.FC<Roadmap2ViewProps> = ({
             className="h-10 px-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-700 dark:text-slate-200"
           >
             <option value="ALL">Barcha holatlar</option>
-            <option value="COMPLETED">Yakunlangan (Completed)</option>
+            <option value="COMPLETED">Yakunlangan</option>
             <option value="NOT_STARTED">Boshlanmagan</option>
             <option value="HAS_TEST">Test mavjud</option>
           </select>
@@ -662,7 +662,7 @@ export const Roadmap2View: React.FC<Roadmap2ViewProps> = ({
           </h3>
           <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1 max-w-md mx-auto">
             {parsedClass.track === 'T' && activeSubjectOption.subject === 'Matematika' && !tTrackApproved
-              ? "Tabiiy fanlar (T-track) sinflari uchun qo'shimcha Matematika o'quv rejasi administrator tomonidan faollashtirilganda ko'rinadi."
+              ? "Tabiiy fanlar sinflari uchun qo'shimcha Matematika o'quv rejasi faollashtirilganda ko'rinadi."
               : "Tanlangan fan yoki qidiruv filtri bo'yicha hozircha dars qaydlari mavjud emas."}
           </p>
         </div>
@@ -763,10 +763,10 @@ export const Roadmap2View: React.FC<Roadmap2ViewProps> = ({
                       {learningState === 'Completed' && <CheckCircle2 className="w-3.5 h-3.5" />}
                       <span>
                         {learningState === 'Completed'
-                          ? 'Completed (Yakunlangan)'
+                          ? 'Yakunlangan'
                           : learningState === 'Published'
-                          ? 'Published (Faol)'
-                          : 'Planned (Rejada)'}
+                          ? 'Faol'
+                          : 'Rejada'}
                       </span>
                     </span>
 
@@ -784,7 +784,7 @@ export const Roadmap2View: React.FC<Roadmap2ViewProps> = ({
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                       <div className="p-3 rounded-xl bg-white dark:bg-slate-800/80 border border-slate-200/70 dark:border-slate-700/70">
                         <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">
-                          Sinf ishi (Classwork)
+                          Sinf ishi
                         </div>
                         <p className="text-xs sm:text-sm text-slate-700 dark:text-slate-200 mt-1">
                           {lesson.classwork || "Darslik bo'yicha amaliy misol va masalalar yechish"}
@@ -793,7 +793,7 @@ export const Roadmap2View: React.FC<Roadmap2ViewProps> = ({
 
                       <div className="p-3 rounded-xl bg-white dark:bg-slate-800/80 border border-slate-200/70 dark:border-slate-700/70">
                         <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">
-                          Uyga vazifa (Homework)
+                          Uyga vazifa
                         </div>
                         <p className="text-xs sm:text-sm text-slate-700 dark:text-slate-200 mt-1">
                           {lesson.homework || "Mavzuni mustahkamlash uchun mustaqil mashqlar"}

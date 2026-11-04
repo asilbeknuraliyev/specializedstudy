@@ -1466,8 +1466,7 @@ export const AssessmentResultPage: React.FC = () => {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 dark:border-slate-800 pb-5">
         <div>
           <p className="text-xs text-slate-500">
-            Deterministik server hisobi · Topshirilgan vaqt:{' '}
-            {new Date(attempt.submittedAt).toLocaleDateString('uz-UZ')}
+            Topshirilgan vaqt: {new Date(attempt.submittedAt).toLocaleDateString('uz-UZ')}
             {(attempt.status === 'pending_manual_review' ||
               attempt.gradingStatus === 'pending_manual_review') && (
               <span className="ml-2 px-2 py-0.5 rounded bg-amber-100 text-amber-800 font-semibold">
@@ -1484,7 +1483,7 @@ export const AssessmentResultPage: React.FC = () => {
             to="/student/knowledge-map"
             className="px-4 py-2 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg"
           >
-            O‘quv xaritamni ko‘rish
+            O‘quv xaritasi
           </Link>
         </div>
       </div>
@@ -1701,7 +1700,7 @@ export const KnowledgeMapPage: React.FC = () => {
   const classTopics = topics.filter(
     (t) =>
       (!t.classCode || t.classCode === classCode) &&
-      isSubjectCompatibleWithClass(t.subject, classCode)
+      isSubjectCompatibleWithClass(t.subject, classCode).compatible
   );
 
   // Merge topics with student mastery records so unattempted topics also show "Boshlanmagan"
@@ -1750,10 +1749,10 @@ export const KnowledgeMapPage: React.FC = () => {
     <div className="space-y-8">
       <div className="border-b border-slate-200 dark:border-slate-800 pb-5 space-y-1">
         <p className="text-xs text-slate-500">
-          {classCode} sinfi • O‘zlashtirish statuslari: Boshlanmagan (0) · Ma’lumot yetarli emas (1–2) · O‘rganilmoqda (&lt;50%) · Mustahkamlanmoqda (50–79%) · Yaxshi o‘zlashtirilgan (&ge;80%)
+          {classCode.toUpperCase()} sinfi · Mavzular bo‘yicha o‘zlashtirish ko‘rsatkichlari
         </p>
         <h1 className="text-2xl font-bold text-slate-900 dark:text-white">
-          O‘quv xaritam (Individual Knowledge Map)
+          O‘quv xaritasi
         </h1>
       </div>
 
