@@ -105,15 +105,16 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
       return;
     }
     setIsSearching(true);
+    let cancelled = false;
     const timer = setTimeout(async () => {
       try {
         const res = await searchGlobal(trimmed);
-        setSearchResults(res);
+        if (!cancelled) setSearchResults(res);
       } finally {
         setIsSearching(false);
       }
     }, 200);
-    return () => clearTimeout(timer);
+    return () => { cancelled = true; clearTimeout(timer); };
   }, [commandQuery, commandOpen, searchGlobal]);
 
   if (!currentUser) {

@@ -1,3 +1,4 @@
+import { StudentCurriculum } from '../components/StudentCurriculum';
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import {
@@ -541,7 +542,7 @@ export const LegacyStudentDashboardPage: React.FC = () => {
 };
 
 export const StudentLessonsPage: React.FC = () => {
-  return <Roadmap2View mode="student" />;
+  return <StudentCurriculum />;
 };
 
 export const LegacyStudentLessonsPage: React.FC = () => {

@@ -1,145 +1,58 @@
-import React from 'react';
+import React, { lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { LearnOSProvider, useLearnOS } from './context/LearnOSContext';
 import { AppShell, ToastContainer } from './components/AppShell';
-import {
-  LandingPage,
-  AboutPage,
-  PrivacyPage,
-  TermsPage,
-} from './pages/PublicPages';
-import { LoginPage, RegisterPage } from './pages/AuthPages';
-import {
-  StudentDashboardPage,
-  StudentLessonsPage,
-  StudentAssessmentsPage,
-  AssessmentRunnerPage,
-  AssessmentResultPage,
-  KnowledgeMapPage,
-  LearningPathPage,
-  StudentProgressPage,
-  StudentProfilePage,
-} from './pages/StudentPages';
-import {
-  AdminDashboardPage,
-  AdminInstitutionPage,
-  AdminUsersDirectoryPage,
-  AdminStudentsPage,
-  AdminClassesPage,
-  AdminInvitationsPage,
-  AdminSubjectsPage,
-  AdminWorkPlansPage,
-  AdminCurriculumMapPage,
-  AdminAssessmentsPage,
-  AdminResultsPage,
-  AdminAIIntelligencePage,
-  AdminAnalyticsPage,
-  AdminReportsPage,
-  AdminAttendancePage,
-  AdminAssignmentsPage,
-  AdminAlertsPage,
-  AdminSupportPlansPage,
-  AdminTimetablePage,
-  AdminAnnouncementsPage,
-  AdminMaterialsLibraryPage,
-  AdminSmartGradingPage,
-  AdminAcademicCalendarPage,
-  AdminNotificationsPage,
-  AdminAuditLogsPage,
-  AdminSettingsPage,
-  AdminHelpDocsPage,
-} from './pages/ParentAndAdminPages';
-import { UserRole } from './types';
-import { isAuthorizedAdminEmail } from './utils/security';
-import { ShieldAlert, ArrowLeft, LogOut } from 'lucide-react';
+const LandingPage = lazy(() => import('./pages/PublicPages').then(module => ({ default: module.LandingPage })));
+const AboutPage = lazy(() => import('./pages/PublicPages').then(module => ({ default: module.AboutPage })));
+const PrivacyPage = lazy(() => import('./pages/PublicPages').then(module => ({ default: module.PrivacyPage })));
+const TermsPage = lazy(() => import('./pages/PublicPages').then(module => ({ default: module.TermsPage })));
+const LoginPage = lazy(() => import('./pages/AuthPages').then(module => ({ default: module.LoginPage })));
+const RegisterPage = lazy(() => import('./pages/AuthPages').then(module => ({ default: module.RegisterPage })));
+const StudentDashboardPage = lazy(() => import('./pages/StudentPages').then(module => ({ default: module.StudentDashboardPage })));
+const StudentLessonsPage = lazy(() => import('./pages/StudentPages').then(module => ({ default: module.StudentLessonsPage })));
+const StudentAssessmentsPage = lazy(() => import('./pages/StudentPages').then(module => ({ default: module.StudentAssessmentsPage })));
+const AssessmentRunnerPage = lazy(() => import('./pages/StudentPages').then(module => ({ default: module.AssessmentRunnerPage })));
+const AssessmentResultPage = lazy(() => import('./pages/StudentPages').then(module => ({ default: module.AssessmentResultPage })));
+const KnowledgeMapPage = lazy(() => import('./pages/StudentPages').then(module => ({ default: module.KnowledgeMapPage })));
+const LearningPathPage = lazy(() => import('./pages/StudentPages').then(module => ({ default: module.LearningPathPage })));
+const StudentProgressPage = lazy(() => import('./pages/StudentPages').then(module => ({ default: module.StudentProgressPage })));
+const StudentProfilePage = lazy(() => import('./pages/StudentPages').then(module => ({ default: module.StudentProfilePage })));
+const AdminTimetablePage = lazy(() => import('./pages/ParentAndAdminPages').then(module => ({ default: module.AdminTimetablePage })));
+const AdminAssignmentsPage = lazy(() => import('./pages/ParentAndAdminPages').then(module => ({ default: module.AdminAssignmentsPage })));
+const AdminMaterialsLibraryPage = lazy(() => import('./pages/ParentAndAdminPages').then(module => ({ default: module.AdminMaterialsLibraryPage })));
+const AdminAnnouncementsPage = lazy(() => import('./pages/ParentAndAdminPages').then(module => ({ default: module.AdminAnnouncementsPage })));
+const AdminAcademicCalendarPage = lazy(() => import('./pages/ParentAndAdminPages').then(module => ({ default: module.AdminAcademicCalendarPage })));
+const AdminDashboardPage = lazy(() => import('./pages/ParentAndAdminPages').then(module => ({ default: module.AdminDashboardPage })));
+const AdminClassesPage = lazy(() => import('./pages/ParentAndAdminPages').then(module => ({ default: module.AdminClassesPage })));
+const AdminStudentsPage = lazy(() => import('./pages/ParentAndAdminPages').then(module => ({ default: module.AdminStudentsPage })));
+const AdminSmartGradingPage = lazy(() => import('./pages/ParentAndAdminPages').then(module => ({ default: module.AdminSmartGradingPage })));
+const AdminAttendancePage = lazy(() => import('./pages/ParentAndAdminPages').then(module => ({ default: module.AdminAttendancePage })));
+const AdminAlertsPage = lazy(() => import('./pages/ParentAndAdminPages').then(module => ({ default: module.AdminAlertsPage })));
+const AdminSupportPlansPage = lazy(() => import('./pages/ParentAndAdminPages').then(module => ({ default: module.AdminSupportPlansPage })));
+const AdminSubjectsPage = lazy(() => import('./pages/ParentAndAdminPages').then(module => ({ default: module.AdminSubjectsPage })));
+const AdminWorkPlansPage = lazy(() => import('./pages/ParentAndAdminPages').then(module => ({ default: module.AdminWorkPlansPage })));
+const AdminCurriculumMapPage = lazy(() => import('./pages/ParentAndAdminPages').then(module => ({ default: module.AdminCurriculumMapPage })));
+const AdminAssessmentsPage = lazy(() => import('./pages/ParentAndAdminPages').then(module => ({ default: module.AdminAssessmentsPage })));
+const AdminResultsPage = lazy(() => import('./pages/ParentAndAdminPages').then(module => ({ default: module.AdminResultsPage })));
+const AdminSettingsPage = lazy(() => import('./pages/ParentAndAdminPages').then(module => ({ default: module.AdminSettingsPage })));
+const AdminInstitutionPage = lazy(() => import('./pages/ParentAndAdminPages').then(module => ({ default: module.AdminInstitutionPage })));
+const AdminUsersDirectoryPage = lazy(() => import('./pages/ParentAndAdminPages').then(module => ({ default: module.AdminUsersDirectoryPage })));
+const AdminInvitationsPage = lazy(() => import('./pages/ParentAndAdminPages').then(module => ({ default: module.AdminInvitationsPage })));
+const AdminAIIntelligencePage = lazy(() => import('./pages/ParentAndAdminPages').then(module => ({ default: module.AdminAIIntelligencePage })));
+const AdminAnalyticsPage = lazy(() => import('./pages/ParentAndAdminPages').then(module => ({ default: module.AdminAnalyticsPage })));
+const AdminReportsPage = lazy(() => import('./pages/ParentAndAdminPages').then(module => ({ default: module.AdminReportsPage })));
+const AdminNotificationsPage = lazy(() => import('./pages/ParentAndAdminPages').then(module => ({ default: module.AdminNotificationsPage })));
+const AdminAuditLogsPage = lazy(() => import('./pages/ParentAndAdminPages').then(module => ({ default: module.AdminAuditLogsPage })));
+const AdminHelpDocsPage = lazy(() => import('./pages/ParentAndAdminPages').then(module => ({ default: module.AdminHelpDocsPage })));
 
-const ProtectedRoute: React.FC<{
-  allowedRole: UserRole;
-  children: React.ReactNode;
-}> = ({ allowedRole, children }) => {
-  const { currentUser, isPlatformOwner, authReady, logout } = useLearnOS();
-
-  if (!authReady) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-950 text-slate-600 dark:text-slate-400">
-        <div className="flex items-center gap-3 text-sm font-medium">
-          <div className="w-5 h-5 rounded-full border-2 border-indigo-600 border-t-transparent animate-spin" />
-          <span>Specialized Study yuklanmoqda...</span>
-        </div>
-      </div>
-    );
-  }
-
-  if (!currentUser) {
-    return <Navigate to="/login" replace />;
-  }
-
-  // Exclusive Authorized Platform Access on /admin/*
-  if (allowedRole === 'admin') {
-    const isAdminAllowed =
-      isPlatformOwner ||
-      (isAuthorizedAdminEmail(currentUser.email) &&
-        currentUser.emailVerified !== false &&
-        (currentUser.role === 'admin' || currentUser.role === 'platform_owner'));
-
-    if (!isAdminAllowed) {
-      const fallbackWorkspace =
-        currentUser.role === 'student' ? '/student/dashboard' : '/';
-
-      return (
-        <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-950 p-6">
-          <div className="max-w-lg w-full bg-white dark:bg-slate-900 border border-rose-200 dark:border-rose-900/60 rounded-2xl p-8 shadow-sm text-center space-y-5">
-            <div className="w-14 h-14 rounded-2xl bg-rose-50 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 flex items-center justify-center mx-auto">
-              <ShieldAlert className="w-7 h-7" />
-            </div>
-            <div className="space-y-2">
-              <span className="inline-block px-2.5 py-1 rounded-md bg-rose-100 dark:bg-rose-950 text-rose-700 dark:text-rose-300 text-xs font-bold uppercase tracking-wider">
-                403 — Kirish cheklangan
-              </span>
-              <h1 className="text-xl font-bold text-slate-900 dark:text-white">
-                Ushbu bo‘limga kirish ruxsati yo‘q
-              </h1>
-              <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
-                Ushbu bo‘limga faqat vakolatli platforma boshqaruvchilari kira oladi. Sizning joriy hisobingiz:{' '}
-                <strong className="text-slate-900 dark:text-slate-200">{currentUser.email}</strong>.
-              </p>
-            </div>
-            <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
-              <a
-                href={fallbackWorkspace}
-                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold transition-colors"
-              >
-                <ArrowLeft className="w-4 h-4" />
-                O‘z ishchi oynangizga qaytish
-              </a>
-              <button
-                type="button"
-                onClick={() => logout()}
-                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-semibold transition-colors"
-              >
-                <LogOut className="w-4 h-4" />
-                Hisobdan chiqish
-              </button>
-            </div>
-          </div>
-        </div>
-      );
-    }
-
-    return <AppShell>{children}</AppShell>;
-  }
-
-  const isRoleMatch = currentUser.role === allowedRole || isPlatformOwner;
-
-  if (!isRoleMatch) {
-    const redirectPath = isPlatformOwner
-      ? '/admin/dashboard'
-      : currentUser.role === 'student'
-      ? '/student/dashboard'
-      : '/login';
-    return <Navigate to={redirectPath} replace />;
-  }
-
+// Navigation guard only. Every API endpoint must independently authorize requests.
+const ProtectedRoute: React.FC<{ allowedRole: 'admin' | 'student'; children: React.ReactNode }> = ({ allowedRole, children }) => {
+  const { currentUser, authReady, isPlatformOwner } = useLearnOS();
+  if (!authReady) return <main className="min-h-screen grid place-items-center bg-slate-50 text-slate-600" role="status" aria-live="polite">Hisob tekshirilmoqda…</main>;
+  if (!currentUser) return <Navigate to="/login" replace />;
+  if (currentUser.status !== 'active') return <Navigate to="/login" replace />;
+  if (allowedRole === 'admin' && !isPlatformOwner) return <Navigate to={currentUser.role === 'student' ? '/student/dashboard' : '/login'} replace />;
+  if (allowedRole === 'student' && currentUser.role !== 'student') return <Navigate to={isPlatformOwner ? '/admin/dashboard' : '/login'} replace />;
   return <AppShell>{children}</AppShell>;
 };
 
@@ -147,6 +60,7 @@ export default function App() {
   return (
     <LearnOSProvider>
       <BrowserRouter>
+        <Suspense fallback={<main className="min-h-[60vh] grid place-items-center text-slate-500" role="status">Sahifa yuklanmoqda…</main>}>
         <Routes>
           {/* Public Routes */}
           <Route path="/" element={<LandingPage />} />
@@ -537,6 +451,7 @@ export default function App() {
           {/* Fallback */}
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
+        </Suspense>
         <ToastContainer />
       </BrowserRouter>
     </LearnOSProvider>

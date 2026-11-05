@@ -14,6 +14,7 @@ service firebase.storage {
     function isVerifiedPlatformOwner() {
       return isSignedIn() &&
         request.auth.token.email_verified == true &&
+        ('platformAdmin' in request.auth.token && request.auth.token.platformAdmin == true) &&
         request.auth.token.email in [
           'asilbeknuraliyev43@gmail.com',
           'bahodirboliqulov3@gmail.com'

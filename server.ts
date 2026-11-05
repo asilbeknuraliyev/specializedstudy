@@ -280,7 +280,7 @@ function broadcastInstitutionUpdate(env: 'prod' | 'test', institutionId: string,
 
 function resolveRequestEnv(req: Request): 'prod' | 'test' {
   const headerEnv = req.headers['x-learnos-env'];
-  if (headerEnv === 'test' || req.query.testEnv === '1') {
+  if (process.env.NODE_ENV === 'test' && (headerEnv === 'test' || req.query.testEnv === '1')) {
     return 'test';
   }
   return 'prod';
@@ -318,6 +318,7 @@ function authenticateRequest(
   const token = extractRawTokenFromRequest(req);
   const verified = verifySessionToken(token);
   if (!verified || !token) return null;
+  if (verified.env === 'test' && process.env.NODE_ENV !== 'test') return null;
 
   const db = getDbState(verified.env);
   const user = db.users.find((u) => u.uid === verified.uid);
@@ -325,7 +326,7 @@ function authenticateRequest(
 
   const normalizedEmail = String(user.email || '').trim().toLowerCase();
   const isAuthAdmin = isAuthorizedAdminEmail(normalizedEmail, CONFIGURED_OWNER_EMAIL);
-  if (isAuthAdmin && user.emailVerified !== false && user.platformAdmin !== false) {
+  if (isAuthAdmin && user.emailVerified === true && user.platformAdmin === true && db.customClaims?.[user.uid]?.platformAdmin === true) {
     user.role = 'platform_owner';
     user.platformOwner = true;
     user.platformAdmin = true;
@@ -526,6 +527,7 @@ async function startServer() {
   });
 
   app.post('/api/test/reset', (_req, res) => {
+    if (process.env.NODE_ENV !== 'test') return res.status(404).json({ error: 'Not found' });
     resetTestDbState();
     apiRateLimiter.reset();
     failedLoginCounter.clear();
@@ -549,6 +551,7 @@ async function startServer() {
 
   // One-time initial Administrator & Institution Bootstrap (Strictly restricted to AUTHORIZED_ADMIN_EMAILS)
   app.post('/api/auth/bootstrap', (req, res) => {
+    if (process.env.NODE_ENV !== 'test') return res.status(403).json({ error: 'Administrator hisobi faqat Firebase orqali ishonchli serverda faollashtiriladi.' });
     if (!enforceRateLimit(req, res, 'bootstrap', 10, 60_000)) return;
     const env = resolveRequestEnv(req);
     const db = getDbState(env);
@@ -696,6 +699,10 @@ async function startServer() {
     const reqId = getRequestId(req);
     const ipHash = getClientIpHash(req);
     const { email, password } = req.body;
+    if (env === 'prod' && (isAuthorizedAdminEmail(String(email || ''), CONFIGURED_OWNER_EMAIL) || db.users.some(u => u.email.toLowerCase() === String(email || '').trim().toLowerCase() && (u.role === 'admin' || u.role === 'platform_owner')))) {
+      return res.status(403).json({ error: 'Administrator Google orqali tasdiqlangan hisob bilan kirishi kerak.' });
+    }
+
 
     if (!email || !password) {
       return res.status(400).json({ error: 'Elektron pochta va parolni kiriting.' });
@@ -902,7 +909,7 @@ async function startServer() {
     if (isAuthAdmin) {
       if (!db.customClaims) db.customClaims = {};
       const explicitClaimFalse =
-        verifiedClaims.platformAdmin === false ||
+        verifiedClaims.platformAdmin !== true ||
         requireExistingClaimOnly === true ||
         requireAdminClaim === true;
 
@@ -4560,7 +4567,8 @@ async function startServer() {
         fileName,
         tTrackVisibilityApproved = false,
         publishImmediately = false,
-        duplicatePolicy = 'update_existing',
+        duplicatePolicy = 'skip_existing',
+        academicYear,
       } = req.body || {};
 
       let preview;
@@ -4580,6 +4588,8 @@ async function startServer() {
         );
       }
 
+      if (preview.errors?.length) return res.status(400).json({ error: 'Arxivdagi xatolarni tuzating.', errors: preview.errors });
+      if (academicYear && !/^\d{4}-\d{4}$/.test(String(academicYear))) return res.status(400).json({ error: 'O‘quv yili formati: 2026-2027.' });
       if (!Array.isArray(db.curriculumImportJobs)) {
         db.curriculumImportJobs = [];
       }
@@ -4593,7 +4603,7 @@ async function startServer() {
         db.curriculumImportJobs,
         {
           institutionId: user.institutionId,
-          academicYear: inst?.academicYear || '2026-2027',
+          academicYear: academicYear || inst?.academicYear || '2026-2027',
           actorUid: user.uid,
           actorName: user.displayName,
           jobId: jobId ? String(jobId) : undefined,
@@ -10763,43 +10773,7 @@ MUHIM: Bu faqat administrator ko'rib chiqishi uchun dastlabki tavsiya. O'zbek ti
   const server = app.listen(PORT, '0.0.0.0', () => {
     console.log(`LearnOS server running on http://0.0.0.0:${PORT}`);
 
-    // Run the 21-workbook Mathematics curriculum archive check asynchronously after listening
-    setTimeout(async () => {
-      try {
-        const prodDb = getDbState('prod');
-        if (!Array.isArray(prodDb.curriculumImportJobs)) {
-          prodDb.curriculumImportJobs = [];
-        }
-        const hasOfficialMathImport = prodDb.workPlans.some((wp) =>
-          wp.id.startsWith('wp-math-wb-')
-        );
-        if (!hasOfficialMathImport) {
-          const officialPreview = await getOfficialMathArchivePreview();
-          if (officialPreview && officialPreview.totalWorkbooks === 21) {
-            const inst = prodDb.institutions[0];
-            applyCurriculumZipPreviewToDatabase(
-              officialPreview,
-              prodDb.workPlans,
-              prodDb.lessons,
-              prodDb.topics,
-              prodDb.curriculumImportJobs,
-              {
-                institutionId: inst?.id || 'inst-specialized-study',
-                academicYear: inst?.academicYear || '2026-2027',
-                actorUid: 'admin-owner',
-                actorName: 'Asilbek Nuraliyev',
-                tTrackVisibilityApproved: false,
-                publishImmediately: true,
-                duplicatePolicy: 'update_existing',
-              }
-            );
-            saveDbState('prod', prodDb);
-          }
-        }
-      } catch (seedErr) {
-        console.warn('Official math curriculum startup check:', seedErr);
-      }
-    }, 250);
+
   });
 
   server.on('error', (err: NodeJS.ErrnoException) => {

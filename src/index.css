@@ -121,3 +121,13 @@
     transform: none !important;
   }
 }
+
+/* Visible keyboard navigation across shared forms and menus. */
+:focus-visible { outline: 3px solid #2563eb; outline-offset: 4px; }
+section[id] { scroll-margin-top: 6rem; }
+@layer components {
+  .ss-surface { @apply rounded-2xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900; }
+  .ss-primary { @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 disabled:cursor-wait disabled:opacity-50; }
+  .ss-secondary { @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 disabled:opacity-50; }
+  .ss-field { @apply block min-h-11 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100; }
+}

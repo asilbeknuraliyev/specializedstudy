@@ -156,7 +156,12 @@ export interface PersistentDatabaseState {
 const DATA_DIR = path.resolve(process.cwd(), '.data');
 const PROD_DB_PATH = path.join(DATA_DIR, 'learnos_prod.json');
 const TEST_DB_PATH = path.join(DATA_DIR, 'learnos_test.json');
-const TOKEN_SECRET = process.env.SESSION_SECRET || 'specialized-study-hmac-secret-2026';
+const configuredSessionSecret = process.env.SESSION_SECRET;
+if (process.env.NODE_ENV === 'production' && (!configuredSessionSecret || configuredSessionSecret.length < 32 || configuredSessionSecret.includes('REPLACE_WITH'))) {
+  throw new Error('Production requires a random SESSION_SECRET of at least 32 characters.');
+}
+// Development sessions expire when the process restarts unless configured explicitly.
+const TOKEN_SECRET = configuredSessionSecret || crypto.randomBytes(32).toString('hex');
 
 export function ensureSpecializedStudyStructure(
   state: PersistentDatabaseState

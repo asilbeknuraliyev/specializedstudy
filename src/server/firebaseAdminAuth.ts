@@ -183,7 +183,7 @@ export async function verifyFirebaseIdToken(
   // 2. Verify real Firebase ID token using Firebase Admin SDK (RS256 public key verification)
   try {
     const adminAuth = getFirebaseAdminAuth();
-    const decodedToken = await adminAuth.verifyIdToken(trimmed, false);
+    const decodedToken = await adminAuth.verifyIdToken(trimmed, true);
     const uid = String(decodedToken.uid || decodedToken.sub || '').trim();
     const email = String(decodedToken.email || '').trim().toLowerCase();
 
@@ -195,13 +195,10 @@ export async function verifyFirebaseIdToken(
       };
     }
 
-    const storedClaims = (db.customClaims && db.customClaims[uid]) || {};
+    // Authorization comes exclusively from the verified Firebase token.
     const customClaims: Record<string, unknown> = {
-      ...storedClaims,
+      platformAdmin: decodedToken.platformAdmin === true,
     };
-    if (decodedToken.platformAdmin !== undefined) {
-      customClaims.platformAdmin = decodedToken.platformAdmin;
-    }
 
     return {
       valid: true,
@@ -227,86 +224,12 @@ export async function verifyFirebaseIdToken(
       };
     }
 
-    // 3. Fallback verification via Google IdentityToolkit accounts:lookup endpoint
-    try {
-      const cfg = loadFirebaseAppletConfig();
-      const lookupRes = await fetch(
-        `https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=${cfg.apiKey}`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ idToken: trimmed }),
-        }
-      );
-      if (!lookupRes.ok) {
-        return {
-          valid: false,
-          errorCode: 'auth/invalid-credential',
-          errorMessage: 'Firebase ID token Google IdentityToolkit tomonidan tasdiqlanmadi.',
-        };
-      }
-      const lookupData = (await lookupRes.json()) as {
-        users?: Array<{
-          localId?: string;
-          email?: string;
-          emailVerified?: boolean;
-          displayName?: string;
-          photoUrl?: string;
-          customAttributes?: string;
-          disabled?: boolean;
-        }>;
-      };
-      const account = lookupData.users?.[0];
-      if (!account || !account.localId || !account.email) {
-        return {
-          valid: false,
-          errorCode: 'auth/user-not-found',
-          errorMessage: 'Firebase foydalanuvchisi topilmadi.',
-        };
-      }
-      if (account.disabled) {
-        return {
-          valid: false,
-          errorCode: 'auth/user-disabled',
-          errorMessage: 'Ushbu foydalanuvchi hisobi to‘xtatilgan.',
-        };
-      }
-
-      let parsedCustomAttrs: Record<string, unknown> = {};
-      if (account.customAttributes) {
-        try {
-          parsedCustomAttrs = JSON.parse(account.customAttributes);
-        } catch {
-          // Ignore malformed customAttributes JSON
-        }
-      }
-      const storedClaims = (db.customClaims && db.customClaims[account.localId]) || {};
-      const nowSec = Math.floor(Date.now() / 1000);
-
-      return {
-        valid: true,
-        identity: {
-          uid: account.localId,
-          email: account.email.trim().toLowerCase(),
-          emailVerified: account.emailVerified === true,
-          displayName: account.displayName,
-          photoURL: account.photoUrl,
-          customClaims: {
-            ...storedClaims,
-            ...parsedCustomAttrs,
-          },
-          issuedAtSeconds: nowSec,
-          expiresAtSeconds: nowSec + 3600,
-          verificationSource: 'identity_toolkit_lookup',
-        },
-      };
-    } catch {
-      return {
-        valid: false,
-        errorCode: 'auth/network-request-failed',
-        errorMessage: 'Firebase tokenni tekshirishda tarmoq xatoligi yuz berdi.',
-      };
-    }
+    // Fail closed: never revive revoked tokens or local cached privileges.
+    return {
+      valid: false,
+      errorCode: 'auth/invalid-credential',
+      errorMessage: 'Firebase hisobini tekshirib bo‘lmadi. Qayta kiring yoki administratorga murojaat qiling.',
+    };
   }
 }
 

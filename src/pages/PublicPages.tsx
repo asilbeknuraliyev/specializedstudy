@@ -48,19 +48,19 @@ export const PublicHeader: React.FC = () => {
           className="hidden md:flex items-center gap-6 text-sm font-medium text-slate-600 dark:text-slate-300"
         >
           <a
-            href="#tizim"
+            href="/#tizim"
             className="hover:text-slate-900 dark:hover:text-white transition-colors whitespace-nowrap shrink-0"
           >
             Platforma
           </a>
           <a
-            href="#sinflar"
+            href="/#sinflar"
             className="hover:text-slate-900 dark:hover:text-white transition-colors whitespace-nowrap shrink-0"
           >
             19 ta Sinf (A va T)
           </a>
           <a
-            href="#fanlar"
+            href="/#fanlar"
             className="hover:text-slate-900 dark:hover:text-white transition-colors whitespace-nowrap shrink-0"
           >
             Fanlar
@@ -123,22 +123,22 @@ export const PublicFooter: React.FC = () => {
           </h3>
           <ul className="space-y-2 text-sm text-slate-600 dark:text-slate-400">
             <li>
-              <a href="#tizim" className="hover:text-blue-600">
+              <a href="/#tizim" className="hover:text-blue-600">
                 Ish rejalari importi
               </a>
             </li>
             <li>
-              <a href="#tizim" className="hover:text-blue-600">
+              <a href="/#tizim" className="hover:text-blue-600">
                 O‘quv xaritasi
               </a>
             </li>
             <li>
-              <a href="#tizim" className="hover:text-blue-600">
+              <a href="/#tizim" className="hover:text-blue-600">
                 AI Buyruqlar va Test Generatori
               </a>
             </li>
             <li>
-              <a href="#tizim" className="hover:text-blue-600">
+              <a href="/#tizim" className="hover:text-blue-600">
                 Shaxsiy Bilim Xaritasi
               </a>
             </li>
@@ -218,13 +218,13 @@ export const LandingPage: React.FC = () => {
                 <span>{APP_TAGLINE}</span>
               </div>
               <h1
-                className="text-2xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight text-slate-900 dark:text-white leading-tight"
+                className="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight text-slate-900 dark:text-white leading-tight"
                 style={{ textWrap: 'balance' }}
               >
-                Ixtisoslashtirilgan maktab uchun yagona intellektual o‘quv tizimi.
+                Bilim sari har bir qadam — bir joyda.
               </h1>
               <p className="text-sm sm:text-base lg:text-lg text-slate-600 dark:text-slate-300 leading-relaxed max-w-xl">
-                <strong>{APP_NAME}</strong> — Aniq fanlar (<strong>A yo‘nalishi: 14 ta sinf</strong>) va Tabiiy fanlar (<strong>T yo‘nalishi: 5 ta sinf</strong>) uchun ish rejalarini darslar xaritasiga aylantirish, AI yordamida mavzulashtirilgan testlar yaratish va har bir o‘quvchining o‘zlashtirish ko‘rsatkichini o‘lchash platformasi.
+                Kattaqo‘rg‘on tumani ixtisoslashtirilgan maktabi uchun yagona ta’lim platformasi. Darslar, topshiriqlar va natijalar — tartibli, tushunarli va doim qo‘l ostingizda.
               </p>
 
               <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4 pt-2">
@@ -265,10 +265,10 @@ export const LandingPage: React.FC = () => {
                 <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 dark:border-slate-800 pb-4">
                   <div>
                     <p className="text-xs font-semibold text-blue-600 dark:text-blue-400">
-                      {APP_NAME} • Akademik Arxitektura
+                      Maktabimiz yo‘nalishlari
                     </p>
                     <h2 className="text-sm sm:text-base font-bold text-slate-900 dark:text-white">
-                      19 ta Rasmiy Sinf va Yo‘nalishlar Kesimi
+                      Qiziqishdan chuqur bilim sari
                     </h2>
                   </div>
                   <span className="text-xs font-mono font-bold text-emerald-600 dark:text-emerald-400">

@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   BookOpen,
   CheckCircle2,
@@ -76,6 +76,7 @@ export const Roadmap2View: React.FC<Roadmap2ViewProps> = ({
     confirmCurriculumZipArchive,
   } = useLearnOS();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
 
   const academicYearOptions = useMemo(
     () => Array.from(new Set([institution?.academicYear || '2026-2027', '2026-2027', '2025-2026'])),
@@ -91,7 +92,7 @@ export const Roadmap2View: React.FC<Roadmap2ViewProps> = ({
     return '7a1';
   }, [mode, currentUser, classes]);
 
-  const [selectedClassCode, setSelectedClassCode] = useState<string>(studentClassCode);
+  const [selectedClassCode, setSelectedClassCode] = useState<string>(searchParams.get('class') || studentClassCode);
   const [selectedAcademicYear, setSelectedAcademicYear] = useState<string>(
     academicYearOptions[0] || '2026-2027'
   );
@@ -163,7 +164,8 @@ export const Roadmap2View: React.FC<Roadmap2ViewProps> = ({
   const planLessons = useMemo(() => {
     return lessons
       .filter((l) => {
-        if (l.status === 'archived') return false;
+        if (l.status === 'archived' || l.academicYear !== selectedAcademicYear) return false;
+        if (mode === 'student' && (l.status !== 'published' || (l.additionalCurriculumAssignment && l.tTrackVisibilityApproved !== true))) return false;
         const matchesClass =
           l.classCode?.toLowerCase() === activeClassCode ||
           l.classCodes?.some((c) => c.toLowerCase() === activeClassCode) ||
@@ -183,7 +185,7 @@ export const Roadmap2View: React.FC<Roadmap2ViewProps> = ({
           (a.quarter || 1) - (b.quarter || 1) ||
           (a.lessonNumber || a.orderIndex || 0) - (b.lessonNumber || b.orderIndex || 0)
       );
-  }, [lessons, activeClassCode, activeSubjectOption]);
+  }, [lessons, activeClassCode, activeSubjectOption, selectedAcademicYear, mode]);
 
   // Overview stats across all 4 quarters of the selected academic plan
   const planOverview = useMemo(
