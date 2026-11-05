@@ -1,3 +1,5 @@
+import { cloudStateMiddleware } from './src/server/cloudStateMiddleware';
+import { requestDatabase } from './src/server/requestDatabase';
 import 'dotenv/config';
 import express, { Request, Response } from 'express';
 import path from 'path';
@@ -29,6 +31,7 @@ import {
   AUTHORIZED_ADMIN_EMAILS,
 } from './src/utils/security';
 import {
+  getFirebaseAdminAuth,
   loadFirebaseAppletConfig,
   verifyFirebaseIdToken,
   provisionSingleAdminAccount,
@@ -266,6 +269,8 @@ interface SSEClient {
 const sseClients: SSEClient[] = [];
 
 function broadcastInstitutionUpdate(env: 'prod' | 'test', institutionId: string, eventType: string) {
+  const context = requestDatabase.getStore();
+  if (context) { context.afterCommit.push(() => requestDatabase.exit(() => broadcastInstitutionUpdate(env, institutionId, eventType))); return; }
   const payload = `data: ${JSON.stringify({ type: eventType, institutionId, timestamp: new Date().toISOString() })}\n\n`;
   for (const client of sseClients) {
     if (client.env === env && client.institutionId === institutionId) {
@@ -475,6 +480,7 @@ async function startServer() {
     });
   });
 
+  app.use(cloudStateMiddleware);
   const uploadJsonParser = express.json({ limit: '20mb' });
   const standardJsonParser = express.json({ limit: '2mb' });
   app.use((req, res, next) => {
@@ -519,6 +525,7 @@ async function startServer() {
     );
     res.json({
       status: 'ok',
+      persistence: process.env.PERSISTENCE_DRIVER === 'firestore' ? 'firestore' : 'local',
       geminiConfigured: hasGemini,
       platformOwnerEmail: CONFIGURED_OWNER_EMAIL,
       authorizedAdminCount: AUTHORIZED_ADMIN_EMAILS.length,
@@ -819,14 +826,12 @@ async function startServer() {
       customClaims: rawCustomClaims,
     } = req.body || {};
 
+    if (!idToken) return res.status(401).json({ error: 'Firebase ID token talab qilinadi.', code: 'auth/missing-id-token' });
     let verifiedUid = String(rawUid || '').trim();
     let verifiedEmail = String(rawEmail || '').trim().toLowerCase();
     let verifiedEmailFlag = rawEmailVerified === true;
     let verifiedDisplayName = String(rawDisplayName || '').trim();
-    let verifiedClaims: Record<string, unknown> =
-      rawCustomClaims && typeof rawCustomClaims === 'object'
-        ? { ...(rawCustomClaims as Record<string, unknown>) }
-        : {};
+    let verifiedClaims: Record<string, unknown> = {};
 
     // 1. If idToken is provided, cryptographically verify the Firebase ID token
     if (idToken) {
@@ -868,7 +873,6 @@ async function startServer() {
       verifiedDisplayName = verifiedDisplayName || tokenCheck.identity.displayName || '';
       verifiedClaims = {
         ...(tokenCheck.identity.customClaims || {}),
-        ...verifiedClaims,
       };
     }
 
@@ -907,6 +911,15 @@ async function startServer() {
 
     // 3. Handle the Two Authorized Platform Administrators (asilbeknuraliyev43@gmail.com & bahodirboliqulov3@gmail.com)
     if (isAuthAdmin) {
+      if (env === 'prod' && verifiedClaims.platformAdmin !== true) {
+        try {
+          const trustedAuth = getFirebaseAdminAuth();
+          const account = await trustedAuth.getUser(verifiedUid);
+          if (!account.emailVerified || account.disabled || account.email?.toLowerCase() !== verifiedEmail) return res.status(403).json({error:'Hisob tasdiqlanmagan.'});
+          await trustedAuth.setCustomUserClaims(account.uid, {...account.customClaims, platformAdmin:true});
+          verifiedClaims = {...account.customClaims,platformAdmin:true};
+        } catch { return res.status(503).json({error:'Administrator ruxsatini tasdiqlab bo‘lmadi. Keyinroq qayta urinib ko‘ring.'}); }
+      }
       if (!db.customClaims) db.customClaims = {};
       const explicitClaimFalse =
         verifiedClaims.platformAdmin !== true ||

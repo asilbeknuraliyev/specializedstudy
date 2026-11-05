@@ -1,0 +1,35 @@
+import type { RequestHandler } from 'express';
+import { requestDatabase } from './requestDatabase';
+import { readCloudState, writeCloudState, StateConflictError } from './cloudState';
+
+export function createCloudStateMiddleware(store = { read: readCloudState, write: writeCloudState }): RequestHandler {
+return async (req,res,next) => {
+ if(process.env.PERSISTENCE_DRIVER!=='firestore'||!req.path.startsWith('/api/')||req.path==='/api/health')return next();
+ try {
+   const snapshot=await store.read();
+   const context={...snapshot,dirty:false,afterCommit:[] as Array<()=>void>};
+   const json=res.json.bind(res);
+   let sending=false;
+   res.json=((body:unknown)=>{
+     if(sending)return res;
+     sending=true;
+     void (async()=>{
+       try {
+         if(context.dirty) await store.write(context.state,context.revision);
+         for(const action of context.afterCommit)action();
+         json(body);
+       } catch(error) {
+         res.status(error instanceof StateConflictError?409:503);
+         json({error:error instanceof StateConflictError?'Ma’lumot yangilangan. Sahifani yangilab, qayta urinib ko‘ring.':'Ma’lumot saqlanmadi. Keyinroq qayta urinib ko‘ring.'});
+       }
+     })();
+     return res;
+   }) as typeof res.json;
+   requestDatabase.run(context,next);
+ } catch {
+   res.status(503).json({error:'Ma’lumotlar bazasi hozircha tayyor emas. Administratorga murojaat qiling.'});
+ }
+};
+
+}
+export const cloudStateMiddleware = createCloudStateMiddleware();

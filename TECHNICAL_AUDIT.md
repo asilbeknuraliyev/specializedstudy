@@ -44,3 +44,12 @@ Reference: https://firebase.google.com/docs/auth/admin/custom-claims
 - Imported the user-provided real archive into local JSON state after backups: 21 workbooks, 2,516 published lessons, 850 approved T-track lessons. Stale imported records outside the current source were archived, preserving history.
 - TypeScript and production build passed; 32 unit tests passed, including real archive source provenance and repeat import checks.
 - These are local changes. Live Firebase/Vercel publication and authenticated visual/mobile verification remain outstanding.
+
+## Cloud migration and release progress
+The named Enterprise database was inspected and reused. Existing Firestore user profiles were copied into a new private runtime namespace without overwriting existing domain collections. 21 real work plans and 2,516 published source lessons (850 T-track lessons) were migrated and read back successfully. Anonymous SDK access to the runtime namespace was denied.
+
+The compatibility repository now stores compressed immutable snapshots with integrity checks and a transactional revision pointer. Request-local state prevents cross-request memory sharing. Response success waits for the cloud write; concurrent writes fail with 409, and storage failures return 503. Realtime notices are deferred until commit. Durable session revocations survive separate instances. Previous manifest revisions are retained for recovery; garbage collection and domain-level repository extraction remain follow-up scalability work.
+
+A dedicated runtime service account and its two roles were created only after explicit user approval. Its key is encrypted in Vercel. The existing verified Asilbek Firebase Auth account was provisioned after explicit approval. Bahodir must first sign in with Google because no Firebase Auth user exists yet; the approved server allowlist can provision his claim after independently verifying the Firebase identity.
+
+Missing ID tokens and client-supplied role/claim values are no longer accepted by firebase-sync. Backend claims originate from verified tokens or successful Admin SDK assignment only. Deployment and live API verification follow this migration; this entry does not assert full end-to-end student test coverage.

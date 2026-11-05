@@ -32,7 +32,7 @@ export function loadFirebaseAppletConfig(): FirebaseAppletConfig {
 
 let cachedAdminApp: AdminApp | null = null;
 
-export function getFirebaseAdminAuth(): AdminAuth {
+export function getFirebaseAdminApp(): AdminApp {
   if (!cachedAdminApp) {
     const cfg = loadFirebaseAppletConfig();
     const existing = getApps();
@@ -46,7 +46,11 @@ export function getFirebaseAdminAuth(): AdminAuth {
               : {}),
           });
   }
-  return getAuth(cachedAdminApp);
+  return cachedAdminApp;
+}
+
+export function getFirebaseAdminAuth(): AdminAuth {
+  return getAuth(getFirebaseAdminApp());
 }
 
 export interface VerifiedFirebaseIdentity {

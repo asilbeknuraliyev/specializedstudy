@@ -1,3 +1,4 @@
+import { requestDatabase } from './requestDatabase';
 import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
@@ -85,6 +86,8 @@ import {
 } from '../utils/academicOsEngine';
 
 export interface PersistentDatabaseState {
+  revokedSessionHashes?: Record<string, number>;
+  revokedBeforeByUser?: Record<string, number>;
   institutions: Institution[];
   institutionSettings: InstitutionSettings[];
   academicYears: AcademicYearItem[];
@@ -616,6 +619,8 @@ const memoryCache: Record<'prod' | 'test', PersistentDatabaseState | null> = {
 };
 
 export function getDbState(env: 'prod' | 'test' = 'prod'): PersistentDatabaseState {
+  const context = requestDatabase.getStore();
+  if (env === 'prod' && context) return context.state;
   if (memoryCache[env]) {
     return memoryCache[env]!;
   }
@@ -641,6 +646,8 @@ export function getDbState(env: 'prod' | 'test' = 'prod'): PersistentDatabaseSta
 }
 
 export function saveDbState(env: 'prod' | 'test', state: PersistentDatabaseState): void {
+  const context = requestDatabase.getStore();
+  if (env === 'prod' && context) { context.state = state; context.dirty = true; return; }
   memoryCache[env] = state;
   const { writePath } = resolveDbPaths(env);
   const serialized = JSON.stringify(state);
@@ -710,11 +717,20 @@ export function verifyPassword(password: string, storedHash: string | undefined)
 
 export function revokeSessionToken(token: string | undefined): void {
   if (!token) return;
+  const context = requestDatabase.getStore();
+  if (context) {
+    const now=Date.now();
+    context.state.revokedSessionHashes=Object.fromEntries(Object.entries(context.state.revokedSessionHashes || {}).filter(([,expiry])=>expiry>now));
+    try { const payload=JSON.parse(Buffer.from(token.split('.')[0],'base64url').toString('utf8'));context.state.revokedSessionHashes[crypto.createHash('sha256').update(token.trim()).digest('hex')]=Number(payload.exp)||now+604800000;context.dirty=true; } catch { /* malformed tokens cannot authenticate */ }
+    return;
+  }
   revokedTokenSet.add(token.trim());
 }
 
 export function revokeAllUserSessions(uid: string): void {
   if (!uid) return;
+  const context=requestDatabase.getStore();
+  if(context){context.state.revokedBeforeByUser||={};context.state.revokedBeforeByUser[uid]=Date.now();context.dirty=true;return;}
   revokedBeforeTimestampByUser.set(uid, Date.now());
 }
 
@@ -745,6 +761,8 @@ export function verifySessionToken(
   if (!token || typeof token !== 'string' || !token.includes('.')) return null;
   const cleanToken = token.trim();
   if (revokedTokenSet.has(cleanToken)) return null;
+  const durableRevocations=requestDatabase.getStore()?.state.revokedSessionHashes;
+  if(durableRevocations?.[crypto.createHash('sha256').update(cleanToken).digest('hex')])return null;
 
   const parts = cleanToken.split('.');
   if (parts.length !== 2) return null;
@@ -767,7 +785,7 @@ export function verifySessionToken(
     if (!decoded.uid || typeof decoded.exp !== 'number' || decoded.exp < Date.now()) {
       return null;
     }
-    const revokedBefore = revokedBeforeTimestampByUser.get(decoded.uid);
+    const revokedBefore = requestDatabase.getStore()?.state.revokedBeforeByUser?.[decoded.uid] || revokedBeforeTimestampByUser.get(decoded.uid);
     if (revokedBefore && typeof decoded.iat === 'number' && decoded.iat <= revokedBefore) {
       return null;
     }
