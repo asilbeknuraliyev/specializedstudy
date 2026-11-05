@@ -159,6 +159,17 @@ export function mapFirebaseAuthError(
         firebaseProjectId,
       };
 
+    case 'auth/server-unavailable':
+      return {
+        code,
+        userMessage: 'Kirish serveri hozircha javob bermayapti.',
+        recoveryAction: 'Birozdan keyin qayta urinib ko‘ring. Muammo davom etsa, administratorga xabar bering.',
+        sanitizedLog,
+        shouldOfferRedirectFallback: false,
+        detectedHostname: detectedHostname || undefined,
+        firebaseProjectId,
+      };
+
     case 'auth/network-request-failed':
       return {
         code,

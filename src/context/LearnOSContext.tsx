@@ -1296,7 +1296,7 @@ export const LearnOSProvider: React.FC<{ children: React.ReactNode }> = ({ child
         localStorage.removeItem('learnos_session_token');
         localStorage.removeItem('learnos_cached_user');
         const mapped = mapFirebaseAuthError({
-          code: 'auth/network-request-failed',
+          code: resStatus >= 500 || resStatus === 404 ? 'auth/server-unavailable' : 'auth/network-request-failed',
           message: 'Server bilan xavfsiz sessiya yaratib bo‘lmadi.',
         });
         setAuthError(mapped);
