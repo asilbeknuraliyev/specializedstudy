@@ -1,7 +1,7 @@
 import crypto from 'crypto';
 import fs from 'fs';
 import path from 'path';
-import { initializeApp, getApps, App as AdminApp } from 'firebase-admin/app';
+import { initializeApp, getApps, cert, App as AdminApp } from 'firebase-admin/app';
 import { getAuth, Auth as AdminAuth } from 'firebase-admin/auth';
 import {
   AUTHORIZED_ADMIN_EMAILS,
@@ -41,6 +41,9 @@ export function getFirebaseAdminAuth(): AdminAuth {
         ? existing[0]!
         : initializeApp({
             projectId: cfg.projectId,
+            ...(process.env.FIREBASE_ADMIN_SERVICE_ACCOUNT
+              ? { credential: cert(JSON.parse(process.env.FIREBASE_ADMIN_SERVICE_ACCOUNT)) }
+              : {}),
           });
   }
   return getAuth(cachedAdminApp);
