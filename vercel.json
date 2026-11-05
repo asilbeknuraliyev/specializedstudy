@@ -22,5 +22,6 @@
     "api/index.js": {
       "includeFiles": "{firebase-applet-config.json,public/assets/aistudio/*.zip}"
     }
-  }
+  },
+  "installCommand": "npm ci"
 }
