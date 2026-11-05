@@ -20,10 +20,7 @@
   ],
   "functions": {
     "api/index.js": {
-      "includeFiles": [
-        "firebase-applet-config.json",
-        "public/assets/aistudio/*.zip"
-      ]
+      "includeFiles": "{firebase-applet-config.json,public/assets/aistudio/*.zip}"
     }
   }
 }
