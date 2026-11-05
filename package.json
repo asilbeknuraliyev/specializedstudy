@@ -11,7 +11,7 @@
     "clean": "rm -rf dist server.js",
     "lint": "tsc --noEmit",
     "test:unit": "tsx --test src/utils/scoring.test.ts src/utils/__tests__/*.test.ts src/utils/authFoundation.test.ts src/utils/curriculumArchive.test.ts src/utils/cloudPersistence.test.ts src/utils/authErrorMessage.test.ts",
-    "test:server": "node scripts/buildServer.mjs && node --test scripts/bundleSmoke.test.mjs"
+    "test:server": "node scripts/buildServer.mjs && node --no-experimental-require-module --test scripts/bundleSmoke.test.mjs"
   },
   "dependencies": {
     "@google/genai": "^2.32.0",
@@ -44,5 +44,10 @@
     "tailwindcss": "^4.3.3",
     "tsx": "^4.21.0",
     "typescript": "^7.0.2"
+  },
+  "overrides": {
+    "jwks-rsa": {
+      "jose": "5.10.0"
+    }
   }
 }
