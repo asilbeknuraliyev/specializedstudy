@@ -9,5 +9,5 @@ export function ExamSketch({value,onChange,disabled}:{value:string;onChange:(ima
 export function ExamAnswerContent({answer}:{answer:string}){
  let values:Record<string,string>|null=null;try{const parsed=JSON.parse(answer);if(parsed&&typeof parsed==='object'&&!Array.isArray(parsed))values=parsed;}catch{}
  if(!values)return <span className="whitespace-pre-wrap">{answer||'(Bo‘sh qoldirilgan)'}</span>;
- return <div className="space-y-3">{Object.entries(values).filter(([,v])=>v).map(([key,value],i)=>key==='_drawing'?(/^data:image\/(png|jpeg);base64,/.test(value)&&<img key={key} src={value} alt="O‘quvchi chizmasi" className="max-w-full rounded-xl border bg-white"/>):<div key={key}><strong className="text-xs text-slate-500">{key==='_text'?'Izoh / yechim':`${i+1}-javob`}</strong><p className="whitespace-pre-wrap">{value}</p></div>)}</div>;
+ return <div className="space-y-3">{Object.entries(values).filter(([,v])=>typeof v==='string'&&v).map(([key,value],i)=>key==='_drawing'?(/^data:image\/(png|jpeg);base64,/.test(value)&&<img key={key} src={value} alt="O‘quvchi chizmasi" className="max-w-full rounded-xl border bg-white"/>):<div key={key}><strong className="text-xs text-slate-500">{key==='_text'?'Izoh / yechim':`${i+1}-javob`}</strong><p className="whitespace-pre-wrap">{value}</p></div>)}</div>;
 }
