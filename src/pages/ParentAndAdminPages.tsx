@@ -1,3 +1,4 @@
+import { ExamCenter } from '../components/ExamCenter';
 import { WorkPlanCenter } from '../components/WorkPlanCenter';
 import React, { useState, useEffect, useMemo } from 'react';
 import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
@@ -5317,7 +5318,7 @@ export const AdminCurriculumMapPage: React.FC = () => {
    7. TESTLAR — ASSESSMENTS PAGE
    ========================================================================== */
 
-export const AdminAssessmentsPage: React.FC = () => {
+const LegacyAssessmentsPage: React.FC = () => {
   const {
     institution,
     classes,
@@ -6274,3 +6275,5 @@ export const AdminAuditLogsPage = AdminSettingsPage;
 export const AdminHelpDocsPage = AdminSettingsPage;
 
 export const AdminWorkPlansPage: React.FC = () => <WorkPlanCenter advanced={LegacyWorkPlansPage}/>;
+
+export function AdminAssessmentsPage(){ return <ExamCenter legacy={LegacyAssessmentsPage}/>; }

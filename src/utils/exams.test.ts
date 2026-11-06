@@ -1,0 +1,42 @@
+import {test} from 'node:test';
+import assert from 'node:assert/strict';
+import express from 'express';
+import {registerExamRoutes} from '../server/examRoutes';
+import {canTakeExam,examCanStart,examDeadline,sanitizeExamQuestion,validateExamForPublish} from './examPolicy';
+import {findQuestionBoundaries,sourcePoints,type SourceLine} from './examExtraction';
+import type {Assessment,UserProfile} from '../types';
+const student={uid:'student',role:'student',status:'active',institutionId:'school',classId:'c8',classCode:'8a1'} as UserProfile;
+const admin={uid:'admin',role:'admin',platformAdmin:true,emailVerified:true,institutionId:'school'} as UserProfile;
+const sample=()=>({id:'exam',examKind:'BSB',examNumber:1,quarter:1,academicYear:'2026-2027',subject:'Kimyo',status:'published',examState:'open',institutionId:'school',assignedClassCodes:['8a1'],assignedClassIds:['c8'],questionIds:['q1'],availableFrom:new Date(Date.now()-10000).toISOString(),dueDate:new Date(Date.now()+3600000).toISOString(),durationMinutes:40,questionSnapshot:[{id:'q1',prompt:'Explain the result',points:5,type:'written_open',rubricText:'Five criteria'}]} as Assessment);
+const lines=(texts:string[]):SourceLine[]=>texts.map((text,i)=>({text,page:1,x:0,y:i*20,width:500,height:15}));
+test('strict student institution, active status and assigned class',()=>{const exam=sample();assert.ok(canTakeExam(student,exam));for(const patch of [{classId:undefined,classCode:undefined},{institutionId:'other'},{status:'suspended'},{role:'admin'}])assert.equal(canTakeExam({...student,...patch} as UserProfile,exam),false);});
+test('scheduled exam opens only inside server window',()=>{const exam=sample();assert.ok(examCanStart(exam));assert.equal(examCanStart({...exam,examState:'paused'}),false);assert.equal(examCanStart({...exam,status:'draft'}),false);assert.equal(examCanStart(exam,Date.parse(exam.dueDate)),false);});
+test('pause extension preserves elapsed duration and respects closing time',()=>{const exam=sample();const now=Date.now();const session={deadlineAt:new Date(now+10000).toISOString(),pauseAtStart:1000} as any;assert.equal(examDeadline({...exam,totalPausedMs:5000},session,now),now+14000);assert.equal(examDeadline({...exam,totalPausedMs:5000,examState:'paused',pausedAt:new Date(now-2000).toISOString()},session,now),now+16000);assert.equal(examDeadline({...exam,dueDate:new Date(now+1000).toISOString()},session,now),now+1000);});
+test('publishing requires explicit points, rubric and CHSB choice keys',()=>{const exam=sample();assert.deepEqual(validateExamForPublish(exam),[]);assert.ok(validateExamForPublish({...exam,examKind:'CHSB'}).length);assert.ok(validateExamForPublish({...exam,questionSnapshot:[{...exam.questionSnapshot![0],points:0,rubricText:''}]}).length);const choice={...exam.questionSnapshot![0],type:'single_choice',options:['A','B'],correctAnswer:'A'} as any;assert.deepEqual(validateExamForPublish({...exam,examKind:'CHSB',questionSnapshot:[choice]}),[]);});
+test('all structured answer keys are stripped from student data',()=>{const clean=sanitizeExamQuestion({correctAnswer:'A',acceptedAnswers:['A'],rubricText:'secret',optionItems:[{id:'a',isCorrect:true}],structuredOptions:[{isCorrect:true}],sourceImages:['private-url']});assert.equal(clean.correctAnswer,'');assert.equal(clean.acceptedAnswers,undefined);assert.equal(clean.optionItems[0].isCorrect,false);assert.equal(clean.structuredOptions[0].isCorrect,false);assert.deepEqual(clean.sourceImages,['private-url']);});
+test('numbered subparts and decimal chemical tasks do not split parent questions',()=>{const found=findQuestionBoundaries(lines(['1. First (Bilish - 5 ball)','1.1. detail','2. Second (Qo‘llash - 5 ball)','1) subpart (1 ball)','2) subpart (1 ball)','3. Third (Mulohaza - 9 ball)']));assert.deepEqual(found.map(x=>x.number),[1,2,3]);});
+test('watermark merged with question and spaced ten remain question boundaries',()=>{const rows=['1000007299594 e 1.Chiziq (Bilish - 5 ball)',...Array.from({length:8},(_,i)=>`${i+2}. Savol (Qo‘llash - 4,5 ball)`),'1 0 . Long prompt','x'.repeat(700),'(Mulohaza - 5,5 ball)','II variant','1. New question (Bilish - 2,5 ball)'];const found=findQuestionBoundaries(lines(rows));assert.equal(found.length,11);assert.equal(found[9].number,10);assert.equal(found[10].variant,'II');});
+test('topshiriq headings take priority over numbered lists; project rubric has no fake questions',()=>{assert.deepEqual(findQuestionBoundaries(lines(['1-topshiriq. Savol','1. List','2. List','2-topshiriq. Savol'])).map(x=>x.number),[1,2]);assert.deepEqual(findQuestionBoundaries(lines(['ПРОЕКТ: Таланты','Интервью','Критерии оценки'])),[]);assert.equal(sourcePoints('No assigned mark'),0);assert.equal(sourcePoints('(Bilish–2,5 ball)'),2.5);});
+test('isolated exam lifecycle: admin review, class access, reload, autosave CAS, pause, stop and draft editing',async()=>{
+ const db:any={classes:[{id:'c8',code:'8a1',grade:8,institutionId:'school'}],assessments:[],questions:[],attempts:[],examSessions:[]};let saves=0;const app=express();app.use(express.json());registerExamRoutes(app,{authenticate:req=>req.headers.authorization?{user:req.headers.authorization==='admin'?admin:student,env:'test',db,token:'test'}:null,save:()=>{saves++;},notify:()=>{}});
+ const server=app.listen(0,'127.0.0.1');await new Promise<void>(r=>server.once('listening',r));const port=(server.address() as any).port;
+ const call=async(path:string,method='GET',body?:any,actor='admin')=>{const r=await fetch(`http://127.0.0.1:${port}${path}`,{method,headers:{Authorization:actor,'Content-Type':'application/json'},...(body?{body:JSON.stringify(body)}:{})});return{status:r.status,data:await r.json()};};
+ try{
+ const payload={title:'Chemistry source assessment',examKind:'BSB',examNumber:1,quarter:1,academicYear:'2026-2027',subject:'Kimyo',classCodes:['8a1'],durationMinutes:40,availableFrom:new Date(Date.now()-10000).toISOString(),dueDate:new Date(Date.now()+3600000).toISOString(),sourceFileName:'source.pdf',sourceHash:'a'.repeat(64),contextImages:[],questions:[{sourceNumber:1,variant:'I',prompt:'Explain result',sourcePages:[1],sourceImages:[],fields:[],points:0,type:'written_open',options:[],correctAnswer:'',rubricText:''}]};
+ assert.equal((await call('/api/exams/drafts','POST',payload,'student')).status,403);
+ const created=await call('/api/exams/drafts','POST',payload);assert.equal(created.status,201);const id=created.data.assessment.id,url='/api/exams/'+id;
+ assert.equal((await call(url+'/start','POST',{},'student')).status,409);
+ assert.equal((await call(url+'/control','POST',{action:'start',reviewed:true})).status,400);
+ payload.questions[0].points=5;payload.questions[0].rubricText='Five required points';assert.equal((await call(url+'/draft','PATCH',payload)).status,200);
+ assert.equal((await call(url+'/control','POST',{action:'start'})).status,400);assert.equal((await call(url+'/control','POST',{action:'start',reviewed:true})).status,200);
+ assert.equal((await call(url+'/draft','PATCH',payload)).status,409);
+ const start=await call(url+'/start','POST',{},'student');assert.equal(start.status,200);const again=await call(url+'/start','POST',{},'student');assert.equal(again.data.session.id,start.data.session.id);assert.equal(again.data.session.deadlineAt,start.data.session.deadlineAt);
+ assert.equal((await call(url+'/session','PUT',{revision:0,answers:{unknown:'x'}},'student')).status,400);
+ const qid=created.data.assessment.questionIds[0];assert.equal((await call(url+'/session','PUT',{revision:0,answers:{[qid]:'answer'},event:'tab_hidden'},'student')).status,200);
+ assert.equal((await call(url+'/session','PUT',{revision:0,answers:{}},'student')).status,409);
+ const saved=await call(url+'/session','GET',undefined,'student');assert.equal(saved.data.session.answers[qid],'answer');assert.equal(saved.data.session.events.length,1);
+ assert.equal((await call(url+'/control','POST',{action:'pause'})).status,200);assert.equal((await call(url+'/session','PUT',{revision:1,answers:{}},'student')).status,409);
+ assert.equal((await call(url+'/control','POST',{action:'resume'})).status,200);assert.equal((await call(url+'/control','POST',{action:'stop'})).status,200);assert.equal((await call(url+'/session','PUT',{revision:1,answers:{}},'student')).status,409);
+ assert.equal((await call(url+'/draft','DELETE')).status,409);assert.ok(saves>=7);
+ }finally{server.closeAllConnections();await new Promise<void>(r=>server.close(()=>r()));}
+});

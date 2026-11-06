@@ -2395,7 +2395,7 @@ export const LearnOSProvider: React.FC<{ children: React.ReactNode }> = ({ child
             scorePercent: data.attempt.scorePercent,
             correctCount: data.attempt.correctCount,
             totalQuestions: data.attempt.totalQuestions,
-            status: 'completed',
+            status: data.attempt.status,
             submittedAt: data.attempt.submittedAt,
           });
         } catch {
@@ -2406,8 +2406,8 @@ export const LearnOSProvider: React.FC<{ children: React.ReactNode }> = ({ child
       await refreshState();
       addToast(
         'success',
-        `Test yakunlandi: ${data.attempt.scorePercent}%`,
-        `${data.attempt.correctCount}/${data.attempt.totalQuestions} ta to'g'ri javob`
+        data.attempt.status==='pending_manual_review'?'Ish qabul qilindi':`Test yakunlandi: ${data.attempt.scorePercent}%`,
+        data.attempt.status==='pending_manual_review'?'Yozma javoblar o‘qituvchi tekshiruvini kutmoqda':`${data.attempt.correctCount}/${data.attempt.totalQuestions} ta to'g'ri javob`
       );
       return data.attempt;
     },

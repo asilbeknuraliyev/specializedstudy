@@ -1,11 +1,6 @@
-// src/server/requestDatabase.ts
-import { AsyncLocalStorage } from "node:async_hooks";
-var requestDatabase = new AsyncLocalStorage();
-
-// src/server/cloudState.ts
-import crypto3 from "node:crypto";
-import { gzipSync, gunzipSync } from "node:zlib";
+// src/server/examMedia.ts
 import { getFirestore } from "firebase-admin/firestore";
+import crypto3 from "node:crypto";
 
 // src/server/firebaseAdminAuth.ts
 import crypto2 from "crypto";
@@ -683,6 +678,10 @@ function isTrustedCorsOrigin(origin, requestHost) {
     return false;
   }
 }
+
+// src/server/requestDatabase.ts
+import { AsyncLocalStorage } from "node:async_hooks";
+var requestDatabase = new AsyncLocalStorage();
 
 // src/server/dbEngine.ts
 import fs from "fs";
@@ -2617,7 +2616,244 @@ async function provisionAuthorizedAdmins(env, db) {
   };
 }
 
+// src/server/examMedia.ts
+async function storeExamImage(institutionId, examId, dataUrl) {
+  const match = dataUrl.match(/^data:image\/(jpeg|png);base64,(.+)$/);
+  if (!match) throw Error("Image format rejected");
+  const bytes = Buffer.from(match[2], "base64");
+  if (bytes.length > 5e5 || bytes.length < 8) throw Error("Image size rejected");
+  const png = bytes[0] === 137 && bytes[1] === 80 && bytes[2] === 78 && bytes[3] === 71, jpeg = bytes[0] === 255 && bytes[1] === 216 && bytes[2] === 255;
+  if (!(match[1] === "png" ? png : jpeg)) throw Error("Image signature rejected");
+  const hash = crypto3.createHash("sha256").update(institutionId).update(bytes).digest("hex");
+  const db = getFirestore(getFirebaseAdminApp(), loadFirebaseAppletConfig().firestoreDatabaseId);
+  await db.doc(`_specialized_exam_media/${hash}`).set({ institutionId, data: match[2], mime: `image/${match[1]}`, createdAt: (/* @__PURE__ */ new Date()).toISOString() });
+  return `/api/exams/${examId}/media/${hash}`;
+}
+async function readExamImage(hash) {
+  const db = getFirestore(getFirebaseAdminApp(), loadFirebaseAppletConfig().firestoreDatabaseId);
+  const doc = await db.doc(`_specialized_exam_media/${hash}`).get();
+  return doc.exists ? doc.data() : null;
+}
+
+// src/server/examRoutes.ts
+import crypto4 from "node:crypto";
+import { z } from "zod";
+
+// src/utils/examPolicy.ts
+function canTakeExam(user, exam) {
+  if (user.role !== "student" || user.status !== "active" || user.institutionId !== exam.institutionId) return false;
+  return Boolean(user.classId && [exam.classId, ...exam.assignedClassIds || []].includes(user.classId) || user.classCode && [exam.classCode, ...exam.assignedClassCodes || []].includes(user.classCode));
+}
+function examDeadline(exam, session, now = Date.now()) {
+  const extension = (exam.totalPausedMs || 0) - session.pauseAtStart + (exam.examState === "paused" && exam.pausedAt ? Math.max(0, now - Date.parse(exam.pausedAt)) : 0);
+  return Math.min(Date.parse(session.deadlineAt) + extension, Date.parse(exam.dueDate));
+}
+function examCanStart(exam, now = Date.now()) {
+  return exam.status === "published" && (exam.examState === "open" || exam.examState === "scheduled") && now >= Date.parse(exam.availableFrom || exam.createdAt) && now < Date.parse(exam.dueDate);
+}
+function validateExamForPublish(exam) {
+  const errors = [];
+  const questions = exam.questionSnapshot || [];
+  if (!questions.length) errors.push("Savollar yo\u2018q.");
+  if (!Number.isFinite(Date.parse(exam.availableFrom || "")) || !Number.isFinite(Date.parse(exam.dueDate)) || Date.parse(exam.availableFrom) >= Date.parse(exam.dueDate)) errors.push("Boshlanish va tugash vaqtini tekshiring.");
+  if (!exam.assignedClassCodes?.length) errors.push("Kamida bitta sinf tanlang.");
+  for (const [i, q] of questions.entries()) {
+    if (!q.prompt.trim() || !q.points || q.points <= 0) errors.push(`${i + 1}-savol matni yoki bali noto\u2018g\u2018ri.`);
+    if (q.type === "single_choice") {
+      if ((q.options?.length || 0) < 2 || !q.options?.includes(q.correctAnswer)) errors.push(`${i + 1}-savolning variantlari va javob kalitini tekshiring.`);
+    } else if (!q.rubricText?.trim()) errors.push(`${i + 1}-savolga baholash mezonini yozing.`);
+    if (exam.examKind === "CHSB" && q.type !== "single_choice") errors.push("CHSB savollari variantli bo\u2018lishi kerak.");
+  }
+  return errors;
+}
+function sanitizeExamQuestion(q) {
+  return { ...q, correctAnswer: "", correctAnswers: void 0, acceptedAnswers: void 0, rubricText: void 0, explanation: "", optionItems: q.optionItems?.map((o) => ({ ...o, isCorrect: false })), structuredOptions: q.structuredOptions?.map((o) => ({ ...o, isCorrect: false })) };
+}
+
+// src/server/examRoutes.ts
+var image = z.string().max(65e4).refine((v) => /^data:image\/(jpeg|png);base64,[A-Za-z0-9+/=]+$/.test(v), "Faqat JPEG/PNG tasvirlari.");
+var question = z.object({ sourceNumber: z.number().int().positive(), variant: z.string().max(12), prompt: z.string().min(3).max(18e3), sourcePages: z.array(z.number().int().positive()).max(20), sourceImages: z.array(image).max(20), fields: z.array(z.object({ id: z.string().max(80), label: z.string().max(120), imageIndex: z.number().int().min(0), x: z.number().min(0).max(1), y: z.number().min(0).max(1), width: z.number().min(0.01).max(1), height: z.number().min(0.01).max(1) })).max(40), points: z.number().min(0).max(100), type: z.enum(["written_open", "single_choice"]), options: z.array(z.string().max(4e3)).max(8), correctAnswer: z.string().max(4e3), rubricText: z.string().max(12e3) });
+var draftSchema = z.object({ title: z.string().min(3).max(200), examKind: z.enum(["BSB", "CHSB"]), examNumber: z.number().int().min(1).max(2), quarter: z.number().int().min(1).max(4), academicYear: z.string().regex(/^\d{4}-\d{4}$/), subject: z.string().min(2).max(100), classCodes: z.array(z.string()).min(1).max(19), durationMinutes: z.number().int().min(1).max(180), availableFrom: z.string().datetime(), dueDate: z.string().datetime(), sourceFileName: z.string().max(200), sourceHash: z.string().regex(/^[a-f0-9]{64}$/), contextImages: z.array(image).max(20), questions: z.array(question).min(1).max(60) });
+function registerExamRoutes(app2, deps) {
+  const admin = (req, res) => {
+    const c = deps.authenticate(req);
+    if (!c) {
+      res.status(401).json({ error: "Hisobga kiring." });
+      return null;
+    }
+    if (!["admin", "platform_owner"].includes(c.user.role) || c.user.platformAdmin !== true || c.user.emailVerified !== true) {
+      res.status(403).json({ error: "Faqat administrator." });
+      return null;
+    }
+    return c;
+  };
+  app2.post("/api/exams/drafts", async (req, res) => {
+    const c = admin(req, res);
+    if (!c) return;
+    const parsed = draftSchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ error: parsed.error.issues[0]?.message || "Ma\u2019lumot noto\u2018g\u2018ri." });
+    const data = parsed.data;
+    if (Buffer.byteLength(JSON.stringify(data)) > 32e5) return res.status(413).json({ error: "Tasvirlar hajmi 3 MB dan oshdi. Faylni qismlarga ajrating." });
+    if (data.examKind === "CHSB" && data.examNumber !== 1) return res.status(400).json({ error: "Bir chorakda bitta CHSB bo\u2018ladi." });
+    const classes = c.db.classes.filter((cls) => cls.institutionId === c.user.institutionId && data.classCodes.includes(cls.code));
+    if (classes.length !== new Set(data.classCodes).size || new Set(classes.map((cls) => cls.grade)).size !== 1) return res.status(400).json({ error: "Bir bosqichdagi haqiqiy sinflarni tanlang." });
+    if (data.questions.some((q) => q.fields.some((f) => f.imageIndex >= q.sourceImages.length))) return res.status(400).json({ error: "Javob maydoni manba sahifasiga mos emas." });
+    if (Date.parse(data.availableFrom) >= Date.parse(data.dueDate)) return res.status(400).json({ error: "Vaqt oralig\u2018ini tekshiring." });
+    const existing = c.db.assessments.find((a) => a.institutionId === c.user.institutionId && a.sourceHash === data.sourceHash && a.title === data.title && a.examKind === data.examKind && a.academicYear === data.academicYear && a.examNumber === data.examNumber && a.quarter === data.quarter && JSON.stringify(a.assignedClassCodes) === JSON.stringify(data.classCodes));
+    if (existing) return res.json({ assessment: existing, replayed: true });
+    const now = (/* @__PURE__ */ new Date()).toISOString(), id = "exam-" + crypto4.randomUUID();
+    try {
+      for (const q of data.questions) q.sourceImages = await Promise.all(q.sourceImages.map((image2) => storeExamImage(c.user.institutionId, id, image2)));
+      data.contextImages = await Promise.all(data.contextImages.map((image2) => storeExamImage(c.user.institutionId, id, image2)));
+    } catch {
+      return res.status(503).json({ error: "Manba tasvirlarini saqlab bo\u2018lmadi. Qoralama saqlanmadi; qayta urinib ko\u2018ring." });
+    }
+    const qs = data.questions.map((q, i) => ({ id: id + "-q" + (i + 1), institutionId: c.user.institutionId, authorId: c.user.uid, subject: data.subject, grade: classes[0].grade, topicId: "", difficulty: "mixed", type: q.type, points: q.points, prompt: q.prompt, options: q.options, correctAnswer: q.correctAnswer, gradingMode: q.type === "single_choice" ? "automatic" : "manual_rubric", rubricText: q.rubricText, sourceImages: q.sourceImages, sourcePages: q.sourcePages, answerFields: q.fields, explanation: "", status: "draft", createdAt: now }));
+    const assessment = { id, title: data.title, subject: data.subject, grade: classes[0].grade, examKind: data.examKind, examNumber: data.examNumber, examState: "draft", academicYear: data.academicYear, quarter: data.quarter, classId: classes[0].id, classCode: classes[0].code, assignedClassIds: classes.map((c2) => c2.id), assignedClassCodes: classes.map((c2) => c2.code), durationMinutes: data.durationMinutes, availableFrom: data.availableFrom, dueDate: data.dueDate, sourceFileName: data.sourceFileName, sourceHash: data.sourceHash, contextImages: data.contextImages, topicIds: [], questionIds: qs.map((q) => q.id), questionSnapshot: qs, teacherId: c.user.uid, institutionId: c.user.institutionId, status: "draft", source: "manual", createdAt: now, totalPoints: qs.reduce((sum, q) => sum + (q.points || 0), 0), totalPausedMs: 0 };
+    c.db.questions.push(...qs);
+    c.db.assessments.unshift(assessment);
+    deps.save(c.env, c.db);
+    deps.notify(c.env, c.user.institutionId, "EXAM_DRAFT_CREATED");
+    res.status(201).json({ assessment });
+  });
+  app2.patch("/api/exams/:id/draft", (req, res) => {
+    const c = admin(req, res);
+    if (!c) return;
+    const exam = c.db.assessments.find((a) => a.id === req.params.id && a.examKind && a.institutionId === c.user.institutionId);
+    if (!exam || exam.examState !== "draft") return res.status(409).json({ error: "Faqat nashr qilinmagan qoralamani tahrirlash mumkin." });
+    const edit = draftSchema.omit({ sourceHash: true, sourceFileName: true, contextImages: true, questions: true }).extend({ questions: z.array(question.omit({ sourceImages: true }).extend({ sourceImages: z.array(z.string().max(180)).max(20) })).min(1).max(60) }).safeParse(req.body);
+    if (!edit.success) return res.status(400).json({ error: edit.error.issues[0]?.message });
+    const d = edit.data;
+    const classes = c.db.classes.filter((cls) => cls.institutionId === c.user.institutionId && d.classCodes.includes(cls.code));
+    if (classes.length !== new Set(d.classCodes).size || new Set(classes.map((cls) => cls.grade)).size !== 1 || Date.parse(d.availableFrom) >= Date.parse(d.dueDate) || d.examKind === "CHSB" && d.examNumber !== 1) return res.status(400).json({ error: "Sinf, nazorat raqami yoki vaqtni tekshiring." });
+    const allowed = (exam.questionSnapshot || []).flatMap((q) => q.sourceImages || []);
+    if (d.questions.some((q) => q.sourceImages.some((src) => !allowed.includes(src)) || q.fields.some((f) => f.imageIndex >= q.sourceImages.length))) return res.status(400).json({ error: "Manba tasviri yoki maydon noto\u2018g\u2018ri." });
+    const now = (/* @__PURE__ */ new Date()).toISOString();
+    const qs = d.questions.map((q, i) => ({ id: exam.id + "-q" + (i + 1), institutionId: c.user.institutionId, authorId: c.user.uid, subject: d.subject, grade: classes[0].grade, topicId: "", difficulty: "mixed", type: q.type, points: q.points, prompt: q.prompt, options: q.options, correctAnswer: q.correctAnswer, gradingMode: q.type === "single_choice" ? "automatic" : "manual_rubric", rubricText: q.rubricText, sourceImages: q.sourceImages, sourcePages: q.sourcePages, answerFields: q.fields, explanation: "", status: "draft", createdAt: now }));
+    c.db.questions = c.db.questions.filter((q) => !exam.questionIds.includes(q.id));
+    c.db.questions.push(...qs);
+    Object.assign(exam, { title: d.title, subject: d.subject, examKind: d.examKind, examNumber: d.examNumber, quarter: d.quarter, academicYear: d.academicYear, durationMinutes: d.durationMinutes, availableFrom: d.availableFrom, dueDate: d.dueDate, grade: classes[0].grade, classId: classes[0].id, classCode: classes[0].code, assignedClassIds: classes.map((cls) => cls.id), assignedClassCodes: classes.map((cls) => cls.code), questionSnapshot: qs, questionIds: qs.map((q) => q.id), totalPoints: qs.reduce((n, q) => n + (q.points || 0), 0), updatedAt: now });
+    deps.save(c.env, c.db);
+    deps.notify(c.env, c.user.institutionId, "EXAM_DRAFT_UPDATED");
+    res.json({ assessment: exam });
+  });
+  app2.delete("/api/exams/:id/draft", (req, res) => {
+    const c = admin(req, res);
+    if (!c) return;
+    const exam = c.db.assessments.find((a) => a.id === req.params.id && a.examKind && a.institutionId === c.user.institutionId);
+    if (!exam || exam.examState !== "draft") return res.status(409).json({ error: "Faqat qoralamani o\u2018chirish mumkin." });
+    c.db.assessments = c.db.assessments.filter((a) => a.id !== exam.id);
+    c.db.questions = c.db.questions.filter((q) => !exam.questionIds.includes(q.id));
+    deps.save(c.env, c.db);
+    deps.notify(c.env, c.user.institutionId, "EXAM_DRAFT_DELETED");
+    res.json({ ok: true });
+  });
+  app2.get("/api/exams/:id/media/:hash", async (req, res) => {
+    const c = deps.authenticate(req);
+    if (!c) return res.status(401).json({ error: "Hisobga kiring." });
+    const exam = c.db.assessments.find((a) => a.id === req.params.id && a.institutionId === c.user.institutionId && a.examKind);
+    if (!exam || !/^[a-f0-9]{64}$/.test(req.params.hash) || !["admin", "platform_owner"].includes(c.user.role) && !(exam.status === "published" && canTakeExam(c.user, exam))) return res.status(403).json({ error: "Rasmga ruxsat yo\u2018q." });
+    const path5 = "/api/exams/" + exam.id + "/media/" + req.params.hash;
+    if (![...exam.contextImages || [], ...(exam.questionSnapshot || []).flatMap((q) => q.sourceImages || [])].includes(path5)) return res.status(404).json({ error: "Rasm topilmadi." });
+    try {
+      const image2 = await readExamImage(req.params.hash);
+      if (!image2 || image2.institutionId !== c.user.institutionId) return res.status(404).end();
+      res.setHeader("Cache-Control", "private, max-age=300");
+      res.type(image2.mime).send(Buffer.from(image2.data, "base64"));
+    } catch {
+      res.status(503).json({ error: "Rasm yuklanmadi." });
+    }
+  });
+  app2.get("/api/exams/:id/monitor", (req, res) => {
+    const c = admin(req, res);
+    if (!c) return;
+    const exam = c.db.assessments.find((a) => a.id === req.params.id && a.examKind && a.institutionId === c.user.institutionId);
+    if (!exam) return res.status(404).json({ error: "Nazorat topilmadi." });
+    const sessions = (c.db.examSessions || []).filter((s) => s.assessmentId === exam.id && s.institutionId === c.user.institutionId).map((s) => ({ id: s.id, studentName: c.db.users?.find((u) => u.uid === s.studentId)?.displayName || s.studentId, startedAt: s.startedAt, deadline: examDeadline(exam, s), revision: s.revision, submitted: !!s.submittedAttemptId, events: s.events }));
+    res.json({ sessions, serverNow: Date.now() });
+  });
+  app2.post("/api/exams/:id/control", (req, res) => {
+    const c = admin(req, res);
+    if (!c) return;
+    const exam = c.db.assessments.find((a) => a.id === req.params.id && a.institutionId === c.user.institutionId && a.examKind);
+    if (!exam) return res.status(404).json({ error: "Nazorat ishi topilmadi." });
+    const action = req.body.action;
+    const now = (/* @__PURE__ */ new Date()).toISOString();
+    if (action === "schedule" || action === "start") {
+      if (!["draft", "scheduled", "closed"].includes(exam.examState || "")) return res.status(409).json({ error: "Joriy holatda bu amal mumkin emas." });
+      const errors = validateExamForPublish(exam);
+      if (errors.length || req.body.reviewed !== true) return res.status(400).json({ error: errors.join(" ") || "Savollar ko\u2018rib chiqilganini tasdiqlang." });
+      if (Date.parse(exam.dueDate) <= Date.now()) return res.status(400).json({ error: "Imtihon muddati o\u2018tgan. Yangi qoralama yarating." });
+      const duplicate = c.db.assessments.some((a) => a.id !== exam.id && a.institutionId === exam.institutionId && a.examKind === exam.examKind && a.examNumber === exam.examNumber && a.quarter === exam.quarter && a.subject === exam.subject && a.academicYear === exam.academicYear && a.status === "published" && a.assignedClassCodes?.some((code) => exam.assignedClassCodes?.includes(code)));
+      if (duplicate) return res.status(409).json({ error: "Shu chorak, fan va sinf uchun bu nazorat allaqachon nashr qilingan." });
+      exam.status = "published";
+      exam.examState = action === "start" ? "open" : "scheduled";
+      if (action === "start") exam.availableFrom = now;
+      exam.reviewedAt = now;
+    } else if (action === "pause" && ["open", "scheduled"].includes(exam.examState || "")) {
+      exam.examState = "paused";
+      exam.pausedAt = now;
+    } else if (action === "resume" && exam.examState === "paused") {
+      exam.totalPausedMs = (exam.totalPausedMs || 0) + Date.now() - Date.parse(exam.pausedAt);
+      exam.pausedAt = void 0;
+      exam.examState = "open";
+    } else if (action === "stop" && exam.examState !== "draft") {
+      exam.examState = "closed";
+      exam.closedAt = now;
+    } else return res.status(409).json({ error: "Holat o\u2018zgargan. Sahifani yangilang." });
+    exam.updatedAt = now;
+    deps.save(c.env, c.db);
+    deps.notify(c.env, c.user.institutionId, "EXAM_STATE_CHANGED");
+    res.json({ assessment: exam });
+  });
+  app2.post("/api/exams/:id/start", (req, res) => {
+    const c = deps.authenticate(req);
+    if (!c) return res.status(401).json({ error: "Hisobga kiring." });
+    const exam = c.db.assessments.find((a) => a.id === req.params.id && a.examKind);
+    if (!exam || !canTakeExam(c.user, exam)) return res.status(403).json({ error: "Nazorat ishi sinfingizga biriktirilmagan." });
+    c.db.examSessions ||= [];
+    let session = c.db.examSessions.find((s) => s.assessmentId === exam.id && s.studentId === c.user.uid);
+    if (!session) {
+      if (!examCanStart(exam)) return res.status(409).json({ error: "Nazorat ishi boshlanmagan yoki yopilgan." });
+      if (c.db.attempts.some((a) => a.assessmentId === exam.id && a.studentId === c.user.uid)) return res.status(409).json({ error: "Nazorat ishi allaqachon topshirilgan." });
+      session = { id: crypto4.randomUUID(), assessmentId: exam.id, studentId: c.user.uid, institutionId: c.user.institutionId, startedAt: (/* @__PURE__ */ new Date()).toISOString(), deadlineAt: new Date(Date.now() + exam.durationMinutes * 6e4).toISOString(), pauseAtStart: exam.totalPausedMs || 0, revision: 0, answers: {}, events: [] };
+      c.db.examSessions.push(session);
+      deps.save(c.env, c.db);
+    }
+    res.json({ session, serverNow: Date.now(), deadline: examDeadline(exam, session), state: exam.examState });
+  });
+  app2.get("/api/exams/:id/session", (req, res) => {
+    const c = deps.authenticate(req);
+    if (!c) return res.status(401).json({ error: "Hisobga kiring." });
+    const exam = c.db.assessments.find((a) => a.id === req.params.id && a.examKind);
+    const session = c.db.examSessions?.find((s) => s.assessmentId === req.params.id && s.studentId === c.user.uid);
+    if (!exam || !session || !canTakeExam(c.user, exam)) return res.status(404).json({ error: "Sessiya topilmadi." });
+    res.json({ session, serverNow: Date.now(), deadline: examDeadline(exam, session), state: exam.examState });
+  });
+  app2.put("/api/exams/:id/session", (req, res) => {
+    const c = deps.authenticate(req);
+    if (!c) return res.status(401).json({ error: "Hisobga kiring." });
+    const exam = c.db.assessments.find((a) => a.id === req.params.id && a.examKind);
+    const session = c.db.examSessions?.find((s) => s.assessmentId === req.params.id && s.studentId === c.user.uid);
+    if (!exam || !session || !canTakeExam(c.user, exam)) return res.status(404).json({ error: "Sessiya topilmadi." });
+    if (session.submittedAttemptId) return res.status(409).json({ error: "Ish topshirilgan." });
+    if (req.body.revision !== session.revision) return res.status(409).json({ error: "Javoblar boshqa oynada yangilangan. Sahifani yangilang." });
+    if (exam.examState === "paused" || exam.examState === "closed" || Date.now() > examDeadline(exam, session)) return res.status(409).json({ error: "Nazorat to\u2018xtatilgan yoki vaqti tugagan." });
+    const incoming = z.record(z.string(), z.string().max(25e4)).safeParse(req.body.answers);
+    if (!incoming.success || Buffer.byteLength(JSON.stringify(incoming.data)) > 18e5) return res.status(400).json({ error: "Javoblar hajmi yoki shakli noto\u2018g\u2018ri." });
+    if (Object.keys(incoming.data).some((id) => !exam.questionIds.includes(id))) return res.status(400).json({ error: "Noma\u2019lum savol." });
+    session.answers = incoming.data;
+    session.revision++;
+    if (["fullscreen_exit", "tab_hidden", "fullscreen_unavailable"].includes(req.body.event) && session.events.length < 100) session.events.push({ type: req.body.event, at: (/* @__PURE__ */ new Date()).toISOString() });
+    deps.save(c.env, c.db);
+    res.json({ revision: session.revision, savedAt: (/* @__PURE__ */ new Date()).toISOString(), deadline: examDeadline(exam, session), serverNow: Date.now() });
+  });
+}
+
 // src/server/cloudState.ts
+import crypto5 from "node:crypto";
+import { gzipSync, gunzipSync } from "node:zlib";
+import { getFirestore as getFirestore2 } from "firebase-admin/firestore";
 var ROOT = "_specialized_runtime";
 var CHUNK_BYTES = 35e4;
 var MAX_STATE_BYTES = 64 * 1024 * 1024;
@@ -2633,23 +2869,23 @@ function encodeState(value) {
   const chunks = [];
   for (let offset = 0; offset < compressed.length; offset += CHUNK_BYTES) {
     const bytes = compressed.subarray(offset, offset + CHUNK_BYTES);
-    chunks.push({ id: crypto3.createHash("sha256").update(bytes).digest("hex"), data: bytes.toString("base64") });
+    chunks.push({ id: crypto5.createHash("sha256").update(bytes).digest("hex"), data: bytes.toString("base64") });
   }
-  return { chunks, digest: crypto3.createHash("sha256").update(raw).digest("hex") };
+  return { chunks, digest: crypto5.createHash("sha256").update(raw).digest("hex") };
 }
 function decodeState(chunks, digest) {
   const compressed = Buffer.concat(chunks.map((c) => {
     const b = Buffer.from(c.data, "base64");
-    if (crypto3.createHash("sha256").update(b).digest("hex") !== c.id) throw Error("Snapshot chunk integrity failure");
+    if (crypto5.createHash("sha256").update(b).digest("hex") !== c.id) throw Error("Snapshot chunk integrity failure");
     return b;
   }));
   const raw = gunzipSync(compressed, { maxOutputLength: MAX_STATE_BYTES });
-  if (crypto3.createHash("sha256").update(raw).digest("hex") !== digest) throw Error("Snapshot integrity failure");
+  if (crypto5.createHash("sha256").update(raw).digest("hex") !== digest) throw Error("Snapshot integrity failure");
   return JSON.parse(raw.toString("utf8"));
 }
 var cache = null;
 function database() {
-  return getFirestore(getFirebaseAdminApp(), loadFirebaseAppletConfig().firestoreDatabaseId);
+  return getFirestore2(getFirebaseAdminApp(), loadFirebaseAppletConfig().firestoreDatabaseId);
 }
 async function readCloudState() {
   const db = database();
@@ -2670,7 +2906,7 @@ async function readCloudState() {
 async function writeCloudState(state, expectedRevision) {
   const db = database();
   const encoded = encodeState(state);
-  const revision = crypto3.randomUUID();
+  const revision = crypto5.randomUUID();
   for (let offset = 0; offset < encoded.chunks.length; offset += 8) {
     const batch = db.batch();
     for (const chunk of encoded.chunks.slice(offset, offset + 8)) batch.set(db.doc(`${ROOT}/chunks/items/${chunk.id}`), { data: chunk.data });
@@ -2726,7 +2962,7 @@ import path4 from "path";
 import { fileURLToPath } from "url";
 import { GoogleGenAI, Type } from "@google/genai";
 import * as XLSX5 from "xlsx";
-import { z } from "zod";
+import { z as z2 } from "zod";
 
 // src/utils/scoring.ts
 var MINIMUM_EVIDENCE_THRESHOLD = 3;
@@ -2747,24 +2983,24 @@ function parseMultiAnswerList(raw) {
   }
   return trimmed.split(/[;|,]/).map((s) => normalizeAnswer(s)).filter(Boolean).sort();
 }
-function isAnswerCorrect(question, submittedAnswer) {
+function isAnswerCorrect(question2, submittedAnswer) {
   if (!submittedAnswer || !String(submittedAnswer).trim()) {
     return false;
   }
-  if (question.type === "numeric") {
+  if (question2.type === "numeric") {
     const normalizedSubmitted2 = normalizeAnswer(submittedAnswer);
-    const normalizedCorrect2 = normalizeAnswer(question.correctAnswer);
+    const normalizedCorrect2 = normalizeAnswer(question2.correctAnswer);
     const numSub = Number(normalizedSubmitted2);
     const numCor = Number(normalizedCorrect2);
-    const tolerance = typeof question.numericTolerance === "number" && question.numericTolerance >= 0 ? question.numericTolerance : 1e-4;
+    const tolerance = typeof question2.numericTolerance === "number" && question2.numericTolerance >= 0 ? question2.numericTolerance : 1e-4;
     if (!Number.isNaN(numSub) && !Number.isNaN(numCor)) {
       return Math.abs(numSub - numCor) <= tolerance + 1e-9;
     }
     return false;
   }
-  if (question.type === "short_text") {
-    if (question.acceptedAnswers && question.acceptedAnswers.length > 0) {
-      return question.acceptedAnswers.some((acc) => {
+  if (question2.type === "short_text") {
+    if (question2.acceptedAnswers && question2.acceptedAnswers.length > 0) {
+      return question2.acceptedAnswers.some((acc) => {
         const rawTarget = String(acc.acceptedAnswer ?? acc.text ?? "");
         const subVal = acc.trimWhitespace !== false ? submittedAnswer.trim() : submittedAnswer;
         const targetVal = acc.trimWhitespace !== false ? rawTarget.trim() : rawTarget;
@@ -2774,23 +3010,23 @@ function isAnswerCorrect(question, submittedAnswer) {
         return subVal.toLowerCase() === targetVal.toLowerCase();
       });
     }
-    if (question.gradingMode === "manual" || question.gradingMode === "ai_assisted") {
+    if (question2.gradingMode === "manual" || question2.gradingMode === "ai_assisted") {
       return false;
     }
-    return submittedAnswer.trim().toLowerCase() === String(question.correctAnswer || "").trim().toLowerCase();
+    return submittedAnswer.trim().toLowerCase() === String(question2.correctAnswer || "").trim().toLowerCase();
   }
-  if (question.type === "long_text") {
+  if (question2.type === "long_text") {
     return false;
   }
-  const multiCorrectList = question.correctAnswers && question.correctAnswers.length > 0 ? question.correctAnswers : question.structuredOptions && question.structuredOptions.filter((o) => o.isCorrect).length > 1 ? question.structuredOptions.filter((o) => o.isCorrect).map((o) => o.text || o.code || o.key || "") : null;
-  if (question.type === "multiple_choice" && multiCorrectList && multiCorrectList.length > 1) {
+  const multiCorrectList = question2.correctAnswers && question2.correctAnswers.length > 0 ? question2.correctAnswers : question2.structuredOptions && question2.structuredOptions.filter((o) => o.isCorrect).length > 1 ? question2.structuredOptions.filter((o) => o.isCorrect).map((o) => o.text || o.code || o.key || "") : null;
+  if (question2.type === "multiple_choice" && multiCorrectList && multiCorrectList.length > 1) {
     const subSet = parseMultiAnswerList(submittedAnswer);
     const corSet = multiCorrectList.map((c) => normalizeAnswer(c || "")).filter(Boolean).sort();
     if (subSet.length === corSet.length && subSet.every((val, idx) => val === corSet[idx])) {
       return true;
     }
-    if (question.structuredOptions && question.structuredOptions.length > 0) {
-      const correctOpts = question.structuredOptions.filter((o) => o.isCorrect);
+    if (question2.structuredOptions && question2.structuredOptions.length > 0) {
+      const correctOpts = question2.structuredOptions.filter((o) => o.isCorrect);
       const codeSet = correctOpts.map((o) => normalizeAnswer(o.code || o.key || "")).filter(Boolean).sort();
       if (subSet.length === codeSet.length && subSet.every((val, idx) => val === codeSet[idx])) {
         return true;
@@ -2803,10 +3039,10 @@ function isAnswerCorrect(question, submittedAnswer) {
     return false;
   }
   const normalizedSubmitted = normalizeAnswer(submittedAnswer);
-  const normalizedCorrect = normalizeAnswer(question.correctAnswer);
+  const normalizedCorrect = normalizeAnswer(question2.correctAnswer);
   if (normalizedSubmitted === normalizedCorrect) return true;
-  if (question.structuredOptions && question.structuredOptions.length > 0) {
-    const correctOpt = question.structuredOptions.find((o) => o.isCorrect);
+  if (question2.structuredOptions && question2.structuredOptions.length > 0) {
+    const correctOpt = question2.structuredOptions.find((o) => o.isCorrect);
     if (correctOpt) {
       if (normalizeAnswer(correctOpt.text) === normalizedSubmitted || normalizeAnswer(correctOpt.code || correctOpt.key || "") === normalizedSubmitted) {
         return true;
@@ -5336,7 +5572,7 @@ function generateStudentExportBuffer(students) {
 // src/utils/mathCurriculumImporter.ts
 import fs3 from "fs";
 import path3 from "path";
-import crypto4 from "crypto";
+import crypto6 from "crypto";
 import JSZip2 from "jszip";
 import * as XLSX4 from "xlsx";
 var OFFICIAL_MATH_ARCHIVE_DISPLAY_NAME = "Matematika  elektron jurnal uchun ish reja.zip";
@@ -5345,7 +5581,7 @@ var MAX_ZIP_SIZE_BYTES = 25 * 1024 * 1024;
 var MAX_ZIP_ENTRIES = 100;
 var MAX_UNCOMPRESSED_BYTES = 50 * 1024 * 1024;
 function computeSha256Hex(input) {
-  return crypto4.createHash("sha256").update(input).digest("hex");
+  return crypto6.createHash("sha256").update(input).digest("hex");
 }
 function resolveOfficialMathArchivePath() {
   const candidates = [
@@ -6913,34 +7149,34 @@ function calculateClassMonitoringSnapshot(classCode, grade, track, enrolledStude
 var CONFIGURED_OWNER_EMAIL = (process.env.PLATFORM_OWNER_EMAIL || PLATFORM_OWNER_EMAIL).trim().toLowerCase();
 var __filename = fileURLToPath(import.meta.url);
 var __dirname = path4.dirname(__filename);
-var AIAnalysisSchema = z.object({
-  summary: z.string().min(5),
-  topic_analysis: z.array(
-    z.object({
-      topic_id: z.string(),
-      observed_performance: z.string(),
-      possible_error_pattern: z.string(),
-      evidence_count: z.number(),
-      confidence: z.enum(["low", "medium", "high"]),
-      recommendation: z.string()
+var AIAnalysisSchema = z2.object({
+  summary: z2.string().min(5),
+  topic_analysis: z2.array(
+    z2.object({
+      topic_id: z2.string(),
+      observed_performance: z2.string(),
+      possible_error_pattern: z2.string(),
+      evidence_count: z2.number(),
+      confidence: z2.enum(["low", "medium", "high"]),
+      recommendation: z2.string()
     })
   ),
-  next_steps: z.array(
-    z.object({
-      topic_id: z.string(),
-      activity: z.string(),
-      reason: z.string(),
-      priority: z.enum(["low", "medium", "high"])
+  next_steps: z2.array(
+    z2.object({
+      topic_id: z2.string(),
+      activity: z2.string(),
+      reason: z2.string(),
+      priority: z2.enum(["low", "medium", "high"])
     })
   ),
-  teacher_summary: z.string().min(5),
-  parent_summary: z.string().optional()
+  teacher_summary: z2.string().min(5),
+  parent_summary: z2.string().optional()
 });
-var AIDraftedQuestionSchema = z.object({
-  prompt: z.string().min(5),
-  options: z.array(z.string()).length(4),
-  correctAnswer: z.string().min(1),
-  explanation: z.string().min(5)
+var AIDraftedQuestionSchema = z2.object({
+  prompt: z2.string().min(5),
+  options: z2.array(z2.string()).length(4),
+  correctAnswer: z2.string().min(1),
+  explanation: z2.string().min(5)
 });
 function getGeminiClient(req) {
   if (req && resolveRequestEnv(req) === "test") {
@@ -7130,11 +7366,12 @@ async function startServer() {
   const uploadJsonParser = express.json({ limit: "20mb" });
   const standardJsonParser = express.json({ limit: "2mb" });
   app.use((req, res, next) => {
-    if (req.path.startsWith("/api/students/import/") || req.path.startsWith("/api/work-plans/upload") || req.path.startsWith("/api/imports/") || req.path.startsWith("/api/questions/media")) {
+    if (req.path.startsWith("/api/exams/drafts") || req.path.startsWith("/api/students/import/") || req.path.startsWith("/api/work-plans/upload") || req.path.startsWith("/api/imports/") || req.path.startsWith("/api/questions/media")) {
       return uploadJsonParser(req, res, next);
     }
     return standardJsonParser(req, res, next);
   });
+  registerExamRoutes(app, { authenticate: authenticateRequest, save: saveDbState, notify: broadcastInstitutionUpdate });
   function enforceRateLimit(req, res, scope, maxRequests, windowMs) {
     const isTestEnv = resolveRequestEnv(req) === "test";
     const forceRateLimitInTest = req.headers["x-test-rate-limit"] === "enforce";
@@ -8187,12 +8424,12 @@ async function startServer() {
         (s) => isSubjectCompatibleWithClass(s.name, myClass, db.subjects).compatible || hasApprovedTTrackMath && s.name.toLowerCase() === "matematika"
       ) : instSubjects;
       const myAssessments = db.assessments.filter(
-        (a) => a.status === "published" && (!a.classId || a.classId === user.classId || myClass && a.classCode?.toLowerCase() === myClass.code.toLowerCase() || myClass && a.assignedClassIds?.includes(myClass.id) || myClass && a.assignedClassCodes?.some((c) => c.toLowerCase() === myClass.code.toLowerCase())) && (!a.eligibleStudentIds || a.eligibleStudentIds.length === 0 || a.eligibleStudentIds.includes(user.uid))
+        (a) => a.institutionId === user.institutionId && a.status === "published" && (!a.examKind || canTakeExam(user, a)) && (!a.classId || a.classId === user.classId || myClass && a.classCode?.toLowerCase() === myClass.code.toLowerCase() || myClass && a.assignedClassIds?.includes(myClass.id) || myClass && a.assignedClassCodes?.some((c) => c.toLowerCase() === myClass.code.toLowerCase())) && (!a.eligibleStudentIds || a.eligibleStudentIds.length === 0 || a.eligibleStudentIds.includes(user.uid))
       );
       const myAssignments = db.assignments.filter(
         (a) => a.status === "published" && (a.classId === user.classId || myClass && a.classCode?.toLowerCase() === myClass.code.toLowerCase())
       );
-      const sanitizeQuestionForStudent = (q) => ({
+      const sanitizeQuestionForStudent = (q) => sanitizeExamQuestion({
         ...q,
         correctAnswer: "",
         correctAnswers: void 0,
@@ -12258,6 +12495,7 @@ async function startServer() {
       (a) => a.id === req.params.id && a.institutionId === user.institutionId
     );
     if (!assess) return res.status(404).json({ error: "Test topilmadi." });
+    if (assess.examKind) return res.status(409).json({ error: "BSB/CHSB ishlarini nazorat markazida boshqaring." });
     if (user.role !== "admin" && user.role !== "platform_owner" && assess.teacherId !== user.uid) {
       return res.status(403).json({ error: "Ruxsat yo\u2018q." });
     }
@@ -12337,6 +12575,7 @@ async function startServer() {
     if (!assess || !cls) {
       return res.status(404).json({ error: "Test yoki sinf topilmadi." });
     }
+    if (assess.examKind) return res.status(409).json({ error: "BSB/CHSB ishlarini nazorat markazida boshqaring." });
     const nowIso = (/* @__PURE__ */ new Date()).toISOString();
     assess.status = "published";
     assess.classId = cls.id;
@@ -12417,12 +12656,20 @@ async function startServer() {
       return res.status(403).json({ error: "Faqat o\u2018quvchilar test topshira oladi." });
     }
     const { assessmentId } = req.body;
-    const submittedMap = req.body.submittedMap || req.body.answersMap || {};
+    let submittedMap = req.body.submittedMap || req.body.answersMap || {};
     const assessment = db.assessments.find(
       (a) => a.id === assessmentId && a.institutionId === user.institutionId
     );
     if (!assessment || assessment.status !== "published") {
       return res.status(404).json({ error: "Test topilmadi yoki faol emas." });
+    }
+    const examSession = assessment.examKind ? db.examSessions?.find((s) => s.assessmentId === assessment.id && s.studentId === user.uid) : void 0;
+    if (assessment.examKind) {
+      if (!canTakeExam(user, assessment) || !examSession) return res.status(403).json({ error: "Nazorat ishini avval boshlang." });
+      if (examSession.submittedAttemptId) return res.json({ attempt: db.attempts.find((a) => a.id === examSession.submittedAttemptId) });
+      if (assessment.examState === "paused") return res.status(409).json({ error: "Nazorat vaqtincha to\u2018xtatilgan." });
+      if (Date.now() > examDeadline(assessment, examSession) || assessment.examState === "closed") submittedMap = examSession.answers;
+      else if (!submittedMap || typeof submittedMap !== "object" || Array.isArray(submittedMap) || Object.values(submittedMap).some((v) => typeof v !== "string" || v.length > 25e4) || Object.keys(submittedMap).some((id) => !assessment.questionIds.includes(id)) || Buffer.byteLength(JSON.stringify(submittedMap)) > 18e5) return res.status(400).json({ error: "Javoblar noto\u2018g\u2018ri." });
     }
     const userClassId = (user.classId || "").toLowerCase();
     const userClassCode = (user.classCode || "").toLowerCase();
@@ -12489,6 +12736,10 @@ async function startServer() {
       aiAnalysis: fallbackAnalysis
     };
     db.attempts.unshift(newAttempt);
+    if (examSession) {
+      examSession.submittedAttemptId = newAttempt.id;
+      examSession.answers = submittedMap;
+    }
     const existingStudentMastery = db.masteryRecords.filter((r) => r.studentId === user.uid);
     const otherMastery = db.masteryRecords.filter((r) => r.studentId !== user.uid);
     const updatedStudentMastery = updateMasteryRecordsFromAttempt(

@@ -1,3 +1,5 @@
+import { registerExamRoutes } from './src/server/examRoutes';
+import { canTakeExam, examDeadline, sanitizeExamQuestion } from './src/utils/examPolicy';
 import { cloudStateMiddleware } from './src/server/cloudStateMiddleware';
 import { requestDatabase } from './src/server/requestDatabase';
 import 'dotenv/config';
@@ -485,6 +487,7 @@ async function startServer() {
   const standardJsonParser = express.json({ limit: '2mb' });
   app.use((req, res, next) => {
     if (
+      req.path.startsWith('/api/exams/drafts') ||
       req.path.startsWith('/api/students/import/') ||
       req.path.startsWith('/api/work-plans/upload') ||
       req.path.startsWith('/api/imports/') ||
@@ -494,6 +497,8 @@ async function startServer() {
     }
     return standardJsonParser(req, res, next);
   });
+
+  registerExamRoutes(app, {authenticate: authenticateRequest, save: saveDbState, notify: broadcastInstitutionUpdate});
 
   function enforceRateLimit(
     req: Request,
@@ -1738,7 +1743,8 @@ async function startServer() {
 
       const myAssessments = db.assessments.filter(
         (a) =>
-          a.status === 'published' &&
+          a.institutionId === user.institutionId && a.status === 'published' &&
+          (!a.examKind || canTakeExam(user,a)) &&
           (!a.classId ||
             a.classId === user.classId ||
             (myClass && a.classCode?.toLowerCase() === myClass.code.toLowerCase()) ||
@@ -1757,7 +1763,7 @@ async function startServer() {
       );
 
       // Protect answer keys: strip correctAnswer, correctAnswers, acceptedAnswers, rubricText, explanation, and structuredOptions.isCorrect
-      const sanitizeQuestionForStudent = (q: QuestionItem): QuestionItem => ({
+      const sanitizeQuestionForStudent = (q: QuestionItem): QuestionItem => sanitizeExamQuestion({
         ...q,
         correctAnswer: '',
         correctAnswers: undefined,
@@ -6731,6 +6737,7 @@ async function startServer() {
       (a) => a.id === req.params.id && a.institutionId === user.institutionId
     );
     if (!assess) return res.status(404).json({ error: 'Test topilmadi.' });
+    if (assess.examKind) return res.status(409).json({ error: 'BSB/CHSB ishlarini nazorat markazida boshqaring.' });
     if (user.role !== 'admin' && user.role !== 'platform_owner' && assess.teacherId !== user.uid) {
       return res.status(403).json({ error: 'Ruxsat yo‘q.' });
     }
@@ -6825,6 +6832,7 @@ async function startServer() {
       return res.status(404).json({ error: 'Test yoki sinf topilmadi.' });
     }
 
+    if (assess.examKind) return res.status(409).json({ error: 'BSB/CHSB ishlarini nazorat markazida boshqaring.' });
     const nowIso = new Date().toISOString();
     assess.status = 'published';
     assess.classId = cls.id;
@@ -6926,7 +6934,7 @@ async function startServer() {
     const { assessmentId } = req.body as {
       assessmentId: string;
     };
-    const submittedMap: Record<string, string> =
+    let submittedMap: Record<string, string> =
       req.body.submittedMap || req.body.answersMap || {};
 
     const assessment = db.assessments.find(
@@ -6934,6 +6942,15 @@ async function startServer() {
     );
     if (!assessment || assessment.status !== 'published') {
       return res.status(404).json({ error: 'Test topilmadi yoki faol emas.' });
+    }
+
+    const examSession = assessment.examKind ? db.examSessions?.find(s => s.assessmentId === assessment.id && s.studentId === user.uid) : undefined;
+    if (assessment.examKind) {
+      if (!canTakeExam(user,assessment) || !examSession) return res.status(403).json({error:'Nazorat ishini avval boshlang.'});
+      if (examSession.submittedAttemptId) return res.json({attempt:db.attempts.find(a=>a.id===examSession.submittedAttemptId)});
+      if (assessment.examState==='paused') return res.status(409).json({error:'Nazorat vaqtincha to‘xtatilgan.'});
+      if (Date.now()>examDeadline(assessment,examSession) || assessment.examState==='closed') submittedMap=examSession.answers;
+      else if (!submittedMap || typeof submittedMap!=='object' || Array.isArray(submittedMap) || Object.values(submittedMap).some(v=>typeof v!=='string'||v.length>250000) || Object.keys(submittedMap).some(id=>!assessment.questionIds.includes(id)) || Buffer.byteLength(JSON.stringify(submittedMap))>1800000) return res.status(400).json({error:'Javoblar noto‘g‘ri.'});
     }
 
     // Verify class authorization (including shared parallel classes in assignedClassIds / assignedClassCodes)
@@ -7031,6 +7048,7 @@ async function startServer() {
     };
 
     db.attempts.unshift(newAttempt);
+    if (examSession) { examSession.submittedAttemptId = newAttempt.id; examSession.answers = submittedMap; }
 
     // Update student's Knowledge Map Mastery Records
     const existingStudentMastery = db.masteryRecords.filter((r) => r.studentId === user.uid);

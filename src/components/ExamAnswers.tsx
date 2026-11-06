@@ -1,0 +1,13 @@
+import React,{useEffect,useRef} from 'react';
+export function ExamSketch({value,onChange,disabled}:{value:string;onChange:(image:string)=>void;disabled?:boolean}){
+ const canvas=useRef<HTMLCanvasElement>(null),drawing=useRef(false),last=useRef<[number,number]|null>(null);
+ useEffect(()=>{if(!canvas.current||!value)return;const img=new Image();img.onload=()=>{const ctx=canvas.current?.getContext('2d');if(ctx){ctx.fillStyle='white';ctx.fillRect(0,0,720,360);ctx.drawImage(img,0,0,720,360);}};img.src=value;},[]);
+ const point=(e:React.PointerEvent)=>{const r=e.currentTarget.getBoundingClientRect();return [(e.clientX-r.left)*720/r.width,(e.clientY-r.top)*360/r.height] as [number,number];};
+ const save=()=>{drawing.current=false;last.current=null;if(canvas.current)onChange(canvas.current.toDataURL('image/png'));};
+ return <div className="space-y-2"><div className="flex items-center justify-between"><span className="text-sm font-semibold">Chizma / qoralama</span><button type="button" disabled={disabled} className="text-xs text-blue-600" onClick={()=>{const ctx=canvas.current?.getContext('2d');ctx?.clearRect(0,0,720,360);onChange('');}}>Tozalash</button></div><canvas ref={canvas} width={720} height={360} aria-label="Chizma uchun maydon" className="w-full touch-none rounded-xl border border-slate-300 bg-white" onPointerDown={e=>{if(disabled)return;drawing.current=true;last.current=point(e);e.currentTarget.setPointerCapture(e.pointerId);}} onPointerMove={e=>{if(!drawing.current||!last.current||disabled)return;const next=point(e),ctx=canvas.current!.getContext('2d')!;ctx.strokeStyle='#172033';ctx.lineWidth=2;ctx.lineCap='round';ctx.beginPath();ctx.moveTo(...last.current);ctx.lineTo(...next);ctx.stroke();last.current=next;}} onPointerUp={save} onPointerCancel={save}/><p className="text-xs text-slate-500">Chizish ixtiyoriy. Yechimni matn bilan ham yozishingiz mumkin.</p></div>;
+}
+export function ExamAnswerContent({answer}:{answer:string}){
+ let values:Record<string,string>|null=null;try{const parsed=JSON.parse(answer);if(parsed&&typeof parsed==='object'&&!Array.isArray(parsed))values=parsed;}catch{}
+ if(!values)return <span className="whitespace-pre-wrap">{answer||'(Bo‘sh qoldirilgan)'}</span>;
+ return <div className="space-y-3">{Object.entries(values).filter(([,v])=>v).map(([key,value],i)=>key==='_drawing'?(/^data:image\/(png|jpeg);base64,/.test(value)&&<img key={key} src={value} alt="O‘quvchi chizmasi" className="max-w-full rounded-xl border bg-white"/>):<div key={key}><strong className="text-xs text-slate-500">{key==='_text'?'Izoh / yechim':`${i+1}-javob`}</strong><p className="whitespace-pre-wrap">{value}</p></div>)}</div>;
+}

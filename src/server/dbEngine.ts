@@ -86,6 +86,7 @@ import {
 } from '../utils/academicOsEngine';
 
 export interface PersistentDatabaseState {
+  examSessions?: import('../examTypes').ExamSession[];
   revokedSessionHashes?: Record<string, number>;
   revokedBeforeByUser?: Record<string, number>;
   institutions: Institution[];
