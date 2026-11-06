@@ -691,6 +691,7 @@ export interface Assessment {
   examState?: import('./examTypes').ExamState;
   sourceFileName?: string;
   sourceHash?: string;
+  sourceLayoutVersion?: number;
   contextImages?: string[];
   academicYear?: string;
   pausedAt?: string;

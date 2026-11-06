@@ -2673,7 +2673,7 @@ function sanitizeExamQuestion(q) {
 // src/server/examRoutes.ts
 var image = z.string().max(65e4).refine((v) => /^data:image\/(jpeg|png);base64,[A-Za-z0-9+/=]+$/.test(v), "Faqat JPEG/PNG tasvirlari.");
 var question = z.object({ sourceNumber: z.number().int().positive(), variant: z.string().max(12), prompt: z.string().min(3).max(18e3), sourcePages: z.array(z.number().int().positive()).max(20), sourceImages: z.array(image).max(20), fields: z.array(z.object({ id: z.string().max(80), label: z.string().max(120), imageIndex: z.number().int().min(0), x: z.number().min(0).max(1), y: z.number().min(0).max(1), width: z.number().min(0.01).max(1), height: z.number().min(0.01).max(1) })).max(40), points: z.number().min(0).max(100), type: z.enum(["written_open", "single_choice"]), options: z.array(z.string().max(4e3)).max(8), correctAnswer: z.string().max(4e3), rubricText: z.string().max(12e3) });
-var draftSchema = z.object({ title: z.string().min(3).max(200), examKind: z.enum(["BSB", "CHSB"]), examNumber: z.number().int().min(1).max(2), quarter: z.number().int().min(1).max(4), academicYear: z.string().regex(/^\d{4}-\d{4}$/), subject: z.string().min(2).max(100), classCodes: z.array(z.string()).min(1).max(19), durationMinutes: z.number().int().min(1).max(180), availableFrom: z.string().datetime(), dueDate: z.string().datetime(), sourceFileName: z.string().max(200), sourceHash: z.string().regex(/^[a-f0-9]{64}$/), contextImages: z.array(image).max(20), questions: z.array(question).min(1).max(60) });
+var draftSchema = z.object({ sourceLayoutVersion: z.literal(2, { error: "Importni yangilash uchun sahifani qayta oching." }), title: z.string().min(3).max(200), examKind: z.enum(["BSB", "CHSB"]), examNumber: z.number().int().min(1).max(2), quarter: z.number().int().min(1).max(4), academicYear: z.string().regex(/^\d{4}-\d{4}$/), subject: z.string().min(2).max(100), classCodes: z.array(z.string()).min(1).max(19), durationMinutes: z.number().int().min(1).max(180), availableFrom: z.string().datetime(), dueDate: z.string().datetime(), sourceFileName: z.string().max(200), sourceHash: z.string().regex(/^[a-f0-9]{64}$/), contextImages: z.array(image).max(20), questions: z.array(question).min(1).max(60) });
 function registerExamRoutes(app2, deps) {
   const admin = (req, res) => {
     const c = deps.authenticate(req);
@@ -2699,7 +2699,7 @@ function registerExamRoutes(app2, deps) {
     if (classes.length !== new Set(data.classCodes).size || new Set(classes.map((cls) => cls.grade)).size !== 1) return res.status(400).json({ error: "Bir bosqichdagi haqiqiy sinflarni tanlang." });
     if (data.questions.some((q) => q.fields.some((f) => f.imageIndex >= q.sourceImages.length))) return res.status(400).json({ error: "Javob maydoni manba sahifasiga mos emas." });
     if (Date.parse(data.availableFrom) >= Date.parse(data.dueDate)) return res.status(400).json({ error: "Vaqt oralig\u2018ini tekshiring." });
-    const existing = c.db.assessments.find((a) => a.institutionId === c.user.institutionId && a.sourceHash === data.sourceHash && a.title === data.title && a.examKind === data.examKind && a.academicYear === data.academicYear && a.examNumber === data.examNumber && a.quarter === data.quarter && JSON.stringify(a.assignedClassCodes) === JSON.stringify(data.classCodes));
+    const existing = c.db.assessments.find((a) => a.institutionId === c.user.institutionId && a.sourceHash === data.sourceHash && a.sourceLayoutVersion === data.sourceLayoutVersion && a.title === data.title && a.examKind === data.examKind && a.academicYear === data.academicYear && a.examNumber === data.examNumber && a.quarter === data.quarter && JSON.stringify(a.assignedClassCodes) === JSON.stringify(data.classCodes));
     if (existing) return res.json({ assessment: existing, replayed: true });
     const now = (/* @__PURE__ */ new Date()).toISOString(), id = "exam-" + crypto4.randomUUID();
     try {
@@ -2709,25 +2709,37 @@ function registerExamRoutes(app2, deps) {
       return res.status(503).json({ error: "Manba tasvirlarini saqlab bo\u2018lmadi. Qoralama saqlanmadi; qayta urinib ko\u2018ring." });
     }
     const qs = data.questions.map((q, i) => ({ id: id + "-q" + (i + 1), institutionId: c.user.institutionId, authorId: c.user.uid, subject: data.subject, grade: classes[0].grade, topicId: "", difficulty: "mixed", type: q.type, points: q.points, prompt: q.prompt, options: q.options, correctAnswer: q.correctAnswer, gradingMode: q.type === "single_choice" ? "automatic" : "manual_rubric", rubricText: q.rubricText, sourceImages: q.sourceImages, sourcePages: q.sourcePages, answerFields: q.fields, explanation: "", status: "draft", createdAt: now }));
-    const assessment = { id, title: data.title, subject: data.subject, grade: classes[0].grade, examKind: data.examKind, examNumber: data.examNumber, examState: "draft", academicYear: data.academicYear, quarter: data.quarter, classId: classes[0].id, classCode: classes[0].code, assignedClassIds: classes.map((c2) => c2.id), assignedClassCodes: classes.map((c2) => c2.code), durationMinutes: data.durationMinutes, availableFrom: data.availableFrom, dueDate: data.dueDate, sourceFileName: data.sourceFileName, sourceHash: data.sourceHash, contextImages: data.contextImages, topicIds: [], questionIds: qs.map((q) => q.id), questionSnapshot: qs, teacherId: c.user.uid, institutionId: c.user.institutionId, status: "draft", source: "manual", createdAt: now, totalPoints: qs.reduce((sum, q) => sum + (q.points || 0), 0), totalPausedMs: 0 };
+    const assessment = { id, title: data.title, subject: data.subject, grade: classes[0].grade, examKind: data.examKind, examNumber: data.examNumber, examState: "draft", academicYear: data.academicYear, quarter: data.quarter, classId: classes[0].id, classCode: classes[0].code, assignedClassIds: classes.map((c2) => c2.id), assignedClassCodes: classes.map((c2) => c2.code), durationMinutes: data.durationMinutes, availableFrom: data.availableFrom, dueDate: data.dueDate, sourceFileName: data.sourceFileName, sourceHash: data.sourceHash, sourceLayoutVersion: data.sourceLayoutVersion, contextImages: data.contextImages, topicIds: [], questionIds: qs.map((q) => q.id), questionSnapshot: qs, teacherId: c.user.uid, institutionId: c.user.institutionId, status: "draft", source: "manual", createdAt: now, totalPoints: qs.reduce((sum, q) => sum + (q.points || 0), 0), totalPausedMs: 0 };
     c.db.questions.push(...qs);
     c.db.assessments.unshift(assessment);
     deps.save(c.env, c.db);
     deps.notify(c.env, c.user.institutionId, "EXAM_DRAFT_CREATED");
     res.status(201).json({ assessment });
   });
-  app2.patch("/api/exams/:id/draft", (req, res) => {
+  app2.patch("/api/exams/:id/draft", async (req, res) => {
     const c = admin(req, res);
     if (!c) return;
     const exam = c.db.assessments.find((a) => a.id === req.params.id && a.examKind && a.institutionId === c.user.institutionId);
     if (!exam || exam.examState !== "draft") return res.status(409).json({ error: "Faqat nashr qilinmagan qoralamani tahrirlash mumkin." });
-    const edit = draftSchema.omit({ sourceHash: true, sourceFileName: true, contextImages: true, questions: true }).extend({ questions: z.array(question.omit({ sourceImages: true }).extend({ sourceImages: z.array(z.string().max(180)).max(20) })).min(1).max(60) }).safeParse(req.body);
+    const edit = draftSchema.omit({ sourceLayoutVersion: true, sourceHash: true, sourceFileName: true, contextImages: true, questions: true }).extend({ questions: z.array(question.omit({ sourceImages: true }).extend({ sourceImages: z.array(z.union([image, z.string().max(180)])).max(20) })).min(1).max(60), contextImages: z.array(z.union([image, z.string().max(180)])).max(20).optional() }).safeParse(req.body);
     if (!edit.success) return res.status(400).json({ error: edit.error.issues[0]?.message });
     const d = edit.data;
     const classes = c.db.classes.filter((cls) => cls.institutionId === c.user.institutionId && d.classCodes.includes(cls.code));
     if (classes.length !== new Set(d.classCodes).size || new Set(classes.map((cls) => cls.grade)).size !== 1 || Date.parse(d.availableFrom) >= Date.parse(d.dueDate) || d.examKind === "CHSB" && d.examNumber !== 1) return res.status(400).json({ error: "Sinf, nazorat raqami yoki vaqtni tekshiring." });
-    const allowed = (exam.questionSnapshot || []).flatMap((q) => q.sourceImages || []);
-    if (d.questions.some((q) => q.sourceImages.some((src) => !allowed.includes(src)) || q.fields.some((f) => f.imageIndex >= q.sourceImages.length))) return res.status(400).json({ error: "Manba tasviri yoki maydon noto\u2018g\u2018ri." });
+    if (Buffer.byteLength(JSON.stringify(d)) > 32e5) return res.status(413).json({ error: "Tasvirlar hajmi 3 MB dan oshdi." });
+    const allowed = [...exam.contextImages || [], ...(exam.questionSnapshot || []).flatMap((q) => q.sourceImages || [])];
+    if (d.questions.some((q) => q.sourceImages.some((src) => !src.startsWith("data:") && !allowed.includes(src)) || q.fields.some((f) => f.imageIndex >= q.sourceImages.length))) return res.status(400).json({ error: "Manba tasviri yoki maydon noto\u2018g\u2018ri." });
+    if (d.contextImages?.some((src) => !src.startsWith("data:") && !allowed.includes(src))) return res.status(400).json({ error: "Umumiy matn manbasi noto\u2018g\u2018ri." });
+    const refreshed = d.questions.some((q) => q.sourceImages.some((src) => src.startsWith("data:")));
+    if (refreshed && req.body.sourceHash !== exam.sourceHash) return res.status(400).json({ error: "Qayta ishlash uchun aynan avvalgi manba faylini tanlang." });
+    try {
+      for (const q of d.questions) q.sourceImages = await Promise.all(q.sourceImages.map((src) => src.startsWith("data:") ? storeExamImage(c.user.institutionId, exam.id, src) : Promise.resolve(src)));
+      if (d.contextImages) d.contextImages = await Promise.all(d.contextImages.map((src) => src.startsWith("data:") ? storeExamImage(c.user.institutionId, exam.id, src) : Promise.resolve(src)));
+    } catch {
+      return res.status(503).json({ error: "Tasvirlar saqlanmadi. Qoralama o\u2018zgarmadi; qayta urinib ko\u2018ring." });
+    }
+    if (refreshed && req.body.sourceLayoutVersion === 2) exam.sourceLayoutVersion = 2;
+    if (d.contextImages) exam.contextImages = d.contextImages;
     const now = (/* @__PURE__ */ new Date()).toISOString();
     const qs = d.questions.map((q, i) => ({ id: exam.id + "-q" + (i + 1), institutionId: c.user.institutionId, authorId: c.user.uid, subject: d.subject, grade: classes[0].grade, topicId: "", difficulty: "mixed", type: q.type, points: q.points, prompt: q.prompt, options: q.options, correctAnswer: q.correctAnswer, gradingMode: q.type === "single_choice" ? "automatic" : "manual_rubric", rubricText: q.rubricText, sourceImages: q.sourceImages, sourcePages: q.sourcePages, answerFields: q.fields, explanation: "", status: "draft", createdAt: now }));
     c.db.questions = c.db.questions.filter((q) => !exam.questionIds.includes(q.id));
