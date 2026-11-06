@@ -488,6 +488,7 @@ async function startServer() {
   app.use((req, res, next) => {
     if (
       req.path.startsWith('/api/exams/drafts') ||
+      /^\/api\/exams\/[^/]+\/draft$/.test(req.path) ||
       req.path.startsWith('/api/students/import/') ||
       req.path.startsWith('/api/work-plans/upload') ||
       req.path.startsWith('/api/imports/') ||

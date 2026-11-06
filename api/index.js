@@ -7378,7 +7378,7 @@ async function startServer() {
   const uploadJsonParser = express.json({ limit: "20mb" });
   const standardJsonParser = express.json({ limit: "2mb" });
   app.use((req, res, next) => {
-    if (req.path.startsWith("/api/exams/drafts") || req.path.startsWith("/api/students/import/") || req.path.startsWith("/api/work-plans/upload") || req.path.startsWith("/api/imports/") || req.path.startsWith("/api/questions/media")) {
+    if (req.path.startsWith("/api/exams/drafts") || /^\/api\/exams\/[^/]+\/draft$/.test(req.path) || req.path.startsWith("/api/students/import/") || req.path.startsWith("/api/work-plans/upload") || req.path.startsWith("/api/imports/") || req.path.startsWith("/api/questions/media")) {
       return uploadJsonParser(req, res, next);
     }
     return standardJsonParser(req, res, next);
