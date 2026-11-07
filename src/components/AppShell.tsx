@@ -133,6 +133,7 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
     ? [
         { to: '/admin/dashboard', label: 'Bosh sahifa', icon: LayoutDashboard, end: true },
         { to: '/admin/classes', label: 'Sinflar', icon: Users },
+        { to: '/admin/teachers', label: 'O‘qituvchilar', icon: Users },
         { to: '/admin/students', label: "O'quvchilar", icon: GraduationCap },
         { to: '/admin/timetable', label: 'Jadval', icon: Calendar },
         { to: '/admin/assignments', label: 'Topshiriqlar', icon: FileText },
@@ -175,7 +176,7 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
   ];
 
   // Mobile drawer items (for Students includes secondary actions like Natijalar & Profil)
-  const mobileDrawerItems = isAdminAccount
+  const mobileDrawerItems = (isAdminAccount || currentUser.role==='teacher')
     ? navItems
     : [
         ...navItems,
@@ -315,7 +316,7 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
         <div className="p-3 border-t border-slate-200/70 dark:border-slate-800/70">
           <div
             onClick={() => {
-              if (!isAdminAccount) navigate('/student/profile');
+              if (currentUser.role==='student') navigate('/student/profile');
             }}
             className={`px-2.5 py-2 rounded-md bg-slate-50 dark:bg-slate-800/40 border border-slate-200/60 dark:border-slate-800 mb-2 ${
               !isAdminAccount ? 'cursor-pointer hover:border-blue-400 transition-colors' : ''
@@ -523,14 +524,14 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
         <main
           key={location.pathname}
           className={`flex-1 p-3.5 sm:p-5 lg:p-6 max-w-7xl w-full mx-auto min-w-0 ss-page-enter ${
-            !isAdminAccount && !isActiveTestRunner ? 'pb-24 lg:pb-6' : 'pb-8 lg:pb-6'
+            currentUser.role==='student' && !isActiveTestRunner ? 'pb-24 lg:pb-6' : 'pb-8 lg:pb-6'
           }`}
         >
           {children}
         </main>
 
         {/* Student Mobile Bottom Navigation Bar (< 1024px) */}
-        {!isAdminAccount && !isActiveTestRunner && (
+        {currentUser.role==='student' && !isActiveTestRunner && (
           <nav
             aria-label="O'quvchi mobil navigatsiyasi"
             className="lg:hidden fixed bottom-0 inset-x-0 z-40 bg-white/95 dark:bg-[#0F1623]/95 backdrop-blur-md border-t border-slate-200/90 dark:border-slate-800/90 pb-safe"

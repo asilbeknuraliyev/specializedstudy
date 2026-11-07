@@ -1,9 +1,100 @@
+// server.ts
+import nodeCrypto from "node:crypto";
+
+// src/server/teachingRoutes.ts
+import crypto from "node:crypto";
+import { z } from "zod";
+var teacherClasses = (user, db) => db.classes.filter((c) => c.institutionId === user.institutionId && user.assignedClassIds?.includes(c.id));
+function registerTeachingRoutes(app2, deps) {
+  const admin = (c) => c && ["admin", "platform_owner"].includes(c.user.role) && c.user.platformAdmin === true && c.user.emailVerified === true;
+  const schema = z.object({ displayName: z.string().trim().min(3).max(120), email: z.email().max(180).transform((v) => v.toLowerCase()), password: z.string().min(12).max(128), subject: z.string().min(2).max(100), classIds: z.array(z.string()).min(1).max(19) });
+  const practiceAccess = (c, lesson) => c && lesson && c.user.role === "student" && c.user.status === "active" && lesson.institutionId === c.user.institutionId && lesson.status === "published" && [lesson.classId, ...lesson.classIds || []].includes(c.user.classId) && (!lesson.additionalCurriculumAssignment || lesson.tTrackVisibilityApproved === true);
+  app2.get("/api/lesson-practice/:id", (req, res) => {
+    const c = deps.authenticate(req);
+    const lesson = c?.db.lessons.find((l) => l.id === req.params.id);
+    if (!practiceAccess(c, lesson)) return res.status(403).json({ error: "Darsga ruxsat yo\u2018q." });
+    res.json({ title: lesson.title, reference: lesson.classwork || lesson.content, questions: [`\xAB${lesson.title}\xBB mavzusidagi asosiy qoida yoki tushunchani o\u2018z so\u2018zingiz bilan tushuntiring.`, `Shu mavzuga oid bitta misol keltiring va yechimingizni bosqichma-bosqich izohlang.`], mode: "reflection", notice: "Ish rejadagi mavzudan tuzilgan yozma takrorlash. Avtomatik baholanmaydi; aniq variantli testlar uchun ustoz tasdiqlagan savollar yoki darslik kerak." });
+  });
+  app2.post("/api/lesson-practice/:id", (req, res) => {
+    const c = deps.authenticate(req);
+    const lesson = c?.db.lessons.find((l) => l.id === req.params.id);
+    if (!practiceAccess(c, lesson)) return res.status(403).json({ error: "Darsga ruxsat yo\u2018q." });
+    const answers = z.array(z.string().trim().min(3).max(1e4)).length(2).safeParse(req.body.answers);
+    if (!answers.success) return res.status(400).json({ error: "Ikkala javobni kiriting." });
+    c.db.lessonPracticeResponses ||= [];
+    const entry = { id: crypto.randomUUID(), lessonId: lesson.id, studentId: c.user.uid, institutionId: c.user.institutionId, answers: answers.data, submittedAt: (/* @__PURE__ */ new Date()).toISOString() };
+    c.db.lessonPracticeResponses.push(entry);
+    deps.save(c.env, c.db);
+    res.status(201).json({ id: entry.id, status: "received" });
+  });
+  app2.post("/api/teaching/accounts", (req, res) => {
+    const c = deps.authenticate(req);
+    if (!admin(c)) return res.status(403).json({ error: "Faqat administrator." });
+    const parsed = schema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ error: parsed.error.issues[0]?.message });
+    const p = parsed.data;
+    if (c.db.users.some((u) => u.email.toLowerCase() === p.email)) return res.status(409).json({ error: "Bu email band." });
+    if (p.classIds.some((id) => !c.db.classes.some((cls) => cls.id === id && cls.institutionId === c.user.institutionId))) return res.status(400).json({ error: "Sinf mos emas." });
+    const user = { uid: crypto.randomUUID(), displayName: p.displayName, email: p.email, role: "teacher", status: "active", institutionId: c.user.institutionId, assignedClassIds: [...new Set(p.classIds)], subject: p.subject, createdAt: (/* @__PURE__ */ new Date()).toISOString(), platformAdmin: false, emailVerified: false };
+    c.db.users.push(user);
+    c.db.passwordHashes[user.uid] = deps.hash(p.password);
+    deps.save(c.env, c.db);
+    res.status(201).json({ user });
+  });
+  app2.patch("/api/teaching/accounts/:id", (req, res) => {
+    const c = deps.authenticate(req);
+    if (!admin(c)) return res.status(403).json({ error: "Faqat administrator." });
+    const user = c.db.users.find((u) => u.uid === req.params.id && u.role === "teacher" && u.institutionId === c.user.institutionId);
+    if (!user) return res.status(404).json({ error: "Hisob topilmadi." });
+    if (req.body.password !== void 0) {
+      const parsed = z.string().min(12).max(128).safeParse(req.body.password);
+      if (!parsed.success) return res.status(400).json({ error: "Parol kamida 12 belgi bo\u2018lsin." });
+      c.db.passwordHashes[user.uid] = deps.hash(parsed.data);
+      deps.revoke(user.uid, c.env);
+      deps.save(c.env, c.db);
+      return res.json({ user });
+    }
+    if (!["active", "suspended"].includes(req.body.status)) return res.status(400).json({ error: "Holat noto\u2018g\u2018ri." });
+    user.status = req.body.status;
+    deps.revoke(user.uid, c.env);
+    deps.save(c.env, c.db);
+    res.json({ user });
+  });
+  app2.post("/api/teaching/quarter/complete", (req, res) => {
+    const c = deps.authenticate(req);
+    if (!admin(c)) return res.status(403).json({ error: "Faqat administrator." });
+    const now = (/* @__PURE__ */ new Date()).toISOString();
+    let count = 0;
+    for (const lesson of c.db.lessons) if (lesson.institutionId === c.user.institutionId && lesson.academicYear === c.db.institutions.find((i) => i.id === c.user.institutionId)?.academicYear && lesson.quarter === 1 && lesson.status !== "archived" && !lesson.schoolDeliveredAt) {
+      lesson.schoolDeliveredAt = now;
+      count++;
+    }
+    deps.save(c.env, c.db);
+    res.json({ count });
+  });
+  app2.post("/api/teaching/lessons/:id/delivered", (req, res) => {
+    const c = deps.authenticate(req);
+    if (!c) return res.status(401).json({ error: "Hisobga kiring." });
+    const lesson = c.db.lessons.find((l) => l.id === req.params.id && l.institutionId === c.user.institutionId);
+    if (!lesson || !admin(c) && !(c.user.role === "teacher" && teacherClasses(c.user, c.db).some((cls) => [lesson.classId, ...lesson.classIds || []].includes(cls.id)) && lesson.subjectName === c.user.subject)) return res.status(403).json({ error: "Darsga ruxsat yo\u2018q." });
+    const now = (/* @__PURE__ */ new Date()).toISOString();
+    if (admin(c)) lesson.schoolDeliveredAt = now;
+    else {
+      const allowed = teacherClasses(c.user, c.db).map((cls) => cls.id).filter((id) => [lesson.classId, ...lesson.classIds || []].includes(id));
+      lesson.schoolDeliveredClassIds = [.../* @__PURE__ */ new Set([...lesson.schoolDeliveredClassIds || [], ...allowed])];
+      lesson.updatedAt = now;
+    }
+    deps.save(c.env, c.db);
+    res.json({ lesson });
+  });
+}
+
 // src/server/examMedia.ts
 import { getFirestore } from "firebase-admin/firestore";
-import crypto3 from "node:crypto";
+import crypto4 from "node:crypto";
 
 // src/server/firebaseAdminAuth.ts
-import crypto2 from "crypto";
+import crypto3 from "crypto";
 import fs2 from "fs";
 import path2 from "path";
 import { initializeApp, getApps, cert } from "firebase-admin/app";
@@ -686,7 +777,7 @@ var requestDatabase = new AsyncLocalStorage();
 // src/server/dbEngine.ts
 import fs from "fs";
 import path from "path";
-import crypto from "crypto";
+import crypto2 from "crypto";
 
 // src/utils/gamificationEngine.ts
 var GAMIFICATION_LEVELS = [
@@ -1773,7 +1864,7 @@ var configuredSessionSecret = process.env.SESSION_SECRET;
 if (process.env.NODE_ENV === "production" && (!configuredSessionSecret || configuredSessionSecret.length < 32 || configuredSessionSecret.includes("REPLACE_WITH"))) {
   throw new Error("Production requires a random SESSION_SECRET of at least 32 characters.");
 }
-var TOKEN_SECRET = configuredSessionSecret || crypto.randomBytes(32).toString("hex");
+var TOKEN_SECRET = configuredSessionSecret || crypto2.randomBytes(32).toString("hex");
 function ensureSpecializedStudyStructure(state) {
   const nowIso = "2026-01-01T00:00:00.000Z";
   if (!Array.isArray(state.institutions)) {
@@ -2252,21 +2343,21 @@ function resetTestDbState() {
   saveDbState("test", empty);
 }
 function hashPassword(password) {
-  const salt = crypto.randomBytes(16).toString("hex");
-  const derived = crypto.scryptSync(password, salt, 64).toString("hex");
+  const salt = crypto2.randomBytes(16).toString("hex");
+  const derived = crypto2.scryptSync(password, salt, 64).toString("hex");
   return `${salt}:${derived}`;
 }
 function generateSecureRandomPassword() {
-  return `SS-${crypto.randomBytes(16).toString("hex")}!9a`;
+  return `SS-${crypto2.randomBytes(16).toString("hex")}!9a`;
 }
 function verifyPassword(password, storedHash) {
   if (!storedHash || !storedHash.includes(":")) return false;
   const [salt, key] = storedHash.split(":");
-  const derived = crypto.scryptSync(password, salt, 64).toString("hex");
+  const derived = crypto2.scryptSync(password, salt, 64).toString("hex");
   const keyBuf = Buffer.from(key, "hex");
   const derivedBuf = Buffer.from(derived, "hex");
   if (keyBuf.length !== derivedBuf.length) return false;
-  return crypto.timingSafeEqual(keyBuf, derivedBuf);
+  return crypto2.timingSafeEqual(keyBuf, derivedBuf);
 }
 function revokeSessionToken(token) {
   if (!token) return;
@@ -2276,7 +2367,7 @@ function revokeSessionToken(token) {
     context.state.revokedSessionHashes = Object.fromEntries(Object.entries(context.state.revokedSessionHashes || {}).filter(([, expiry]) => expiry > now));
     try {
       const payload = JSON.parse(Buffer.from(token.split(".")[0], "base64url").toString("utf8"));
-      context.state.revokedSessionHashes[crypto.createHash("sha256").update(token.trim()).digest("hex")] = Number(payload.exp) || now + 6048e5;
+      context.state.revokedSessionHashes[crypto2.createHash("sha256").update(token.trim()).digest("hex")] = Number(payload.exp) || now + 6048e5;
       context.dirty = true;
     } catch {
     }
@@ -2284,17 +2375,28 @@ function revokeSessionToken(token) {
   }
   revokedTokenSet.add(token.trim());
 }
+function revokeAllUserSessions(uid) {
+  if (!uid) return;
+  const context = requestDatabase.getStore();
+  if (context) {
+    context.state.revokedBeforeByUser ||= {};
+    context.state.revokedBeforeByUser[uid] = Date.now();
+    context.dirty = true;
+    return;
+  }
+  revokedBeforeTimestampByUser.set(uid, Date.now());
+}
 function issueSessionToken(uid, env, expiresInMs = 1e3 * 60 * 60 * 24 * 7) {
   const now = Date.now();
   const payload = JSON.stringify({
     uid,
     env,
-    jti: crypto.randomBytes(8).toString("hex"),
+    jti: crypto2.randomBytes(8).toString("hex"),
     iat: now,
     exp: now + expiresInMs
   });
   const base64Payload = Buffer.from(payload, "utf-8").toString("base64url");
-  const signature = crypto.createHmac("sha256", TOKEN_SECRET).update(base64Payload).digest("base64url");
+  const signature = crypto2.createHmac("sha256", TOKEN_SECRET).update(base64Payload).digest("base64url");
   return `${base64Payload}.${signature}`;
 }
 function verifySessionToken(token) {
@@ -2302,15 +2404,15 @@ function verifySessionToken(token) {
   const cleanToken = token.trim();
   if (revokedTokenSet.has(cleanToken)) return null;
   const durableRevocations = requestDatabase.getStore()?.state.revokedSessionHashes;
-  if (durableRevocations?.[crypto.createHash("sha256").update(cleanToken).digest("hex")]) return null;
+  if (durableRevocations?.[crypto2.createHash("sha256").update(cleanToken).digest("hex")]) return null;
   const parts = cleanToken.split(".");
   if (parts.length !== 2) return null;
   const [base64Payload, signature] = parts;
   if (!base64Payload || !signature) return null;
-  const expectedSig = crypto.createHmac("sha256", TOKEN_SECRET).update(base64Payload).digest("base64url");
+  const expectedSig = crypto2.createHmac("sha256", TOKEN_SECRET).update(base64Payload).digest("base64url");
   const sigBuf = Buffer.from(signature, "utf-8");
   const expectedBuf = Buffer.from(expectedSig, "utf-8");
-  if (sigBuf.length !== expectedBuf.length || !crypto.timingSafeEqual(sigBuf, expectedBuf)) {
+  if (sigBuf.length !== expectedBuf.length || !crypto2.timingSafeEqual(sigBuf, expectedBuf)) {
     return null;
   }
   try {
@@ -2331,7 +2433,7 @@ function verifySessionToken(token) {
   }
 }
 function generateCryptographicInviteToken(rolePrefix) {
-  const rand = crypto.randomBytes(4).toString("hex").toUpperCase();
+  const rand = crypto2.randomBytes(4).toString("hex").toUpperCase();
   const rawToken = `INV-${rolePrefix.slice(0, 3).toUpperCase()}-${rand}`;
   const tokenHash = computeSimpleHash(rawToken);
   return { rawToken, tokenHash };
@@ -2378,10 +2480,10 @@ async function verifyFirebaseIdToken(idToken, env, db) {
       };
     }
     const [, encoded, sig] = parts;
-    const expectedSig = crypto2.createHmac("sha256", TEST_ID_TOKEN_SECRET).update(`test-fb-jwt.${encoded}`).digest("base64url");
+    const expectedSig = crypto3.createHmac("sha256", TEST_ID_TOKEN_SECRET).update(`test-fb-jwt.${encoded}`).digest("base64url");
     const sigBuf = Buffer.from(sig, "utf-8");
     const expBuf = Buffer.from(expectedSig, "utf-8");
-    if (sigBuf.length !== expBuf.length || !crypto2.timingSafeEqual(sigBuf, expBuf)) {
+    if (sigBuf.length !== expBuf.length || !crypto3.timingSafeEqual(sigBuf, expBuf)) {
       return {
         valid: false,
         errorCode: "auth/invalid-credential",
@@ -2624,7 +2726,7 @@ async function storeExamImage(institutionId, examId, dataUrl) {
   if (bytes.length > 5e5 || bytes.length < 8) throw Error("Image size rejected");
   const png = bytes[0] === 137 && bytes[1] === 80 && bytes[2] === 78 && bytes[3] === 71, jpeg = bytes[0] === 255 && bytes[1] === 216 && bytes[2] === 255;
   if (!(match[1] === "png" ? png : jpeg)) throw Error("Image signature rejected");
-  const hash = crypto3.createHash("sha256").update(institutionId).update(bytes).digest("hex");
+  const hash = crypto4.createHash("sha256").update(institutionId).update(bytes).digest("hex");
   const db = getFirestore(getFirebaseAdminApp(), loadFirebaseAppletConfig().firestoreDatabaseId);
   await db.doc(`_specialized_exam_media/${hash}`).set({ institutionId, data: match[2], mime: `image/${match[1]}`, createdAt: (/* @__PURE__ */ new Date()).toISOString() });
   return `/api/exams/${examId}/media/${hash}`;
@@ -2636,8 +2738,8 @@ async function readExamImage(hash) {
 }
 
 // src/server/examRoutes.ts
-import crypto4 from "node:crypto";
-import { z } from "zod";
+import crypto5 from "node:crypto";
+import { z as z2 } from "zod";
 
 // src/utils/examPolicy.ts
 function canTakeExam(user, exam) {
@@ -2671,9 +2773,9 @@ function sanitizeExamQuestion(q) {
 }
 
 // src/server/examRoutes.ts
-var image = z.string().max(65e4).refine((v) => /^data:image\/(jpeg|png);base64,[A-Za-z0-9+/=]+$/.test(v), "Faqat JPEG/PNG tasvirlari.");
-var question = z.object({ sourceNumber: z.number().int().positive(), variant: z.string().max(12), prompt: z.string().min(3).max(18e3), sourcePages: z.array(z.number().int().positive()).max(20), sourceImages: z.array(image).max(20), fields: z.array(z.object({ id: z.string().max(80), label: z.string().max(120), imageIndex: z.number().int().min(0), x: z.number().min(0).max(1), y: z.number().min(0).max(1), width: z.number().min(0.01).max(1), height: z.number().min(0.01).max(1) })).max(40), points: z.number().min(0).max(100), type: z.enum(["written_open", "single_choice"]), options: z.array(z.string().max(4e3)).max(8), correctAnswer: z.string().max(4e3), rubricText: z.string().max(12e3) });
-var draftSchema = z.object({ sourceLayoutVersion: z.literal(2, { error: "Importni yangilash uchun sahifani qayta oching." }), title: z.string().min(3).max(200), examKind: z.enum(["BSB", "CHSB"]), examNumber: z.number().int().min(1).max(2), quarter: z.number().int().min(1).max(4), academicYear: z.string().regex(/^\d{4}-\d{4}$/), subject: z.string().min(2).max(100), classCodes: z.array(z.string()).min(1).max(19), durationMinutes: z.number().int().min(1).max(180), availableFrom: z.string().datetime(), dueDate: z.string().datetime(), sourceFileName: z.string().max(200), sourceHash: z.string().regex(/^[a-f0-9]{64}$/), contextImages: z.array(image).max(20), questions: z.array(question).min(1).max(60) });
+var image = z2.string().max(65e4).refine((v) => /^data:image\/(jpeg|png);base64,[A-Za-z0-9+/=]+$/.test(v), "Faqat JPEG/PNG tasvirlari.");
+var question = z2.object({ sourceNumber: z2.number().int().positive(), variant: z2.string().max(12), prompt: z2.string().min(3).max(18e3), sourcePages: z2.array(z2.number().int().positive()).max(20), sourceImages: z2.array(image).max(20), fields: z2.array(z2.object({ id: z2.string().max(80), label: z2.string().max(120), imageIndex: z2.number().int().min(0), x: z2.number().min(0).max(1), y: z2.number().min(0).max(1), width: z2.number().min(0.01).max(1), height: z2.number().min(0.01).max(1) })).max(40), points: z2.number().min(0).max(100), type: z2.enum(["written_open", "single_choice"]), options: z2.array(z2.string().max(4e3)).max(8), correctAnswer: z2.string().max(4e3), rubricText: z2.string().max(12e3) });
+var draftSchema = z2.object({ sourceLayoutVersion: z2.literal(2, { error: "Importni yangilash uchun sahifani qayta oching." }), title: z2.string().min(3).max(200), examKind: z2.enum(["BSB", "CHSB"]), examNumber: z2.number().int().min(1).max(2), quarter: z2.number().int().min(1).max(4), academicYear: z2.string().regex(/^\d{4}-\d{4}$/), subject: z2.string().min(2).max(100), classCodes: z2.array(z2.string()).min(1).max(19), durationMinutes: z2.number().int().min(1).max(180), availableFrom: z2.string().datetime(), dueDate: z2.string().datetime(), sourceFileName: z2.string().max(200), sourceHash: z2.string().regex(/^[a-f0-9]{64}$/), contextImages: z2.array(image).max(20), questions: z2.array(question).min(1).max(60) });
 function registerExamRoutes(app2, deps) {
   const admin = (req, res) => {
     const c = deps.authenticate(req);
@@ -2701,7 +2803,7 @@ function registerExamRoutes(app2, deps) {
     if (Date.parse(data.availableFrom) >= Date.parse(data.dueDate)) return res.status(400).json({ error: "Vaqt oralig\u2018ini tekshiring." });
     const existing = c.db.assessments.find((a) => a.institutionId === c.user.institutionId && a.sourceHash === data.sourceHash && a.sourceLayoutVersion === data.sourceLayoutVersion && a.title === data.title && a.examKind === data.examKind && a.academicYear === data.academicYear && a.examNumber === data.examNumber && a.quarter === data.quarter && JSON.stringify(a.assignedClassCodes) === JSON.stringify(data.classCodes));
     if (existing) return res.json({ assessment: existing, replayed: true });
-    const now = (/* @__PURE__ */ new Date()).toISOString(), id = "exam-" + crypto4.randomUUID();
+    const now = (/* @__PURE__ */ new Date()).toISOString(), id = "exam-" + crypto5.randomUUID();
     try {
       for (const q of data.questions) q.sourceImages = await Promise.all(q.sourceImages.map((image2) => storeExamImage(c.user.institutionId, id, image2)));
       data.contextImages = await Promise.all(data.contextImages.map((image2) => storeExamImage(c.user.institutionId, id, image2)));
@@ -2721,7 +2823,7 @@ function registerExamRoutes(app2, deps) {
     if (!c) return;
     const exam = c.db.assessments.find((a) => a.id === req.params.id && a.examKind && a.institutionId === c.user.institutionId);
     if (!exam || exam.examState !== "draft") return res.status(409).json({ error: "Faqat nashr qilinmagan qoralamani tahrirlash mumkin." });
-    const edit = draftSchema.omit({ sourceLayoutVersion: true, sourceHash: true, sourceFileName: true, contextImages: true, questions: true }).extend({ questions: z.array(question.omit({ sourceImages: true }).extend({ sourceImages: z.array(z.union([image, z.string().max(180)])).max(20) })).min(1).max(60), contextImages: z.array(z.union([image, z.string().max(180)])).max(20).optional() }).safeParse(req.body);
+    const edit = draftSchema.omit({ sourceLayoutVersion: true, sourceHash: true, sourceFileName: true, contextImages: true, questions: true }).extend({ questions: z2.array(question.omit({ sourceImages: true }).extend({ sourceImages: z2.array(z2.union([image, z2.string().max(180)])).max(20) })).min(1).max(60), contextImages: z2.array(z2.union([image, z2.string().max(180)])).max(20).optional() }).safeParse(req.body);
     if (!edit.success) return res.status(400).json({ error: edit.error.issues[0]?.message });
     const d = edit.data;
     const classes = c.db.classes.filter((cls) => cls.institutionId === c.user.institutionId && d.classCodes.includes(cls.code));
@@ -2828,11 +2930,11 @@ function registerExamRoutes(app2, deps) {
     if (!session) {
       if (!examCanStart(exam)) return res.status(409).json({ error: "Nazorat ishi boshlanmagan yoki yopilgan." });
       if (c.db.attempts.some((a) => a.assessmentId === exam.id && a.studentId === c.user.uid)) return res.status(409).json({ error: "Nazorat ishi allaqachon topshirilgan." });
-      session = { id: crypto4.randomUUID(), assessmentId: exam.id, studentId: c.user.uid, institutionId: c.user.institutionId, startedAt: (/* @__PURE__ */ new Date()).toISOString(), deadlineAt: new Date(Date.now() + exam.durationMinutes * 6e4).toISOString(), pauseAtStart: exam.totalPausedMs || 0, revision: 0, answers: {}, events: [] };
+      session = { id: crypto5.randomUUID(), assessmentId: exam.id, studentId: c.user.uid, institutionId: c.user.institutionId, startedAt: (/* @__PURE__ */ new Date()).toISOString(), deadlineAt: new Date(Date.now() + exam.durationMinutes * 6e4).toISOString(), pauseAtStart: exam.totalPausedMs || 0, revision: 0, answers: {}, events: [] };
       c.db.examSessions.push(session);
       deps.save(c.env, c.db);
     }
-    res.json({ session, serverNow: Date.now(), deadline: examDeadline(exam, session), state: exam.examState });
+    res.json({ session, serverNow: Date.now(), deadline: examDeadline(exam, session), state: session.stoppedAt ? "closed" : exam.examState });
   });
   app2.get("/api/exams/:id/session", (req, res) => {
     const c = deps.authenticate(req);
@@ -2840,7 +2942,25 @@ function registerExamRoutes(app2, deps) {
     const exam = c.db.assessments.find((a) => a.id === req.params.id && a.examKind);
     const session = c.db.examSessions?.find((s) => s.assessmentId === req.params.id && s.studentId === c.user.uid);
     if (!exam || !session || !canTakeExam(c.user, exam)) return res.status(404).json({ error: "Sessiya topilmadi." });
-    res.json({ session, serverNow: Date.now(), deadline: examDeadline(exam, session), state: exam.examState });
+    res.json({ session, serverNow: Date.now(), deadline: examDeadline(exam, session), state: session.stoppedAt ? "closed" : exam.examState });
+  });
+  app2.post("/api/exams/:id/exit", (req, res) => {
+    const c = deps.authenticate(req);
+    if (!c) return res.status(401).json({ error: "Hisobga kiring." });
+    const exam = c.db.assessments.find((a) => a.id === req.params.id && a.examKind);
+    const session = c.db.examSessions?.find((s) => s.assessmentId === req.params.id && s.studentId === c.user.uid);
+    if (!exam || !session || !canTakeExam(c.user, exam)) return res.status(403).json({ error: "Ruxsat yo\u2018q." });
+    const id = z2.string().uuid().safeParse(req.body.eventId);
+    if (!id.success) return res.status(400).json({ error: "Hodisa noto\u2018g\u2018ri." });
+    session.exitIds ||= [];
+    if (!session.submittedAttemptId && !session.stoppedAt && !session.exitIds.includes(id.data)) {
+      session.exitIds.push(id.data);
+      session.exitCount = (session.exitCount || 0) + 1;
+      session.events.push({ type: "tab_hidden", at: (/* @__PURE__ */ new Date()).toISOString() });
+      if (session.exitCount >= 3) session.stoppedAt = (/* @__PURE__ */ new Date()).toISOString();
+      deps.save(c.env, c.db);
+    }
+    res.json({ exitCount: session.exitCount || 0, stopped: !!session.stoppedAt });
   });
   app2.put("/api/exams/:id/session", (req, res) => {
     const c = deps.authenticate(req);
@@ -2848,10 +2968,11 @@ function registerExamRoutes(app2, deps) {
     const exam = c.db.assessments.find((a) => a.id === req.params.id && a.examKind);
     const session = c.db.examSessions?.find((s) => s.assessmentId === req.params.id && s.studentId === c.user.uid);
     if (!exam || !session || !canTakeExam(c.user, exam)) return res.status(404).json({ error: "Sessiya topilmadi." });
+    if (session.stoppedAt) return res.status(409).json({ error: "Tabdan uch marta chiqilgan. Nazorat to\u2018xtatildi." });
     if (session.submittedAttemptId) return res.status(409).json({ error: "Ish topshirilgan." });
     if (req.body.revision !== session.revision) return res.status(409).json({ error: "Javoblar boshqa oynada yangilangan. Sahifani yangilang." });
     if (exam.examState === "paused" || exam.examState === "closed" || Date.now() > examDeadline(exam, session)) return res.status(409).json({ error: "Nazorat to\u2018xtatilgan yoki vaqti tugagan." });
-    const incoming = z.record(z.string(), z.string().max(25e4)).safeParse(req.body.answers);
+    const incoming = z2.record(z2.string(), z2.string().max(25e4)).safeParse(req.body.answers);
     if (!incoming.success || Buffer.byteLength(JSON.stringify(incoming.data)) > 18e5) return res.status(400).json({ error: "Javoblar hajmi yoki shakli noto\u2018g\u2018ri." });
     if (Object.keys(incoming.data).some((id) => !exam.questionIds.includes(id))) return res.status(400).json({ error: "Noma\u2019lum savol." });
     session.answers = incoming.data;
@@ -2863,7 +2984,7 @@ function registerExamRoutes(app2, deps) {
 }
 
 // src/server/cloudState.ts
-import crypto5 from "node:crypto";
+import crypto6 from "node:crypto";
 import { gzipSync, gunzipSync } from "node:zlib";
 import { getFirestore as getFirestore2 } from "firebase-admin/firestore";
 var ROOT = "_specialized_runtime";
@@ -2881,18 +3002,18 @@ function encodeState(value) {
   const chunks = [];
   for (let offset = 0; offset < compressed.length; offset += CHUNK_BYTES) {
     const bytes = compressed.subarray(offset, offset + CHUNK_BYTES);
-    chunks.push({ id: crypto5.createHash("sha256").update(bytes).digest("hex"), data: bytes.toString("base64") });
+    chunks.push({ id: crypto6.createHash("sha256").update(bytes).digest("hex"), data: bytes.toString("base64") });
   }
-  return { chunks, digest: crypto5.createHash("sha256").update(raw).digest("hex") };
+  return { chunks, digest: crypto6.createHash("sha256").update(raw).digest("hex") };
 }
 function decodeState(chunks, digest) {
   const compressed = Buffer.concat(chunks.map((c) => {
     const b = Buffer.from(c.data, "base64");
-    if (crypto5.createHash("sha256").update(b).digest("hex") !== c.id) throw Error("Snapshot chunk integrity failure");
+    if (crypto6.createHash("sha256").update(b).digest("hex") !== c.id) throw Error("Snapshot chunk integrity failure");
     return b;
   }));
   const raw = gunzipSync(compressed, { maxOutputLength: MAX_STATE_BYTES });
-  if (crypto5.createHash("sha256").update(raw).digest("hex") !== digest) throw Error("Snapshot integrity failure");
+  if (crypto6.createHash("sha256").update(raw).digest("hex") !== digest) throw Error("Snapshot integrity failure");
   return JSON.parse(raw.toString("utf8"));
 }
 var cache = null;
@@ -2918,7 +3039,7 @@ async function readCloudState() {
 async function writeCloudState(state, expectedRevision) {
   const db = database();
   const encoded = encodeState(state);
-  const revision = crypto5.randomUUID();
+  const revision = crypto6.randomUUID();
   for (let offset = 0; offset < encoded.chunks.length; offset += 8) {
     const batch = db.batch();
     for (const chunk of encoded.chunks.slice(offset, offset + 8)) batch.set(db.doc(`${ROOT}/chunks/items/${chunk.id}`), { data: chunk.data });
@@ -2974,7 +3095,7 @@ import path4 from "path";
 import { fileURLToPath } from "url";
 import { GoogleGenAI, Type } from "@google/genai";
 import * as XLSX5 from "xlsx";
-import { z as z2 } from "zod";
+import { z as z3 } from "zod";
 
 // src/utils/scoring.ts
 var MINIMUM_EVIDENCE_THRESHOLD = 3;
@@ -5584,7 +5705,7 @@ function generateStudentExportBuffer(students) {
 // src/utils/mathCurriculumImporter.ts
 import fs3 from "fs";
 import path3 from "path";
-import crypto6 from "crypto";
+import crypto7 from "crypto";
 import JSZip2 from "jszip";
 import * as XLSX4 from "xlsx";
 var OFFICIAL_MATH_ARCHIVE_DISPLAY_NAME = "Matematika  elektron jurnal uchun ish reja.zip";
@@ -5593,7 +5714,7 @@ var MAX_ZIP_SIZE_BYTES = 25 * 1024 * 1024;
 var MAX_ZIP_ENTRIES = 100;
 var MAX_UNCOMPRESSED_BYTES = 50 * 1024 * 1024;
 function computeSha256Hex(input) {
-  return crypto6.createHash("sha256").update(input).digest("hex");
+  return crypto7.createHash("sha256").update(input).digest("hex");
 }
 function resolveOfficialMathArchivePath() {
   const candidates = [
@@ -7161,34 +7282,34 @@ function calculateClassMonitoringSnapshot(classCode, grade, track, enrolledStude
 var CONFIGURED_OWNER_EMAIL = (process.env.PLATFORM_OWNER_EMAIL || PLATFORM_OWNER_EMAIL).trim().toLowerCase();
 var __filename = fileURLToPath(import.meta.url);
 var __dirname = path4.dirname(__filename);
-var AIAnalysisSchema = z2.object({
-  summary: z2.string().min(5),
-  topic_analysis: z2.array(
-    z2.object({
-      topic_id: z2.string(),
-      observed_performance: z2.string(),
-      possible_error_pattern: z2.string(),
-      evidence_count: z2.number(),
-      confidence: z2.enum(["low", "medium", "high"]),
-      recommendation: z2.string()
+var AIAnalysisSchema = z3.object({
+  summary: z3.string().min(5),
+  topic_analysis: z3.array(
+    z3.object({
+      topic_id: z3.string(),
+      observed_performance: z3.string(),
+      possible_error_pattern: z3.string(),
+      evidence_count: z3.number(),
+      confidence: z3.enum(["low", "medium", "high"]),
+      recommendation: z3.string()
     })
   ),
-  next_steps: z2.array(
-    z2.object({
-      topic_id: z2.string(),
-      activity: z2.string(),
-      reason: z2.string(),
-      priority: z2.enum(["low", "medium", "high"])
+  next_steps: z3.array(
+    z3.object({
+      topic_id: z3.string(),
+      activity: z3.string(),
+      reason: z3.string(),
+      priority: z3.enum(["low", "medium", "high"])
     })
   ),
-  teacher_summary: z2.string().min(5),
-  parent_summary: z2.string().optional()
+  teacher_summary: z3.string().min(5),
+  parent_summary: z3.string().optional()
 });
-var AIDraftedQuestionSchema = z2.object({
-  prompt: z2.string().min(5),
-  options: z2.array(z2.string()).length(4),
-  correctAnswer: z2.string().min(1),
-  explanation: z2.string().min(5)
+var AIDraftedQuestionSchema = z3.object({
+  prompt: z3.string().min(5),
+  options: z3.array(z3.string()).length(4),
+  correctAnswer: z3.string().min(1),
+  explanation: z3.string().min(5)
 });
 function getGeminiClient(req) {
   if (req && resolveRequestEnv(req) === "test") {
@@ -7382,6 +7503,12 @@ async function startServer() {
       return uploadJsonParser(req, res, next);
     }
     return standardJsonParser(req, res, next);
+  });
+  registerTeachingRoutes(app, { authenticate: authenticateRequest, save: saveDbState, hash: hashPassword, revoke: revokeAllUserSessions });
+  app.use("/api", (req, res, next) => {
+    const c = authenticateRequest(req);
+    if (c?.user.role === "teacher" && !["/state", "/auth/logout"].includes(req.path) && !req.path.startsWith("/teaching/")) return res.status(403).json({ error: "O\u2018qituvchi uchun bu amalga ruxsat yo\u2018q." });
+    next();
   });
   registerExamRoutes(app, { authenticate: authenticateRequest, save: saveDbState, notify: broadcastInstitutionUpdate });
   function enforceRateLimit(req, res, scope, maxRequests, windowMs) {
@@ -7579,7 +7706,13 @@ async function startServer() {
     const normalizedEmail = String(email).trim().toLowerCase();
     const instId = db.institutions[0]?.id || "inst-spec-study";
     const user = db.users.find((u) => u.email.toLowerCase() === normalizedEmail);
+    const throttleKey = nodeCrypto.createHash("sha256").update(normalizedEmail + ":" + ipHash).digest("hex");
+    db.loginThrottles ||= {};
+    if ((db.loginThrottles[throttleKey]?.until || 0) > Date.now()) return res.status(429).json({ error: "Ko\u2018p noto\u2018g\u2018ri urinish. 15 daqiqadan keyin qayta urining." });
     const recordFailedLogin = (reason) => {
+      const previous = db.loginThrottles[throttleKey];
+      const attempts = previous && previous.until > Date.now() - 15 * 60 * 1e3 ? previous.attempts + 1 : 1;
+      db.loginThrottles[throttleKey] = { attempts, until: attempts >= 5 ? Date.now() + 15 * 60 * 1e3 : Date.now() };
       const failKey = `${env}:${normalizedEmail}:${ipHash}`;
       const count = (failedLoginCounter.get(failKey) || 0) + 1;
       failedLoginCounter.set(failKey, count);
@@ -7612,6 +7745,7 @@ async function startServer() {
       recordFailedLogin("noto\u2018g\u2018ri parol");
       return res.status(401).json({ error: "Hisob topilmadi yoki parol noto\u2018g\u2018ri." });
     }
+    delete db.loginThrottles[throttleKey];
     failedLoginCounter.delete(`${env}:${normalizedEmail}:${ipHash}`);
     if (isAuthorizedAdminEmail(normalizedEmail, CONFIGURED_OWNER_EMAIL)) {
       user.role = "platform_owner";
@@ -8369,52 +8503,9 @@ async function startServer() {
       });
     }
     if (user.role === "teacher") {
-      const myClasses = db.classes.filter(
-        (c) => c.institutionId === instId && (c.teacherId === user.uid || user.assignedClassIds?.includes(c.id))
-      );
-      const myClassIds = new Set(myClasses.map((c) => c.id));
-      const authorizedStudents = db.users.filter(
-        (u) => u.institutionId === instId && (u.uid === user.uid || u.role === "student" && u.classId && myClassIds.has(u.classId))
-      );
-      const authorizedStudentIds = new Set(authorizedStudents.map((s) => s.uid));
-      return res.json({
-        user,
-        institution,
-        institutions: [institution],
-        academicYears: db.academicYears || [],
-        subjects: instSubjects,
-        topics: instTopics,
-        workPlans: (db.workPlans || []).filter((wp) => myClassIds.has(wp.classId)),
-        lessons: (db.lessons || []).filter((l) => myClassIds.has(l.classId)),
-        users: authorizedStudents,
-        classes: myClasses,
-        invitations: db.invitations.filter((inv) => inv.institutionId === instId && inv.createdByUid === user.uid).map(({ tokenHash, ...rest }) => ({ ...rest, tokenHash: "***" })),
-        questions: db.questions.filter((q) => q.institutionId === instId),
-        questionRevisions: (db.questionRevisions || []).filter((r) => r.institutionId === instId),
-        questionMedia: (db.questionMedia || []).filter((m) => m.institutionId === instId),
-        assessments: db.assessments.filter(
-          (a) => a.institutionId === instId && (a.teacherId === user.uid || myClassIds.has(a.classId))
-        ),
-        assignments: db.assignments.filter(
-          (a) => a.institutionId === instId && (a.teacherId === user.uid || myClassIds.has(a.classId))
-        ),
-        attempts: db.attempts.filter(
-          (a) => a.institutionId === instId && (myClassIds.has(a.classId) || authorizedStudentIds.has(a.studentId))
-        ),
-        gradingRecords: (db.gradingRecords || []).filter((g) => g.institutionId === instId),
-        importBatches: (db.importBatches || []).filter(
-          (b) => b.institutionId === instId && b.importedByUid === user.uid
-        ),
-        masteryRecords: db.masteryRecords.filter(
-          (m) => m.institutionId === instId && authorizedStudentIds.has(m.studentId)
-        ),
-        learningPaths: db.learningPaths.filter((lp) => authorizedStudentIds.has(lp.studentId)),
-        teacherNotes: db.teacherNotes.filter(
-          (n) => n.institutionId === instId && authorizedStudentIds.has(n.studentId)
-        ),
-        notifications: myNotifications,
-        auditLogs: []
-      });
+      const scoped = teacherClasses(user, db);
+      const ids = new Set(scoped.map((c) => c.id));
+      return res.json({ user, institution, classes: scoped, users: db.users.filter((u) => u.institutionId === instId && (u.uid === user.uid || u.role === "student" && ids.has(u.classId || ""))).map(({ uid, displayName, role, classId, classCode, status }) => ({ uid, displayName, role, classId, classCode, status })), lessons: db.lessons.filter((l) => l.institutionId === instId && [l.classId, ...l.classIds || []].some((id) => ids.has(id)) && l.subjectName === user.subject).map((l) => ({ ...l, schoolDeliveredAt: l.schoolDeliveredAt || ([l.classId, ...l.classIds || []].filter((id) => ids.has(id)).every((id) => l.schoolDeliveredClassIds?.includes(id)) ? l.updatedAt : void 0) })), subjects: [], topics: [], workPlans: [], assessments: [], attempts: [], notifications: [] });
     }
     if (user.role === "student") {
       const myClass = db.classes.find(
@@ -8491,7 +8582,7 @@ async function startServer() {
         studentId: user.uid,
         events: myEvents,
         studentBadges: myStudentBadges,
-        lessons: myLessons,
+        lessons: myLessons.map((l) => ({ ...l, schoolDeliveredAt: l.schoolDeliveredAt || (l.schoolDeliveredClassIds?.includes(myClass?.id || "") ? l.updatedAt : void 0) })),
         classCode: myClass?.code || user.classCode || "7a1",
         completions: myCompletions
       });
@@ -8509,7 +8600,7 @@ async function startServer() {
         subjects: mySubjects,
         topics: instTopics,
         workPlans: myWorkPlans,
-        lessons: myLessons,
+        lessons: myLessons.map((l) => ({ ...l, schoolDeliveredAt: l.schoolDeliveredAt || (l.schoolDeliveredClassIds?.includes(myClass?.id || "") ? l.updatedAt : void 0) })),
         users: [user],
         classes: myClass ? [myClass] : [],
         invitations: [],
@@ -12679,8 +12770,8 @@ async function startServer() {
     if (assessment.examKind) {
       if (!canTakeExam(user, assessment) || !examSession) return res.status(403).json({ error: "Nazorat ishini avval boshlang." });
       if (examSession.submittedAttemptId) return res.json({ attempt: db.attempts.find((a) => a.id === examSession.submittedAttemptId) });
-      if (assessment.examState === "paused") return res.status(409).json({ error: "Nazorat vaqtincha to\u2018xtatilgan." });
-      if (Date.now() > examDeadline(assessment, examSession) || assessment.examState === "closed") submittedMap = examSession.answers;
+      if (assessment.examState === "paused" && !examSession.stoppedAt) return res.status(409).json({ error: "Nazorat vaqtincha to\u2018xtatilgan." });
+      if (examSession.stoppedAt || Date.now() > examDeadline(assessment, examSession) || assessment.examState === "closed") submittedMap = examSession.answers;
       else if (!submittedMap || typeof submittedMap !== "object" || Array.isArray(submittedMap) || Object.values(submittedMap).some((v) => typeof v !== "string" || v.length > 25e4) || Object.keys(submittedMap).some((id) => !assessment.questionIds.includes(id)) || Buffer.byteLength(JSON.stringify(submittedMap)) > 18e5) return res.status(400).json({ error: "Javoblar noto\u2018g\u2018ri." });
     }
     const userClassId = (user.classId || "").toLowerCase();

@@ -45,14 +45,16 @@ const AdminNotificationsPage = lazy(() => import('./pages/ParentAndAdminPages').
 const AdminAuditLogsPage = lazy(() => import('./pages/ParentAndAdminPages').then(module => ({ default: module.AdminAuditLogsPage })));
 const AdminHelpDocsPage = lazy(() => import('./pages/ParentAndAdminPages').then(module => ({ default: module.AdminHelpDocsPage })));
 
+const TeachingPanel = lazy(() => import('./components/TeachingPanel').then(m=>({default:m.TeachingPanel})));
 // Navigation guard only. Every API endpoint must independently authorize requests.
-const ProtectedRoute: React.FC<{ allowedRole: 'admin' | 'student'; children: React.ReactNode }> = ({ allowedRole, children }) => {
+const ProtectedRoute: React.FC<{ allowedRole: 'admin' | 'student' | 'teacher'; children: React.ReactNode }> = ({ allowedRole, children }) => {
   const { currentUser, authReady, isPlatformOwner } = useLearnOS();
   if (!authReady) return <main className="min-h-screen grid place-items-center bg-slate-50 text-slate-600" role="status" aria-live="polite">Hisob tekshirilmoqda…</main>;
   if (!currentUser) return <Navigate to="/login" replace />;
   if (currentUser.status !== 'active') return <Navigate to="/login" replace />;
   if (allowedRole === 'admin' && !isPlatformOwner) return <Navigate to={currentUser.role === 'student' ? '/student/dashboard' : '/login'} replace />;
   if (allowedRole === 'student' && currentUser.role !== 'student') return <Navigate to={isPlatformOwner ? '/admin/dashboard' : '/login'} replace />;
+  if (allowedRole==='teacher'&&currentUser.role!=='teacher')return <Navigate to="/login" replace/>;
   return <AppShell>{children}</AppShell>;
 };
 
@@ -193,7 +195,8 @@ export default function App() {
           />
 
           {/* Legacy Teacher & Parent Routes Safely Redirected */}
-          <Route path="/teacher/*" element={<Navigate to="/login" replace />} />
+          <Route path="/teacher/*" element={<ProtectedRoute allowedRole="teacher"><TeachingPanel/></ProtectedRoute>} />
+          <Route path="/admin/teachers" element={<ProtectedRoute allowedRole="admin"><TeachingPanel admin/></ProtectedRoute>} />
           <Route path="/parent/*" element={<Navigate to="/login" replace />} />
 
           {/* Specialized Study Admin Control Center Routes (/admin/*) */}

@@ -1,3 +1,5 @@
+import nodeCrypto from 'node:crypto';
+import {registerTeachingRoutes,teacherClasses} from './src/server/teachingRoutes';
 import { registerExamRoutes } from './src/server/examRoutes';
 import { canTakeExam, examDeadline, sanitizeExamQuestion } from './src/utils/examPolicy';
 import { cloudStateMiddleware } from './src/server/cloudStateMiddleware';
@@ -499,6 +501,8 @@ async function startServer() {
     return standardJsonParser(req, res, next);
   });
 
+  registerTeachingRoutes(app,{authenticate:authenticateRequest,save:saveDbState,hash:hashPassword,revoke:revokeAllUserSessions});
+  app.use('/api',(req,res,next)=>{const c=authenticateRequest(req);if(c?.user.role==='teacher'&&!['/state','/auth/logout'].includes(req.path)&&!req.path.startsWith('/teaching/'))return res.status(403).json({error:'O‘qituvchi uchun bu amalga ruxsat yo‘q.'});next();});
   registerExamRoutes(app, {authenticate: authenticateRequest, save: saveDbState, notify: broadcastInstitutionUpdate});
 
   function enforceRateLimit(
@@ -724,8 +728,12 @@ async function startServer() {
     const normalizedEmail = String(email).trim().toLowerCase();
     const instId = db.institutions[0]?.id || 'inst-spec-study';
     const user = db.users.find((u) => u.email.toLowerCase() === normalizedEmail);
+    const throttleKey=nodeCrypto.createHash('sha256').update(normalizedEmail+':'+ipHash).digest('hex');
+    db.loginThrottles||={};
+    if((db.loginThrottles[throttleKey]?.until||0)>Date.now())return res.status(429).json({error:'Ko‘p noto‘g‘ri urinish. 15 daqiqadan keyin qayta urining.'});
 
     const recordFailedLogin = (reason: string) => {
+      const previous=db.loginThrottles![throttleKey];const attempts=previous&&previous.until>Date.now()-15*60*1000?previous.attempts+1:1;db.loginThrottles![throttleKey]={attempts,until:attempts>=5?Date.now()+15*60*1000:Date.now()};
       const failKey = `${env}:${normalizedEmail}:${ipHash}`;
       const count = (failedLoginCounter.get(failKey) || 0) + 1;
       failedLoginCounter.set(failKey, count);
@@ -760,6 +768,7 @@ async function startServer() {
       return res.status(401).json({ error: 'Hisob topilmadi yoki parol noto‘g‘ri.' });
     }
 
+    delete db.loginThrottles![throttleKey];
     failedLoginCounter.delete(`${env}:${normalizedEmail}:${ipHash}`);
 
     // Enforce authorized Platform Admin claim on login
@@ -1639,68 +1648,10 @@ async function startServer() {
       });
     }
 
-    if (user.role === 'teacher') {
-      const myClasses = db.classes.filter(
-        (c) =>
-          c.institutionId === instId &&
-          (c.teacherId === user.uid || user.assignedClassIds?.includes(c.id))
-      );
-      const myClassIds = new Set(myClasses.map((c) => c.id));
-      const authorizedStudents = db.users.filter(
-        (u) =>
-          u.institutionId === instId &&
-          (u.uid === user.uid || (u.role === 'student' && u.classId && myClassIds.has(u.classId)))
-      );
-      const authorizedStudentIds = new Set(authorizedStudents.map((s) => s.uid));
-
-      return res.json({
-        user,
-        institution,
-        institutions: [institution],
-        academicYears: db.academicYears || [],
-        subjects: instSubjects,
-        topics: instTopics,
-        workPlans: (db.workPlans || []).filter((wp) => myClassIds.has(wp.classId)),
-        lessons: (db.lessons || []).filter((l) => myClassIds.has(l.classId)),
-        users: authorizedStudents,
-        classes: myClasses,
-        invitations: db.invitations
-          .filter((inv) => inv.institutionId === instId && inv.createdByUid === user.uid)
-          .map(({ tokenHash, ...rest }) => ({ ...rest, tokenHash: '***' })),
-        questions: db.questions.filter((q) => q.institutionId === instId),
-        questionRevisions: (db.questionRevisions || []).filter((r) => r.institutionId === instId),
-        questionMedia: (db.questionMedia || []).filter((m) => m.institutionId === instId),
-        assessments: db.assessments.filter(
-          (a) =>
-            a.institutionId === instId &&
-            (a.teacherId === user.uid || myClassIds.has(a.classId))
-        ),
-        assignments: db.assignments.filter(
-          (a) =>
-            a.institutionId === instId &&
-            (a.teacherId === user.uid || myClassIds.has(a.classId))
-        ),
-        attempts: db.attempts.filter(
-          (a) =>
-            a.institutionId === instId &&
-            (myClassIds.has(a.classId) || authorizedStudentIds.has(a.studentId))
-        ),
-        gradingRecords: (db.gradingRecords || []).filter((g) => g.institutionId === instId),
-        importBatches: (db.importBatches || []).filter(
-          (b) => b.institutionId === instId && b.importedByUid === user.uid
-        ),
-        masteryRecords: db.masteryRecords.filter(
-          (m) => m.institutionId === instId && authorizedStudentIds.has(m.studentId)
-        ),
-        learningPaths: db.learningPaths.filter((lp) => authorizedStudentIds.has(lp.studentId)),
-        teacherNotes: db.teacherNotes.filter(
-          (n) => n.institutionId === instId && authorizedStudentIds.has(n.studentId)
-        ),
-        notifications: myNotifications,
-        auditLogs: [],
-      });
+    if(user.role==='teacher'){
+      const scoped=teacherClasses(user,db);const ids=new Set(scoped.map(c=>c.id));
+      return res.json({user,institution,classes:scoped,users:db.users.filter(u=>u.institutionId===instId&&(u.uid===user.uid||(u.role==='student'&&ids.has(u.classId||'')))).map(({uid,displayName,role,classId,classCode,status})=>({uid,displayName,role,classId,classCode,status})),lessons:db.lessons.filter(l=>l.institutionId===instId&&[l.classId,...(l.classIds||[])].some(id=>ids.has(id))&&l.subjectName===user.subject).map(l=>({...l,schoolDeliveredAt:l.schoolDeliveredAt||([l.classId,...(l.classIds||[])].filter(id=>ids.has(id)).every(id=>l.schoolDeliveredClassIds?.includes(id))?l.updatedAt:undefined)})),subjects:[],topics:[],workPlans:[],assessments:[],attempts:[],notifications:[]});
     }
-
     if (user.role === 'student') {
       const myClass = db.classes.find(
         (c) =>
@@ -1827,7 +1778,7 @@ async function startServer() {
         studentId: user.uid,
         events: myEvents,
         studentBadges: myStudentBadges,
-        lessons: myLessons,
+        lessons: myLessons.map(l=>({...l,schoolDeliveredAt:l.schoolDeliveredAt||(l.schoolDeliveredClassIds?.includes(myClass?.id||'')?l.updatedAt:undefined)})),
         classCode: myClass?.code || user.classCode || '7a1',
         completions: myCompletions,
       });
@@ -1847,7 +1798,7 @@ async function startServer() {
         subjects: mySubjects,
         topics: instTopics,
         workPlans: myWorkPlans,
-        lessons: myLessons,
+        lessons: myLessons.map(l=>({...l,schoolDeliveredAt:l.schoolDeliveredAt||(l.schoolDeliveredClassIds?.includes(myClass?.id||'')?l.updatedAt:undefined)})),
         users: [user],
         classes: myClass ? [myClass] : [],
         invitations: [],
@@ -6949,8 +6900,8 @@ async function startServer() {
     if (assessment.examKind) {
       if (!canTakeExam(user,assessment) || !examSession) return res.status(403).json({error:'Nazorat ishini avval boshlang.'});
       if (examSession.submittedAttemptId) return res.json({attempt:db.attempts.find(a=>a.id===examSession.submittedAttemptId)});
-      if (assessment.examState==='paused') return res.status(409).json({error:'Nazorat vaqtincha to‘xtatilgan.'});
-      if (Date.now()>examDeadline(assessment,examSession) || assessment.examState==='closed') submittedMap=examSession.answers;
+      if (assessment.examState==='paused'&&!examSession.stoppedAt) return res.status(409).json({error:'Nazorat vaqtincha to‘xtatilgan.'});
+      if (examSession.stoppedAt || Date.now()>examDeadline(assessment,examSession) || assessment.examState==='closed') submittedMap=examSession.answers;
       else if (!submittedMap || typeof submittedMap!=='object' || Array.isArray(submittedMap) || Object.values(submittedMap).some(v=>typeof v!=='string'||v.length>250000) || Object.keys(submittedMap).some(id=>!assessment.questionIds.includes(id)) || Buffer.byteLength(JSON.stringify(submittedMap))>1800000) return res.status(400).json({error:'Javoblar noto‘g‘ri.'});
     }
 

@@ -96,7 +96,7 @@ export const Roadmap2View: React.FC<Roadmap2ViewProps> = ({
   const [selectedAcademicYear, setSelectedAcademicYear] = useState<string>(
     academicYearOptions[0] || '2026-2027'
   );
-  const [selectedQuarter, setSelectedQuarter] = useState<1 | 2 | 3 | 4>(1);
+  const [selectedQuarter, setSelectedQuarter] = useState<1 | 2 | 3 | 4>(lessons.some(l=>l.quarter===1&&l.schoolDeliveredAt)?2:1);
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [badgeFilter, setBadgeFilter] = useState<string>('ALL');
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'COMPLETED' | 'NOT_STARTED' | 'HAS_TEST'>('ALL');
@@ -746,7 +746,7 @@ export const Roadmap2View: React.FC<Roadmap2ViewProps> = ({
                         )}
                       </div>
                       <h3 className="text-sm sm:text-base font-semibold text-slate-900 dark:text-white mt-1 break-words">
-                        {lesson.topicTitle || lesson.title}
+                        {lesson.topicTitle || lesson.title}{lesson.schoolDeliveredAt&&<span className="ml-2 rounded-full bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-700">Maktabda o‘tilgan</span>}
                       </h3>
                     </div>
                   </div>

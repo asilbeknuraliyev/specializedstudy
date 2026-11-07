@@ -57,12 +57,12 @@ export const LoginPage: React.FC = () => {
         navigate(savedDest, { replace: true });
         return;
       }
-      if (role !== 'student' && savedDest.startsWith('/admin/')) {
+      if (['admin','platform_owner'].includes(role) && savedDest.startsWith('/admin/')) {
         navigate(savedDest, { replace: true });
         return;
       }
     }
-    const path = role === 'student' ? '/student/dashboard' : '/admin/dashboard';
+    const path = role === 'teacher' ? '/teacher/dashboard' : role === 'student' ? '/student/dashboard' : '/admin/dashboard';
     navigate(path, { replace: true });
   };
 
@@ -89,8 +89,7 @@ export const LoginPage: React.FC = () => {
         setErrorMsg("Iltimos, to'g'ri elektron pochta manzilini kiriting.");
         return;
       }
-      setResetSent(true);
-      addToast('info', 'Parolni tiklash havolasi yuborildi');
+      setErrorMsg('Parolni yangilash uchun administratorga murojaat qiling.');
       return;
     }
 

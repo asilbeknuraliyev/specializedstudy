@@ -367,6 +367,8 @@ export interface LessonModificationEntry {
 }
 
 export interface LessonItem {
+  schoolDeliveredAt?: string;
+  schoolDeliveredClassIds?: string[];
   id: string;
   institutionId: string;
   workPlanId?: string;
