@@ -13,7 +13,7 @@ function registerTeachingRoutes(app2, deps) {
     const c = deps.authenticate(req);
     const lesson = c?.db.lessons.find((l) => l.id === req.params.id);
     if (!practiceAccess(c, lesson)) return res.status(403).json({ error: "Darsga ruxsat yo\u2018q." });
-    res.json({ title: lesson.title, reference: lesson.classwork || lesson.content, questions: [`\xAB${lesson.title}\xBB mavzusidagi asosiy qoida yoki tushunchani o\u2018z so\u2018zingiz bilan tushuntiring.`, `Shu mavzuga oid bitta misol keltiring va yechimingizni bosqichma-bosqich izohlang.`], mode: "reflection", notice: "Ish rejadagi mavzudan tuzilgan yozma takrorlash. Avtomatik baholanmaydi; aniq variantli testlar uchun ustoz tasdiqlagan savollar yoki darslik kerak." });
+    res.json({ savedAnswers: c.db.lessonPracticeResponses?.find((r) => r.studentId === c.user.uid && r.lessonId === lesson.id)?.answers, title: lesson.title, reference: lesson.classwork || lesson.content, questions: [`\xAB${lesson.title}\xBB mavzusidagi asosiy qoida yoki tushunchani o\u2018z so\u2018zingiz bilan tushuntiring.`, `Shu mavzuga oid bitta misol keltiring va yechimingizni bosqichma-bosqich izohlang.`], mode: "reflection", notice: "Ish rejadagi mavzudan tuzilgan yozma takrorlash. Avtomatik baholanmaydi; aniq variantli testlar uchun ustoz tasdiqlagan savollar yoki darslik kerak." });
   });
   app2.post("/api/lesson-practice/:id", (req, res) => {
     const c = deps.authenticate(req);
@@ -22,6 +22,8 @@ function registerTeachingRoutes(app2, deps) {
     const answers = z.array(z.string().trim().min(3).max(1e4)).length(2).safeParse(req.body.answers);
     if (!answers.success) return res.status(400).json({ error: "Ikkala javobni kiriting." });
     c.db.lessonPracticeResponses ||= [];
+    const previous = c.db.lessonPracticeResponses.find((r) => r.studentId === c.user.uid && r.lessonId === lesson.id);
+    if (previous) return res.json({ id: previous.id, status: "received" });
     const entry = { id: crypto.randomUUID(), lessonId: lesson.id, studentId: c.user.uid, institutionId: c.user.institutionId, answers: answers.data, submittedAt: (/* @__PURE__ */ new Date()).toISOString() };
     c.db.lessonPracticeResponses.push(entry);
     deps.save(c.env, c.db);
