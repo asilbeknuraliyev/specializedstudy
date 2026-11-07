@@ -1,3 +1,9 @@
+import nodeCrypto from 'node:crypto';
+import {registerTeachingRoutes,teacherClasses} from './src/server/teachingRoutes';
+import { registerExamRoutes } from './src/server/examRoutes';
+import { canTakeExam, examDeadline, sanitizeExamQuestion } from './src/utils/examPolicy';
+import { cloudStateMiddleware } from './src/server/cloudStateMiddleware';
+import { requestDatabase } from './src/server/requestDatabase';
 import 'dotenv/config';
 import express, { Request, Response } from 'express';
 import path from 'path';
@@ -29,6 +35,7 @@ import {
   AUTHORIZED_ADMIN_EMAILS,
 } from './src/utils/security';
 import {
+  getFirebaseAdminAuth,
   loadFirebaseAppletConfig,
   verifyFirebaseIdToken,
   provisionSingleAdminAccount,
@@ -266,6 +273,8 @@ interface SSEClient {
 const sseClients: SSEClient[] = [];
 
 function broadcastInstitutionUpdate(env: 'prod' | 'test', institutionId: string, eventType: string) {
+  const context = requestDatabase.getStore();
+  if (context) { context.afterCommit.push(() => requestDatabase.exit(() => broadcastInstitutionUpdate(env, institutionId, eventType))); return; }
   const payload = `data: ${JSON.stringify({ type: eventType, institutionId, timestamp: new Date().toISOString() })}\n\n`;
   for (const client of sseClients) {
     if (client.env === env && client.institutionId === institutionId) {
@@ -280,7 +289,7 @@ function broadcastInstitutionUpdate(env: 'prod' | 'test', institutionId: string,
 
 function resolveRequestEnv(req: Request): 'prod' | 'test' {
   const headerEnv = req.headers['x-learnos-env'];
-  if (headerEnv === 'test' || req.query.testEnv === '1') {
+  if (process.env.NODE_ENV === 'test' && (headerEnv === 'test' || req.query.testEnv === '1')) {
     return 'test';
   }
   return 'prod';
@@ -318,6 +327,7 @@ function authenticateRequest(
   const token = extractRawTokenFromRequest(req);
   const verified = verifySessionToken(token);
   if (!verified || !token) return null;
+  if (verified.env === 'test' && process.env.NODE_ENV !== 'test') return null;
 
   const db = getDbState(verified.env);
   const user = db.users.find((u) => u.uid === verified.uid);
@@ -325,7 +335,7 @@ function authenticateRequest(
 
   const normalizedEmail = String(user.email || '').trim().toLowerCase();
   const isAuthAdmin = isAuthorizedAdminEmail(normalizedEmail, CONFIGURED_OWNER_EMAIL);
-  if (isAuthAdmin && user.emailVerified !== false && user.platformAdmin !== false) {
+  if (isAuthAdmin && user.emailVerified === true && user.platformAdmin === true && db.customClaims?.[user.uid]?.platformAdmin === true) {
     user.role = 'platform_owner';
     user.platformOwner = true;
     user.platformAdmin = true;
@@ -474,10 +484,13 @@ async function startServer() {
     });
   });
 
+  app.use(cloudStateMiddleware);
   const uploadJsonParser = express.json({ limit: '20mb' });
   const standardJsonParser = express.json({ limit: '2mb' });
   app.use((req, res, next) => {
     if (
+      req.path.startsWith('/api/exams/drafts') ||
+      /^\/api\/exams\/[^/]+\/draft$/.test(req.path) ||
       req.path.startsWith('/api/students/import/') ||
       req.path.startsWith('/api/work-plans/upload') ||
       req.path.startsWith('/api/imports/') ||
@@ -487,6 +500,10 @@ async function startServer() {
     }
     return standardJsonParser(req, res, next);
   });
+
+  registerTeachingRoutes(app,{authenticate:authenticateRequest,save:saveDbState,hash:hashPassword,revoke:revokeAllUserSessions});
+  app.use('/api',(req,res,next)=>{const c=authenticateRequest(req);if(c?.user.role==='teacher'&&!['/state','/auth/logout'].includes(req.path)&&!req.path.startsWith('/teaching/'))return res.status(403).json({error:'O‘qituvchi uchun bu amalga ruxsat yo‘q.'});next();});
+  registerExamRoutes(app, {authenticate: authenticateRequest, save: saveDbState, notify: broadcastInstitutionUpdate});
 
   function enforceRateLimit(
     req: Request,
@@ -518,6 +535,7 @@ async function startServer() {
     );
     res.json({
       status: 'ok',
+      persistence: process.env.PERSISTENCE_DRIVER === 'firestore' ? 'firestore' : 'local',
       geminiConfigured: hasGemini,
       platformOwnerEmail: CONFIGURED_OWNER_EMAIL,
       authorizedAdminCount: AUTHORIZED_ADMIN_EMAILS.length,
@@ -526,6 +544,7 @@ async function startServer() {
   });
 
   app.post('/api/test/reset', (_req, res) => {
+    if (process.env.NODE_ENV !== 'test') return res.status(404).json({ error: 'Not found' });
     resetTestDbState();
     apiRateLimiter.reset();
     failedLoginCounter.clear();
@@ -549,6 +568,7 @@ async function startServer() {
 
   // One-time initial Administrator & Institution Bootstrap (Strictly restricted to AUTHORIZED_ADMIN_EMAILS)
   app.post('/api/auth/bootstrap', (req, res) => {
+    if (process.env.NODE_ENV !== 'test') return res.status(403).json({ error: 'Administrator hisobi faqat Firebase orqali ishonchli serverda faollashtiriladi.' });
     if (!enforceRateLimit(req, res, 'bootstrap', 10, 60_000)) return;
     const env = resolveRequestEnv(req);
     const db = getDbState(env);
@@ -696,6 +716,10 @@ async function startServer() {
     const reqId = getRequestId(req);
     const ipHash = getClientIpHash(req);
     const { email, password } = req.body;
+    if (env === 'prod' && (isAuthorizedAdminEmail(String(email || ''), CONFIGURED_OWNER_EMAIL) || db.users.some(u => u.email.toLowerCase() === String(email || '').trim().toLowerCase() && (u.role === 'admin' || u.role === 'platform_owner')))) {
+      return res.status(403).json({ error: 'Administrator Google orqali tasdiqlangan hisob bilan kirishi kerak.' });
+    }
+
 
     if (!email || !password) {
       return res.status(400).json({ error: 'Elektron pochta va parolni kiriting.' });
@@ -704,8 +728,12 @@ async function startServer() {
     const normalizedEmail = String(email).trim().toLowerCase();
     const instId = db.institutions[0]?.id || 'inst-spec-study';
     const user = db.users.find((u) => u.email.toLowerCase() === normalizedEmail);
+    const throttleKey=nodeCrypto.createHash('sha256').update(normalizedEmail+':'+ipHash).digest('hex');
+    db.loginThrottles||={};
+    if((db.loginThrottles[throttleKey]?.until||0)>Date.now())return res.status(429).json({error:'Ko‘p noto‘g‘ri urinish. 15 daqiqadan keyin qayta urining.'});
 
     const recordFailedLogin = (reason: string) => {
+      const previous=db.loginThrottles![throttleKey];const attempts=previous&&previous.until>Date.now()-15*60*1000?previous.attempts+1:1;db.loginThrottles![throttleKey]={attempts,until:attempts>=5?Date.now()+15*60*1000:Date.now()};
       const failKey = `${env}:${normalizedEmail}:${ipHash}`;
       const count = (failedLoginCounter.get(failKey) || 0) + 1;
       failedLoginCounter.set(failKey, count);
@@ -740,6 +768,7 @@ async function startServer() {
       return res.status(401).json({ error: 'Hisob topilmadi yoki parol noto‘g‘ri.' });
     }
 
+    delete db.loginThrottles![throttleKey];
     failedLoginCounter.delete(`${env}:${normalizedEmail}:${ipHash}`);
 
     // Enforce authorized Platform Admin claim on login
@@ -812,14 +841,12 @@ async function startServer() {
       customClaims: rawCustomClaims,
     } = req.body || {};
 
+    if (!idToken) return res.status(401).json({ error: 'Firebase ID token talab qilinadi.', code: 'auth/missing-id-token' });
     let verifiedUid = String(rawUid || '').trim();
     let verifiedEmail = String(rawEmail || '').trim().toLowerCase();
     let verifiedEmailFlag = rawEmailVerified === true;
     let verifiedDisplayName = String(rawDisplayName || '').trim();
-    let verifiedClaims: Record<string, unknown> =
-      rawCustomClaims && typeof rawCustomClaims === 'object'
-        ? { ...(rawCustomClaims as Record<string, unknown>) }
-        : {};
+    let verifiedClaims: Record<string, unknown> = {};
 
     // 1. If idToken is provided, cryptographically verify the Firebase ID token
     if (idToken) {
@@ -861,7 +888,6 @@ async function startServer() {
       verifiedDisplayName = verifiedDisplayName || tokenCheck.identity.displayName || '';
       verifiedClaims = {
         ...(tokenCheck.identity.customClaims || {}),
-        ...verifiedClaims,
       };
     }
 
@@ -900,9 +926,18 @@ async function startServer() {
 
     // 3. Handle the Two Authorized Platform Administrators (asilbeknuraliyev43@gmail.com & bahodirboliqulov3@gmail.com)
     if (isAuthAdmin) {
+      if (env === 'prod' && verifiedClaims.platformAdmin !== true) {
+        try {
+          const trustedAuth = getFirebaseAdminAuth();
+          const account = await trustedAuth.getUser(verifiedUid);
+          if (!account.emailVerified || account.disabled || account.email?.toLowerCase() !== verifiedEmail) return res.status(403).json({error:'Hisob tasdiqlanmagan.'});
+          await trustedAuth.setCustomUserClaims(account.uid, {...account.customClaims, platformAdmin:true});
+          verifiedClaims = {...account.customClaims,platformAdmin:true};
+        } catch { return res.status(503).json({error:'Administrator ruxsatini tasdiqlab bo‘lmadi. Keyinroq qayta urinib ko‘ring.'}); }
+      }
       if (!db.customClaims) db.customClaims = {};
       const explicitClaimFalse =
-        verifiedClaims.platformAdmin === false ||
+        verifiedClaims.platformAdmin !== true ||
         requireExistingClaimOnly === true ||
         requireAdminClaim === true;
 
@@ -1613,68 +1648,10 @@ async function startServer() {
       });
     }
 
-    if (user.role === 'teacher') {
-      const myClasses = db.classes.filter(
-        (c) =>
-          c.institutionId === instId &&
-          (c.teacherId === user.uid || user.assignedClassIds?.includes(c.id))
-      );
-      const myClassIds = new Set(myClasses.map((c) => c.id));
-      const authorizedStudents = db.users.filter(
-        (u) =>
-          u.institutionId === instId &&
-          (u.uid === user.uid || (u.role === 'student' && u.classId && myClassIds.has(u.classId)))
-      );
-      const authorizedStudentIds = new Set(authorizedStudents.map((s) => s.uid));
-
-      return res.json({
-        user,
-        institution,
-        institutions: [institution],
-        academicYears: db.academicYears || [],
-        subjects: instSubjects,
-        topics: instTopics,
-        workPlans: (db.workPlans || []).filter((wp) => myClassIds.has(wp.classId)),
-        lessons: (db.lessons || []).filter((l) => myClassIds.has(l.classId)),
-        users: authorizedStudents,
-        classes: myClasses,
-        invitations: db.invitations
-          .filter((inv) => inv.institutionId === instId && inv.createdByUid === user.uid)
-          .map(({ tokenHash, ...rest }) => ({ ...rest, tokenHash: '***' })),
-        questions: db.questions.filter((q) => q.institutionId === instId),
-        questionRevisions: (db.questionRevisions || []).filter((r) => r.institutionId === instId),
-        questionMedia: (db.questionMedia || []).filter((m) => m.institutionId === instId),
-        assessments: db.assessments.filter(
-          (a) =>
-            a.institutionId === instId &&
-            (a.teacherId === user.uid || myClassIds.has(a.classId))
-        ),
-        assignments: db.assignments.filter(
-          (a) =>
-            a.institutionId === instId &&
-            (a.teacherId === user.uid || myClassIds.has(a.classId))
-        ),
-        attempts: db.attempts.filter(
-          (a) =>
-            a.institutionId === instId &&
-            (myClassIds.has(a.classId) || authorizedStudentIds.has(a.studentId))
-        ),
-        gradingRecords: (db.gradingRecords || []).filter((g) => g.institutionId === instId),
-        importBatches: (db.importBatches || []).filter(
-          (b) => b.institutionId === instId && b.importedByUid === user.uid
-        ),
-        masteryRecords: db.masteryRecords.filter(
-          (m) => m.institutionId === instId && authorizedStudentIds.has(m.studentId)
-        ),
-        learningPaths: db.learningPaths.filter((lp) => authorizedStudentIds.has(lp.studentId)),
-        teacherNotes: db.teacherNotes.filter(
-          (n) => n.institutionId === instId && authorizedStudentIds.has(n.studentId)
-        ),
-        notifications: myNotifications,
-        auditLogs: [],
-      });
+    if(user.role==='teacher'){
+      const scoped=teacherClasses(user,db);const ids=new Set(scoped.map(c=>c.id));
+      return res.json({user,institution,classes:scoped,users:db.users.filter(u=>u.institutionId===instId&&(u.uid===user.uid||(u.role==='student'&&ids.has(u.classId||'')))).map(({uid,displayName,role,classId,classCode,status})=>({uid,displayName,role,classId,classCode,status})),lessons:db.lessons.filter(l=>l.institutionId===instId&&[l.classId,...(l.classIds||[])].some(id=>ids.has(id))&&l.subjectName===user.subject).map(l=>({...l,schoolDeliveredAt:l.schoolDeliveredAt||([l.classId,...(l.classIds||[])].filter(id=>ids.has(id)).every(id=>l.schoolDeliveredClassIds?.includes(id))?l.updatedAt:undefined)})),subjects:[],topics:[],workPlans:[],assessments:[],attempts:[],notifications:[]});
     }
-
     if (user.role === 'student') {
       const myClass = db.classes.find(
         (c) =>
@@ -1718,7 +1695,8 @@ async function startServer() {
 
       const myAssessments = db.assessments.filter(
         (a) =>
-          a.status === 'published' &&
+          a.institutionId === user.institutionId && a.status === 'published' &&
+          (!a.examKind || canTakeExam(user,a)) &&
           (!a.classId ||
             a.classId === user.classId ||
             (myClass && a.classCode?.toLowerCase() === myClass.code.toLowerCase()) ||
@@ -1737,7 +1715,7 @@ async function startServer() {
       );
 
       // Protect answer keys: strip correctAnswer, correctAnswers, acceptedAnswers, rubricText, explanation, and structuredOptions.isCorrect
-      const sanitizeQuestionForStudent = (q: QuestionItem): QuestionItem => ({
+      const sanitizeQuestionForStudent = (q: QuestionItem): QuestionItem => sanitizeExamQuestion({
         ...q,
         correctAnswer: '',
         correctAnswers: undefined,
@@ -1800,7 +1778,7 @@ async function startServer() {
         studentId: user.uid,
         events: myEvents,
         studentBadges: myStudentBadges,
-        lessons: myLessons,
+        lessons: myLessons.map(l=>({...l,schoolDeliveredAt:l.schoolDeliveredAt||(l.schoolDeliveredClassIds?.includes(myClass?.id||'')?l.updatedAt:undefined)})),
         classCode: myClass?.code || user.classCode || '7a1',
         completions: myCompletions,
       });
@@ -1820,7 +1798,7 @@ async function startServer() {
         subjects: mySubjects,
         topics: instTopics,
         workPlans: myWorkPlans,
-        lessons: myLessons,
+        lessons: myLessons.map(l=>({...l,schoolDeliveredAt:l.schoolDeliveredAt||(l.schoolDeliveredClassIds?.includes(myClass?.id||'')?l.updatedAt:undefined)})),
         users: [user],
         classes: myClass ? [myClass] : [],
         invitations: [],
@@ -4560,7 +4538,8 @@ async function startServer() {
         fileName,
         tTrackVisibilityApproved = false,
         publishImmediately = false,
-        duplicatePolicy = 'update_existing',
+        duplicatePolicy = 'skip_existing',
+        academicYear,
       } = req.body || {};
 
       let preview;
@@ -4580,6 +4559,8 @@ async function startServer() {
         );
       }
 
+      if (preview.errors?.length) return res.status(400).json({ error: 'Arxivdagi xatolarni tuzating.', errors: preview.errors });
+      if (academicYear && !/^\d{4}-\d{4}$/.test(String(academicYear))) return res.status(400).json({ error: 'O‘quv yili formati: 2026-2027.' });
       if (!Array.isArray(db.curriculumImportJobs)) {
         db.curriculumImportJobs = [];
       }
@@ -4593,7 +4574,7 @@ async function startServer() {
         db.curriculumImportJobs,
         {
           institutionId: user.institutionId,
-          academicYear: inst?.academicYear || '2026-2027',
+          academicYear: academicYear || inst?.academicYear || '2026-2027',
           actorUid: user.uid,
           actorName: user.displayName,
           jobId: jobId ? String(jobId) : undefined,
@@ -6708,6 +6689,7 @@ async function startServer() {
       (a) => a.id === req.params.id && a.institutionId === user.institutionId
     );
     if (!assess) return res.status(404).json({ error: 'Test topilmadi.' });
+    if (assess.examKind) return res.status(409).json({ error: 'BSB/CHSB ishlarini nazorat markazida boshqaring.' });
     if (user.role !== 'admin' && user.role !== 'platform_owner' && assess.teacherId !== user.uid) {
       return res.status(403).json({ error: 'Ruxsat yo‘q.' });
     }
@@ -6802,6 +6784,7 @@ async function startServer() {
       return res.status(404).json({ error: 'Test yoki sinf topilmadi.' });
     }
 
+    if (assess.examKind) return res.status(409).json({ error: 'BSB/CHSB ishlarini nazorat markazida boshqaring.' });
     const nowIso = new Date().toISOString();
     assess.status = 'published';
     assess.classId = cls.id;
@@ -6903,7 +6886,7 @@ async function startServer() {
     const { assessmentId } = req.body as {
       assessmentId: string;
     };
-    const submittedMap: Record<string, string> =
+    let submittedMap: Record<string, string> =
       req.body.submittedMap || req.body.answersMap || {};
 
     const assessment = db.assessments.find(
@@ -6911,6 +6894,15 @@ async function startServer() {
     );
     if (!assessment || assessment.status !== 'published') {
       return res.status(404).json({ error: 'Test topilmadi yoki faol emas.' });
+    }
+
+    const examSession = assessment.examKind ? db.examSessions?.find(s => s.assessmentId === assessment.id && s.studentId === user.uid) : undefined;
+    if (assessment.examKind) {
+      if (!canTakeExam(user,assessment) || !examSession) return res.status(403).json({error:'Nazorat ishini avval boshlang.'});
+      if (examSession.submittedAttemptId) return res.json({attempt:db.attempts.find(a=>a.id===examSession.submittedAttemptId)});
+      if (assessment.examState==='paused'&&!examSession.stoppedAt) return res.status(409).json({error:'Nazorat vaqtincha to‘xtatilgan.'});
+      if (examSession.stoppedAt || Date.now()>examDeadline(assessment,examSession) || assessment.examState==='closed') submittedMap=examSession.answers;
+      else if (!submittedMap || typeof submittedMap!=='object' || Array.isArray(submittedMap) || Object.values(submittedMap).some(v=>typeof v!=='string'||v.length>250000) || Object.keys(submittedMap).some(id=>!assessment.questionIds.includes(id)) || Buffer.byteLength(JSON.stringify(submittedMap))>1800000) return res.status(400).json({error:'Javoblar noto‘g‘ri.'});
     }
 
     // Verify class authorization (including shared parallel classes in assignedClassIds / assignedClassCodes)
@@ -7008,6 +7000,7 @@ async function startServer() {
     };
 
     db.attempts.unshift(newAttempt);
+    if (examSession) { examSession.submittedAttemptId = newAttempt.id; examSession.answers = submittedMap; }
 
     // Update student's Knowledge Map Mastery Records
     const existingStudentMastery = db.masteryRecords.filter((r) => r.studentId === user.uid);
@@ -10763,43 +10756,7 @@ MUHIM: Bu faqat administrator ko'rib chiqishi uchun dastlabki tavsiya. O'zbek ti
   const server = app.listen(PORT, '0.0.0.0', () => {
     console.log(`LearnOS server running on http://0.0.0.0:${PORT}`);
 
-    // Run the 21-workbook Mathematics curriculum archive check asynchronously after listening
-    setTimeout(async () => {
-      try {
-        const prodDb = getDbState('prod');
-        if (!Array.isArray(prodDb.curriculumImportJobs)) {
-          prodDb.curriculumImportJobs = [];
-        }
-        const hasOfficialMathImport = prodDb.workPlans.some((wp) =>
-          wp.id.startsWith('wp-math-wb-')
-        );
-        if (!hasOfficialMathImport) {
-          const officialPreview = await getOfficialMathArchivePreview();
-          if (officialPreview && officialPreview.totalWorkbooks === 21) {
-            const inst = prodDb.institutions[0];
-            applyCurriculumZipPreviewToDatabase(
-              officialPreview,
-              prodDb.workPlans,
-              prodDb.lessons,
-              prodDb.topics,
-              prodDb.curriculumImportJobs,
-              {
-                institutionId: inst?.id || 'inst-specialized-study',
-                academicYear: inst?.academicYear || '2026-2027',
-                actorUid: 'admin-owner',
-                actorName: 'Asilbek Nuraliyev',
-                tTrackVisibilityApproved: false,
-                publishImmediately: true,
-                duplicatePolicy: 'update_existing',
-              }
-            );
-            saveDbState('prod', prodDb);
-          }
-        }
-      } catch (seedErr) {
-        console.warn('Official math curriculum startup check:', seedErr);
-      }
-    }, 250);
+
   });
 
   server.on('error', (err: NodeJS.ErrnoException) => {

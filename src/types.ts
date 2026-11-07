@@ -367,6 +367,8 @@ export interface LessonModificationEntry {
 }
 
 export interface LessonItem {
+  schoolDeliveredAt?: string;
+  schoolDeliveredClassIds?: string[];
   id: string;
   institutionId: string;
   workPlanId?: string;
@@ -625,6 +627,9 @@ export interface QuestionMedia {
 }
 
 export interface QuestionItem {
+  sourceImages?: string[];
+  sourcePages?: number[];
+  answerFields?: import('./examTypes').ExamField[];
   id: string;
   code?: string;
   title?: string;
@@ -682,6 +687,18 @@ export interface QuestionRevision {
 }
 
 export interface Assessment {
+  closedAt?: string;
+  examKind?: import('./examTypes').ExamKind;
+  examNumber?: number;
+  examState?: import('./examTypes').ExamState;
+  sourceFileName?: string;
+  sourceHash?: string;
+  sourceLayoutVersion?: number;
+  contextImages?: string[];
+  academicYear?: string;
+  pausedAt?: string;
+  totalPausedMs?: number;
+  reviewedAt?: string;
   id: string;
   code?: string;
   title: string;

@@ -1,3 +1,7 @@
+import {canTakeExam,examCanStart} from '../utils/examPolicy';
+import {ExamAnswerContent} from '../components/ExamAnswers';
+import { ExamRunner } from '../components/ExamRunner';
+import { StudentCurriculum } from '../components/StudentCurriculum';
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import {
@@ -76,6 +80,7 @@ export const LegacyStudentDashboardPage: React.FC = () => {
   const completedIds = new Set(myAttempts.map((a) => a.assessmentId));
   const publishedAssessments = assessments.filter((a) => {
     if (a.status !== 'published') return false;
+    if (a.examKind) return !!currentUser&&canTakeExam(currentUser,a);
     if (!a.classId && !a.classCode && (!a.assignedClassCodes || a.assignedClassCodes.length === 0)) {
       return true;
     }
@@ -434,7 +439,7 @@ export const LegacyStudentDashboardPage: React.FC = () => {
                   >
                     <div className="space-y-1 min-w-0">
                       <p className="text-sm font-bold text-slate-900 dark:text-white break-words">
-                        {assess.title}
+                        {assess.examKind&&<span className="mb-2 block text-xs font-semibold text-blue-600">{assess.quarter}-chorak · {assess.examNumber}-{assess.examKind}</span>}{assess.title}
                       </p>
                       <p className="text-xs text-slate-500 font-mono tabular-nums">
                         {assess.subject} · {assess.questionIds.length} ta savol · {assess.durationMinutes} daq
@@ -541,7 +546,7 @@ export const LegacyStudentDashboardPage: React.FC = () => {
 };
 
 export const StudentLessonsPage: React.FC = () => {
-  return <Roadmap2View mode="student" />;
+  return <StudentCurriculum />;
 };
 
 export const LegacyStudentLessonsPage: React.FC = () => {
@@ -834,6 +839,7 @@ export const StudentAssessmentsPage: React.FC = () => {
   const myAttempts = attempts.filter((a) => a.studentId === studentId);
   const published = assessments.filter((a) => {
     if (a.status !== 'published') return false;
+    if (a.examKind) return !!currentUser&&canTakeExam(currentUser,a);
     if (!a.classId && !a.classCode && (!a.assignedClassCodes || a.assignedClassCodes.length === 0)) {
       return true;
     }
@@ -858,7 +864,7 @@ export const StudentAssessmentsPage: React.FC = () => {
         <div>
           <h1 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white">Testlar</h1>
           <p className="text-xs sm:text-sm text-slate-500">
-            {classCode ? `${classCode.toUpperCase()} sinfi uchun biriktirilgan` : 'Biriktirilgan'} sinovlarni topshiring va AI tahlilini oling
+            {classCode ? `${classCode.toUpperCase()} sinfi uchun biriktirilgan` : 'Biriktirilgan'} nazorat ishlarini va testlarni topshiring
           </p>
         </div>
 
@@ -909,7 +915,7 @@ export const StudentAssessmentsPage: React.FC = () => {
                     {assess.durationMinutes} daqiqa · Muddat: {assess.dueDate}
                   </p>
                   <h2 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white break-words">
-                    {assess.title}
+                    {assess.examKind&&<span className="mb-2 block text-xs font-semibold text-blue-600">{assess.quarter}-chorak · {assess.examNumber}-{assess.examKind}</span>}{assess.title}
                   </h2>
                   {assess.description && (
                     <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
@@ -929,15 +935,16 @@ export const StudentAssessmentsPage: React.FC = () => {
                         to={`/student/results/${latestAttempt.id}`}
                         className="min-h-[42px] inline-flex items-center px-3.5 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 rounded-xl whitespace-nowrap"
                       >
-                        Natijani ko‘rish ({latestAttempt.scorePercent}%)
+                        {latestAttempt.status==='pending_manual_review'?'Ish tekshiruvda':`Natija: ${latestAttempt.scorePercent}%`}
                       </Link>
                     )}
-                    <Link
+                    {(!assess.examKind||(!latestAttempt&&examCanStart(assess)))&&<Link
                       to={`/student/assessments/${assess.id}`}
                       className="min-h-[42px] inline-flex items-center px-4 py-2 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-xl whitespace-nowrap"
                     >
                       {latestAttempt ? 'Qayta topshirish' : 'Testni boshlash'}
-                    </Link>
+                    </Link>}
+                    {assess.examKind&&!latestAttempt&&!examCanStart(assess)&&<span className="text-sm text-slate-500">{assess.examState==='paused'?'Tanaffus':assess.examState==='closed'||Date.parse(assess.dueDate)<Date.now()?'Yopilgan':`Boshlanadi: ${new Date(assess.availableFrom!).toLocaleString('uz-UZ')}`}</span>}
                   </div>
                 </div>
               </div>
@@ -949,12 +956,12 @@ export const StudentAssessmentsPage: React.FC = () => {
   );
 };
 
-export const AssessmentRunnerPage: React.FC = () => {
+const LegacyAssessmentRunnerPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { assessments, questions, submitAssessmentAttempt, addToast } = useLearnOS();
 
-  const assessment = assessments.find((a) => a.id === id) || assessments[0];
+  const assessment = assessments.find((a) => a.id === id);
   const assessmentQuestions =
     assessment?.questionSnapshot && assessment.questionSnapshot.length > 0
       ? assessment.questionSnapshot
@@ -1437,7 +1444,7 @@ export const AssessmentResultPage: React.FC = () => {
   const [aiLoading, setAiLoading] = useState(false);
   const [aiError, setAiError] = useState('');
 
-  const attempt = attempts.find((a) => a.id === id) || attempts[0];
+  const attempt = attempts.find((a) => a.id === id);
 
   if (!attempt) {
     return (
@@ -1446,6 +1453,8 @@ export const AssessmentResultPage: React.FC = () => {
       </div>
     );
   }
+
+  if(attempt.status==='pending_manual_review'||attempt.gradingStatus==='pending_manual_review')return <div className="mx-auto max-w-3xl space-y-6 py-6"><section className="rounded-3xl bg-slate-950 p-8 text-white"><p className="text-sm text-blue-300">Ish qabul qilindi</p><h1 className="mt-3 text-2xl font-bold">{attempt.assessmentTitle}</h1><p className="mt-4 text-sm leading-7 text-slate-300">Yozma javoblaringiz tekshiruvda. Yakuniy baho o‘qituvchi baholaganidan keyin ko‘rinadi.</p></section><div className="ss-surface space-y-5 p-6">{attempt.answers.map((answer,i)=><div key={answer.questionId} className="border-b pb-4"><h2 className="mb-2 font-semibold">{i+1}-savolga javobingiz</h2><ExamAnswerContent answer={answer.selectedAnswer||''}/></div>)}</div><Link to="/student/assessments" className="ss-primary">Nazorat ishlariga qaytish</Link></div>;
 
   const handleRefreshAI = async () => {
     setAiLoading(true);
@@ -1467,12 +1476,7 @@ export const AssessmentResultPage: React.FC = () => {
         <div>
           <p className="text-xs text-slate-500">
             Topshirilgan vaqt: {new Date(attempt.submittedAt).toLocaleDateString('uz-UZ')}
-            {(attempt.status === 'pending_manual_review' ||
-              attempt.gradingStatus === 'pending_manual_review') && (
-              <span className="ml-2 px-2 py-0.5 rounded bg-amber-100 text-amber-800 font-semibold">
-                Yozma javoblar tekshiruvda
-              </span>
-            )}
+
           </p>
           <h1 className="text-2xl font-bold text-slate-900 dark:text-white">
             {attempt.assessmentTitle} — Natijalar tahlili
@@ -2178,3 +2182,5 @@ export const StudentProfilePage: React.FC = () => {
     </div>
   );
 };
+
+export function AssessmentRunnerPage(){const {id}=useParams<{id:string}>();const {assessments}=useLearnOS();const assessment=assessments.find(a=>a.id===id);return assessment?.examKind?<ExamRunner key={id} assessment={assessment}/>:<LegacyAssessmentRunnerPage/>;}

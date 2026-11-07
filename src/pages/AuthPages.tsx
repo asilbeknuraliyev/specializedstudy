@@ -57,12 +57,12 @@ export const LoginPage: React.FC = () => {
         navigate(savedDest, { replace: true });
         return;
       }
-      if (role !== 'student' && savedDest.startsWith('/admin/')) {
+      if (['admin','platform_owner'].includes(role) && savedDest.startsWith('/admin/')) {
         navigate(savedDest, { replace: true });
         return;
       }
     }
-    const path = role === 'student' ? '/student/dashboard' : '/admin/dashboard';
+    const path = role === 'teacher' ? '/teacher/dashboard' : role === 'student' ? '/student/dashboard' : '/admin/dashboard';
     navigate(path, { replace: true });
   };
 
@@ -74,7 +74,7 @@ export const LoginPage: React.FC = () => {
   }, [location.state]);
 
   useEffect(() => {
-    if (authReady && currentUser) {
+    if (authReady && currentUser?.status === 'active') {
       navigateForRole(currentUser.role);
     }
   }, [authReady, currentUser]);
@@ -89,8 +89,7 @@ export const LoginPage: React.FC = () => {
         setErrorMsg("Iltimos, to'g'ri elektron pochta manzilini kiriting.");
         return;
       }
-      setResetSent(true);
-      addToast('info', 'Parolni tiklash havolasi yuborildi');
+      setErrorMsg('Parolni yangilash uchun administratorga murojaat qiling.');
       return;
     }
 
@@ -106,7 +105,8 @@ export const LoginPage: React.FC = () => {
     setSubmitting(true);
     try {
       const user = await loginWithPassword(email, password);
-      navigateForRole(user.role);
+      if (user.status === 'active') navigateForRole(user.role);
+      else setErrorMsg('Hisobingiz faollashtirilishi kutilmoqda. Administratorga murojaat qiling.');
     } catch (err) {
       setErrorMsg(err instanceof Error ? err.message : 'Kirishda xatolik yuz berdi');
     } finally {
@@ -118,7 +118,7 @@ export const LoginPage: React.FC = () => {
     setErrorMsg('');
     clearAuthError();
     const profile = await loginWithGoogle({ forceRedirect });
-    if (profile) {
+    if (profile?.status === 'active') {
       navigateForRole(profile.role);
     }
   };

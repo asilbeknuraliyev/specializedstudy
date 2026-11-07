@@ -1,3 +1,4 @@
+import { ExamAnswerContent } from './ExamAnswers';
 import React, { useState } from 'react';
 import {
   Download,
@@ -1443,9 +1444,9 @@ export const WrittenGradingPanel: React.FC<{
                 <p className="text-[11px] font-semibold text-slate-400 uppercase mb-1">
                   O‘quvchi Yozma Javobi:
                 </p>
-                <p className="text-slate-900 dark:text-slate-100 whitespace-pre-wrap">
-                  {ans.selectedAnswer || '(Bo‘sh qoldirilgan)'}
-                </p>
+                <div className="text-slate-900 dark:text-slate-100 whitespace-pre-wrap">
+                  <ExamAnswerContent answer={ans.selectedAnswer || ''}/>
+                </div>
               </div>
 
               {aiSug && (

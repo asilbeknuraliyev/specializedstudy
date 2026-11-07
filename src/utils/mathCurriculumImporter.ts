@@ -1313,27 +1313,8 @@ export async function getOfficialMathArchivePreview(): Promise<CurriculumZipImpo
     return cachedOfficialArchivePreview;
   }
   let archivePath = resolveOfficialMathArchivePath();
-  if (!archivePath) {
-    try {
-      const generatedBuf = await buildCanonicalOfficialMathZipBuffer();
-      const targetPath = path.resolve(process.cwd(), OFFICIAL_MATH_ARCHIVE_REL_PATH);
-      const targetDir = path.dirname(targetPath);
-      if (!fs.existsSync(targetDir)) {
-        fs.mkdirSync(targetDir, { recursive: true });
-      }
-      fs.writeFileSync(targetPath, generatedBuf);
-      archivePath = targetPath;
-    } catch {
-      // If disk is read-only, parse directly from memory buffer
-      const generatedBuf = await buildCanonicalOfficialMathZipBuffer();
-      const preview = await parseAndValidateCurriculumZipBuffer(
-        generatedBuf,
-        OFFICIAL_MATH_ARCHIVE_DISPLAY_NAME
-      );
-      cachedOfficialArchivePreview = preview;
-      return preview;
-    }
-  }
+  if (!archivePath) return null;
+
   try {
     const buf = fs.readFileSync(archivePath);
     const preview = await parseAndValidateCurriculumZipBuffer(

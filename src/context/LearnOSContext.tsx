@@ -1289,64 +1289,19 @@ export const LearnOSProvider: React.FC<{ children: React.ReactNode }> = ({ child
         return null;
       }
 
-      // Fallback when deployed to a static host where /api/auth/firebase-sync returns 404 or non-JSON
-      if (!resOk || !data || !data.user) {
-        const normalizedEmail = String(fbUser.email || '').trim().toLowerCase();
-        if (!normalizedEmail || !fbUser.emailVerified) {
-          const mapped = mapFirebaseAuthError({
-            code: 'auth/invalid-credential',
-            message: 'Google hisobingizdagi elektron pochta tasdiqlanmagan.',
-          });
-          setAuthError(mapped);
-          addToast('error', mapped.userMessage);
-          return null;
-        }
-
-        const isOwnerAdmin = isAuthorizedAdminEmail(normalizedEmail, PLATFORM_OWNER_EMAIL);
-        const nowIso = new Date().toISOString();
-        let existingFirestoreProfile: Partial<UserProfile> | null = null;
-        try {
-          const snap = await getDoc(doc(db, 'users', fbUser.uid));
-          if (snap.exists()) {
-            existingFirestoreProfile = snap.data() as Partial<UserProfile>;
-          }
-        } catch {
-          // Continue if Firestore read is offline
-        }
-
-        const fallbackUser: UserProfile = {
-          uid: fbUser.uid,
-          displayName:
-            fbUser.displayName ||
-            existingFirestoreProfile?.displayName ||
-            (isOwnerAdmin ? 'Asilbek Nuraliyev' : normalizedEmail.split('@')[0] || 'O‘quvchi'),
-          email: normalizedEmail,
-          emailVerified: true,
-          role: isOwnerAdmin ? 'platform_owner' : 'student',
-          platformOwner: isOwnerAdmin,
-          platformAdmin: isOwnerAdmin,
-          institutionId: existingFirestoreProfile?.institutionId || 'inst-specialized-study',
-          classId: isOwnerAdmin ? undefined : existingFirestoreProfile?.classId,
-          classCode: isOwnerAdmin ? undefined : existingFirestoreProfile?.classCode,
-          grade: isOwnerAdmin ? undefined : existingFirestoreProfile?.grade,
-          track: isOwnerAdmin ? undefined : existingFirestoreProfile?.track,
-          studentCode:
-            isOwnerAdmin
-              ? undefined
-              : existingFirestoreProfile?.studentCode ||
-                `STD-${Math.floor(1000 + Math.random() * 9000)}`,
-          status: 'active',
-          lastLoginAt: nowIso,
-          createdAt: existingFirestoreProfile?.createdAt || nowIso,
-          updatedAt: nowIso,
-        };
-
-        data = {
-          status: 'active',
-          activationStatus: 'active',
-          user: fallbackUser,
-          token: `fb-direct-${fbUser.uid}`,
-        };
+      // A missing backend must never create a local identity or grant privileges.
+      if (!resOk || !data || !data.user || !data.token) {
+        setCurrentUser(null);
+        setSessionToken(null);
+        localStorage.removeItem('learnos_session_token');
+        localStorage.removeItem('learnos_cached_user');
+        const mapped = mapFirebaseAuthError({
+          code: resStatus >= 500 || resStatus === 404 ? 'auth/server-unavailable' : 'auth/network-request-failed',
+          message: 'Server bilan xavfsiz sessiya yaratib bo‘lmadi.',
+        });
+        setAuthError(mapped);
+        addToast('error', mapped.userMessage);
+        return null;
       }
 
       if (data.activationStatus === 'pending_admin_claim') {
@@ -2440,7 +2395,7 @@ export const LearnOSProvider: React.FC<{ children: React.ReactNode }> = ({ child
             scorePercent: data.attempt.scorePercent,
             correctCount: data.attempt.correctCount,
             totalQuestions: data.attempt.totalQuestions,
-            status: 'completed',
+            status: data.attempt.status,
             submittedAt: data.attempt.submittedAt,
           });
         } catch {
@@ -2451,8 +2406,8 @@ export const LearnOSProvider: React.FC<{ children: React.ReactNode }> = ({ child
       await refreshState();
       addToast(
         'success',
-        `Test yakunlandi: ${data.attempt.scorePercent}%`,
-        `${data.attempt.correctCount}/${data.attempt.totalQuestions} ta to'g'ri javob`
+        data.attempt.status==='pending_manual_review'?'Ish qabul qilindi':`Test yakunlandi: ${data.attempt.scorePercent}%`,
+        data.attempt.status==='pending_manual_review'?'Yozma javoblar o‘qituvchi tekshiruvini kutmoqda':`${data.attempt.correctCount}/${data.attempt.totalQuestions} ta to'g'ri javob`
       );
       return data.attempt;
     },

@@ -1,3 +1,5 @@
+import { ExamCenter } from '../components/ExamCenter';
+import { WorkPlanCenter } from '../components/WorkPlanCenter';
 import React, { useState, useEffect, useMemo } from 'react';
 import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import {
@@ -3020,7 +3022,7 @@ const EVENT_CATEGORY_LABELS: Record<NormalizedLessonEventType, string> = {
   OTHER: 'Boshqa',
 };
 
-export const AdminWorkPlansPage: React.FC = () => {
+const LegacyWorkPlansPage: React.FC = () => {
   const {
     subjects,
     workPlans,
@@ -3038,6 +3040,7 @@ export const AdminWorkPlansPage: React.FC = () => {
   const navigate = useNavigate();
 
   // Official ZIP Archive Import State
+  const [zipSource, setZipSource] = useState<{ useOfficialAttachedArchive?: boolean; fileName?: string; base64Data?: string }>({ useOfficialAttachedArchive: true });
   const [zipLoading, setZipLoading] = useState(false);
   const [zipConfirming, setZipConfirming] = useState(false);
   const [zipPreview, setZipPreview] = useState<CurriculumZipImportPreview | null>(null);
@@ -3088,6 +3091,7 @@ export const AdminWorkPlansPage: React.FC = () => {
     setZipLoading(true);
     try {
       const preview = await previewCurriculumZipArchive({ useOfficialAttachedArchive: true });
+      setZipSource({ useOfficialAttachedArchive: true });
       setZipPreview(preview);
       setZipTTrackVisible(Boolean(preview.tTrackVisibilityApproved));
     } finally {
@@ -3107,6 +3111,8 @@ export const AdminWorkPlansPage: React.FC = () => {
           fileName: file.name,
           base64Data: b64,
         });
+        setZipSource({ fileName: file.name, base64Data: b64 });
+        setZipSource({ fileName: file.name, base64Data: b64 });
         setZipPreview(preview);
       } finally {
         setZipLoading(false);
@@ -3120,7 +3126,7 @@ export const AdminWorkPlansPage: React.FC = () => {
     setZipConfirming(true);
     try {
       await confirmCurriculumZipArchive({
-        useOfficialAttachedArchive: true,
+        ...zipSource,
         academicYear,
         publishImmediately: zipPublishImmediately,
         tTrackVisibilityApproved: zipTTrackVisible,
@@ -3209,7 +3215,7 @@ export const AdminWorkPlansPage: React.FC = () => {
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-slate-200 dark:border-slate-800 pb-4">
         <div className="space-y-1">
           <h2 className="text-base font-bold text-slate-900 dark:text-white">
-            Ish rejalari va O‘quv dasturlari markazi
+            Ish rejalari
           </h2>
           <p className="text-xs text-slate-500 font-mono tabular-nums">
             Tasdiqlangan ish rejalari: {workPlans.length} ta fayl · Jami darslar: {totalImportedLessons} ta ({totalImportedHours} soat) · O‘quv xaritasi yozuvlari: {lessons.length} ta
@@ -3267,7 +3273,7 @@ export const AdminWorkPlansPage: React.FC = () => {
         <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="space-y-1">
             <p className="text-xs font-bold text-slate-900 dark:text-white">
-              T yo‘nalishi (7t, 8t, 9t, 10t, 11t) qo‘shimcha Matematika / Algebra / Geometriya ish rejalari ({tTrackWorkPlans.length} ta fayl · 850 soat)
+              T yo‘nalishi (7t, 8t, 9t, 10t, 11t) qo‘shimcha Matematika / Algebra / Geometriya ish rejalari ({tTrackWorkPlans.length} ta fayl · {tTrackWorkPlans.reduce((total, p) => total + (p.totalHours || 0), 0)} soat)
             </p>
             <p className="text-xs text-slate-500">
               T yo‘nalishi asosiy ixtisoslik fanlari (Ingliz tili, Biologiya, Kimyo) o‘zgarishsiz qoladi. Qo‘shimcha matematika o‘quv rejasini o‘quvchi kabinetida ko‘rsatish admin tasdig‘i orqali boshqariladi.
@@ -3296,7 +3302,7 @@ export const AdminWorkPlansPage: React.FC = () => {
           <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-slate-200 dark:border-slate-800 pb-4">
             <div className="space-y-1">
               <p className="text-xs font-semibold text-blue-600">
-                ZIP ARXIV TAHLILI VA TASDIQLASH OYNASI · SHA-256: {zipPreview.archiveHash.slice(0, 12)}
+                Importni tekshirish
               </p>
               <h3 className="text-base font-bold text-slate-900 dark:text-white">
                 {zipPreview.archiveName} — {zipPreview.totalFiles} ta ish reja ({zipPreview.totalLessons} ta dars · {zipPreview.totalHours} soat)
@@ -5312,7 +5318,7 @@ export const AdminCurriculumMapPage: React.FC = () => {
    7. TESTLAR — ASSESSMENTS PAGE
    ========================================================================== */
 
-export const AdminAssessmentsPage: React.FC = () => {
+const LegacyAssessmentsPage: React.FC = () => {
   const {
     institution,
     classes,
@@ -6267,3 +6273,7 @@ export const AdminAnalyticsPage = AdminResultsPage;
 export const AdminNotificationsPage = AdminDashboardPage;
 export const AdminAuditLogsPage = AdminSettingsPage;
 export const AdminHelpDocsPage = AdminSettingsPage;
+
+export const AdminWorkPlansPage: React.FC = () => <WorkPlanCenter advanced={LegacyWorkPlansPage}/>;
+
+export function AdminAssessmentsPage(){ return <ExamCenter legacy={LegacyAssessmentsPage}/>; }

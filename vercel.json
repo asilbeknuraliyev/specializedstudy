@@ -17,5 +17,11 @@
       "source": "/((?!api/|assets/|__/).*)",
       "destination": "/index.html"
     }
-  ]
+  ],
+  "functions": {
+    "api/index.js": {
+      "includeFiles": "{firebase-applet-config.json,public/assets/aistudio/*.zip}"
+    }
+  },
+  "installCommand": "npm ci"
 }

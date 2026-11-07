@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   BookOpen,
   CheckCircle2,
@@ -76,6 +76,7 @@ export const Roadmap2View: React.FC<Roadmap2ViewProps> = ({
     confirmCurriculumZipArchive,
   } = useLearnOS();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
 
   const academicYearOptions = useMemo(
     () => Array.from(new Set([institution?.academicYear || '2026-2027', '2026-2027', '2025-2026'])),
@@ -91,11 +92,11 @@ export const Roadmap2View: React.FC<Roadmap2ViewProps> = ({
     return '7a1';
   }, [mode, currentUser, classes]);
 
-  const [selectedClassCode, setSelectedClassCode] = useState<string>(studentClassCode);
+  const [selectedClassCode, setSelectedClassCode] = useState<string>(searchParams.get('class') || studentClassCode);
   const [selectedAcademicYear, setSelectedAcademicYear] = useState<string>(
     academicYearOptions[0] || '2026-2027'
   );
-  const [selectedQuarter, setSelectedQuarter] = useState<1 | 2 | 3 | 4>(1);
+  const [selectedQuarter, setSelectedQuarter] = useState<1 | 2 | 3 | 4>(lessons.some(l=>l.quarter===1&&l.schoolDeliveredAt)?2:1);
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [badgeFilter, setBadgeFilter] = useState<string>('ALL');
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'COMPLETED' | 'NOT_STARTED' | 'HAS_TEST'>('ALL');
@@ -163,7 +164,8 @@ export const Roadmap2View: React.FC<Roadmap2ViewProps> = ({
   const planLessons = useMemo(() => {
     return lessons
       .filter((l) => {
-        if (l.status === 'archived') return false;
+        if (l.status === 'archived' || l.academicYear !== selectedAcademicYear) return false;
+        if (mode === 'student' && (l.status !== 'published' || (l.additionalCurriculumAssignment && l.tTrackVisibilityApproved !== true))) return false;
         const matchesClass =
           l.classCode?.toLowerCase() === activeClassCode ||
           l.classCodes?.some((c) => c.toLowerCase() === activeClassCode) ||
@@ -183,7 +185,7 @@ export const Roadmap2View: React.FC<Roadmap2ViewProps> = ({
           (a.quarter || 1) - (b.quarter || 1) ||
           (a.lessonNumber || a.orderIndex || 0) - (b.lessonNumber || b.orderIndex || 0)
       );
-  }, [lessons, activeClassCode, activeSubjectOption]);
+  }, [lessons, activeClassCode, activeSubjectOption, selectedAcademicYear, mode]);
 
   // Overview stats across all 4 quarters of the selected academic plan
   const planOverview = useMemo(
@@ -744,7 +746,7 @@ export const Roadmap2View: React.FC<Roadmap2ViewProps> = ({
                         )}
                       </div>
                       <h3 className="text-sm sm:text-base font-semibold text-slate-900 dark:text-white mt-1 break-words">
-                        {lesson.topicTitle || lesson.title}
+                        {lesson.topicTitle || lesson.title}{lesson.schoolDeliveredAt&&<span className="ml-2 rounded-full bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-700">Maktabda o‘tilgan</span>}
                       </h3>
                     </div>
                   </div>

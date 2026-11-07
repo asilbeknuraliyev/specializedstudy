@@ -29,10 +29,7 @@ service cloud.firestore {
           'asilbeknuraliyev43@gmail.com',
           'bahodirboliqulov3@gmail.com'
         ] &&
-        (
-          !('platformAdmin' in request.auth.token) ||
-          request.auth.token.platformAdmin == true
-        );
+        ('platformAdmin' in request.auth.token && request.auth.token.platformAdmin == true);
     }
 
     function isAdmin() {
