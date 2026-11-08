@@ -624,6 +624,9 @@ const memoryCache: Record<'prod' | 'test', PersistentDatabaseState | null> = {
 export function getDbState(env: 'prod' | 'test' = 'prod'): PersistentDatabaseState {
   const context = requestDatabase.getStore();
   if (env === 'prod' && context) return context.state;
+  if (env === 'prod' && process.env.PERSISTENCE_DRIVER === 'firestore') {
+    throw new Error('Cloud persistence requires an isolated request context.');
+  }
   if (memoryCache[env]) {
     return memoryCache[env]!;
   }
@@ -651,6 +654,9 @@ export function getDbState(env: 'prod' | 'test' = 'prod'): PersistentDatabaseSta
 export function saveDbState(env: 'prod' | 'test', state: PersistentDatabaseState): void {
   const context = requestDatabase.getStore();
   if (env === 'prod' && context) { context.state = state; context.dirty = true; return; }
+  if (env === 'prod' && process.env.PERSISTENCE_DRIVER === 'firestore') {
+    throw new Error('Cloud persistence cannot fall back to a local file.');
+  }
   memoryCache[env] = state;
   const { writePath } = resolveDbPaths(env);
   const serialized = JSON.stringify(state);

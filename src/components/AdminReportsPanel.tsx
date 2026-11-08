@@ -13,11 +13,8 @@ import {
 import { AcademicReportType } from '../types';
 import * as XLSX from 'xlsx';
 
-const CLASS_CODES = [
-  'All', '5a1', '5a2', '6a1', '6a2', '7a1', '7a2', '7t',
-  '8a1', '8a2', '8t', '9a1', '9a2', '9t1', '9t2',
-  '10a1', '10a2', '10t', '11a1', '11a2', '11t'
-];
+import {OFFICIAL_19_CLASS_CODES} from '../constants/curriculum';
+const CLASS_CODES = ['All', ...OFFICIAL_19_CLASS_CODES];
 
 const SUBJECTS = ['All', 'Matematika', 'Ingliz tili', 'Fizika', 'Biologiya', 'Kimyo'];
 

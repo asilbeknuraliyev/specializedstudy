@@ -190,6 +190,8 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
       return 'Bosh sahifa';
     }
     if (p.startsWith('/admin/classes')) return 'Sinflar';
+      if (p.startsWith('/admin/teachers')) return 'O‘qituvchilar';
+      if (p.startsWith('/teacher/')) return 'O‘qituvchi kabineti';
     if (p.startsWith('/admin/students')) return "O'quvchilar";
     if (p.startsWith('/admin/subjects')) return 'Fanlar';
     if (p.startsWith('/admin/work-plans')) return 'Ish rejalari';

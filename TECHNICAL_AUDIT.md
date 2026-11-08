@@ -76,3 +76,14 @@ Third tab-hidden event persistently stops an exam session; repeated event UUIDs 
 Topic-based written reflection practice is generated on demand from the real lesson title and saved as ungraded responses. This is NOT an automatically validated subject-matter multiple-choice bank. Exact textbook-based tests require source material/review; no fabricated correct answers or grades are created.
 PDF/DOCX import retains review gates and now detects BSB/CHSB and slot from filenames. General import error <=2% has NOT been established; an annotated representative benchmark and further OCR/format coverage remain necessary.
 Replaced vulnerable xlsx 0.18.5 with the official vendored SheetJS 0.20.3 tarball and pinned @grpc/grpc-js 1.14.5 per upstream advisory. npm audit reports 11 moderate findings and zero high after this update; this is not a penetration-test certificate. Re-run real archive regression and native handler smoke tests after dependency changes.
+
+## Presentation QA — 2026-11-08
+- Live production alias matched 5f0cf06 at baseline. Firebase authorized domains includes specializedstudy.vercel.app; encrypted server credential/session secret and Firestore driver are configured.
+- Read-only Firestore inspection found 19 classes, 21 work plans, 2,516 published / 2,552 total lessons, one teacher, two students, three assessments and one exam session before disposable QA setup. Existing records were preserved.
+- Vercel logs confirmed /api/events timed out at 300 seconds. Replaced browser SSE with visible/online-only, non-overlapping 30-second authenticated polling; Vercel legacy SSE requests close immediately. No session tokens in new event query URLs.
+- Firestore mode now rejects persistence outside request context, preventing accidental ephemeral local JSON fallback. Development/test local storage remains available.
+- Corrected invalid 9t1/9t2 assignment/report options to the shared official 19-class constant; pending manual results show Tekshiruvda in admin cards/table/export.
+- Teacher password reset inputs are per-account; delivery can be undone only for the teacher's own classes, including per-class exceptions to a global quarter mark. Other classes retain delivery state. Added scope and fail-closed regressions.
+- Lesson reflection drafts now autosave in the current user's browser and restore on reopening; explicit final submission remains durable on the server. This is ungraded practice, not AI generated subject tests.
+- Repaired package-lock override drift; npm ci completed with 554 packages. Typecheck/build, 54 tests and two native handler smoke tests passed. Existing frontend chunks remain large.
+- Detailed production evidence, cleanup, timing measurements, UI coverage limitations and presentation checklist are delivered in outputs/qa-readiness-2026-11-08.md outside this repository. Passing tests does not certify every UI control, other browser engines, or 25 simultaneous exam writers.

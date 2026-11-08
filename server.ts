@@ -1,5 +1,5 @@
 import nodeCrypto from 'node:crypto';
-import {registerTeachingRoutes,teacherClasses} from './src/server/teachingRoutes';
+import {registerTeachingRoutes,teacherClasses,deliveredForClass} from './src/server/teachingRoutes';
 import { registerExamRoutes } from './src/server/examRoutes';
 import { canTakeExam, examDeadline, sanitizeExamQuestion } from './src/utils/examPolicy';
 import { cloudStateMiddleware } from './src/server/cloudStateMiddleware';
@@ -1524,6 +1524,12 @@ async function startServer() {
       return res.status(401).json({ error: 'Avtorizatsiya talab qilinadi.' });
     }
 
+    if (process.env.VERCEL) {
+      res.setHeader('Content-Type', 'text/event-stream');
+      res.setHeader('Cache-Control', 'no-store');
+      return res.end(`data: ${JSON.stringify({ type: 'CONNECTED', transport: 'poll' })}\n\n`);
+    }
+
     res.setHeader('Content-Type', 'text/event-stream');
     res.setHeader('Cache-Control', 'no-cache');
     res.setHeader('Connection', 'keep-alive');
@@ -1650,7 +1656,7 @@ async function startServer() {
 
     if(user.role==='teacher'){
       const scoped=teacherClasses(user,db);const ids=new Set(scoped.map(c=>c.id));
-      return res.json({user,institution,classes:scoped,users:db.users.filter(u=>u.institutionId===instId&&(u.uid===user.uid||(u.role==='student'&&ids.has(u.classId||'')))).map(({uid,displayName,role,classId,classCode,status})=>({uid,displayName,role,classId,classCode,status})),lessons:db.lessons.filter(l=>l.institutionId===instId&&[l.classId,...(l.classIds||[])].some(id=>ids.has(id))&&l.subjectName===user.subject).map(l=>({...l,schoolDeliveredAt:l.schoolDeliveredAt||([l.classId,...(l.classIds||[])].filter(id=>ids.has(id)).every(id=>l.schoolDeliveredClassIds?.includes(id))?l.updatedAt:undefined)})),subjects:[],topics:[],workPlans:[],assessments:[],attempts:[],notifications:[]});
+      return res.json({user,institution,classes:scoped,users:db.users.filter(u=>u.institutionId===instId&&(u.uid===user.uid||(u.role==='student'&&ids.has(u.classId||'')))).map(({uid,displayName,role,classId,classCode,status})=>({uid,displayName,role,classId,classCode,status})),lessons:db.lessons.filter(l=>l.institutionId===instId&&[l.classId,...(l.classIds||[])].some(id=>ids.has(id))&&l.subjectName===user.subject).map(l=>({...l,schoolDeliveredAt:[l.classId,...(l.classIds||[])].filter(id=>ids.has(id)).every(id=>deliveredForClass(l,id))?(l.schoolDeliveredAt||l.updatedAt):undefined})),subjects:[],topics:[],workPlans:[],assessments:[],attempts:[],notifications:[]});
     }
     if (user.role === 'student') {
       const myClass = db.classes.find(
@@ -1778,7 +1784,7 @@ async function startServer() {
         studentId: user.uid,
         events: myEvents,
         studentBadges: myStudentBadges,
-        lessons: myLessons.map(l=>({...l,schoolDeliveredAt:l.schoolDeliveredAt||(l.schoolDeliveredClassIds?.includes(myClass?.id||'')?l.updatedAt:undefined)})),
+        lessons: myLessons.map(l=>({...l,schoolDeliveredAt:deliveredForClass(l,myClass?.id||'')?(l.schoolDeliveredAt||l.updatedAt):undefined})),
         classCode: myClass?.code || user.classCode || '7a1',
         completions: myCompletions,
       });
@@ -1798,7 +1804,7 @@ async function startServer() {
         subjects: mySubjects,
         topics: instTopics,
         workPlans: myWorkPlans,
-        lessons: myLessons.map(l=>({...l,schoolDeliveredAt:l.schoolDeliveredAt||(l.schoolDeliveredClassIds?.includes(myClass?.id||'')?l.updatedAt:undefined)})),
+        lessons: myLessons.map(l=>({...l,schoolDeliveredAt:deliveredForClass(l,myClass?.id||'')?(l.schoolDeliveredAt||l.updatedAt):undefined})),
         users: [user],
         classes: myClass ? [myClass] : [],
         invitations: [],

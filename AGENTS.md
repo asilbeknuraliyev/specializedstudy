@@ -1,7 +1,7 @@
 # Specialized Study — development instructions
 
 ## Architecture
-React 19 + TypeScript + Vite + Tailwind frontend. React Router routes are in src/App.tsx. LearnOSContext currently owns authentication, API calls and shared state. Express routes are in server.ts; api/index.ts exposes the app for Vercel. Firebase Authentication, Firestore and Storage are configured, but backend academic records currently persist in local JSON via src/server/dbEngine.ts. This is not yet a safe serverless persistence design.
+React 19 + TypeScript + Vite + Tailwind frontend. React Router routes are in src/App.tsx. LearnOSContext currently owns authentication, API calls and shared state. Express routes are in server.ts; api/index.ts exposes the app for Vercel. Firebase Authentication and private Firestore runtime snapshots persist hosted academic records. Local JSON in src/server/dbEngine.ts is only for development and isolated tests; Firestore mode fails closed without a request context.
 
 ## Product constraints
 Platform Admin, Student and assigned-class Teacher are active roles (teacher role explicitly authorized by user). Preserve exactly 19 official classes and track defaults in src/constants/curriculum.ts. No demo students, invented metrics or curriculum topics. T-track mathematics requires explicit assignment. Curriculum publication is not evidence of mastery. Subjective grading requires human review. Only recorded attendance sessions count.

@@ -1212,32 +1212,24 @@ export const LearnOSProvider: React.FC<{ children: React.ReactNode }> = ({ child
     refreshState();
   }, [checkBootstrapStatus, refreshState]);
 
-  // Real-time Server-Sent Events (SSE) subscription for multi-role synchronization
+  // Short authenticated reads work across serverless instances without holding
+  // a function open or putting the session credential into an SSE query string.
   useEffect(() => {
     if (!sessionToken || !currentUser || sessionToken.startsWith('fb-direct-')) return;
-    const testParam = isIsolatedTestMode() ? '&testEnv=1' : '';
-    const es = new EventSource(
-      `/api/events?token=${encodeURIComponent(sessionToken)}${testParam}`
-    );
-
-    es.onmessage = (event) => {
-      try {
-        const parsed = JSON.parse(event.data);
-        if (parsed.type && parsed.type !== 'CONNECTED') {
-          refreshState(sessionToken);
-        }
-      } catch {
-        // Ignore parse error
-      }
+    let pending = false;
+    const refresh = async () => {
+      if (pending || document.hidden || !navigator.onLine) return;
+      pending = true;
+      try { await refreshState(sessionToken); } finally { pending = false; }
     };
-
-    es.onerror = () => {
-      // Avoid infinite rapid reconnect loops on stateless serverless edge hosts
-      es.close();
-    };
-
+    const timer = window.setInterval(() => void refresh(), 30_000);
+    const onVisible = () => { if (!document.hidden) void refresh(); };
+    document.addEventListener('visibilitychange', onVisible);
+    window.addEventListener('online', onVisible);
     return () => {
-      es.close();
+      window.clearInterval(timer);
+      document.removeEventListener('visibilitychange', onVisible);
+      window.removeEventListener('online', onVisible);
     };
   }, [sessionToken, currentUser?.uid, refreshState]);
 

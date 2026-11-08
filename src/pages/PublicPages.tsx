@@ -113,7 +113,7 @@ export const PublicFooter: React.FC = () => {
             {APP_TAGLINE}
           </p>
           <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
-            Ixtisoslashtirilgan maktab o‘quv rejalari, 19 ta rasmiy sinf (14 ta A va 5 ta T yo‘nalishi), darslar xaritasi va AI diagnostik testlar platformasi.
+            Ixtisoslashtirilgan maktab o‘quv rejalari, 19 ta rasmiy sinf (14 ta A va 5 ta T yo‘nalishi), darslar xaritasi va nazorat ishlari platformasi.
           </p>
         </div>
 
@@ -134,7 +134,7 @@ export const PublicFooter: React.FC = () => {
             </li>
             <li>
               <a href="/#tizim" className="hover:text-blue-600">
-                AI Buyruqlar va Test Generatori
+                BSB va CHSB nazoratlari
               </a>
             </li>
             <li>
@@ -327,10 +327,10 @@ export const LandingPage: React.FC = () => {
                   </div>
                   <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-3.5">
                     <p className="text-xs font-bold text-blue-600 dark:text-blue-400 mb-1">
-                      AI Buyruqlar va Diagnostika
+                      BSB va CHSB nazoratlari
                     </p>
                     <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
-                      Tabiiy o‘zbek tilidagi buyruqlar orqali soniyalar ichida darsga mos qoralama testlar yarating.
+                      PDF yoki Word savollarini yuklang, tekshiring va sinflarga nazorat ishi sifatida biriktiring.
                     </p>
                   </div>
                 </div>
@@ -418,10 +418,10 @@ export const LandingPage: React.FC = () => {
               <div className="bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl p-6 space-y-3">
                 <Sparkles className="w-5 h-5 text-blue-600" />
                 <h3 className="text-base font-bold text-slate-900 dark:text-white">
-                  3. AI Buyruqlar va Testlar
+                  3. BSB va CHSB nazoratlari
                 </h3>
                 <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
-                  Mavzu yoki dars asosida avto-tekshiriladigan va yozma (rubrikali) savollardan iborat testlarni yaratish.
+                  Variantli javoblar kalit bo‘yicha tekshiriladi. Yozma va chizmali javoblarni o‘qituvchi baholaydi.
                 </p>
               </div>
 

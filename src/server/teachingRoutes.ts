@@ -3,6 +3,8 @@ import {z} from 'zod';
 import type {Express} from 'express';
 import type {PersistentDatabaseState} from './dbEngine';
 import type {UserProfile} from '../types';
+import type {LessonItem} from '../types';
+export const deliveredForClass=(lesson:LessonItem,classId:string)=>!lesson.schoolUndeliveredClassIds?.includes(classId)&&Boolean(lesson.schoolDeliveredAt||lesson.schoolDeliveredClassIds?.includes(classId));
 export const teacherClasses=(user:UserProfile,db:PersistentDatabaseState)=>db.classes.filter(c=>c.institutionId===user.institutionId&&user.assignedClassIds?.includes(c.id));
 export function registerTeachingRoutes(app:Express,deps:{authenticate:(req:any)=>{user:UserProfile;db:PersistentDatabaseState;env:'prod'|'test'}|null;save:(env:'prod'|'test',db:PersistentDatabaseState)=>void;hash:(password:string)=>string;revoke:(uid:string,env:'prod'|'test')=>void}){
  const admin=(c:any)=>c&&['admin','platform_owner'].includes(c.user.role)&&c.user.platformAdmin===true&&c.user.emailVerified===true;
@@ -16,5 +18,18 @@ export function registerTeachingRoutes(app:Express,deps:{authenticate:(req:any)=
  c!.db.users.push(user);c!.db.passwordHashes[user.uid]=deps.hash(p.password);deps.save(c!.env,c!.db);res.status(201).json({user});});
  app.patch('/api/teaching/accounts/:id',(req,res)=>{const c=deps.authenticate(req);if(!admin(c))return res.status(403).json({error:'Faqat administrator.'});const user=c!.db.users.find(u=>u.uid===req.params.id&&u.role==='teacher'&&u.institutionId===c!.user.institutionId);if(!user)return res.status(404).json({error:'Hisob topilmadi.'});if(req.body.password!==undefined){const parsed=z.string().min(12).max(128).safeParse(req.body.password);if(!parsed.success)return res.status(400).json({error:'Parol kamida 12 belgi bo‘lsin.'});c!.db.passwordHashes[user.uid]=deps.hash(parsed.data);deps.revoke(user.uid,c!.env);deps.save(c!.env,c!.db);return res.json({user});}if(!['active','suspended'].includes(req.body.status))return res.status(400).json({error:'Holat noto‘g‘ri.'});user.status=req.body.status;deps.revoke(user.uid,c!.env);deps.save(c!.env,c!.db);res.json({user});});
  app.post('/api/teaching/quarter/complete',(req,res)=>{const c=deps.authenticate(req);if(!admin(c))return res.status(403).json({error:'Faqat administrator.'});const now=new Date().toISOString();let count=0;for(const lesson of c!.db.lessons)if(lesson.institutionId===c!.user.institutionId&&lesson.academicYear===c!.db.institutions.find(i=>i.id===c!.user.institutionId)?.academicYear&&lesson.quarter===1&&lesson.status!=='archived'&&!lesson.schoolDeliveredAt){lesson.schoolDeliveredAt=now;count++;}deps.save(c!.env,c!.db);res.json({count});});
- app.post('/api/teaching/lessons/:id/delivered',(req,res)=>{const c=deps.authenticate(req);if(!c)return res.status(401).json({error:'Hisobga kiring.'});const lesson=c.db.lessons.find(l=>l.id===req.params.id&&l.institutionId===c.user.institutionId);if(!lesson||(!admin(c)&&!(c.user.role==='teacher'&&teacherClasses(c.user,c.db).some(cls=>[lesson.classId,...(lesson.classIds||[])].includes(cls.id))&&lesson.subjectName===c.user.subject)))return res.status(403).json({error:'Darsga ruxsat yo‘q.'});const now=new Date().toISOString();if(admin(c))lesson.schoolDeliveredAt=now;else{const allowed=teacherClasses(c.user,c.db).map(cls=>cls.id).filter(id=>[lesson.classId,...(lesson.classIds||[])].includes(id));lesson.schoolDeliveredClassIds=[...new Set([...(lesson.schoolDeliveredClassIds||[]),...allowed])];lesson.updatedAt=now;}deps.save(c.env,c.db);res.json({lesson});});
+ app.post('/api/teaching/lessons/:id/delivered',(req,res)=>{
+  const c=deps.authenticate(req);if(!c)return res.status(401).json({error:'Hisobga kiring.'});
+  const lesson=c.db.lessons.find(l=>l.id===req.params.id&&l.institutionId===c.user.institutionId);
+  if(!lesson||(!admin(c)&&!(c.user.role==='teacher'&&teacherClasses(c.user,c.db).some(cls=>[lesson.classId,...(lesson.classIds||[])].includes(cls.id))&&lesson.subjectName===c.user.subject)))return res.status(403).json({error:'Darsga ruxsat yo‘q.'});
+  if(req.body.delivered!==undefined&&typeof req.body.delivered!=='boolean')return res.status(400).json({error:'Belgi noto‘g‘ri.'});
+  const delivered=req.body.delivered!==false,now=new Date().toISOString();
+  if(admin(c)){lesson.schoolDeliveredAt=delivered?now:undefined;if(!delivered)lesson.schoolDeliveredClassIds=[];lesson.schoolUndeliveredClassIds=[];}
+  else{
+   const allowed=teacherClasses(c.user,c.db).map(cls=>cls.id).filter(id=>[lesson.classId,...(lesson.classIds||[])].includes(id));
+   lesson.schoolDeliveredClassIds=delivered?[...new Set([...(lesson.schoolDeliveredClassIds||[]),...allowed])]:(lesson.schoolDeliveredClassIds||[]).filter(id=>!allowed.includes(id));
+   lesson.schoolUndeliveredClassIds=delivered?(lesson.schoolUndeliveredClassIds||[]).filter(id=>!allowed.includes(id)):[...new Set([...(lesson.schoolUndeliveredClassIds||[]),...allowed])];
+  }
+  lesson.updatedAt=now;deps.save(c.env,c.db);res.json({lesson});
+ });
 }

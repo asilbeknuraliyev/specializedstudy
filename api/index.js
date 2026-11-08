@@ -4,6 +4,7 @@ import nodeCrypto from "node:crypto";
 // src/server/teachingRoutes.ts
 import crypto from "node:crypto";
 import { z } from "zod";
+var deliveredForClass = (lesson, classId) => !lesson.schoolUndeliveredClassIds?.includes(classId) && Boolean(lesson.schoolDeliveredAt || lesson.schoolDeliveredClassIds?.includes(classId));
 var teacherClasses = (user, db) => db.classes.filter((c) => c.institutionId === user.institutionId && user.assignedClassIds?.includes(c.id));
 function registerTeachingRoutes(app2, deps) {
   const admin = (c) => c && ["admin", "platform_owner"].includes(c.user.role) && c.user.platformAdmin === true && c.user.emailVerified === true;
@@ -79,13 +80,18 @@ function registerTeachingRoutes(app2, deps) {
     if (!c) return res.status(401).json({ error: "Hisobga kiring." });
     const lesson = c.db.lessons.find((l) => l.id === req.params.id && l.institutionId === c.user.institutionId);
     if (!lesson || !admin(c) && !(c.user.role === "teacher" && teacherClasses(c.user, c.db).some((cls) => [lesson.classId, ...lesson.classIds || []].includes(cls.id)) && lesson.subjectName === c.user.subject)) return res.status(403).json({ error: "Darsga ruxsat yo\u2018q." });
-    const now = (/* @__PURE__ */ new Date()).toISOString();
-    if (admin(c)) lesson.schoolDeliveredAt = now;
-    else {
+    if (req.body.delivered !== void 0 && typeof req.body.delivered !== "boolean") return res.status(400).json({ error: "Belgi noto\u2018g\u2018ri." });
+    const delivered = req.body.delivered !== false, now = (/* @__PURE__ */ new Date()).toISOString();
+    if (admin(c)) {
+      lesson.schoolDeliveredAt = delivered ? now : void 0;
+      if (!delivered) lesson.schoolDeliveredClassIds = [];
+      lesson.schoolUndeliveredClassIds = [];
+    } else {
       const allowed = teacherClasses(c.user, c.db).map((cls) => cls.id).filter((id) => [lesson.classId, ...lesson.classIds || []].includes(id));
-      lesson.schoolDeliveredClassIds = [.../* @__PURE__ */ new Set([...lesson.schoolDeliveredClassIds || [], ...allowed])];
-      lesson.updatedAt = now;
+      lesson.schoolDeliveredClassIds = delivered ? [.../* @__PURE__ */ new Set([...lesson.schoolDeliveredClassIds || [], ...allowed])] : (lesson.schoolDeliveredClassIds || []).filter((id) => !allowed.includes(id));
+      lesson.schoolUndeliveredClassIds = delivered ? (lesson.schoolUndeliveredClassIds || []).filter((id) => !allowed.includes(id)) : [.../* @__PURE__ */ new Set([...lesson.schoolUndeliveredClassIds || [], ...allowed])];
     }
+    lesson.updatedAt = now;
     deps.save(c.env, c.db);
     res.json({ lesson });
   });
@@ -2273,6 +2279,9 @@ var memoryCache = {
 function getDbState(env = "prod") {
   const context = requestDatabase.getStore();
   if (env === "prod" && context) return context.state;
+  if (env === "prod" && process.env.PERSISTENCE_DRIVER === "firestore") {
+    throw new Error("Cloud persistence requires an isolated request context.");
+  }
   if (memoryCache[env]) {
     return memoryCache[env];
   }
@@ -2302,6 +2311,9 @@ function saveDbState(env, state) {
     context.state = state;
     context.dirty = true;
     return;
+  }
+  if (env === "prod" && process.env.PERSISTENCE_DRIVER === "firestore") {
+    throw new Error("Cloud persistence cannot fall back to a local file.");
   }
   memoryCache[env] = state;
   const { writePath } = resolveDbPaths(env);
@@ -8391,6 +8403,13 @@ async function startServer() {
     if (!authCtx) {
       return res.status(401).json({ error: "Avtorizatsiya talab qilinadi." });
     }
+    if (process.env.VERCEL) {
+      res.setHeader("Content-Type", "text/event-stream");
+      res.setHeader("Cache-Control", "no-store");
+      return res.end(`data: ${JSON.stringify({ type: "CONNECTED", transport: "poll" })}
+
+`);
+    }
     res.setHeader("Content-Type", "text/event-stream");
     res.setHeader("Cache-Control", "no-cache");
     res.setHeader("Connection", "keep-alive");
@@ -8507,7 +8526,7 @@ async function startServer() {
     if (user.role === "teacher") {
       const scoped = teacherClasses(user, db);
       const ids = new Set(scoped.map((c) => c.id));
-      return res.json({ user, institution, classes: scoped, users: db.users.filter((u) => u.institutionId === instId && (u.uid === user.uid || u.role === "student" && ids.has(u.classId || ""))).map(({ uid, displayName, role, classId, classCode, status }) => ({ uid, displayName, role, classId, classCode, status })), lessons: db.lessons.filter((l) => l.institutionId === instId && [l.classId, ...l.classIds || []].some((id) => ids.has(id)) && l.subjectName === user.subject).map((l) => ({ ...l, schoolDeliveredAt: l.schoolDeliveredAt || ([l.classId, ...l.classIds || []].filter((id) => ids.has(id)).every((id) => l.schoolDeliveredClassIds?.includes(id)) ? l.updatedAt : void 0) })), subjects: [], topics: [], workPlans: [], assessments: [], attempts: [], notifications: [] });
+      return res.json({ user, institution, classes: scoped, users: db.users.filter((u) => u.institutionId === instId && (u.uid === user.uid || u.role === "student" && ids.has(u.classId || ""))).map(({ uid, displayName, role, classId, classCode, status }) => ({ uid, displayName, role, classId, classCode, status })), lessons: db.lessons.filter((l) => l.institutionId === instId && [l.classId, ...l.classIds || []].some((id) => ids.has(id)) && l.subjectName === user.subject).map((l) => ({ ...l, schoolDeliveredAt: [l.classId, ...l.classIds || []].filter((id) => ids.has(id)).every((id) => deliveredForClass(l, id)) ? l.schoolDeliveredAt || l.updatedAt : void 0 })), subjects: [], topics: [], workPlans: [], assessments: [], attempts: [], notifications: [] });
     }
     if (user.role === "student") {
       const myClass = db.classes.find(
@@ -8584,7 +8603,7 @@ async function startServer() {
         studentId: user.uid,
         events: myEvents,
         studentBadges: myStudentBadges,
-        lessons: myLessons.map((l) => ({ ...l, schoolDeliveredAt: l.schoolDeliveredAt || (l.schoolDeliveredClassIds?.includes(myClass?.id || "") ? l.updatedAt : void 0) })),
+        lessons: myLessons.map((l) => ({ ...l, schoolDeliveredAt: deliveredForClass(l, myClass?.id || "") ? l.schoolDeliveredAt || l.updatedAt : void 0 })),
         classCode: myClass?.code || user.classCode || "7a1",
         completions: myCompletions
       });
@@ -8602,7 +8621,7 @@ async function startServer() {
         subjects: mySubjects,
         topics: instTopics,
         workPlans: myWorkPlans,
-        lessons: myLessons.map((l) => ({ ...l, schoolDeliveredAt: l.schoolDeliveredAt || (l.schoolDeliveredClassIds?.includes(myClass?.id || "") ? l.updatedAt : void 0) })),
+        lessons: myLessons.map((l) => ({ ...l, schoolDeliveredAt: deliveredForClass(l, myClass?.id || "") ? l.schoolDeliveredAt || l.updatedAt : void 0 })),
         users: [user],
         classes: myClass ? [myClass] : [],
         invitations: [],

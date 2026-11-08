@@ -5983,7 +5983,7 @@ export const AdminResultsPage: React.FC = () => {
           att.studentName,
           cls?.code || stu?.classCode || '',
           att.assessmentTitle,
-          att.scorePercent,
+          (att.status==='pending_manual_review'||att.gradingStatus==='pending_manual_review'||(att.pendingManualCount||0)>0)?'Tekshiruvda':att.scorePercent,
           att.correctCount,
           att.totalQuestions,
           new Date(att.submittedAt).toLocaleDateString('uz-UZ'),
@@ -6054,7 +6054,7 @@ export const AdminResultsPage: React.FC = () => {
                       {att.studentName}
                     </span>
                     <span className="font-mono font-bold text-emerald-600 text-sm">
-                      {att.scorePercent}%
+                      {(att.status==='pending_manual_review'||att.gradingStatus==='pending_manual_review'||(att.pendingManualCount||0)>0)?'Tekshiruvda':`${att.scorePercent}%`}
                     </span>
                   </div>
                   <div className="text-slate-600 dark:text-slate-300 font-medium">
@@ -6062,7 +6062,7 @@ export const AdminResultsPage: React.FC = () => {
                   </div>
                   <div className="flex items-center justify-between text-[11px] font-mono text-slate-400">
                     <span className="text-blue-600 font-bold">
-                      {cls?.code || stu?.classCode || '—'} · {att.correctCount}/{att.totalQuestions}
+                      {cls?.code || stu?.classCode || '—'} · {(att.status==='pending_manual_review'||att.gradingStatus==='pending_manual_review'||(att.pendingManualCount||0)>0)?'Baholash kutilmoqda':`${att.correctCount}/${att.totalQuestions}`}
                     </span>
                     <span>{new Date(att.submittedAt).toLocaleDateString('uz-UZ')}</span>
                   </div>
@@ -6098,10 +6098,10 @@ export const AdminResultsPage: React.FC = () => {
                       </td>
                       <td className="py-2.5 px-4">{att.assessmentTitle}</td>
                       <td className="py-2.5 px-4 font-mono font-bold text-emerald-600">
-                        {att.scorePercent}%
+                        {(att.status==='pending_manual_review'||att.gradingStatus==='pending_manual_review'||(att.pendingManualCount||0)>0)?'Tekshiruvda':`${att.scorePercent}%`}
                       </td>
                       <td className="py-2.5 px-4 font-mono">
-                        {att.correctCount} / {att.totalQuestions}
+                        {(att.status==='pending_manual_review'||att.gradingStatus==='pending_manual_review'||(att.pendingManualCount||0)>0)?'Baholash kutilmoqda':`${att.correctCount} / ${att.totalQuestions}`}
                       </td>
                       <td className="py-2.5 px-4 font-mono text-slate-400">
                         {new Date(att.submittedAt).toLocaleDateString('uz-UZ')}
