@@ -1564,10 +1564,10 @@ export const AssessmentResultPage: React.FC = () => {
             <Sparkles className="w-5 h-5 text-blue-600" />
             <div>
               <h2 className="text-base font-bold text-slate-900 dark:text-white">
-                AI yordamida diagnostik tahlil va tavsiyalar
+                Natija tahlili va tavsiyalar
               </h2>
               <p className="text-xs text-slate-500">
-                Kuzatilgan xatolar va o‘zlashtirish bo‘yicha individual tavsiyalar
+                Natija asosidagi statistik sharh. AI tahlili alohida sozlanadi.
               </p>
             </div>
           </div>
@@ -1642,18 +1642,18 @@ export const AssessmentResultPage: React.FC = () => {
                 <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
                   <span className="font-mono font-semibold text-slate-500">
                     {idx + 1}-savol ({ans.questionType || 'multiple_choice'}) · Ball:{' '}
-                    {ans.earnedPoints ?? (ans.isCorrect ? 1 : 0)} / {ans.maxPoints ?? 1}
+                    {['pending_review','pending_manual'].includes(ans.gradingStatus||'')?'—':(ans.awardedPoints ?? ans.earnedPoints ?? (ans.isCorrect ? (ans.maxPoints??1) : 0))} / {ans.maxPoints ?? 1}
                   </span>
                   <span
                     className={`font-semibold ${
-                      ans.gradingStatus === 'pending_manual'
+                      ['pending_review','pending_manual'].includes(ans.gradingStatus||'')
                         ? 'text-amber-600'
                         : ans.isCorrect
                         ? 'text-emerald-600'
                         : 'text-rose-600'
                     }`}
                   >
-                    {ans.gradingStatus === 'pending_manual'
+                    {['pending_review','pending_manual'].includes(ans.gradingStatus||'')
                       ? 'Tekshiruvda'
                       : ans.isCorrect
                       ? 'To‘g‘ri javob'

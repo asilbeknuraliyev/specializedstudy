@@ -33,3 +33,11 @@ test('stale deployment chunks recover once without reload loops or masking ordin
  assert.equal(claimChunkRecovery(Error('Application bug'),storage,200000),false);
  assert.equal(claimChunkRecovery(error,{getItem:()=>{throw Error('blocked');},setItem:()=>{}},200000),false);
 });
+import {scoreAssessmentSubmission,buildDeterministicFallbackAnalysis} from '../scoring';
+test('a two-point correct answer keeps full marks and perfect results do not invent weak topics',()=>{
+ const q:any={id:'q',type:'single_choice',points:2,topicId:'',subject:'Matematika',correctAnswer:'4',options:['3','4']};
+ const result=scoreAssessmentSubmission([q],{q:'4'},{});
+ assert.equal(result.answers[0].awardedPoints,2);assert.equal(result.earnedPoints,2);assert.equal(result.topicBreakdown[0].topicName,'Matematika');
+ const analysis=buildDeterministicFallbackAnalysis('Nazorat',100,result.topicBreakdown,result.answers);
+ assert.ok(!analysis.teacher_summary.includes('Eng ko'));
+});

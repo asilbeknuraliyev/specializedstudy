@@ -243,7 +243,7 @@ export function scoreAssessmentSubmission(
       imageUrl: q.imageUrl,
     });
 
-    const tName = topicsMap[q.topicId]?.name || q.topicId;
+    const tName = topicsMap[q.topicId]?.name || q.topicId || q.subject || 'Nazorat savollari';
     if (!topicCounters[q.topicId]) {
       topicCounters[q.topicId] = { total: 0, correct: 0, topicName: tName };
     }
@@ -446,7 +446,7 @@ export function buildDeterministicFallbackAnalysis(
   answers: StudentAnswerItem[]
 ): AIAnalysisResult {
   const sortedTopics = [...topicBreakdown].sort((a, b) => a.accuracy - b.accuracy);
-  const weakest = sortedTopics[0];
+  const weakest = sortedTopics.find(topic=>topic.accuracy<80);
   const strongest = sortedTopics[sortedTopics.length - 1];
 
   const topic_analysis = topicBreakdown.map((tb) => {
