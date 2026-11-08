@@ -12,8 +12,6 @@ import {
 } from 'firebase/auth';
 import {
   doc,
-  getDoc,
-  setDoc,
   deleteDoc,
   onSnapshot,
   collection,
@@ -1314,30 +1312,9 @@ export const LearnOSProvider: React.FC<{ children: React.ReactNode }> = ({ child
         }
       }
 
-      // Safely sync verified user document to Firestore with all required schema fields
-      if (data.user && fbUser.email) {
-        try {
-          await setDoc(
-            doc(db, 'users', fbUser.uid),
-            {
-              uid: fbUser.uid,
-              displayName: data.user.displayName || fbUser.displayName || 'Foydalanuvchi',
-              email: data.user.email || fbUser.email,
-              role: data.user.role,
-              institutionId: data.user.institutionId || 'inst-specialized-study',
-              createdAt: data.user.createdAt || new Date().toISOString(),
-            },
-            { merge: true }
-          );
-        } catch (err) {
-          try {
-            handleFirestoreError(err, OperationType.WRITE, `users/${fbUser.uid}`);
-          } catch {
-            // Continue with verified backend session
-          }
-        }
-      }
-
+      // firebase-sync already committed the verified profile in the server store.
+      // A second browser Firestore write can retry forever when its quota is
+      // exhausted; it must not gate an already established secure session.
       setCurrentUser(data.user);
       setUsers((prev) => {
         const filtered = prev.filter((u) => u.uid !== data.user.uid && u.email !== data.user.email);
@@ -1664,24 +1641,7 @@ export const LearnOSProvider: React.FC<{ children: React.ReactNode }> = ({ child
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Sinf yaratishda xatolik');
 
-      if (auth.currentUser) {
-        try {
-          await setDoc(doc(db, 'classes', data.classRoom.id), {
-            id: data.classRoom.id,
-            name: data.classRoom.name,
-            grade: data.classRoom.grade,
-            subject: data.classRoom.subject,
-            teacherId: data.classRoom.teacherId,
-            institutionId: data.classRoom.institutionId,
-            inviteCode: data.classRoom.inviteCode,
-            studentCount: data.classRoom.studentCount,
-            createdAt: data.classRoom.createdAt,
-          });
-        } catch {
-          // Handled via server sync
-        }
-      }
-
+      // The successful API response already confirms durable server persistence.
       await refreshState();
       addToast(
         'success',
@@ -2376,25 +2336,7 @@ export const LearnOSProvider: React.FC<{ children: React.ReactNode }> = ({ child
         throw new Error(data.error || 'Test natijasini saqlashda xatolik');
       }
 
-      if (auth.currentUser) {
-        try {
-          await setDoc(doc(db, 'assessment_attempts', data.attempt.id), {
-            id: data.attempt.id,
-            assessmentId: data.attempt.assessmentId,
-            studentId: auth.currentUser.uid,
-            classId: data.attempt.classId,
-            institutionId: data.attempt.institutionId,
-            scorePercent: data.attempt.scorePercent,
-            correctCount: data.attempt.correctCount,
-            totalQuestions: data.attempt.totalQuestions,
-            status: data.attempt.status,
-            submittedAt: data.attempt.submittedAt,
-          });
-        } catch {
-          // Handled via server persistence
-        }
-      }
-
+      // The successful API response already confirms durable server persistence.
       await refreshState();
       addToast(
         'success',
