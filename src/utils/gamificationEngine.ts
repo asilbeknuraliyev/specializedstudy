@@ -936,7 +936,7 @@ export function buildWeeklyLearningRecap(params: {
     )[0];
 
   const recommendedNextFocus = nextClassLesson
-    ? `${nextClassLesson.subject}${nextClassLesson.curriculumArea ? ` (${nextClassLesson.curriculumArea})` : ''}: ${nextClassLesson.lessonNumber}-dars — ${nextClassLesson.title}`
+    ? `${nextClassLesson.subject||nextClassLesson.subjectName||'Fan'}${nextClassLesson.curriculumArea ? ` (${nextClassLesson.curriculumArea})` : ''}: ${nextClassLesson.lessonNumber||nextClassLesson.orderIndex||'—'}-dars — ${nextClassLesson.title}`
     : "O'quv xaritasi bo'yicha navbatdagi mavzuni tanlang";
 
   return {
@@ -999,8 +999,8 @@ export function buildSmartNextSteps(params: {
     recommendations.push({
       id: `rec_next_${nextSeqLesson.id}`,
       type: 'next_lesson',
-      title: `${nextSeqLesson.lessonNumber}-dars: ${nextSeqLesson.title}`,
-      subject: `${nextSeqLesson.subject}${areaSuffix}`,
+      title: `${nextSeqLesson.lessonNumber||nextSeqLesson.orderIndex||'—'}-dars: ${nextSeqLesson.title}`,
+      subject: `${nextSeqLesson.subject||nextSeqLesson.subjectName||'Fan'}${areaSuffix}`,
       curriculumArea: nextSeqLesson.curriculumArea,
       quarter: nextSeqLesson.quarter,
       reason: `${nextSeqLesson.quarter || 1}-chorak o'quv rejasidagi navbatdagi mavzu`,

@@ -1298,7 +1298,7 @@ function buildWeeklyLearningRecap(params) {
   ).sort(
     (a, b) => (a.quarter || 1) - (b.quarter || 1) || (a.lessonNumber || a.orderIndex || 0) - (b.lessonNumber || b.orderIndex || 0)
   )[0];
-  const recommendedNextFocus = nextClassLesson ? `${nextClassLesson.subject}${nextClassLesson.curriculumArea ? ` (${nextClassLesson.curriculumArea})` : ""}: ${nextClassLesson.lessonNumber}-dars \u2014 ${nextClassLesson.title}` : "O'quv xaritasi bo'yicha navbatdagi mavzuni tanlang";
+  const recommendedNextFocus = nextClassLesson ? `${nextClassLesson.subject || nextClassLesson.subjectName || "Fan"}${nextClassLesson.curriculumArea ? ` (${nextClassLesson.curriculumArea})` : ""}: ${nextClassLesson.lessonNumber || nextClassLesson.orderIndex || "\u2014"}-dars \u2014 ${nextClassLesson.title}` : "O'quv xaritasi bo'yicha navbatdagi mavzuni tanlang";
   return {
     id: `${params.studentId}_${weekKey}`,
     studentId: params.studentId,

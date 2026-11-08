@@ -1,9 +1,15 @@
 import React from 'react';
+import {claimChunkRecovery} from '../utils/chunkRecovery';
 
 /** Recover from failed page chunks and render errors without exposing internals. */
 export class AppErrorBoundary extends React.Component<React.PropsWithChildren, { failed: boolean }> {
   state = { failed: false };
   static getDerivedStateFromError() { return { failed: true }; }
+  componentDidCatch(error: Error) {
+    try {
+      if (navigator.onLine && claimChunkRecovery(error, sessionStorage)) window.location.reload();
+    } catch { /* Keep the error screen if browser storage is blocked. */ }
+  }
   render() {
     if (!this.state.failed) return this.props.children;
     return <main className="min-h-screen grid place-items-center bg-slate-50 px-5 text-slate-900">

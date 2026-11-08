@@ -234,7 +234,7 @@ export const StudentDashboard2: React.FC<StudentDashboard2Props> = ({
   }, [myActiveTimetable, timetableEntries]);
 
   const todayWeekday = useMemo(() => {
-    const jsDay = new Date().getDay();
+    const jsDay = new Date(`${getTashkentDateString()}T12:00:00Z`).getUTCDay();
     const map: Record<number, string> = {
       1: 'Dushanba',
       2: 'Seshanba',
@@ -242,7 +242,7 @@ export const StudentDashboard2: React.FC<StudentDashboard2Props> = ({
       4: 'Payshanba',
       5: 'Juma',
       6: 'Shanba',
-      0: 'Dushanba',
+      0: 'Yakshanba',
     };
     return map[jsDay] || 'Dushanba';
   }, []);
@@ -1247,7 +1247,7 @@ export const StudentDashboard2: React.FC<StudentDashboard2Props> = ({
               </div>
               <div className="text-right">
                 <span className="text-xl font-extrabold text-slate-900 dark:text-white font-mono">
-                  {myAttendanceStats.attendanceRate}%
+                  {(myAttendanceStats.totalSessions||0)>0?`${myAttendanceStats.attendanceRate}%`:'Qayd yo‘q'}
                 </span>
                 <span className="block text-[10px] text-slate-400 font-medium">davomat</span>
               </div>

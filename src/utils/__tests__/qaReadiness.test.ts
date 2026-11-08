@@ -24,3 +24,12 @@ test('teacher can undo delivery including global quarter mark only for own class
   teacher.assignedClassIds=['foreign'];assert.equal((await post({delivered:false})).status,403);
  }finally{server.closeAllConnections();await new Promise<void>(r=>server.close(()=>r()));}
 });
+import {claimChunkRecovery} from '../chunkRecovery';
+test('stale deployment chunks recover once without reload loops or masking ordinary errors',()=>{
+ const values=new Map<string,string>();const storage={getItem:(key:string)=>values.get(key)||null,setItem:(key:string,value:string)=>{values.set(key,value);}};
+ const error=new TypeError('Failed to fetch dynamically imported module: /assets/StudentPages-old.js');
+ assert.equal(claimChunkRecovery(error,storage,100000),true);
+ assert.equal(claimChunkRecovery(error,storage,100001),false);
+ assert.equal(claimChunkRecovery(Error('Application bug'),storage,200000),false);
+ assert.equal(claimChunkRecovery(error,{getItem:()=>{throw Error('blocked');},setItem:()=>{}},200000),false);
+});
