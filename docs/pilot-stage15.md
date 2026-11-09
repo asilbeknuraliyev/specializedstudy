@@ -45,11 +45,13 @@ O‘z tasdiqlangan Google hisobingiz bilan preview’ga kiring. Admin → DEMO s
 
 ## Skrinshotlar
 
+Mahalliy Codex workspace’da `outputs/stage15/review.html` barcha rasmlarni va vaqtlar jadvalini bir joyda ochadi. Rasmlar GitHub repozitoriyiga yuklanmagan.
+
 | Rol | Telefon | Kompyuter |
 |---|---|---|
-| Admin | [375px](../../outputs/stage15/admin-main-375.png) | [1440px](../../outputs/stage15/admin-main-1440.png) |
-| Ustoz | [375px](../../outputs/stage15/teacher-main-375.png) | [1440px](../../outputs/stage15/teacher-main-1440.png) |
-| O‘quvchi | [375px](../../outputs/stage15/student-main-375.png) | [1440px](../../outputs/stage15/student-main-1440.png) |
+| Admin | `admin-main-375.png` | `admin-main-1440.png` |
+| Ustoz | `teacher-main-375.png` | `teacher-main-1440.png` |
+| O‘quvchi | `student-main-375.png` | `student-main-1440.png` |
 
 2-bosqich faqat foydalanuvchi alohida ruxsat berganda boshlanadi.
 ## Kod va tekshiruvlar
