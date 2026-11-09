@@ -1,3 +1,4 @@
+import {useExportAction} from '../utils/useExportAction';
 import { ExamCenter } from '../components/ExamCenter';
 import { WorkPlanCenter } from '../components/WorkPlanCenter';
 import React, { useState, useEffect, useMemo } from 'react';
@@ -27,7 +28,7 @@ import {
   Archive,
   ArrowUpDown,
 } from 'lucide-react';
-import * as XLSX from 'xlsx';
+
 import { useLearnOS } from '../context/LearnOSContext';
 import {
   Assessment,
@@ -1195,7 +1196,8 @@ export const AdminStudentsPage: React.FC = () => {
     }
   };
 
-  const handleDownloadPreviewReport = (mode: 'all' | 'invalid' | 'imported') => {
+  const handleDownloadPreviewReportAction=useExportAction();
+  const handleDownloadPreviewReport = async (mode: 'all' | 'invalid' | 'imported') => handleDownloadPreviewReportAction.run(async()=>{
     if (!importPreview) return;
     const targetRows =
       mode === 'invalid'
@@ -1218,11 +1220,12 @@ export const AdminStudentsPage: React.FC = () => {
         r.issues.map((i) => i.message).join('; ') || r.duplicateReason || '',
       ]),
     ];
+    const XLSX=await import('xlsx');
     const wb = XLSX.utils.book_new();
     const ws = XLSX.utils.aoa_to_sheet(aoa);
     XLSX.utils.book_append_sheet(wb, ws, 'Report');
     XLSX.writeFile(wb, `Specialized_Study_${mode}_report.xlsx`);
-  };
+  });
 
   const handleCreateStudent = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -5973,7 +5976,9 @@ export const AdminResultsPage: React.FC = () => {
     );
   });
 
-  const handleExportResultsXlsx = () => {
+  const handleExportResultsXlsxAction=useExportAction();
+  const handleExportResultsXlsx = async () => handleExportResultsXlsxAction.run(async()=>{
+    const XLSX=await import('xlsx');
     const rows = [
       ['O\'quvchi', 'Sinf', 'Test', 'Natija (%)', 'To\'g\'ri javoblar', 'Jami savollar', 'Sana'],
       ...filteredAttempts.map((att) => {
@@ -5994,7 +5999,7 @@ export const AdminResultsPage: React.FC = () => {
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Natijalar');
     XLSX.writeFile(wb, `specialized_study_natijalar_${classFilter.toLowerCase()}.xlsx`);
-  };
+  });
 
   return (
     <div className="space-y-5">

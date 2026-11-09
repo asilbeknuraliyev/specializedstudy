@@ -1,3 +1,4 @@
+import {useExportAction} from '../utils/useExportAction';
 import React, { useState, useMemo } from 'react';
 import {
   Calendar as CalendarIcon,
@@ -31,7 +32,7 @@ import {
   buildMonthlyAttendanceGrid,
   validateAttendanceImportRows,
 } from '../utils/studentMonitoringEngine';
-import * as XLSX from 'xlsx';
+
 
 export const AdminAttendancePanel: React.FC = () => {
   const {
@@ -173,7 +174,9 @@ export const AdminAttendancePanel: React.FC = () => {
   }, [selectedClassCode, calendarYear, calendarMonth, attendanceRecords, attendanceSessions]);
 
   // Excel Export
-  const handleExportExcel = () => {
+  const handleExportExcelAction=useExportAction();
+  const handleExportExcel = async () => handleExportExcelAction.run(async()=>{
+    const XLSX=await import('xlsx');
     const exportData = classHistoricalRecords.map((r) => ({
       Sana: r.date,
       Sinf: r.classCode.toUpperCase(),
@@ -195,7 +198,7 @@ export const AdminAttendancePanel: React.FC = () => {
     XLSX.utils.book_append_sheet(workbook, worksheet, `Davomat_${selectedClassCode}`);
     XLSX.writeFile(workbook, `SpecializedStudy_Davomat_${selectedClassCode}_${new Date().toISOString().slice(0, 10)}.xlsx`);
     addToast('success', 'Excel davomat hisoboti yuklandi');
-  };
+  });
 
   // Print view
   const handlePrint = () => {
@@ -208,8 +211,9 @@ export const AdminAttendancePanel: React.FC = () => {
     if (!file) return;
 
     const reader = new FileReader();
-    reader.onload = (evt) => {
+    reader.onload = async (evt) => {
       try {
+        const XLSX=await import('xlsx');
         const bstr = evt.target?.result;
         const wb = XLSX.read(bstr, { type: 'binary' });
         const wsName = wb.SheetNames[0];

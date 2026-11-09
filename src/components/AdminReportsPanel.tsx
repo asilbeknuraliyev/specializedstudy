@@ -1,3 +1,4 @@
+import {useExportAction} from '../utils/useExportAction';
 import React, { useState } from 'react';
 import { useLearnOS } from '../context/LearnOSContext';
 import {
@@ -11,7 +12,7 @@ import {
   FileText
 } from 'lucide-react';
 import { AcademicReportType } from '../types';
-import * as XLSX from 'xlsx';
+
 
 import {OFFICIAL_19_CLASS_CODES} from '../constants/curriculum';
 const CLASS_CODES = ['All', ...OFFICIAL_19_CLASS_CODES];
@@ -90,7 +91,9 @@ export const AdminReportsPanel: React.FC = () => {
     window.open(`/api/reports/${reportId}/export?format=csv`, '_blank');
   };
 
-  const handleExportXLSX = (report: (typeof academicReports)[0]) => {
+  const handleExportXLSXAction=useExportAction();
+  const handleExportXLSX = async (report: (typeof academicReports)[0]) => handleExportXLSXAction.run(async()=>{
+    const XLSX=await import('xlsx');
     const m = extractMetrics(report);
     const rows = [
       { Ko_rsatkich: 'Hisobot sarlavhasi', Qiymat: report.title },
@@ -112,7 +115,7 @@ export const AdminReportsPanel: React.FC = () => {
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, 'Hisobot');
     XLSX.writeFile(workbook, `hisobot-${report.id}.xlsx`);
-  };
+  });
 
   const handlePrint = () => {
     window.print();
