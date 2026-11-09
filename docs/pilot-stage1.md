@@ -33,7 +33,7 @@ Faqat `codex/pilot-stage1`. Production branch, production deploy va haqiqiy o‘
 
 ## Chegaralar va keyingi tasdiq
 
-- Firebase Authentication umumiy loyihaga tegishli. Yangi preview domeni authorizedDomains ro‘yxatida yo‘q. Haqiqiy Google orqali preview kirishini ochish uchun faqat preview domenini qo‘shishga foydalanuvchi ruxsati kerak; bu sozlama avtomatik o‘zgartirilmagan.
+- Firebase Authentication umumiy loyihaga tegishli. Foydalanuvchining alohida ruxsati bilan faqat `specializedstudy-git-c-8458f4-asilbeknuraliyev43-langs-projects.vercel.app` preview domeni authorizedDomains ro‘yxatiga qo‘shildi. Barcha oldingi domenlar saqlandi; boshqa Authentication sozlamalari va haqiqiy hisoblar o‘zgartirilmadi.
 - Sovuq start uchun og‘ir importlar olib tashlandi. Ishlab turgan production’da qayta tezlik o‘lchovi qilinmadi; Firestore boshlang‘ich holati hali snapshot ko‘rinishida o‘qiladi, shuning uchun sovuq start butunlay yo‘qoldi deb da’vo qilinmaydi.
 - Eski testlarning lokal qoralamalari 2-bosqichda savollar banki/mavzu testi bilan birga ko‘chiriladi yoki olib tashlanadi.
 - 2-bosqich faqat foydalanuvchi tasdig‘idan keyin boshlanadi. Main/productionga merge yoki promotion qilinmaydi.
@@ -41,3 +41,7 @@ Faqat `codex/pilot-stage1`. Production branch, production deploy va haqiqiy o‘
 ## Barqaror production
 
 Majlis uchun production `4122490939d3bb6be21ad2dfa414a3dd7de20668` / `dpl_4ZWW8gTA3JwZPRaUGxFtdixDb42V` holatida qoladi. Pilotdan voz kechilsa, preview branch/deploydan foydalanmaslik yetarli; productionni rollback qilish shart emas.
+
+## Sinov ma’lumotlarini tozalash
+
+Preview’da qolgan sinov foydalanuvchilari, darslar va importlar soni: 0. Eski sintetik snapshot/chunklardan 98 ta hujjat tozalandi. Production Firestore revision belgisi boshlang‘ich holat bilan bir xil qoldi.
