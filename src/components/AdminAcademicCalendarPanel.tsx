@@ -1,3 +1,4 @@
+import {ResponsiveTable} from './ResponsiveTable';
 import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useLearnOS } from '../context/LearnOSContext';
@@ -470,7 +471,7 @@ export const AdminAcademicCalendarPanel: React.FC = () => {
           {/* 4-State Table */}
           <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden shadow-xs">
             <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse">
+              <ResponsiveTable className="w-full text-left border-collapse">
                 <thead>
                   <tr className="border-b border-slate-200 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-800/50 text-[11px] font-bold uppercase tracking-wider text-slate-500">
                     <th className="py-3 px-4">#</th>
@@ -560,7 +561,7 @@ export const AdminAcademicCalendarPanel: React.FC = () => {
                     );
                   })}
                 </tbody>
-              </table>
+              </ResponsiveTable>
             </div>
           </div>
         </div>

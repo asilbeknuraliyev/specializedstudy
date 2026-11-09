@@ -87,6 +87,7 @@ import {
 } from '../utils/academicOsEngine';
 
 export interface PersistentDatabaseState {
+  demoLabs?: import('./demoLabEngine').DemoLab[];
   contentImports?: import('./contentImportEngine').ContentImportJob[];
   contentWriteLocks?: Record<string, number>;
   studentLastLessons?: Array<{id:string;institutionId:string;studentId:string;lessonId:string;openedAt:string}>;
@@ -177,6 +178,16 @@ const TOKEN_SECRET = runtimeNamespace()==='_specialized_runtime'?baseSessionSecr
 export function ensureSpecializedStudyStructure(
   state: PersistentDatabaseState
 ): PersistentDatabaseState {
+  // Keep preview-only demo institutions out of official-class normalization.
+  if(runtimeNamespace().startsWith('_specialized_preview_')&&state.demoLabs?.length){
+    const labs=state.demoLabs;const insts=new Set(labs.map(l=>l.institutionId));const users=new Set(labs.flatMap(l=>[l.studentId,l.teacherId]));
+    const demo=(r:any)=>r&&typeof r==='object'&&(insts.has(r.institutionId)||insts.has(r.id)||users.has(r.uid)||users.has(r.studentId));
+    const clean={...state,demoLabs:undefined};const preserved:Record<string,any[]>={};
+    for(const [key,value] of Object.entries(state))if(Array.isArray(value)&&key!=='demoLabs'){preserved[key]=value.filter(demo);(clean as any)[key]=value.filter(r=>!demo(r));}
+    ensureSpecializedStudyStructure(clean);
+    for(const [key,rows] of Object.entries(preserved))(clean as any)[key]=[...((clean as any)[key]||[]),...rows];
+    Object.assign(state,clean,{demoLabs:labs});return state;
+  }
   const nowIso = '2026-01-01T00:00:00.000Z';
 
   // 1. Ensure primary Specialized Study institution exists

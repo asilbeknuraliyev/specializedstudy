@@ -1,3 +1,5 @@
+import {usePageState} from '../utils/usePageState';
+import {ResponsiveTable} from '../components/ResponsiveTable';
 import React, { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import {
@@ -501,7 +503,7 @@ export const TeacherClassDetailPage: React.FC = () => {
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
+            <ResponsiveTable className="w-full text-left border-collapse">
               <thead>
                 <tr className="border-b border-slate-200 dark:border-slate-800 text-xs text-slate-500 bg-slate-50 dark:bg-slate-950">
                   <th className="py-3 px-6 font-semibold">O'quvchi F.I.Sh.</th>
@@ -544,7 +546,7 @@ export const TeacherClassDetailPage: React.FC = () => {
                   );
                 })}
               </tbody>
-            </table>
+            </ResponsiveTable>
           </div>
         )}
       </div>
@@ -554,7 +556,7 @@ export const TeacherClassDetailPage: React.FC = () => {
 
 export const TeacherStudentsPage: React.FC = () => {
   const { users, classes, attempts, masteryRecords } = useLearnOS();
-  const [search, setSearch] = useState('');
+  const [search, setSearch] = usePageState('TeacherPages:search','');
 
   const students = users
     .filter((u) => u.role === 'student')
@@ -594,7 +596,7 @@ export const TeacherStudentsPage: React.FC = () => {
       ) : (
         <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
+            <ResponsiveTable className="w-full text-left border-collapse">
               <thead>
                 <tr className="border-b border-slate-200 dark:border-slate-800 text-xs text-slate-500 bg-slate-50 dark:bg-slate-950">
                   <th className="py-3 px-6 font-semibold">O'quvchi F.I.Sh.</th>
@@ -641,7 +643,7 @@ export const TeacherStudentsPage: React.FC = () => {
                   );
                 })}
               </tbody>
-            </table>
+            </ResponsiveTable>
           </div>
         </div>
       )}
@@ -1320,7 +1322,7 @@ export const TeacherAssignmentsPage: React.FC = () => {
         </div>
       ) : (
         <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden">
-          <table className="w-full text-left border-collapse">
+          <ResponsiveTable className="w-full text-left border-collapse">
             <thead>
               <tr className="border-b border-slate-200 dark:border-slate-800 text-xs text-slate-500 bg-slate-50 dark:bg-slate-950">
                 <th className="py-3 px-6 font-semibold">Test nomi</th>
@@ -1351,7 +1353,7 @@ export const TeacherAssignmentsPage: React.FC = () => {
                 );
               })}
             </tbody>
-          </table>
+          </ResponsiveTable>
         </div>
       )}
     </div>
@@ -1368,7 +1370,7 @@ export const QuestionBankPage: React.FC = () => {
     addToast,
   } = useLearnOS();
 
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = usePageState('TeacherPages:searchQuery','');
   const [topicFilter, setTopicFilter] = useState('all');
   const [difficultyFilter, setDifficultyFilter] = useState('all');
   const [typeFilter, setTypeFilter] = useState('all');
@@ -1930,7 +1932,7 @@ export const TeacherReportsPage: React.FC = () => {
       ) : (
         <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
+            <ResponsiveTable className="w-full text-left border-collapse">
               <thead>
                 <tr className="border-b border-slate-200 dark:border-slate-800 text-xs text-slate-500 bg-slate-50 dark:bg-slate-950">
                   <th className="py-3 px-6 font-semibold">O'quvchi</th>
@@ -1961,7 +1963,7 @@ export const TeacherReportsPage: React.FC = () => {
                   </tr>
                 ))}
               </tbody>
-            </table>
+            </ResponsiveTable>
           </div>
         </div>
       )}

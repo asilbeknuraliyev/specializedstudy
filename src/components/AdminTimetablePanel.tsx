@@ -1,3 +1,5 @@
+import {usePageState} from '../utils/usePageState';
+import {ResponsiveTable} from './ResponsiveTable';
 import React, { useState, useMemo } from 'react';
 import { useLearnOS } from '../context/LearnOSContext';
 import { OFFICIAL_19_CLASS_CODES } from '../constants/curriculum';
@@ -42,7 +44,7 @@ export const AdminTimetablePanel: React.FC = () => {
   const isAdmin = isPlatformOwner || currentUser?.role === 'admin' || currentUser?.role === 'platform_owner';
   const defaultClass = (currentUser?.classCode || '9a1') as OfficialClassCode;
 
-  const [selectedClassCode, setSelectedClassCode] = useState<OfficialClassCode>(defaultClass);
+  const [selectedClassCode, setSelectedClassCode] = usePageState<OfficialClassCode>('AdminTimetablePanel:selectedClassCode',defaultClass);
   const [selectedDay, setSelectedDay] = useState<TimetableWeekday>('Dushanba');
   const [selectedTimetableId, setSelectedTimetableId] = useState<string>('');
   const [showEntryModal, setShowEntryModal] = useState(false);
@@ -503,7 +505,7 @@ export const AdminTimetablePanel: React.FC = () => {
           {/* Desktop Weekly Timetable Grid */}
           <div className="hidden lg:block bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden shadow-xs">
             <div className="overflow-x-auto">
-              <table className="w-full border-collapse text-left">
+              <ResponsiveTable className="w-full border-collapse text-left">
                 <thead>
                   <tr className="border-b border-slate-200 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-800/50">
                     <th className="py-3 px-4 text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 w-28">
@@ -614,7 +616,7 @@ export const AdminTimetablePanel: React.FC = () => {
                     );
                   })}
                 </tbody>
-              </table>
+              </ResponsiveTable>
             </div>
           </div>
         </>

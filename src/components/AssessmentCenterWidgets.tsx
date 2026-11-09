@@ -1,3 +1,4 @@
+import {ResponsiveTable} from './ResponsiveTable';
 import { ExamAnswerContent } from './ExamAnswers';
 import React, { useState } from 'react';
 import {
@@ -429,7 +430,7 @@ export const ExcelImportCenterPanel: React.FC<{
                 Qatorlar bo‘yicha tekshiruv hisoboti
               </h5>
               <div className="overflow-x-auto border border-slate-200 dark:border-slate-800 rounded-xl">
-                <table className="w-full text-left text-xs">
+                <ResponsiveTable className="w-full text-left text-xs">
                   <thead className="bg-slate-50 dark:bg-slate-800/70 text-slate-500">
                     <tr>
                       <th className="py-2.5 px-3">Holat</th>
@@ -465,7 +466,7 @@ export const ExcelImportCenterPanel: React.FC<{
                       </tr>
                     ))}
                   </tbody>
-                </table>
+                </ResponsiveTable>
               </div>
             </div>
           )}
@@ -566,7 +567,7 @@ export const ExcelImportCenterPanel: React.FC<{
           </p>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
+            <ResponsiveTable className="w-full text-left text-xs">
               <thead className="border-b border-slate-200 dark:border-slate-800 text-slate-500">
                 <tr>
                   <th className="py-2.5 pr-4">Sana</th>
@@ -599,7 +600,7 @@ export const ExcelImportCenterPanel: React.FC<{
                   </tr>
                 ))}
               </tbody>
-            </table>
+            </ResponsiveTable>
           </div>
         )}
       </div>

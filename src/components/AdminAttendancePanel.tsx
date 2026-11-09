@@ -1,3 +1,5 @@
+import {usePageState} from '../utils/usePageState';
+import {ResponsiveTable} from './ResponsiveTable';
 import {useExportAction} from '../utils/useExportAction';
 import React, { useState, useMemo } from 'react';
 import {
@@ -46,7 +48,7 @@ export const AdminAttendancePanel: React.FC = () => {
   } = useLearnOS();
 
   // Selection states
-  const [selectedClassCode, setSelectedClassCode] = useState<OfficialClassCode>('7a1');
+  const [selectedClassCode, setSelectedClassCode] = usePageState<OfficialClassCode>('AdminAttendancePanel:selectedClassCode','7a1');
   const [selectedDate, setSelectedDate] = useState<string>(
     new Date().toISOString().slice(0, 10)
   );
@@ -436,7 +438,7 @@ export const AdminAttendancePanel: React.FC = () => {
           </div>
 
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
+            <ResponsiveTable className="w-full text-left text-xs">
               <thead className="bg-slate-50 dark:bg-slate-800/80 border-b border-slate-200 dark:border-slate-800 text-slate-500 font-semibold">
                 <tr>
                   <th className="py-3 px-4 w-12 text-center">#</th>
@@ -512,7 +514,7 @@ export const AdminAttendancePanel: React.FC = () => {
                   })
                 )}
               </tbody>
-            </table>
+            </ResponsiveTable>
           </div>
         </div>
       )}
@@ -632,7 +634,7 @@ export const AdminAttendancePanel: React.FC = () => {
           </div>
 
           <div className="max-h-80 overflow-y-auto border border-slate-200 dark:border-slate-800 rounded-xl">
-            <table className="w-full text-left text-xs">
+            <ResponsiveTable className="w-full text-left text-xs">
               <thead className="bg-slate-50 dark:bg-slate-800 text-slate-500 font-semibold border-b border-slate-200 dark:border-slate-800">
                 <tr>
                   <th className="py-2 px-3">Qator</th>
@@ -653,7 +655,7 @@ export const AdminAttendancePanel: React.FC = () => {
                   </tr>
                 ))}
               </tbody>
-            </table>
+            </ResponsiveTable>
           </div>
         </div>
       )}

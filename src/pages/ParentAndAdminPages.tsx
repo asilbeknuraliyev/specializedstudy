@@ -1,3 +1,5 @@
+import {usePageState} from '../utils/usePageState';
+import {ResponsiveTable} from '../components/ResponsiveTable';
 import {useExportAction} from '../utils/useExportAction';
 import { ExamCenter } from '../components/ExamCenter';
 import { WorkPlanCenter } from '../components/WorkPlanCenter';
@@ -378,7 +380,7 @@ export const AdminClassesPage: React.FC = () => {
 
   const [trackFilter, setTrackFilter] = useState<'ALL' | 'A' | 'T'>('ALL');
   const [gradeFilter, setGradeFilter] = useState<string>('ALL');
-  const [selectedClassCode, setSelectedClassCode] = useState<string | null>(
+  const [selectedClassCode, setSelectedClassCode] = usePageState<string | null>('ParentAndAdminPages:selectedClassCode',
     searchParams.get('class')
   );
   const [detailTab, setDetailTab] = useState<
@@ -961,11 +963,11 @@ export const AdminStudentsPage: React.FC = () => {
   const [pageTab, setPageTab] = useState<'directory' | 'import' | 'history'>('directory');
 
   // Directory Filters & Sorting
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = usePageState('ParentAndAdminPages:searchQuery','');
   const [classFilter, setClassFilter] = useState<string>(searchParams.get('class') || 'ALL');
   const [gradeFilter, setGradeFilter] = useState<string>('ALL');
   const [trackFilter, setTrackFilter] = useState<string>('ALL');
-  const [statusFilter, setStatusFilter] = useState<string>('ALL');
+  const [statusFilter, setStatusFilter] = usePageState<string>('ParentAndAdminPages:statusFilter','ALL');
   const [sortBy, setSortBy] = useState<'class' | 'name'>('class');
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 25;
@@ -1687,7 +1689,7 @@ export const AdminStudentsPage: React.FC = () => {
 
                 {/* Desktop High-Density Table (>=768px) */}
                 <div className="hidden md:block overflow-x-auto">
-                  <table className="w-full text-left border-collapse text-xs">
+                  <ResponsiveTable className="w-full text-left border-collapse text-xs">
                     <thead>
                       <tr className="border-b border-slate-200 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-950 text-slate-500 font-semibold">
                         <th className="py-2.5 px-3 w-8">
@@ -1802,7 +1804,7 @@ export const AdminStudentsPage: React.FC = () => {
                         );
                       })}
                     </tbody>
-                  </table>
+                  </ResponsiveTable>
                 </div>
               </>
             )}
@@ -2172,7 +2174,7 @@ export const AdminStudentsPage: React.FC = () => {
 
               {/* Preview Rows Table with Inline Class & Name Fixing */}
               <div className="border border-slate-200 dark:border-slate-800 rounded-lg overflow-x-auto max-h-96">
-                <table className="w-full text-left border-collapse text-xs">
+                <ResponsiveTable className="w-full text-left border-collapse text-xs">
                   <thead className="sticky top-0 bg-slate-50 dark:bg-slate-950 border-b border-slate-200 dark:border-slate-800 text-slate-500">
                     <tr>
                       <th className="py-2 px-3 w-12">№</th>
@@ -2282,7 +2284,7 @@ export const AdminStudentsPage: React.FC = () => {
                         </tr>
                       ))}
                   </tbody>
-                </table>
+                </ResponsiveTable>
               </div>
             </div>
           )}
@@ -2299,7 +2301,7 @@ export const AdminStudentsPage: React.FC = () => {
               Hozircha Excel import amaliyotlari tarixi mavjud emas.
             </div>
           ) : (
-            <table className="w-full text-left border-collapse text-xs">
+            <ResponsiveTable className="w-full text-left border-collapse text-xs">
               <thead>
                 <tr className="border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-slate-500">
                   <th className="py-2.5 px-4">Fayl nomi</th>
@@ -2351,7 +2353,7 @@ export const AdminStudentsPage: React.FC = () => {
                   </tr>
                 ))}
               </tbody>
-            </table>
+            </ResponsiveTable>
           )}
         </div>
       )}
@@ -3435,7 +3437,7 @@ const LegacyWorkPlansPage: React.FC = () => {
 
           {/* 21 Workbooks Table */}
           <div className="overflow-x-auto border border-slate-200 dark:border-slate-800 rounded-xl">
-            <table className="w-full text-left border-collapse text-xs">
+            <ResponsiveTable className="w-full text-left border-collapse text-xs">
               <thead className="bg-slate-50 dark:bg-slate-950 border-b border-slate-200 dark:border-slate-800 text-slate-500">
                 <tr>
                   <th className="py-2.5 px-3">Fayl nomi</th>
@@ -3479,7 +3481,7 @@ const LegacyWorkPlansPage: React.FC = () => {
                   </tr>
                 ))}
               </tbody>
-            </table>
+            </ResponsiveTable>
           </div>
         </div>
       )}
@@ -3633,7 +3635,7 @@ const LegacyWorkPlansPage: React.FC = () => {
           )}
 
           <div className="overflow-x-auto max-h-80">
-            <table className="w-full text-left border-collapse text-xs">
+            <ResponsiveTable className="w-full text-left border-collapse text-xs">
               <thead className="bg-slate-50 dark:bg-slate-950 border-b border-slate-200 dark:border-slate-800 text-slate-500">
                 <tr>
                   <th className="py-2 px-3 w-14">Dars tartibi</th>
@@ -3660,7 +3662,7 @@ const LegacyWorkPlansPage: React.FC = () => {
                   </tr>
                 ))}
               </tbody>
-            </table>
+            </ResponsiveTable>
           </div>
         </div>
       )}
@@ -3824,7 +3826,7 @@ const LegacyWorkPlansPage: React.FC = () => {
             </div>
 
             <div className="overflow-y-auto flex-1 border border-slate-200 dark:border-slate-800 rounded-lg">
-              <table className="w-full text-left border-collapse text-xs">
+              <ResponsiveTable className="w-full text-left border-collapse text-xs">
                 <thead className="bg-slate-50 dark:bg-slate-950 border-b border-slate-200 dark:border-slate-800 text-slate-500 sticky top-0">
                   <tr>
                     <th className="py-2 px-3 w-16">Dars №</th>
@@ -3855,7 +3857,7 @@ const LegacyWorkPlansPage: React.FC = () => {
                     </tr>
                   ))}
                 </tbody>
-              </table>
+              </ResponsiveTable>
             </div>
 
             <div className="flex justify-end pt-2">
@@ -3916,9 +3918,9 @@ export const AdminCurriculumMapPage: React.FC = () => {
   const [classFilter, setClassFilter] = useState<string>(searchParams.get('class') || 'ALL');
   const [trackFilter, setTrackFilter] = useState<string>(searchParams.get('track') || 'ALL');
   const [areaFilter, setAreaFilter] = useState<string>(searchParams.get('area') || 'ALL');
-  const [quarterFilter, setQuarterFilter] = useState<string>(searchParams.get('quarter') || 'ALL');
+  const [quarterFilter, setQuarterFilter] = usePageState<string>('ParentAndAdminPages:quarterFilter',searchParams.get('quarter') || 'ALL');
   const [categoryFilter, setCategoryFilter] = useState<string>('ALL');
-  const [searchQuery, setSearchQuery] = useState<string>('');
+  const [searchQuery, setSearchQuery] = usePageState<string>('ParentAndAdminPages:searchQuery','');
   const [eventTypeFilter, setEventTypeFilter] = useState<string>('ALL');
   const [page, setPage] = useState<number>(1);
   const PAGE_SIZE = 50;
@@ -6078,7 +6080,7 @@ export const AdminResultsPage: React.FC = () => {
 
           {/* Desktop Results Table (>=768px) */}
           <div className="hidden md:block overflow-x-auto">
-            <table className="w-full text-left border-collapse text-xs">
+            <ResponsiveTable className="w-full text-left border-collapse text-xs">
               <thead>
                 <tr className="border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-slate-500">
                   <th className="py-2.5 px-4">O‘quvchi</th>
@@ -6115,7 +6117,7 @@ export const AdminResultsPage: React.FC = () => {
                   );
                 })}
               </tbody>
-            </table>
+            </ResponsiveTable>
           </div>
         </div>
       )}

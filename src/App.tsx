@@ -45,6 +45,7 @@ const AdminNotificationsPage = lazy(() => import('./pages/ParentAndAdminPages').
 const AdminAuditLogsPage = lazy(() => import('./pages/ParentAndAdminPages').then(module => ({ default: module.AdminAuditLogsPage })));
 const AdminHelpDocsPage = lazy(() => import('./pages/ParentAndAdminPages').then(module => ({ default: module.AdminHelpDocsPage })));
 
+const DemoPanel=lazy(()=>import('./components/DemoPanel').then(m=>({default:m.DemoPanel})));
 const ContentCenter=lazy(()=>import('./components/ContentCenter').then(m=>({default:m.ContentCenter})));
 const StudentTaskHub=lazy(()=>import('./components/StudentHome').then(m=>({default:m.StudentTaskHub})));
 const TeachingPanel = lazy(() => import('./components/TeachingPanel').then(m=>({default:m.TeachingPanel})));
@@ -75,6 +76,9 @@ export default function App() {
           <Route path="/terms" element={<TermsPage />} />
 
           {/* Student Routes */}
+          <Route path="/admin/demo" element={<ProtectedRoute allowedRole="admin"><DemoPanel/></ProtectedRoute>}/>
+          <Route path="/teacher/demo" element={<ProtectedRoute allowedRole="teacher"><DemoPanel/></ProtectedRoute>}/>
+          <Route path="/student/demo" element={<ProtectedRoute allowedRole="student"><DemoPanel/></ProtectedRoute>}/>
           <Route path="/student/tasks" element={<ProtectedRoute allowedRole="student"><StudentTaskHub/></ProtectedRoute>}/>
           <Route path="/admin/content" element={<ProtectedRoute allowedRole="admin"><ContentCenter/></ProtectedRoute>}/>
           <Route

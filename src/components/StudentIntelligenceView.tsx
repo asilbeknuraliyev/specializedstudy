@@ -1,3 +1,4 @@
+import {ResponsiveTable} from './ResponsiveTable';
 import React, { useState, useEffect, useMemo } from 'react';
 import {
   User,
@@ -393,7 +394,7 @@ export const StudentIntelligenceView: React.FC<StudentIntelligenceViewProps> = (
             </div>
 
             <div className="border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden">
-              <table className="w-full text-left text-xs">
+              <ResponsiveTable className="w-full text-left text-xs">
                 <thead className="bg-slate-50 dark:bg-slate-800/80 border-b border-slate-200 dark:border-slate-800 text-slate-500 font-semibold">
                   <tr>
                     <th className="py-2.5 px-3">Sana</th>
@@ -444,7 +445,7 @@ export const StudentIntelligenceView: React.FC<StudentIntelligenceViewProps> = (
                     ))
                   )}
                 </tbody>
-              </table>
+              </ResponsiveTable>
             </div>
           </div>
         )}
@@ -485,7 +486,7 @@ export const StudentIntelligenceView: React.FC<StudentIntelligenceViewProps> = (
             </div>
 
             <div className="border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden">
-              <table className="w-full text-left text-xs">
+              <ResponsiveTable className="w-full text-left text-xs">
                 <thead className="bg-slate-50 dark:bg-slate-800/80 border-b border-slate-200 dark:border-slate-800 text-slate-500 font-semibold">
                   <tr>
                     <th className="py-2.5 px-3">Mavzu</th>
@@ -518,7 +519,7 @@ export const StudentIntelligenceView: React.FC<StudentIntelligenceViewProps> = (
                     ))
                   )}
                 </tbody>
-              </table>
+              </ResponsiveTable>
             </div>
           </div>
         )}
@@ -530,7 +531,7 @@ export const StudentIntelligenceView: React.FC<StudentIntelligenceViewProps> = (
               Topshirilgan nazorat va diagnostika testlari
             </h4>
             <div className="border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden">
-              <table className="w-full text-left text-xs">
+              <ResponsiveTable className="w-full text-left text-xs">
                 <thead className="bg-slate-50 dark:bg-slate-800 text-slate-500 font-semibold border-b border-slate-200 dark:border-slate-800">
                   <tr>
                     <th className="py-2.5 px-3">Test nomi</th>
@@ -565,7 +566,7 @@ export const StudentIntelligenceView: React.FC<StudentIntelligenceViewProps> = (
                     ))
                   )}
                 </tbody>
-              </table>
+              </ResponsiveTable>
             </div>
           </div>
         )}
@@ -591,7 +592,7 @@ export const StudentIntelligenceView: React.FC<StudentIntelligenceViewProps> = (
         {activeTab === 'assignments' && (
           <div className="space-y-4">
             <div className="border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden">
-              <table className="w-full text-left text-xs">
+              <ResponsiveTable className="w-full text-left text-xs">
                 <thead className="bg-slate-50 dark:bg-slate-800 text-slate-500 font-semibold border-b border-slate-200 dark:border-slate-800">
                   <tr>
                     <th className="py-2.5 px-3">Topshiriq nomi</th>
@@ -636,7 +637,7 @@ export const StudentIntelligenceView: React.FC<StudentIntelligenceViewProps> = (
                     ))
                   )}
                 </tbody>
-              </table>
+              </ResponsiveTable>
             </div>
           </div>
         )}

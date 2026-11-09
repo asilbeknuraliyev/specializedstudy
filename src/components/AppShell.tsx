@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
+import {PanelNavigation,ProfileMenu} from './PanelNavigation';
+import React, {Suspense, useState, useEffect, useRef } from 'react';
 import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard,
@@ -58,6 +59,7 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
   const [commandOpen, setCommandOpen] = useState(false);
   const [commandQuery, setCommandQuery] = useState('');
   const [searchResults, setSearchResults] = useState<GlobalSearchResultItem[]>([]);
+  const [searchError,setSearchError]=useState('');
   const [isSearching, setIsSearching] = useState(false);
   const [aiResult, setAiResult] = useState<AICommandExecutionResult | null>(null);
   const [isExecutingAI, setIsExecutingAI] = useState(false);
@@ -104,13 +106,14 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
       setIsSearching(false);
       return;
     }
+    setSearchError('');
     setIsSearching(true);
     let cancelled = false;
     const timer = setTimeout(async () => {
       try {
         const res = await searchGlobal(trimmed);
         if (!cancelled) setSearchResults(res);
-      } finally {
+      } catch {if(!cancelled){setSearchResults([]);setSearchError('Qidiruv bajarilmadi. Qayta urinib ko‘ring.');}} finally {
         setIsSearching(false);
       }
     }, 200);
@@ -132,6 +135,7 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
   const navItems = isAdminAccount
     ? [
         { to: '/admin/dashboard', label: 'Bosh sahifa', icon: LayoutDashboard, end: true },
+        {to:'/admin/demo',label:'DEMO sinf',icon:GraduationCap},
         { to: '/admin/content', label: 'Kontent markazi', icon: FileSpreadsheet },
         { to: '/admin/classes', label: 'Sinflar', icon: Users },
         { to: '/admin/teachers', label: 'O‘qituvchilar', icon: Users },
@@ -154,12 +158,12 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
         { to: '/admin/support-plans', label: 'Yordam rejalari', icon: HeartHandshake },
         { to: '/admin/settings', label: 'Sozlamalar', icon: Settings },
       ]
-    : currentUser.role==='teacher'?[{to:'/teacher/dashboard',label:'Mening sinflarim',icon:Users,end:true}]:[
+    : currentUser.role==='teacher'?[{to:'/teacher/dashboard',label:'Mening sinflarim',icon:Users,end:true},{to:'/teacher/demo',label:'DEMO tekshiruv',icon:ClipboardCheck}]:[
         {to:'/student/dashboard',label:'Bosh sahifa',icon:LayoutDashboard,end:true},
         {to:'/student/lessons',label:'Fanlar',icon:BookOpen},
         {to:'/student/timetable',label:'Jadval',icon:Calendar},
         {to:'/student/tasks',label:'Vazifalar',icon:ClipboardCheck},
-        {to:'/student/profile',label:'Men',icon:UserIcon},
+        {to:'/student/knowledge-map',label:'Ko‘proq',icon:UserIcon},
       ];
   const studentMobileBottomItems=navItems;
 
@@ -266,11 +270,11 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
   };
 
   return (
-    <div className="min-h-screen flex bg-[#F8FAFC] dark:bg-[#0B0F17] text-slate-900 dark:text-slate-100 transition-colors overflow-x-hidden">
+    <div className="min-h-screen flex bg-[#F8FAFC] dark:bg-[#0B0F17] text-slate-900 dark:text-slate-100 transition-colors overflow-x-clip">
       {/* Desktop Sidebar — Clean Linear/Notion style */}
-      <aside className="w-60 shrink-0 border-r border-slate-200/80 dark:border-slate-800/80 bg-white dark:bg-[#0F1623] hidden lg:flex flex-col justify-between">
-        <div>
-          <div className="h-14 px-5 flex items-center gap-2.5 border-b border-slate-200/70 dark:border-slate-800/70">
+      <aside className="w-60 shrink-0 border-r border-slate-200/80 dark:border-slate-800/80 bg-white dark:bg-[#0F1623] hidden lg:flex flex-col sticky top-0 h-dvh self-start">
+        <div className="flex min-h-0 flex-1 flex-col">
+          <div className="h-14 shrink-0 px-5 flex items-center gap-2.5 border-b border-slate-200/70 dark:border-slate-800/70">
             <div className="w-7 h-7 rounded-md bg-blue-600 flex items-center justify-center text-white font-bold text-xs tracking-tight shadow-xs">
               SS
             </div>
@@ -279,61 +283,11 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
             </span>
           </div>
 
-          <nav className="p-2.5 space-y-0.5">
-            {navItems.map((item) => {
-              const Icon = item.icon;
-              return (
-                <NavLink
-                  key={item.to}
-                  to={item.to}
-                  end={item.end}
-                  className={({ isActive }) =>
-                    `flex items-center gap-2.5 px-3 py-2 rounded-md text-[13px] font-medium transition-colors ${
-                      isActive
-                        ? 'bg-blue-50/90 dark:bg-blue-950/50 text-blue-600 dark:text-blue-400 font-semibold'
-                        : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100/70 dark:hover:bg-slate-800/50 hover:text-slate-900 dark:hover:text-slate-200'
-                    }`
-                  }
-                >
-                  <Icon className="w-4 h-4 shrink-0" />
-                  <span className="truncate">{item.label}</span>
-                </NavLink>
-              );
-            })}
+          <nav className="min-h-0 overflow-y-auto p-2.5 space-y-0.5">
+            <PanelNavigation items={navItems} grouped={currentUser.role!=='student'}/>
           </nav>
         </div>
 
-        {/* User Footer — No repeated role badges */}
-        <div className="p-3 border-t border-slate-200/70 dark:border-slate-800/70">
-          <div
-            onClick={() => {
-              if (currentUser.role==='student') navigate('/student/profile');
-            }}
-            className={`px-2.5 py-2 rounded-md bg-slate-50 dark:bg-slate-800/40 border border-slate-200/60 dark:border-slate-800 mb-2 ${
-              !isAdminAccount ? 'cursor-pointer hover:border-blue-400 transition-colors' : ''
-            }`}
-          >
-            <div className="text-xs font-semibold truncate text-slate-800 dark:text-slate-200">
-              {currentUser.displayName}
-            </div>
-            <div className="text-[11px] text-slate-500 dark:text-slate-400 truncate mt-0.5">
-              {!isAdminAccount && currentUser.classCode
-                ? `${currentUser.classCode.toUpperCase()} sinf`
-                : currentUser.email}
-            </div>
-          </div>
-
-          <button
-            onClick={() => {
-              logout();
-              navigate('/login');
-            }}
-            className="w-full flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium text-slate-600 dark:text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-colors cursor-pointer"
-          >
-            <LogOut className="w-3.5 h-3.5" />
-            <span>Chiqish</span>
-          </button>
-        </div>
       </aside>
 
       {/* Mobile Sidebar Drawer */}
@@ -362,50 +316,11 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
                   <X className="w-4 h-4" />
                 </button>
               </div>
-              <nav className="p-2.5 space-y-1 overflow-y-auto max-h-[calc(100vh-160px)]">
-                {mobileDrawerItems.map((item) => {
-                  const Icon = item.icon;
-                  return (
-                    <NavLink
-                      key={item.to}
-                      to={item.to}
-                      end={item.end}
-                      className={({ isActive }) =>
-                        `min-h-[44px] flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
-                          isActive
-                            ? 'bg-blue-50 dark:bg-blue-950/50 text-blue-600 dark:text-blue-400 font-semibold'
-                            : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/60'
-                        }`
-                      }
-                    >
-                      <Icon className="w-4 h-4 shrink-0" />
-                      <span>{item.label}</span>
-                    </NavLink>
-                  );
-                })}
+              <nav className="p-2.5 space-y-1 overflow-y-auto max-h-[calc(100dvh-56px)]">
+                <PanelNavigation items={mobileDrawerItems} grouped={currentUser.role!=='student'}/>
               </nav>
             </div>
-            <div className="p-3 border-t border-slate-200 dark:border-slate-800 pb-safe">
-              <div className="px-2 py-1.5 mb-2 rounded-lg bg-slate-50 dark:bg-slate-800/40">
-                <div className="text-xs font-semibold truncate">{currentUser.displayName}</div>
-                <div className="text-[11px] text-slate-500 dark:text-slate-400 truncate">
-                  {!isAdminAccount && currentUser.classCode
-                    ? `${currentUser.classCode.toUpperCase()} sinf`
-                    : currentUser.email}
-                </div>
-              </div>
-              <button
-                onClick={() => {
-                  setMobileMenuOpen(false);
-                  logout();
-                  navigate('/login');
-                }}
-                className="w-full min-h-[44px] flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold text-rose-600 bg-rose-50 dark:bg-rose-950/30"
-              >
-                <LogOut className="w-3.5 h-3.5" />
-                <span>Chiqish</span>
-              </button>
-            </div>
+
           </aside>
         </div>
       )}
@@ -418,7 +333,7 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
             <button
               onClick={() => setMobileMenuOpen(true)}
               aria-label="Menyuni ochish"
-              className="lg:hidden w-10 h-10 flex items-center justify-center rounded-lg border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 shrink-0 cursor-pointer"
+              className="lg:hidden w-11 h-11 flex items-center justify-center rounded-lg border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 shrink-0 cursor-pointer"
             >
               <Menu className="w-4 h-4" />
             </button>
@@ -433,7 +348,7 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
               <button
                 onClick={() => setCommandOpen(true)}
                 aria-label="Tezkor amal qo'shish"
-                className="sm:hidden w-10 h-10 flex items-center justify-center rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors cursor-pointer"
+                className="sm:hidden w-11 h-11 flex items-center justify-center rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors cursor-pointer"
               >
                 <Plus className="w-4 h-4" />
               </button>
@@ -443,7 +358,7 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
             <button
               onClick={() => setCommandOpen(true)}
               aria-label="Qidiruv"
-              className="min-h-[40px] flex items-center gap-2 px-2.5 sm:px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-800/50 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400 text-xs transition-colors cursor-pointer"
+              className="min-h-[44px] flex items-center gap-2 px-2.5 sm:px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-800/50 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400 text-xs transition-colors cursor-pointer"
               title="Tezkor qidiruv va buyruqlar (Ctrl+K)"
             >
               <Search className="w-4 h-4 text-slate-400 shrink-0" />
@@ -458,7 +373,7 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
               <button
                 onClick={() => setNotifOpen(!notifOpen)}
                 aria-label="Bildirishnomalar"
-                className="w-10 h-10 flex items-center justify-center rounded-lg border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 relative cursor-pointer"
+                className="w-11 h-11 flex items-center justify-center rounded-lg border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 relative cursor-pointer"
               >
                 <Bell className="w-4 h-4" />
                 {unreadCount > 0 && (
@@ -500,10 +415,11 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
               )}
             </div>
 
+            <ProfileMenu/>
             {/* Theme Toggle */}
             <button
               onClick={toggleTheme}
-              className="w-10 h-10 flex items-center justify-center rounded-lg border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
+              className="w-11 h-11 flex items-center justify-center rounded-lg border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
               aria-label="Mavzuni o'zgartirish"
             >
               {theme === 'light' ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4" />}
@@ -513,12 +429,11 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
 
         {/* Page Viewport */}
         <main
-          key={location.pathname}
           className={`flex-1 p-3.5 sm:p-5 lg:p-6 max-w-7xl w-full mx-auto min-w-0 ss-page-enter ${
             currentUser.role==='student' && !isActiveTestRunner ? 'pb-24 lg:pb-6' : 'pb-8 lg:pb-6'
           }`}
         >
-          {children}
+          <Suspense fallback={<div role="status" className="ss-surface p-6 animate-pulse">Sahifa yuklanmoqda…</div>}>{children}</Suspense>
         </main>
 
         {/* Student Mobile Bottom Navigation Bar (< 1024px) */}
@@ -690,7 +605,7 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
               {commandQuery.trim().length > 0 && (
                 <div className="px-2">
                   <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 px-2 mb-1">
-                    {isSearching ? 'Qidirilmoqda...' : `Natijalar (${searchResults.length})`}
+                    {searchError|| (isSearching ? 'Qidirilmoqda...' : `Natijalar (${searchResults.length})`)}
                   </div>
                   {searchResults.length === 0 && !isSearching ? (
                     <p className="text-xs text-slate-400 px-2 py-3">

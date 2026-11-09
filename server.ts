@@ -1,3 +1,5 @@
+import {registerDemoRoutes} from './src/server/demoRoutes';
+import {scopeInstitutionResponse} from './src/server/institutionView';
 import nodeCrypto from 'node:crypto';
 import {registerTeachingRoutes,teacherClasses,deliveredForClass} from './src/server/teachingRoutes';
 import { registerExamRoutes } from './src/server/examRoutes';
@@ -506,9 +508,10 @@ async function startServer() {
   });
 
   registerTeachingRoutes(app,{authenticate:authenticateRequest,save:saveDbState,hash:hashPassword,revoke:revokeAllUserSessions});
+  registerDemoRoutes(app,{authenticate:authenticateRequest,save:saveDbState,hash:hashPassword,revoke:revokeAllUserSessions});
   registerContentRoutes(app,{authenticate:authenticateRequest,save:saveDbState});
   registerStudentHomeRoutes(app,{authenticate:authenticateRequest,save:saveDbState});
-  app.use('/api',(req,res,next)=>{const c=authenticateRequest(req);if(c?.user.role==='teacher'&&!['/state','/auth/logout'].includes(req.path)&&!req.path.startsWith('/teaching/'))return res.status(403).json({error:'O‘qituvchi uchun bu amalga ruxsat yo‘q.'});next();});
+  app.use('/api',(req,res,next)=>{const c=authenticateRequest(req);if(c?.user.role==='teacher'&&!['/state','/auth/logout','/search'].includes(req.path)&&!req.path.startsWith('/teaching/'))return res.status(403).json({error:'O‘qituvchi uchun bu amalga ruxsat yo‘q.'});next();});
   registerExamRoutes(app, {authenticate: authenticateRequest, save: saveDbState, notify: broadcastInstitutionUpdate});
 
   function enforceRateLimit(
@@ -1569,6 +1572,7 @@ async function startServer() {
     const { user, db } = authCtx;
     ensureSpecializedStudyStructure(db);
     const instId = user.institutionId;
+    const scopedJson=res.json.bind(res);res.json=((body:any)=>scopedJson(scopeInstitutionResponse(body,db,instId))) as typeof res.json;
 
     const institution =
       db.institutions.find((i) => i.id === instId) ||
@@ -1667,8 +1671,8 @@ async function startServer() {
     if (user.role === 'student') {
       const myClass = db.classes.find(
         (c) =>
-          c.id === user.classId ||
-          (user.classCode && c.code.toLowerCase() === user.classCode.toLowerCase())
+          c.institutionId===user.institutionId&&(c.id === user.classId ||
+          (user.classCode && c.code.toLowerCase() === user.classCode.toLowerCase()))
       );
 
       // Sync student's class metadata if needed
@@ -2037,7 +2041,7 @@ async function startServer() {
   app.get('/api/admin/overview', (req, res) => {
     const ctx = requirePlatformOwner(req, res);
     if (!ctx) return;
-    const { db } = ctx;
+    const db=scopeInstitutionResponse(ctx.db,ctx.db,ctx.user.institutionId) as PersistentDatabaseState;
 
     const totalInstitutions = db.institutions.length;
     const activeInstitutions = db.institutions.filter((i) => i.status !== 'suspended' && i.status !== 'archived').length;
@@ -3604,9 +3608,14 @@ async function startServer() {
   app.get('/api/search', (req, res) => {
     const authCtx = authenticateRequest(req);
     if (!authCtx) return res.status(401).json({ error: 'Avtorizatsiya talab qilinadi.' });
-    const { user, db } = authCtx;
-
+    const {user}=authCtx;
+    const db={...authCtx.db};
+    for(const key of ['users','classes','subjects','workPlans','lessons','assessments'] as const)(db as any)[key]=(authCtx.db[key]||[]).filter((r:any)=>r.institutionId===user.institutionId);
     const q = String(req.query.q || '').trim().toLowerCase();
+    if(user.role==='teacher'){
+      const classes=teacherClasses(user,db);const ids=new Set(classes.map(c=>c.id));
+      const hits=[...classes.filter(c=>c.code.includes(q)).map(c=>({id:c.id,category:'class',title:c.code.toUpperCase(),subtitle:'Biriktirilgan sinf',route:'/teacher/dashboard',recordId:c.id})),...db.users.filter(u=>u.role==='student'&&ids.has(u.classId||'')&&u.displayName.toLowerCase().includes(q)).map(u=>({id:u.uid,category:'student',title:u.displayName,subtitle:'O‘quvchi',route:'/teacher/dashboard',recordId:u.uid})),...db.lessons.filter(l=>[l.classId,...(l.classIds||[])].some(id=>ids.has(id||''))&&(l.subjectName===user.subject||db.demoLabs?.some(lab=>lab.teacherId===user.uid))&&l.title.toLowerCase().includes(q)).map(l=>({id:l.id,category:'lesson',title:l.title,subtitle:l.subjectName,route:'/teacher/dashboard',recordId:l.id}))];return res.json({results:q?hits.slice(0,30):[]});
+    }
     const results: GlobalSearchResultItem[] = [];
     const isAdmin = user.role === 'admin' || user.role === 'platform_owner';
 
@@ -3620,7 +3629,7 @@ async function startServer() {
         if (
           cls.code.toLowerCase().includes(q) ||
           `${cls.code} sinfi`.toLowerCase().includes(q) ||
-          cls.trackLabel.toLowerCase().includes(q)
+          (cls.trackLabel||'').toLowerCase().includes(q)
         ) {
           results.push({
             id: `srch-cls-${cls.id}`,
@@ -3664,7 +3673,7 @@ async function startServer() {
             id: `srch-subj-${subj.id}`,
             category: 'subject',
             title: subj.name,
-            subtitle: `Yo'nalish: ${subj.trackTypes.join(', ')}`,
+            subtitle: `Yo'nalish: ${(subj.trackTypes||[]).join(', ')}`,
             badge: subj.code,
             route: `/admin/subjects`,
             recordId: subj.id,
@@ -3684,7 +3693,7 @@ async function startServer() {
             category: 'work_plan',
             title: wp.title,
             subtitle: `${wp.classCode.toUpperCase()} • ${wp.subjectName} • ${wp.quarter}-chorak`,
-            badge: `${wp.rows.length} dars`,
+            badge: `${(wp.rows||[]).length} dars`,
             route: `/admin/work-plans`,
             recordId: wp.id,
             classCode: wp.classCode,
