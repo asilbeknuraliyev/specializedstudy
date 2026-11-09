@@ -8,7 +8,7 @@ const PrivacyPage = lazy(() => import('./pages/PublicPages').then(module => ({ d
 const TermsPage = lazy(() => import('./pages/PublicPages').then(module => ({ default: module.TermsPage })));
 const LoginPage = lazy(() => import('./pages/AuthPages').then(module => ({ default: module.LoginPage })));
 const RegisterPage = lazy(() => import('./pages/AuthPages').then(module => ({ default: module.RegisterPage })));
-const StudentDashboardPage = lazy(() => import('./pages/StudentPages').then(module => ({ default: module.StudentDashboardPage })));
+const StudentDashboardPage = lazy(() => import('./components/StudentHome').then(module => ({ default: module.StudentHome })));
 const StudentLessonsPage = lazy(() => import('./pages/StudentPages').then(module => ({ default: module.StudentLessonsPage })));
 const StudentAssessmentsPage = lazy(() => import('./pages/StudentPages').then(module => ({ default: module.StudentAssessmentsPage })));
 const AssessmentRunnerPage = lazy(() => import('./pages/StudentPages').then(module => ({ default: module.AssessmentRunnerPage })));

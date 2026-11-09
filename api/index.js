@@ -3111,7 +3111,16 @@ function registerContentRoutes(app2, deps) {
   app2.get("/api/content-imports", (req, res) => {
     const c = admin(req, res);
     if (!c) return;
-    res.json({ jobs: (c.db.contentImports || []).filter((j) => j.institutionId === c.user.institutionId).slice(-50).reverse() });
+    const query = String(req.query.q || "").slice(0, 100).toLowerCase(), status = String(req.query.status || "all"), page = Math.max(0, Math.min(1e5, Number(req.query.page) || 0));
+    const all = (c.db.contentImports || []).filter((j) => j.institutionId === c.user.institutionId && (status === "all" || j.status === status) && j.fileName.toLowerCase().includes(query)).reverse();
+    res.json({ total: all.length, page, jobs: all.slice(page * 20, page * 20 + 20).map(({ rows, created, ...job }) => ({ ...job, rows: [], rowCount: rows.length })) });
+  });
+  app2.get("/api/content-imports/:id", (req, res) => {
+    const c = admin(req, res);
+    if (!c) return;
+    const job = c.db.contentImports?.find((j) => j.id === req.params.id && j.institutionId === c.user.institutionId);
+    if (!job) return res.status(404).json({ error: "Import topilmadi." });
+    res.json({ job });
   });
   app2.post("/api/content-imports/preview", async (req, res) => {
     const c = admin(req, res);
