@@ -14,9 +14,23 @@ export class StateConflictError extends Error { constructor() { super('State cha
 export function encodeState(value: unknown) {
  const raw=Buffer.from(JSON.stringify(value));
  if(raw.length>MAX_STATE_BYTES)throw new Error('State exceeds configured size limit');
- const compressed=gzipSync(raw);
+ // Independent gzip members preserve schema-1 compatibility: concatenating and
+ // gunzipping them produces the exact original JSON. A session edit no longer
+ // rewrites unchanged curriculum bytes. Array slices retain their original order.
+ const parts:string[]=[];
+ if(value&&typeof value==='object'&&!Array.isArray(value)){
+   const entries=Object.entries(value).filter(([,v])=>JSON.stringify(v)!==undefined);
+   entries.forEach(([key,v],i)=>{
+     const prefix=(i?',':'{')+JSON.stringify(key)+':';
+     if(Array.isArray(v)&&v.length>64){
+       for(let start=0;start<v.length;start+=64)parts.push((start?',':prefix+'[')+v.slice(start,start+64).map(item=>JSON.stringify(item)??'null').join(',')+(start+64>=v.length?']':''));
+     }else parts.push(prefix+JSON.stringify(v));
+   });
+   if(!entries.length)parts.push('{');
+   parts[parts.length-1]+='}';
+ }else parts.push(raw.toString('utf8'));
  const chunks:Array<{id:string;data:string}>=[];
- for(let offset=0;offset<compressed.length;offset+=CHUNK_BYTES){const bytes=compressed.subarray(offset,offset+CHUNK_BYTES);chunks.push({id:crypto.createHash('sha256').update(bytes).digest('hex'),data:bytes.toString('base64')});}
+ for(const part of parts){const compressed=gzipSync(Buffer.from(part));for(let offset=0;offset<compressed.length;offset+=CHUNK_BYTES){const bytes=compressed.subarray(offset,offset+CHUNK_BYTES);chunks.push({id:crypto.createHash('sha256').update(bytes).digest('hex'),data:bytes.toString('base64')});}}
  return {chunks,digest:crypto.createHash('sha256').update(raw).digest('hex')};
 }
 export function decodeState(chunks: Array<{id:string;data:string}>, digest:string): PersistentDatabaseState {
@@ -25,7 +39,10 @@ export function decodeState(chunks: Array<{id:string;data:string}>, digest:strin
  if(crypto.createHash('sha256').update(raw).digest('hex')!==digest)throw Error('Snapshot integrity failure');
  return JSON.parse(raw.toString('utf8'));
 }
-let cache:{revision:string;serialized:string}|null=null;
+let cache:{revision:string;serialized:string;chunks:string[]}|null=null;
+const chunkCache=new Map<string,string>();
+let cachedBytes=0;
+function remember(id:string,data:string){if(chunkCache.has(id))return;chunkCache.set(id,data);cachedBytes+=data.length;while(cachedBytes>32*1024*1024){const key=chunkCache.keys().next().value!;cachedBytes-=chunkCache.get(key)!.length;chunkCache.delete(key);}}
 function database(){return getFirestore(getFirebaseAdminApp(),loadFirebaseAppletConfig().firestoreDatabaseId);}
 export async function readCloudState():Promise<{state:PersistentDatabaseState;revision:string}> {
  const db=database();const head=await db.doc(`${ROOT}/current`).get();
@@ -34,16 +51,23 @@ export async function readCloudState():Promise<{state:PersistentDatabaseState;re
  if(manifest.schema!==1||!Array.isArray(manifest.chunks))throw Error('Unsupported state schema');
  const currentCache=cache;
  if(currentCache && currentCache.revision===manifest.revision)return {state:JSON.parse(currentCache.serialized),revision:currentCache.revision};
- const docs=await db.getAll(...manifest.chunks.map((id:string)=>db.doc(`${ROOT}/chunks/items/${id}`)));
- const state=decodeState(docs.map((d,i)=>{if(!d.exists)throw Error('Snapshot incomplete');return {id:manifest.chunks[i],data:d.data()!.data};}),manifest.digest);
- cache={revision:manifest.revision,serialized:JSON.stringify(state)};
+ const contents=new Map<string,string>();
+ for(const id of manifest.chunks)if(chunkCache.has(id))contents.set(id,chunkCache.get(id)!);
+ const missing=[...new Set<string>(manifest.chunks)].filter(id=>!contents.has(id));
+ if(missing.length){const docs=await db.getAll(...missing.map(id=>db.doc(`${ROOT}/chunks/items/${id}`)));docs.forEach((d,i)=>{if(!d.exists)throw Error('Snapshot incomplete');contents.set(missing[i],d.data()!.data);remember(missing[i],d.data()!.data);});}
+ const state=decodeState(manifest.chunks.map((id:string)=>({id,data:contents.get(id)!})),manifest.digest);
+ cache={revision:manifest.revision,serialized:JSON.stringify(state),chunks:manifest.chunks};
  return {state,revision:manifest.revision};
 }
 export async function writeCloudState(state:PersistentDatabaseState,expectedRevision:string|null):Promise<string> {
  const db=database();const encoded=encodeState(state);const revision=crypto.randomUUID();
+ const previous=cache?.revision===expectedRevision?cache.chunks:[];
+ const reused=new Set(previous);
+ const changed=encoded.chunks.filter((chunk,i,all)=>!reused.has(chunk.id)&&all.findIndex(c=>c.id===chunk.id)===i);
  // Stage immutable chunks before publishing the pointer. An interrupted write leaves
  // only unreachable chunks; readers continue to use the preceding complete revision.
- for(let offset=0;offset<encoded.chunks.length;offset+=8){const batch=db.batch();for(const chunk of encoded.chunks.slice(offset,offset+8))batch.set(db.doc(`${ROOT}/chunks/items/${chunk.id}`),{data:chunk.data});await batch.commit();}
+ for(let offset=0;offset<changed.length;){const batch=db.batch();let size=0,count=0;while(offset<changed.length&&count<400&&size+changed[offset].data.length+256<6*1024*1024){const chunk=changed[offset++];batch.set(db.doc(`${ROOT}/chunks/items/${chunk.id}`),{data:chunk.data});size+=chunk.data.length+256;count++;}await batch.commit();}
  await db.runTransaction(async tx=>{const ref=db.doc(`${ROOT}/current`);const head=await tx.get(ref);if((head.exists?head.data()!.revision:null)!==expectedRevision)throw new StateConflictError();if(head.exists)tx.set(db.doc(`${ROOT}/revisions/items/${head.data()!.revision}`),head.data()!);tx.set(ref,{schema:1,revision,chunks:encoded.chunks.map(c=>c.id),digest:encoded.digest,previousRevision:expectedRevision,updatedAt:new Date().toISOString()});});
- cache={revision,serialized:JSON.stringify(state)};return revision;
+ for(const chunk of encoded.chunks)remember(chunk.id,chunk.data);
+ cache={revision,serialized:JSON.stringify(state),chunks:encoded.chunks.map(c=>c.id)};return revision;
 }

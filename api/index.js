@@ -1,35 +1,55 @@
 // server.ts
 import nodeCrypto from "node:crypto";
 
-// src/server/teachingRoutes.ts
+// src/server/practiceRoutes.ts
 import crypto from "node:crypto";
 import { z } from "zod";
+function registerPracticeRoutes(app2, deps) {
+  const access = (req) => {
+    const c = deps.authenticate(req), lesson = c?.db.lessons.find((l) => l.id === req.params.id);
+    if (!c || !lesson || c.user.role !== "student" || c.user.status !== "active" || lesson.institutionId !== c.user.institutionId || lesson.status !== "published" || ![lesson.classId, ...lesson.classIds || []].includes(c.user.classId) || lesson.additionalCurriculumAssignment && lesson.tTrackVisibilityApproved !== true) return null;
+    return { ...c, lesson };
+  };
+  app2.get("/api/lesson-practice/:id", (req, res) => {
+    const c = access(req);
+    if (!c) return res.status(403).json({ error: "Darsga ruxsat yo\u2018q." });
+    const record = c.db.lessonPracticeResponses?.find((r) => r.studentId === c.user.uid && r.lessonId === c.lesson.id);
+    res.json({ savedAnswers: record && record.status !== "draft" ? record.answers : void 0, draftAnswers: record?.status === "draft" ? record.answers : void 0, revision: record?.revision || 0, title: c.lesson.title, questions: [`\xAB${c.lesson.title}\xBB mavzusidagi asosiy qoida yoki tushunchani o\u2018z so\u2018zingiz bilan tushuntiring.`, `Shu mavzuga oid bitta misol keltiring va yechimingizni bosqichma-bosqich izohlang.`], mode: "reflection", notice: "Yozma takrorlash mashqi. Avtomatik baholanmaydi. Qoralama hisobingizga saqlanadi." });
+  });
+  const write6 = (submit) => (req, res) => {
+    const c = access(req);
+    if (!c) return res.status(403).json({ error: "Darsga ruxsat yo\u2018q." });
+    const parsed = z.array(z.string().max(1e4)).length(2).safeParse(req.body.answers);
+    if (!parsed.success || submit && parsed.data.some((a) => a.trim().length < 3)) return res.status(400).json({ error: "Javoblar shakli yoki uzunligi noto\u2018g\u2018ri." });
+    c.db.lessonPracticeResponses ||= [];
+    let record = c.db.lessonPracticeResponses.find((r) => r.studentId === c.user.uid && r.lessonId === c.lesson.id);
+    if (record && record.status !== "draft") return res.status(submit ? 200 : 409).json(submit ? { id: record.id, status: "received" } : { error: "Ish allaqachon topshirilgan." });
+    if ((req.body.revision ?? 0) !== (record?.revision || 0)) return res.status(409).json({ error: "Qoralama boshqa oynada yangilangan. Mashqni qayta oching." });
+    if (!record) {
+      record = { id: crypto.randomUUID(), lessonId: c.lesson.id, studentId: c.user.uid, institutionId: c.user.institutionId, answers: [], status: "draft", revision: 0 };
+      c.db.lessonPracticeResponses.push(record);
+    }
+    record.answers = parsed.data;
+    record.revision = (record.revision || 0) + 1;
+    record.status = submit ? "submitted" : "draft";
+    record.updatedAt = (/* @__PURE__ */ new Date()).toISOString();
+    if (submit) record.submittedAt = record.updatedAt;
+    deps.save(c.env, c.db);
+    res.json({ id: record.id, status: submit ? "received" : "draft", revision: record.revision });
+  };
+  app2.put("/api/lesson-practice/:id", write6(false));
+  app2.post("/api/lesson-practice/:id", write6(true));
+}
+
+// src/server/teachingRoutes.ts
+import crypto2 from "node:crypto";
+import { z as z2 } from "zod";
 var deliveredForClass = (lesson, classId) => !lesson.schoolUndeliveredClassIds?.includes(classId) && Boolean(lesson.schoolDeliveredAt || lesson.schoolDeliveredClassIds?.includes(classId));
 var teacherClasses = (user, db) => db.classes.filter((c) => c.institutionId === user.institutionId && user.assignedClassIds?.includes(c.id));
 function registerTeachingRoutes(app2, deps) {
+  registerPracticeRoutes(app2, deps);
   const admin = (c) => c && ["admin", "platform_owner"].includes(c.user.role) && c.user.platformAdmin === true && c.user.emailVerified === true;
-  const schema = z.object({ displayName: z.string().trim().min(3).max(120), email: z.email().max(180).transform((v) => v.toLowerCase()), password: z.string().min(12).max(128), subject: z.string().min(2).max(100), classIds: z.array(z.string()).min(1).max(19) });
-  const practiceAccess = (c, lesson) => c && lesson && c.user.role === "student" && c.user.status === "active" && lesson.institutionId === c.user.institutionId && lesson.status === "published" && [lesson.classId, ...lesson.classIds || []].includes(c.user.classId) && (!lesson.additionalCurriculumAssignment || lesson.tTrackVisibilityApproved === true);
-  app2.get("/api/lesson-practice/:id", (req, res) => {
-    const c = deps.authenticate(req);
-    const lesson = c?.db.lessons.find((l) => l.id === req.params.id);
-    if (!practiceAccess(c, lesson)) return res.status(403).json({ error: "Darsga ruxsat yo\u2018q." });
-    res.json({ savedAnswers: c.db.lessonPracticeResponses?.find((r) => r.studentId === c.user.uid && r.lessonId === lesson.id)?.answers, title: lesson.title, reference: lesson.classwork || lesson.content, questions: [`\xAB${lesson.title}\xBB mavzusidagi asosiy qoida yoki tushunchani o\u2018z so\u2018zingiz bilan tushuntiring.`, `Shu mavzuga oid bitta misol keltiring va yechimingizni bosqichma-bosqich izohlang.`], mode: "reflection", notice: "Ish rejadagi mavzudan tuzilgan yozma takrorlash. Avtomatik baholanmaydi; aniq variantli testlar uchun ustoz tasdiqlagan savollar yoki darslik kerak." });
-  });
-  app2.post("/api/lesson-practice/:id", (req, res) => {
-    const c = deps.authenticate(req);
-    const lesson = c?.db.lessons.find((l) => l.id === req.params.id);
-    if (!practiceAccess(c, lesson)) return res.status(403).json({ error: "Darsga ruxsat yo\u2018q." });
-    const answers = z.array(z.string().trim().min(3).max(1e4)).length(2).safeParse(req.body.answers);
-    if (!answers.success) return res.status(400).json({ error: "Ikkala javobni kiriting." });
-    c.db.lessonPracticeResponses ||= [];
-    const previous = c.db.lessonPracticeResponses.find((r) => r.studentId === c.user.uid && r.lessonId === lesson.id);
-    if (previous) return res.json({ id: previous.id, status: "received" });
-    const entry = { id: crypto.randomUUID(), lessonId: lesson.id, studentId: c.user.uid, institutionId: c.user.institutionId, answers: answers.data, submittedAt: (/* @__PURE__ */ new Date()).toISOString() };
-    c.db.lessonPracticeResponses.push(entry);
-    deps.save(c.env, c.db);
-    res.status(201).json({ id: entry.id, status: "received" });
-  });
+  const schema = z2.object({ displayName: z2.string().trim().min(3).max(120), email: z2.email().max(180).transform((v) => v.toLowerCase()), password: z2.string().min(12).max(128), subject: z2.string().min(2).max(100), classIds: z2.array(z2.string()).min(1).max(19) });
   app2.post("/api/teaching/accounts", (req, res) => {
     const c = deps.authenticate(req);
     if (!admin(c)) return res.status(403).json({ error: "Faqat administrator." });
@@ -38,7 +58,7 @@ function registerTeachingRoutes(app2, deps) {
     const p = parsed.data;
     if (c.db.users.some((u) => u.email.toLowerCase() === p.email)) return res.status(409).json({ error: "Bu email band." });
     if (p.classIds.some((id) => !c.db.classes.some((cls) => cls.id === id && cls.institutionId === c.user.institutionId))) return res.status(400).json({ error: "Sinf mos emas." });
-    const user = { uid: crypto.randomUUID(), displayName: p.displayName, email: p.email, role: "teacher", status: "active", institutionId: c.user.institutionId, assignedClassIds: [...new Set(p.classIds)], subject: p.subject, createdAt: (/* @__PURE__ */ new Date()).toISOString(), platformAdmin: false, emailVerified: false };
+    const user = { uid: crypto2.randomUUID(), displayName: p.displayName, email: p.email, role: "teacher", status: "active", institutionId: c.user.institutionId, assignedClassIds: [...new Set(p.classIds)], subject: p.subject, createdAt: (/* @__PURE__ */ new Date()).toISOString(), platformAdmin: false, emailVerified: false };
     c.db.users.push(user);
     c.db.passwordHashes[user.uid] = deps.hash(p.password);
     deps.save(c.env, c.db);
@@ -50,7 +70,7 @@ function registerTeachingRoutes(app2, deps) {
     const user = c.db.users.find((u) => u.uid === req.params.id && u.role === "teacher" && u.institutionId === c.user.institutionId);
     if (!user) return res.status(404).json({ error: "Hisob topilmadi." });
     if (req.body.password !== void 0) {
-      const parsed = z.string().min(12).max(128).safeParse(req.body.password);
+      const parsed = z2.string().min(12).max(128).safeParse(req.body.password);
       if (!parsed.success) return res.status(400).json({ error: "Parol kamida 12 belgi bo\u2018lsin." });
       c.db.passwordHashes[user.uid] = deps.hash(parsed.data);
       deps.revoke(user.uid, c.env);
@@ -99,10 +119,10 @@ function registerTeachingRoutes(app2, deps) {
 
 // src/server/examMedia.ts
 import { getFirestore } from "firebase-admin/firestore";
-import crypto4 from "node:crypto";
+import crypto5 from "node:crypto";
 
 // src/server/firebaseAdminAuth.ts
-import crypto3 from "crypto";
+import crypto4 from "crypto";
 import fs2 from "fs";
 import path2 from "path";
 import { initializeApp, getApps, cert } from "firebase-admin/app";
@@ -785,7 +805,7 @@ var requestDatabase = new AsyncLocalStorage();
 // src/server/dbEngine.ts
 import fs from "fs";
 import path from "path";
-import crypto2 from "crypto";
+import crypto3 from "crypto";
 
 // src/utils/gamificationEngine.ts
 var GAMIFICATION_LEVELS = [
@@ -1872,7 +1892,7 @@ var configuredSessionSecret = process.env.SESSION_SECRET;
 if (process.env.NODE_ENV === "production" && (!configuredSessionSecret || configuredSessionSecret.length < 32 || configuredSessionSecret.includes("REPLACE_WITH"))) {
   throw new Error("Production requires a random SESSION_SECRET of at least 32 characters.");
 }
-var TOKEN_SECRET = configuredSessionSecret || crypto2.randomBytes(32).toString("hex");
+var TOKEN_SECRET = configuredSessionSecret || crypto3.randomBytes(32).toString("hex");
 function ensureSpecializedStudyStructure(state) {
   const nowIso = "2026-01-01T00:00:00.000Z";
   if (!Array.isArray(state.institutions)) {
@@ -2357,21 +2377,21 @@ function resetTestDbState() {
   saveDbState("test", empty);
 }
 function hashPassword(password) {
-  const salt = crypto2.randomBytes(16).toString("hex");
-  const derived = crypto2.scryptSync(password, salt, 64).toString("hex");
+  const salt = crypto3.randomBytes(16).toString("hex");
+  const derived = crypto3.scryptSync(password, salt, 64).toString("hex");
   return `${salt}:${derived}`;
 }
 function generateSecureRandomPassword() {
-  return `SS-${crypto2.randomBytes(16).toString("hex")}!9a`;
+  return `SS-${crypto3.randomBytes(16).toString("hex")}!9a`;
 }
 function verifyPassword(password, storedHash) {
   if (!storedHash || !storedHash.includes(":")) return false;
   const [salt, key] = storedHash.split(":");
-  const derived = crypto2.scryptSync(password, salt, 64).toString("hex");
+  const derived = crypto3.scryptSync(password, salt, 64).toString("hex");
   const keyBuf = Buffer.from(key, "hex");
   const derivedBuf = Buffer.from(derived, "hex");
   if (keyBuf.length !== derivedBuf.length) return false;
-  return crypto2.timingSafeEqual(keyBuf, derivedBuf);
+  return crypto3.timingSafeEqual(keyBuf, derivedBuf);
 }
 function revokeSessionToken(token) {
   if (!token) return;
@@ -2381,7 +2401,7 @@ function revokeSessionToken(token) {
     context.state.revokedSessionHashes = Object.fromEntries(Object.entries(context.state.revokedSessionHashes || {}).filter(([, expiry]) => expiry > now));
     try {
       const payload = JSON.parse(Buffer.from(token.split(".")[0], "base64url").toString("utf8"));
-      context.state.revokedSessionHashes[crypto2.createHash("sha256").update(token.trim()).digest("hex")] = Number(payload.exp) || now + 6048e5;
+      context.state.revokedSessionHashes[crypto3.createHash("sha256").update(token.trim()).digest("hex")] = Number(payload.exp) || now + 6048e5;
       context.dirty = true;
     } catch {
     }
@@ -2405,12 +2425,12 @@ function issueSessionToken(uid, env, expiresInMs = 1e3 * 60 * 60 * 24 * 7) {
   const payload = JSON.stringify({
     uid,
     env,
-    jti: crypto2.randomBytes(8).toString("hex"),
+    jti: crypto3.randomBytes(8).toString("hex"),
     iat: now,
     exp: now + expiresInMs
   });
   const base64Payload = Buffer.from(payload, "utf-8").toString("base64url");
-  const signature = crypto2.createHmac("sha256", TOKEN_SECRET).update(base64Payload).digest("base64url");
+  const signature = crypto3.createHmac("sha256", TOKEN_SECRET).update(base64Payload).digest("base64url");
   return `${base64Payload}.${signature}`;
 }
 function verifySessionToken(token) {
@@ -2418,15 +2438,15 @@ function verifySessionToken(token) {
   const cleanToken = token.trim();
   if (revokedTokenSet.has(cleanToken)) return null;
   const durableRevocations = requestDatabase.getStore()?.state.revokedSessionHashes;
-  if (durableRevocations?.[crypto2.createHash("sha256").update(cleanToken).digest("hex")]) return null;
+  if (durableRevocations?.[crypto3.createHash("sha256").update(cleanToken).digest("hex")]) return null;
   const parts = cleanToken.split(".");
   if (parts.length !== 2) return null;
   const [base64Payload, signature] = parts;
   if (!base64Payload || !signature) return null;
-  const expectedSig = crypto2.createHmac("sha256", TOKEN_SECRET).update(base64Payload).digest("base64url");
+  const expectedSig = crypto3.createHmac("sha256", TOKEN_SECRET).update(base64Payload).digest("base64url");
   const sigBuf = Buffer.from(signature, "utf-8");
   const expectedBuf = Buffer.from(expectedSig, "utf-8");
-  if (sigBuf.length !== expectedBuf.length || !crypto2.timingSafeEqual(sigBuf, expectedBuf)) {
+  if (sigBuf.length !== expectedBuf.length || !crypto3.timingSafeEqual(sigBuf, expectedBuf)) {
     return null;
   }
   try {
@@ -2447,7 +2467,7 @@ function verifySessionToken(token) {
   }
 }
 function generateCryptographicInviteToken(rolePrefix) {
-  const rand = crypto2.randomBytes(4).toString("hex").toUpperCase();
+  const rand = crypto3.randomBytes(4).toString("hex").toUpperCase();
   const rawToken = `INV-${rolePrefix.slice(0, 3).toUpperCase()}-${rand}`;
   const tokenHash = computeSimpleHash(rawToken);
   return { rawToken, tokenHash };
@@ -2494,10 +2514,10 @@ async function verifyFirebaseIdToken(idToken, env, db) {
       };
     }
     const [, encoded, sig] = parts;
-    const expectedSig = crypto3.createHmac("sha256", TEST_ID_TOKEN_SECRET).update(`test-fb-jwt.${encoded}`).digest("base64url");
+    const expectedSig = crypto4.createHmac("sha256", TEST_ID_TOKEN_SECRET).update(`test-fb-jwt.${encoded}`).digest("base64url");
     const sigBuf = Buffer.from(sig, "utf-8");
     const expBuf = Buffer.from(expectedSig, "utf-8");
-    if (sigBuf.length !== expBuf.length || !crypto3.timingSafeEqual(sigBuf, expBuf)) {
+    if (sigBuf.length !== expBuf.length || !crypto4.timingSafeEqual(sigBuf, expBuf)) {
       return {
         valid: false,
         errorCode: "auth/invalid-credential",
@@ -2740,7 +2760,7 @@ async function storeExamImage(institutionId, examId, dataUrl) {
   if (bytes.length > 5e5 || bytes.length < 8) throw Error("Image size rejected");
   const png = bytes[0] === 137 && bytes[1] === 80 && bytes[2] === 78 && bytes[3] === 71, jpeg = bytes[0] === 255 && bytes[1] === 216 && bytes[2] === 255;
   if (!(match[1] === "png" ? png : jpeg)) throw Error("Image signature rejected");
-  const hash = crypto4.createHash("sha256").update(institutionId).update(bytes).digest("hex");
+  const hash = crypto5.createHash("sha256").update(institutionId).update(bytes).digest("hex");
   const db = getFirestore(getFirebaseAdminApp(), loadFirebaseAppletConfig().firestoreDatabaseId);
   await db.doc(`_specialized_exam_media/${hash}`).set({ institutionId, data: match[2], mime: `image/${match[1]}`, createdAt: (/* @__PURE__ */ new Date()).toISOString() });
   return `/api/exams/${examId}/media/${hash}`;
@@ -2752,8 +2772,8 @@ async function readExamImage(hash) {
 }
 
 // src/server/examRoutes.ts
-import crypto5 from "node:crypto";
-import { z as z2 } from "zod";
+import crypto6 from "node:crypto";
+import { z as z3 } from "zod";
 
 // src/utils/examPolicy.ts
 function canTakeExam(user, exam) {
@@ -2787,9 +2807,9 @@ function sanitizeExamQuestion(q) {
 }
 
 // src/server/examRoutes.ts
-var image = z2.string().max(65e4).refine((v) => /^data:image\/(jpeg|png);base64,[A-Za-z0-9+/=]+$/.test(v), "Faqat JPEG/PNG tasvirlari.");
-var question = z2.object({ sourceNumber: z2.number().int().positive(), variant: z2.string().max(12), prompt: z2.string().min(3).max(18e3), sourcePages: z2.array(z2.number().int().positive()).max(20), sourceImages: z2.array(image).max(20), fields: z2.array(z2.object({ id: z2.string().max(80), label: z2.string().max(120), imageIndex: z2.number().int().min(0), x: z2.number().min(0).max(1), y: z2.number().min(0).max(1), width: z2.number().min(0.01).max(1), height: z2.number().min(0.01).max(1) })).max(40), points: z2.number().min(0).max(100), type: z2.enum(["written_open", "single_choice"]), options: z2.array(z2.string().max(4e3)).max(8), correctAnswer: z2.string().max(4e3), rubricText: z2.string().max(12e3) });
-var draftSchema = z2.object({ sourceLayoutVersion: z2.literal(2, { error: "Importni yangilash uchun sahifani qayta oching." }), title: z2.string().min(3).max(200), examKind: z2.enum(["BSB", "CHSB"]), examNumber: z2.number().int().min(1).max(2), quarter: z2.number().int().min(1).max(4), academicYear: z2.string().regex(/^\d{4}-\d{4}$/), subject: z2.string().min(2).max(100), classCodes: z2.array(z2.string()).min(1).max(19), durationMinutes: z2.number().int().min(1).max(180), availableFrom: z2.string().datetime(), dueDate: z2.string().datetime(), sourceFileName: z2.string().max(200), sourceHash: z2.string().regex(/^[a-f0-9]{64}$/), contextImages: z2.array(image).max(20), questions: z2.array(question).min(1).max(60) });
+var image = z3.string().max(65e4).refine((v) => /^data:image\/(jpeg|png);base64,[A-Za-z0-9+/=]+$/.test(v), "Faqat JPEG/PNG tasvirlari.");
+var question = z3.object({ sourceNumber: z3.number().int().positive(), variant: z3.string().max(12), prompt: z3.string().min(3).max(18e3), sourcePages: z3.array(z3.number().int().positive()).max(20), sourceImages: z3.array(image).max(20), fields: z3.array(z3.object({ id: z3.string().max(80), label: z3.string().max(120), imageIndex: z3.number().int().min(0), x: z3.number().min(0).max(1), y: z3.number().min(0).max(1), width: z3.number().min(0.01).max(1), height: z3.number().min(0.01).max(1) })).max(40), points: z3.number().min(0).max(100), type: z3.enum(["written_open", "single_choice"]), options: z3.array(z3.string().max(4e3)).max(8), correctAnswer: z3.string().max(4e3), rubricText: z3.string().max(12e3) });
+var draftSchema = z3.object({ sourceLayoutVersion: z3.literal(2, { error: "Importni yangilash uchun sahifani qayta oching." }), title: z3.string().min(3).max(200), examKind: z3.enum(["BSB", "CHSB"]), examNumber: z3.number().int().min(1).max(2), quarter: z3.number().int().min(1).max(4), academicYear: z3.string().regex(/^\d{4}-\d{4}$/), subject: z3.string().min(2).max(100), classCodes: z3.array(z3.string()).min(1).max(19), durationMinutes: z3.number().int().min(1).max(180), availableFrom: z3.string().datetime(), dueDate: z3.string().datetime(), sourceFileName: z3.string().max(200), sourceHash: z3.string().regex(/^[a-f0-9]{64}$/), contextImages: z3.array(image).max(20), questions: z3.array(question).min(1).max(60) });
 function registerExamRoutes(app2, deps) {
   const admin = (req, res) => {
     const c = deps.authenticate(req);
@@ -2817,7 +2837,7 @@ function registerExamRoutes(app2, deps) {
     if (Date.parse(data.availableFrom) >= Date.parse(data.dueDate)) return res.status(400).json({ error: "Vaqt oralig\u2018ini tekshiring." });
     const existing = c.db.assessments.find((a) => a.institutionId === c.user.institutionId && a.sourceHash === data.sourceHash && a.sourceLayoutVersion === data.sourceLayoutVersion && a.title === data.title && a.examKind === data.examKind && a.academicYear === data.academicYear && a.examNumber === data.examNumber && a.quarter === data.quarter && JSON.stringify(a.assignedClassCodes) === JSON.stringify(data.classCodes));
     if (existing) return res.json({ assessment: existing, replayed: true });
-    const now = (/* @__PURE__ */ new Date()).toISOString(), id = "exam-" + crypto5.randomUUID();
+    const now = (/* @__PURE__ */ new Date()).toISOString(), id = "exam-" + crypto6.randomUUID();
     try {
       for (const q of data.questions) q.sourceImages = await Promise.all(q.sourceImages.map((image2) => storeExamImage(c.user.institutionId, id, image2)));
       data.contextImages = await Promise.all(data.contextImages.map((image2) => storeExamImage(c.user.institutionId, id, image2)));
@@ -2837,7 +2857,7 @@ function registerExamRoutes(app2, deps) {
     if (!c) return;
     const exam = c.db.assessments.find((a) => a.id === req.params.id && a.examKind && a.institutionId === c.user.institutionId);
     if (!exam || exam.examState !== "draft") return res.status(409).json({ error: "Faqat nashr qilinmagan qoralamani tahrirlash mumkin." });
-    const edit = draftSchema.omit({ sourceLayoutVersion: true, sourceHash: true, sourceFileName: true, contextImages: true, questions: true }).extend({ questions: z2.array(question.omit({ sourceImages: true }).extend({ sourceImages: z2.array(z2.union([image, z2.string().max(180)])).max(20) })).min(1).max(60), contextImages: z2.array(z2.union([image, z2.string().max(180)])).max(20).optional() }).safeParse(req.body);
+    const edit = draftSchema.omit({ sourceLayoutVersion: true, sourceHash: true, sourceFileName: true, contextImages: true, questions: true }).extend({ questions: z3.array(question.omit({ sourceImages: true }).extend({ sourceImages: z3.array(z3.union([image, z3.string().max(180)])).max(20) })).min(1).max(60), contextImages: z3.array(z3.union([image, z3.string().max(180)])).max(20).optional() }).safeParse(req.body);
     if (!edit.success) return res.status(400).json({ error: edit.error.issues[0]?.message });
     const d = edit.data;
     const classes = c.db.classes.filter((cls) => cls.institutionId === c.user.institutionId && d.classCodes.includes(cls.code));
@@ -2944,7 +2964,7 @@ function registerExamRoutes(app2, deps) {
     if (!session) {
       if (!examCanStart(exam)) return res.status(409).json({ error: "Nazorat ishi boshlanmagan yoki yopilgan." });
       if (c.db.attempts.some((a) => a.assessmentId === exam.id && a.studentId === c.user.uid)) return res.status(409).json({ error: "Nazorat ishi allaqachon topshirilgan." });
-      session = { id: crypto5.randomUUID(), assessmentId: exam.id, studentId: c.user.uid, institutionId: c.user.institutionId, startedAt: (/* @__PURE__ */ new Date()).toISOString(), deadlineAt: new Date(Date.now() + exam.durationMinutes * 6e4).toISOString(), pauseAtStart: exam.totalPausedMs || 0, revision: 0, answers: {}, events: [] };
+      session = { id: crypto6.randomUUID(), assessmentId: exam.id, studentId: c.user.uid, institutionId: c.user.institutionId, startedAt: (/* @__PURE__ */ new Date()).toISOString(), deadlineAt: new Date(Date.now() + exam.durationMinutes * 6e4).toISOString(), pauseAtStart: exam.totalPausedMs || 0, revision: 0, answers: {}, events: [] };
       c.db.examSessions.push(session);
       deps.save(c.env, c.db);
     }
@@ -2964,7 +2984,7 @@ function registerExamRoutes(app2, deps) {
     const exam = c.db.assessments.find((a) => a.id === req.params.id && a.examKind);
     const session = c.db.examSessions?.find((s) => s.assessmentId === req.params.id && s.studentId === c.user.uid);
     if (!exam || !session || !canTakeExam(c.user, exam)) return res.status(403).json({ error: "Ruxsat yo\u2018q." });
-    const id = z2.string().uuid().safeParse(req.body.eventId);
+    const id = z3.string().uuid().safeParse(req.body.eventId);
     if (!id.success) return res.status(400).json({ error: "Hodisa noto\u2018g\u2018ri." });
     session.exitIds ||= [];
     if (!session.submittedAttemptId && !session.stoppedAt && !session.exitIds.includes(id.data)) {
@@ -2986,7 +3006,7 @@ function registerExamRoutes(app2, deps) {
     if (session.submittedAttemptId) return res.status(409).json({ error: "Ish topshirilgan." });
     if (req.body.revision !== session.revision) return res.status(409).json({ error: "Javoblar boshqa oynada yangilangan. Sahifani yangilang." });
     if (exam.examState === "paused" || exam.examState === "closed" || Date.now() > examDeadline(exam, session)) return res.status(409).json({ error: "Nazorat to\u2018xtatilgan yoki vaqti tugagan." });
-    const incoming = z2.record(z2.string(), z2.string().max(25e4)).safeParse(req.body.answers);
+    const incoming = z3.record(z3.string(), z3.string().max(25e4)).safeParse(req.body.answers);
     if (!incoming.success || Buffer.byteLength(JSON.stringify(incoming.data)) > 18e5) return res.status(400).json({ error: "Javoblar hajmi yoki shakli noto\u2018g\u2018ri." });
     if (Object.keys(incoming.data).some((id) => !exam.questionIds.includes(id))) return res.status(400).json({ error: "Noma\u2019lum savol." });
     session.answers = incoming.data;
@@ -2998,7 +3018,7 @@ function registerExamRoutes(app2, deps) {
 }
 
 // src/server/cloudState.ts
-import crypto6 from "node:crypto";
+import crypto7 from "node:crypto";
 import { gzipSync, gunzipSync } from "node:zlib";
 import { getFirestore as getFirestore2 } from "firebase-admin/firestore";
 var ROOT = "_specialized_runtime";
@@ -3012,25 +3032,51 @@ var StateConflictError = class extends Error {
 function encodeState(value) {
   const raw = Buffer.from(JSON.stringify(value));
   if (raw.length > MAX_STATE_BYTES) throw new Error("State exceeds configured size limit");
-  const compressed = gzipSync(raw);
+  const parts = [];
+  if (value && typeof value === "object" && !Array.isArray(value)) {
+    const entries = Object.entries(value).filter(([, v]) => JSON.stringify(v) !== void 0);
+    entries.forEach(([key, v], i) => {
+      const prefix = (i ? "," : "{") + JSON.stringify(key) + ":";
+      if (Array.isArray(v) && v.length > 64) {
+        for (let start = 0; start < v.length; start += 64) parts.push((start ? "," : prefix + "[") + v.slice(start, start + 64).map((item) => JSON.stringify(item) ?? "null").join(",") + (start + 64 >= v.length ? "]" : ""));
+      } else parts.push(prefix + JSON.stringify(v));
+    });
+    if (!entries.length) parts.push("{");
+    parts[parts.length - 1] += "}";
+  } else parts.push(raw.toString("utf8"));
   const chunks = [];
-  for (let offset = 0; offset < compressed.length; offset += CHUNK_BYTES) {
-    const bytes = compressed.subarray(offset, offset + CHUNK_BYTES);
-    chunks.push({ id: crypto6.createHash("sha256").update(bytes).digest("hex"), data: bytes.toString("base64") });
+  for (const part of parts) {
+    const compressed = gzipSync(Buffer.from(part));
+    for (let offset = 0; offset < compressed.length; offset += CHUNK_BYTES) {
+      const bytes = compressed.subarray(offset, offset + CHUNK_BYTES);
+      chunks.push({ id: crypto7.createHash("sha256").update(bytes).digest("hex"), data: bytes.toString("base64") });
+    }
   }
-  return { chunks, digest: crypto6.createHash("sha256").update(raw).digest("hex") };
+  return { chunks, digest: crypto7.createHash("sha256").update(raw).digest("hex") };
 }
 function decodeState(chunks, digest) {
   const compressed = Buffer.concat(chunks.map((c) => {
     const b = Buffer.from(c.data, "base64");
-    if (crypto6.createHash("sha256").update(b).digest("hex") !== c.id) throw Error("Snapshot chunk integrity failure");
+    if (crypto7.createHash("sha256").update(b).digest("hex") !== c.id) throw Error("Snapshot chunk integrity failure");
     return b;
   }));
   const raw = gunzipSync(compressed, { maxOutputLength: MAX_STATE_BYTES });
-  if (crypto6.createHash("sha256").update(raw).digest("hex") !== digest) throw Error("Snapshot integrity failure");
+  if (crypto7.createHash("sha256").update(raw).digest("hex") !== digest) throw Error("Snapshot integrity failure");
   return JSON.parse(raw.toString("utf8"));
 }
 var cache = null;
+var chunkCache = /* @__PURE__ */ new Map();
+var cachedBytes = 0;
+function remember(id, data) {
+  if (chunkCache.has(id)) return;
+  chunkCache.set(id, data);
+  cachedBytes += data.length;
+  while (cachedBytes > 32 * 1024 * 1024) {
+    const key = chunkCache.keys().next().value;
+    cachedBytes -= chunkCache.get(key).length;
+    chunkCache.delete(key);
+  }
+}
 function database() {
   return getFirestore2(getFirebaseAdminApp(), loadFirebaseAppletConfig().firestoreDatabaseId);
 }
@@ -3042,21 +3088,37 @@ async function readCloudState() {
   if (manifest.schema !== 1 || !Array.isArray(manifest.chunks)) throw Error("Unsupported state schema");
   const currentCache = cache;
   if (currentCache && currentCache.revision === manifest.revision) return { state: JSON.parse(currentCache.serialized), revision: currentCache.revision };
-  const docs = await db.getAll(...manifest.chunks.map((id) => db.doc(`${ROOT}/chunks/items/${id}`)));
-  const state = decodeState(docs.map((d, i) => {
-    if (!d.exists) throw Error("Snapshot incomplete");
-    return { id: manifest.chunks[i], data: d.data().data };
-  }), manifest.digest);
-  cache = { revision: manifest.revision, serialized: JSON.stringify(state) };
+  const contents = /* @__PURE__ */ new Map();
+  for (const id of manifest.chunks) if (chunkCache.has(id)) contents.set(id, chunkCache.get(id));
+  const missing = [...new Set(manifest.chunks)].filter((id) => !contents.has(id));
+  if (missing.length) {
+    const docs = await db.getAll(...missing.map((id) => db.doc(`${ROOT}/chunks/items/${id}`)));
+    docs.forEach((d, i) => {
+      if (!d.exists) throw Error("Snapshot incomplete");
+      contents.set(missing[i], d.data().data);
+      remember(missing[i], d.data().data);
+    });
+  }
+  const state = decodeState(manifest.chunks.map((id) => ({ id, data: contents.get(id) })), manifest.digest);
+  cache = { revision: manifest.revision, serialized: JSON.stringify(state), chunks: manifest.chunks };
   return { state, revision: manifest.revision };
 }
 async function writeCloudState(state, expectedRevision) {
   const db = database();
   const encoded = encodeState(state);
-  const revision = crypto6.randomUUID();
-  for (let offset = 0; offset < encoded.chunks.length; offset += 8) {
+  const revision = crypto7.randomUUID();
+  const previous = cache?.revision === expectedRevision ? cache.chunks : [];
+  const reused = new Set(previous);
+  const changed = encoded.chunks.filter((chunk, i, all) => !reused.has(chunk.id) && all.findIndex((c) => c.id === chunk.id) === i);
+  for (let offset = 0; offset < changed.length; ) {
     const batch = db.batch();
-    for (const chunk of encoded.chunks.slice(offset, offset + 8)) batch.set(db.doc(`${ROOT}/chunks/items/${chunk.id}`), { data: chunk.data });
+    let size = 0, count = 0;
+    while (offset < changed.length && count < 400 && size + changed[offset].data.length + 256 < 6 * 1024 * 1024) {
+      const chunk = changed[offset++];
+      batch.set(db.doc(`${ROOT}/chunks/items/${chunk.id}`), { data: chunk.data });
+      size += chunk.data.length + 256;
+      count++;
+    }
     await batch.commit();
   }
   await db.runTransaction(async (tx) => {
@@ -3066,7 +3128,8 @@ async function writeCloudState(state, expectedRevision) {
     if (head.exists) tx.set(db.doc(`${ROOT}/revisions/items/${head.data().revision}`), head.data());
     tx.set(ref, { schema: 1, revision, chunks: encoded.chunks.map((c) => c.id), digest: encoded.digest, previousRevision: expectedRevision, updatedAt: (/* @__PURE__ */ new Date()).toISOString() });
   });
-  cache = { revision, serialized: JSON.stringify(state) };
+  for (const chunk of encoded.chunks) remember(chunk.id, chunk.data);
+  cache = { revision, serialized: JSON.stringify(state), chunks: encoded.chunks.map((c) => c.id) };
   return revision;
 }
 
@@ -3109,7 +3172,7 @@ import path4 from "path";
 import { fileURLToPath } from "url";
 import { GoogleGenAI, Type } from "@google/genai";
 import * as XLSX5 from "xlsx";
-import { z as z3 } from "zod";
+import { z as z4 } from "zod";
 
 // src/utils/scoring.ts
 var MINIMUM_EVIDENCE_THRESHOLD = 3;
@@ -5719,7 +5782,7 @@ function generateStudentExportBuffer(students) {
 // src/utils/mathCurriculumImporter.ts
 import fs3 from "fs";
 import path3 from "path";
-import crypto7 from "crypto";
+import crypto8 from "crypto";
 import JSZip2 from "jszip";
 import * as XLSX4 from "xlsx";
 var OFFICIAL_MATH_ARCHIVE_DISPLAY_NAME = "Matematika  elektron jurnal uchun ish reja.zip";
@@ -5728,7 +5791,7 @@ var MAX_ZIP_SIZE_BYTES = 25 * 1024 * 1024;
 var MAX_ZIP_ENTRIES = 100;
 var MAX_UNCOMPRESSED_BYTES = 50 * 1024 * 1024;
 function computeSha256Hex(input) {
-  return crypto7.createHash("sha256").update(input).digest("hex");
+  return crypto8.createHash("sha256").update(input).digest("hex");
 }
 function resolveOfficialMathArchivePath() {
   const candidates = [
@@ -7296,34 +7359,34 @@ function calculateClassMonitoringSnapshot(classCode, grade, track, enrolledStude
 var CONFIGURED_OWNER_EMAIL = (process.env.PLATFORM_OWNER_EMAIL || PLATFORM_OWNER_EMAIL).trim().toLowerCase();
 var __filename = fileURLToPath(import.meta.url);
 var __dirname = path4.dirname(__filename);
-var AIAnalysisSchema = z3.object({
-  summary: z3.string().min(5),
-  topic_analysis: z3.array(
-    z3.object({
-      topic_id: z3.string(),
-      observed_performance: z3.string(),
-      possible_error_pattern: z3.string(),
-      evidence_count: z3.number(),
-      confidence: z3.enum(["low", "medium", "high"]),
-      recommendation: z3.string()
+var AIAnalysisSchema = z4.object({
+  summary: z4.string().min(5),
+  topic_analysis: z4.array(
+    z4.object({
+      topic_id: z4.string(),
+      observed_performance: z4.string(),
+      possible_error_pattern: z4.string(),
+      evidence_count: z4.number(),
+      confidence: z4.enum(["low", "medium", "high"]),
+      recommendation: z4.string()
     })
   ),
-  next_steps: z3.array(
-    z3.object({
-      topic_id: z3.string(),
-      activity: z3.string(),
-      reason: z3.string(),
-      priority: z3.enum(["low", "medium", "high"])
+  next_steps: z4.array(
+    z4.object({
+      topic_id: z4.string(),
+      activity: z4.string(),
+      reason: z4.string(),
+      priority: z4.enum(["low", "medium", "high"])
     })
   ),
-  teacher_summary: z3.string().min(5),
-  parent_summary: z3.string().optional()
+  teacher_summary: z4.string().min(5),
+  parent_summary: z4.string().optional()
 });
-var AIDraftedQuestionSchema = z3.object({
-  prompt: z3.string().min(5),
-  options: z3.array(z3.string()).length(4),
-  correctAnswer: z3.string().min(1),
-  explanation: z3.string().min(5)
+var AIDraftedQuestionSchema = z4.object({
+  prompt: z4.string().min(5),
+  options: z4.array(z4.string()).length(4),
+  correctAnswer: z4.string().min(1),
+  explanation: z4.string().min(5)
 });
 function getGeminiClient(req) {
   if (req && resolveRequestEnv(req) === "test") {

@@ -87,7 +87,7 @@ import {
 
 export interface PersistentDatabaseState {
   loginThrottles?: Record<string,{attempts:number;until:number}>;
-  lessonPracticeResponses?: Array<{id:string;lessonId:string;studentId:string;institutionId:string;answers:string[];submittedAt:string}>;
+  lessonPracticeResponses?: Array<{id:string;lessonId:string;studentId:string;institutionId:string;answers:string[];submittedAt?:string;status?:'draft'|'submitted';revision?:number;updatedAt?:string}>;
   examSessions?: import('../examTypes').ExamSession[];
   revokedSessionHashes?: Record<string, number>;
   revokedBeforeByUser?: Record<string, number>;
