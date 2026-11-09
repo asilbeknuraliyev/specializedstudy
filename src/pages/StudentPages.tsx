@@ -34,12 +34,12 @@ import {
 import { useLearnOS } from '../context/LearnOSContext';
 import { LearningPathStepStatus, LessonItem } from '../types';
 import { APP_NAME, isSubjectCompatibleWithClass } from '../constants/curriculum';
-import { StudentDashboard2 } from '../components/StudentDashboard2';
+import { StudentHome } from '../components/StudentHome';
 import { Roadmap2View } from '../components/Roadmap2View';
 import { StudentProfile2 } from '../components/StudentProfile2';
 
 export const StudentDashboardPage: React.FC = () => {
-  return <StudentDashboard2 />;
+  return <StudentHome />;
 };
 
 export const LegacyStudentDashboardPage: React.FC = () => {

@@ -45,6 +45,8 @@ const AdminNotificationsPage = lazy(() => import('./pages/ParentAndAdminPages').
 const AdminAuditLogsPage = lazy(() => import('./pages/ParentAndAdminPages').then(module => ({ default: module.AdminAuditLogsPage })));
 const AdminHelpDocsPage = lazy(() => import('./pages/ParentAndAdminPages').then(module => ({ default: module.AdminHelpDocsPage })));
 
+const ContentCenter=lazy(()=>import('./components/ContentCenter').then(m=>({default:m.ContentCenter})));
+const StudentTaskHub=lazy(()=>import('./components/StudentHome').then(m=>({default:m.StudentTaskHub})));
 const TeachingPanel = lazy(() => import('./components/TeachingPanel').then(m=>({default:m.TeachingPanel})));
 // Navigation guard only. Every API endpoint must independently authorize requests.
 const ProtectedRoute: React.FC<{ allowedRole: 'admin' | 'student' | 'teacher'; children: React.ReactNode }> = ({ allowedRole, children }) => {
@@ -73,6 +75,8 @@ export default function App() {
           <Route path="/terms" element={<TermsPage />} />
 
           {/* Student Routes */}
+          <Route path="/student/tasks" element={<ProtectedRoute allowedRole="student"><StudentTaskHub/></ProtectedRoute>}/>
+          <Route path="/admin/content" element={<ProtectedRoute allowedRole="admin"><ContentCenter/></ProtectedRoute>}/>
           <Route
             path="/student/dashboard"
             element={

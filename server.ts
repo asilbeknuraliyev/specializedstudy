@@ -1,6 +1,8 @@
 import nodeCrypto from 'node:crypto';
 import {registerTeachingRoutes,teacherClasses,deliveredForClass} from './src/server/teachingRoutes';
 import { registerExamRoutes } from './src/server/examRoutes';
+import { registerContentRoutes } from './src/server/contentRoutes';
+import { registerStudentHomeRoutes } from './src/server/studentHomeRoutes';
 import { canTakeExam, examDeadline, sanitizeExamQuestion } from './src/utils/examPolicy';
 import { cloudStateMiddleware } from './src/server/cloudStateMiddleware';
 import { requestDatabase } from './src/server/requestDatabase';
@@ -8,8 +10,8 @@ import 'dotenv/config';
 import express, { Request, Response } from 'express';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { GoogleGenAI, Type } from '@google/genai';
-import * as XLSX from 'xlsx';
+import type { GoogleGenAI } from '@google/genai';
+
 import { z } from 'zod';
 import {
   scoreAssessmentSubmission,
@@ -242,7 +244,7 @@ const AIDraftedQuestionSchema = z.object({
   explanation: z.string().min(5),
 });
 
-function getGeminiClient(req?: Request): GoogleGenAI | null {
+async function getGeminiClient(req?: Request): Promise<GoogleGenAI | null> {
   if (req && resolveRequestEnv(req) === 'test') {
     return null;
   }
@@ -250,6 +252,7 @@ function getGeminiClient(req?: Request): GoogleGenAI | null {
   if (!apiKey || apiKey === 'MY_GEMINI_API_KEY') {
     return null;
   }
+  const {GoogleGenAI}=await import('@google/genai');
   return new GoogleGenAI({
     apiKey,
     httpOptions: {
@@ -495,6 +498,7 @@ async function startServer() {
       req.path.startsWith('/api/work-plans/upload') ||
       req.path.startsWith('/api/imports/') ||
       req.path.startsWith('/api/questions/media')
+      || req.path === '/api/content-imports/preview'
     ) {
       return uploadJsonParser(req, res, next);
     }
@@ -502,6 +506,8 @@ async function startServer() {
   });
 
   registerTeachingRoutes(app,{authenticate:authenticateRequest,save:saveDbState,hash:hashPassword,revoke:revokeAllUserSessions});
+  registerContentRoutes(app,{authenticate:authenticateRequest,save:saveDbState});
+  registerStudentHomeRoutes(app,{authenticate:authenticateRequest,save:saveDbState});
   app.use('/api',(req,res,next)=>{const c=authenticateRequest(req);if(c?.user.role==='teacher'&&!['/state','/auth/logout'].includes(req.path)&&!req.path.startsWith('/teaching/'))return res.status(403).json({error:'O‘qituvchi uchun bu amalga ruxsat yo‘q.'});next();});
   registerExamRoutes(app, {authenticate: authenticateRequest, save: saveDbState, notify: broadcastInstitutionUpdate});
 
@@ -4088,7 +4094,8 @@ async function startServer() {
     );
 
     // If rows could not be extracted deterministically (e.g. PDF/image/DOCX binary) and Gemini is available, use Gemini
-    const ai = getGeminiClient(req);
+    const {Type}=await import('@google/genai');
+    const ai = await getGeminiClient(req);
     if (rows.length === 0 && ai) {
       try {
         const parts: any[] = [];
@@ -7264,7 +7271,8 @@ async function startServer() {
         });
       }
 
-      const ai = getGeminiClient(req);
+      const {Type}=await import('@google/genai');
+    const ai = await getGeminiClient(req);
       if (!ai) {
         const fallback = buildDeterministicFallbackAnalysis(
           assessmentTitle,
@@ -7410,7 +7418,8 @@ Savollar va javoblar: ${JSON.stringify(anonymizedAnswers)}
     try {
       const { topicName, difficulty, grade = 8, subject = 'Matematika' } = req.body;
 
-      const ai = getGeminiClient(req);
+      const {Type}=await import('@google/genai');
+    const ai = await getGeminiClient(req);
       if (!ai) {
         return res.json({
           prompt: `${grade}-sinf ${subject} (${topicName}): Agar 3(2x - 5) = 21 bo‘lsa, x ning qiymatini toping.`,
@@ -7488,7 +7497,8 @@ Savollar va javoblar: ${JSON.stringify(anonymizedAnswers)}
       });
     }
 
-    const ai = getGeminiClient(req);
+    const {Type}=await import('@google/genai');
+    const ai = await getGeminiClient(req);
     if (!ai) {
       // Deterministic rubric keyword & length heuristic fallback
       const hasEquationsOrSteps =
@@ -8673,7 +8683,7 @@ Savollar va javoblar: ${JSON.stringify(anonymizedAnswers)}
   });
 
   // 4. GET /api/attendance/export.xlsx
-  app.get('/api/attendance/export.xlsx', (req, res) => {
+  app.get('/api/attendance/export.xlsx', async (req, res) => {
     const authCtx = authenticateRequest(req);
     if (!authCtx) return res.status(401).json({ error: 'Avtorizatsiya talab qilinadi.' });
     const { user, db } = authCtx;
@@ -8707,6 +8717,7 @@ Savollar va javoblar: ${JSON.stringify(anonymizedAnswers)}
       }),
     ];
 
+    const XLSX=await import('xlsx');
     const ws = XLSX.utils.aoa_to_sheet(rows);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Davomat');
@@ -9711,7 +9722,7 @@ Savollar va javoblar: ${JSON.stringify(anonymizedAnswers)}
     return res.json({ report });
   });
 
-  app.get('/api/reports/:id/export', (req, res) => {
+  app.get('/api/reports/:id/export', async (req, res) => {
     const authCtx = authenticateRequest(req);
     if (!authCtx) return res.status(401).json({ error: 'Avtorizatsiya talab qilinadi.' });
     const { user, db } = authCtx;
@@ -9741,6 +9752,7 @@ Savollar va javoblar: ${JSON.stringify(anonymizedAnswers)}
     }
 
     if (format === 'xlsx') {
+      const XLSX=await import('xlsx');
       const wb = XLSX.utils.book_new();
       const ws = XLSX.utils.json_to_sheet(flatRows);
       XLSX.utils.book_append_sheet(wb, ws, 'Hisobot');
@@ -10475,6 +10487,7 @@ Savollar va javoblar: ${JSON.stringify(anonymizedAnswers)}
     const apiKey = process.env.GEMINI_API_KEY;
     if (apiKey && apiKey !== 'MY_GEMINI_API_KEY') {
       try {
+        const {GoogleGenAI,Type}=await import('@google/genai');
         const ai = new GoogleGenAI({ apiKey });
         const prompt = `Siz ixtisoslashtirilgan maktabning akademik baholash yordamchisisiz.
 Topshiriq: "${asg?.title || sub.assignmentTitle}" (${asg?.subject || 'Matematika'}).

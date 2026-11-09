@@ -132,6 +132,7 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
   const navItems = isAdminAccount
     ? [
         { to: '/admin/dashboard', label: 'Bosh sahifa', icon: LayoutDashboard, end: true },
+        { to: '/admin/content', label: 'Kontent markazi', icon: FileSpreadsheet },
         { to: '/admin/classes', label: 'Sinflar', icon: Users },
         { to: '/admin/teachers', label: 'O‘qituvchilar', icon: Users },
         { to: '/admin/students', label: "O'quvchilar", icon: GraduationCap },
@@ -154,33 +155,19 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
         { to: '/admin/settings', label: 'Sozlamalar', icon: Settings },
       ]
     : [
-        { to: '/student/dashboard', label: 'Bosh sahifa', icon: LayoutDashboard, end: true },
-        { to: '/student/timetable', label: 'Jadval', icon: Calendar },
-        { to: '/student/assignments', label: 'Topshiriqlar', icon: FileText },
-        { to: '/student/materials', label: 'Materiallar', icon: Library },
-        { to: '/student/announcements', label: "E'lonlar", icon: Megaphone },
-        { to: '/student/calendar', label: 'Kalendar', icon: CalendarCheck },
-        { to: '/student/lessons', label: 'Darslar', icon: BookOpen },
-        { to: '/student/assessments', label: 'Testlar', icon: ClipboardCheck },
-        { to: '/student/knowledge-map', label: "O'quv xaritasi", icon: Compass },
-        { to: '/student/results', label: 'Natijalar', icon: BarChart3 },
+        {to:'/student/dashboard',label:'Bosh sahifa',icon:LayoutDashboard,end:true},
+        {to:'/student/lessons',label:'Fanlar',icon:BookOpen},
+        {to:'/student/timetable',label:'Jadval',icon:Calendar},
+        {to:'/student/tasks',label:'Vazifalar',icon:ClipboardCheck},
+        {to:'/student/profile',label:'Men',icon:UserIcon},
       ];
-
-  // Mobile bottom navigation bar items for Students (Part 2 Section 3.1)
-  const studentMobileBottomItems = [
-    { to: '/student/dashboard', label: 'Bosh sahifa', icon: LayoutDashboard, end: true },
-    { to: '/student/lessons', label: 'Darslar', icon: BookOpen, end: false },
-    { to: '/student/assessments', label: 'Testlar', icon: ClipboardCheck, end: false },
-    { to: '/student/knowledge-map', label: "O'quv xaritasi", icon: Compass, end: false },
-    { to: '/student/profile', label: 'Profil', icon: UserIcon, end: false },
-  ];
+  const studentMobileBottomItems=navItems;
 
   // Mobile drawer items (for Students includes secondary actions like Natijalar & Profil)
   const mobileDrawerItems = (isAdminAccount || currentUser.role==='teacher')
     ? navItems
     : [
         ...navItems,
-        { to: '/student/profile', label: 'Profil', icon: UserIcon, end: false },
       ];
 
   // Clean section title for header
@@ -189,6 +176,8 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
     if (p === '/admin' || p === '/admin/dashboard' || p === '/student' || p === '/student/dashboard') {
       return 'Bosh sahifa';
     }
+    if (p.startsWith('/admin/content')) return 'Kontent markazi';
+    if (p.startsWith('/student/tasks')) return 'Vazifalar';
     if (p.startsWith('/admin/classes')) return 'Sinflar';
       if (p.startsWith('/admin/teachers')) return 'O‘qituvchilar';
       if (p.startsWith('/teacher/')) return 'O‘qituvchi kabineti';

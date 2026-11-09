@@ -7,6 +7,7 @@ return async (req,res,next) => {
  if(process.env.PERSISTENCE_DRIVER!=='firestore'||!req.path.startsWith('/api/')||req.path==='/api/health')return next();
  try {
    const snapshot=await store.read();
+   const baseState=JSON.stringify(snapshot.state);
    const context={...snapshot,dirty:false,afterCommit:[] as Array<()=>void>};
    const json=res.json.bind(res);
    let sending=false;
@@ -15,7 +16,7 @@ return async (req,res,next) => {
      sending=true;
      void (async()=>{
        try {
-         if(context.dirty) await store.write(context.state,context.revision);
+         if(context.dirty) await store.write(context.state,context.revision,baseState);
          for(const action of context.afterCommit)action();
          json(body);
        } catch(error) {

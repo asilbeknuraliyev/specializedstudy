@@ -16,7 +16,7 @@ function registerPracticeRoutes(app2, deps) {
     const record = c.db.lessonPracticeResponses?.find((r) => r.studentId === c.user.uid && r.lessonId === c.lesson.id);
     res.json({ savedAnswers: record && record.status !== "draft" ? record.answers : void 0, draftAnswers: record?.status === "draft" ? record.answers : void 0, revision: record?.revision || 0, title: c.lesson.title, questions: [`\xAB${c.lesson.title}\xBB mavzusidagi asosiy qoida yoki tushunchani o\u2018z so\u2018zingiz bilan tushuntiring.`, `Shu mavzuga oid bitta misol keltiring va yechimingizni bosqichma-bosqich izohlang.`], mode: "reflection", notice: "Yozma takrorlash mashqi. Avtomatik baholanmaydi. Qoralama hisobingizga saqlanadi." });
   });
-  const write6 = (submit) => (req, res) => {
+  const write5 = (submit) => (req, res) => {
     const c = access(req);
     if (!c) return res.status(403).json({ error: "Darsga ruxsat yo\u2018q." });
     const parsed = z.array(z.string().max(1e4)).length(2).safeParse(req.body.answers);
@@ -37,8 +37,8 @@ function registerPracticeRoutes(app2, deps) {
     deps.save(c.env, c.db);
     res.json({ id: record.id, status: submit ? "received" : "draft", revision: record.revision });
   };
-  app2.put("/api/lesson-practice/:id", write6(false));
-  app2.post("/api/lesson-practice/:id", write6(true));
+  app2.put("/api/lesson-practice/:id", write5(false));
+  app2.post("/api/lesson-practice/:id", write5(true));
 }
 
 // src/server/teachingRoutes.ts
@@ -120,6 +120,15 @@ function registerTeachingRoutes(app2, deps) {
 // src/server/examMedia.ts
 import { getFirestore } from "firebase-admin/firestore";
 import crypto5 from "node:crypto";
+
+// src/server/runtimeScope.ts
+function runtimeNamespace(env = process.env) {
+  const name = env.PERSISTENCE_NAMESPACE || "_specialized_runtime";
+  if (name !== "_specialized_runtime" && !/^_specialized_preview_[a-z0-9_]{1,40}$/.test(name)) throw Error("Invalid persistence namespace");
+  if (env.VERCEL_ENV === "preview" && name === "_specialized_runtime") throw Error("Preview must use an isolated Firestore namespace");
+  if (env.VERCEL_ENV === "production" && name !== "_specialized_runtime") throw Error("Production namespace cannot be overridden");
+  return name;
+}
 
 // src/server/firebaseAdminAuth.ts
 import crypto4 from "crypto";
@@ -1892,7 +1901,8 @@ var configuredSessionSecret = process.env.SESSION_SECRET;
 if (process.env.NODE_ENV === "production" && (!configuredSessionSecret || configuredSessionSecret.length < 32 || configuredSessionSecret.includes("REPLACE_WITH"))) {
   throw new Error("Production requires a random SESSION_SECRET of at least 32 characters.");
 }
-var TOKEN_SECRET = configuredSessionSecret || crypto3.randomBytes(32).toString("hex");
+var baseSessionSecret = configuredSessionSecret || crypto3.randomBytes(32).toString("hex");
+var TOKEN_SECRET = runtimeNamespace() === "_specialized_runtime" ? baseSessionSecret : crypto3.createHmac("sha256", baseSessionSecret).update(runtimeNamespace()).digest("hex");
 function ensureSpecializedStudyStructure(state) {
   const nowIso = "2026-01-01T00:00:00.000Z";
   if (!Array.isArray(state.institutions)) {
@@ -2753,6 +2763,7 @@ async function provisionAuthorizedAdmins(env, db) {
 }
 
 // src/server/examMedia.ts
+var mediaRoot = runtimeNamespace() === "_specialized_runtime" ? "_specialized_exam_media" : runtimeNamespace() + "_media";
 async function storeExamImage(institutionId, examId, dataUrl) {
   const match = dataUrl.match(/^data:image\/(jpeg|png);base64,(.+)$/);
   if (!match) throw Error("Image format rejected");
@@ -2762,12 +2773,12 @@ async function storeExamImage(institutionId, examId, dataUrl) {
   if (!(match[1] === "png" ? png : jpeg)) throw Error("Image signature rejected");
   const hash = crypto5.createHash("sha256").update(institutionId).update(bytes).digest("hex");
   const db = getFirestore(getFirebaseAdminApp(), loadFirebaseAppletConfig().firestoreDatabaseId);
-  await db.doc(`_specialized_exam_media/${hash}`).set({ institutionId, data: match[2], mime: `image/${match[1]}`, createdAt: (/* @__PURE__ */ new Date()).toISOString() });
+  await db.doc(`${mediaRoot}/${hash}`).set({ institutionId, data: match[2], mime: `image/${match[1]}`, createdAt: (/* @__PURE__ */ new Date()).toISOString() });
   return `/api/exams/${examId}/media/${hash}`;
 }
 async function readExamImage(hash) {
   const db = getFirestore(getFirebaseAdminApp(), loadFirebaseAppletConfig().firestoreDatabaseId);
-  const doc = await db.doc(`_specialized_exam_media/${hash}`).get();
+  const doc = await db.doc(`${mediaRoot}/${hash}`).get();
   return doc.exists ? doc.data() : null;
 }
 
@@ -3017,11 +3028,366 @@ function registerExamRoutes(app2, deps) {
   });
 }
 
-// src/server/cloudState.ts
+// src/server/contentRoutes.ts
+import crypto8 from "node:crypto";
+import { z as z4 } from "zod";
+
+// src/server/contentImportEngine.ts
 import crypto7 from "node:crypto";
+var contentHash = (value) => crypto7.createHash("sha256").update(JSON.stringify(value)).digest("hex");
+var days = ["", "Dushanba", "Seshanba", "Chorshanba", "Payshanba", "Juma", "Shanba"];
+var templates = { workplan: ["sinf", "fan", "chorak", "tartib", "mavzu", "soat", "sinf_ishi", "uy_vazifasi"], timetable: ["sinf", "kun", "dars", "boshlanish", "tugash", "fan", "oqituvchi", "xona"], questions: ["sinf", "fan", "chorak", "mavzu", "tur", "savol", "A", "B", "C", "D", "javob", "ball", "izoh"] };
+var minute = (s) => /^([01]\d|2[0-3]):[0-5]\d$/.test(s) ? Number(s.slice(0, 2)) * 60 + Number(s.slice(3)) : NaN;
+function validateContentRows(kind, input, db, institutionId, year) {
+  const seen = /* @__PURE__ */ new Set(), accepted = [];
+  const active = new Set((db.timetables || []).filter((t) => t.institutionId === institutionId && t.status !== "archived" && (t.academicYear || db.institutions?.find((i) => i.id === institutionId)?.academicYear || year) === year).map((t) => t.id));
+  const existing = (db.timetableEntries || []).filter((e) => e.institutionId === institutionId && active.has(e.timetableId));
+  return input.map((raw, index) => {
+    const rowNumber = Number(raw.__row) || index + 2;
+    const errors = [];
+    if (Object.values(raw).some((v) => v.length > 1e4)) errors.push("Katak matni 10000 belgidan oshmasin.");
+    const code = (raw.sinf || "").toLowerCase().trim();
+    const cls = db.classes.find((c) => c.institutionId === institutionId && c.code === code);
+    if (!cls) errors.push("Rasmiy sinf topilmadi.");
+    if (!raw.fan || raw.fan.length < 2 || raw.fan.length > 100) errors.push("Fan nomini kiriting.");
+    let key;
+    if (kind === "workplan") {
+      if (![1, 2, 3, 4].includes(Number(raw.chorak))) errors.push("Chorak 1\u20134 bo\u2018lsin.");
+      if (!Number.isInteger(Number(raw.tartib)) || Number(raw.tartib) < 1 || Number(raw.tartib) > 1e3) errors.push("Tartib 1\u20131000 oralig\u2018idagi butun son bo\u2018lsin.");
+      if (!raw.mavzu || raw.mavzu.length > 1e3) errors.push("Mavzu kiritilsin (1000 belgigacha).");
+      if (!(Number(raw.soat) > 0 && Number(raw.soat) <= 8)) errors.push("Soat 0 dan katta, 8 dan oshmasin.");
+      key = contentHash([institutionId, kind, year, code, raw.fan, Number(raw.chorak), Number(raw.tartib)]);
+    } else {
+      const day = days.findIndex((d) => d.toLowerCase() === String(raw.kun).toLowerCase());
+      const start = minute(raw.boshlanish || ""), end = minute(raw.tugash || "");
+      if (day < 1) errors.push("Kun Dushanba\u2013Shanba bo\u2018lsin.");
+      if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start) errors.push("Vaqt HH:mm shaklida va tugash boshlanishdan keyin bo\u2018lsin.");
+      if (!Number.isInteger(Number(raw.dars)) || Number(raw.dars) < 1 || Number(raw.dars) > 12) errors.push("Dars tartibi 1\u201312 bo\u2018lsin.");
+      const matches = (db.users || []).filter((u) => u.institutionId === institutionId && u.role === "teacher" && u.status === "active" && (u.email?.toLowerCase() === raw.oqituvchi?.toLowerCase() || u.displayName?.toLowerCase() === raw.oqituvchi?.toLowerCase()));
+      if (raw.oqituvchi && matches.length !== 1) errors.push("O\u2018qituvchi aniq topilmadi. Avval hisob yarating yoki emailidan foydalaning.");
+      const teacher = matches[0];
+      if (teacher && cls && (!teacher.assignedClassIds?.includes(cls.id) || teacher.subject !== raw.fan)) errors.push("O\u2018qituvchi ushbu sinf/fanga biriktirilmagan.");
+      raw = { ...raw, __teacherId: teacher?.uid || "", __teacherName: teacher?.displayName || "", __day: String(day) };
+      key = contentHash([institutionId, kind, year, code, day, raw.boshlanish, raw.tugash, raw.fan, raw.oqituvchi || "", raw.xona || ""]);
+      const conflicts = [...existing, ...accepted].filter((e) => Number(e.weekdayIndex) === day && start < minute(e.endTime) && end > minute(e.startTime));
+      if (conflicts.some((e) => e.classCode === code && e.sourceRecordHash !== key)) errors.push("Sinf bir vaqtda ikki darsda.");
+      if (teacher && conflicts.some((e) => e.teacherId === teacher.uid && e.sourceRecordHash !== key)) errors.push("O\u2018qituvchi bir vaqtda ikki sinfda.");
+      if (raw.xona && conflicts.some((e) => e.room?.trim().toLowerCase() === raw.xona.trim().toLowerCase() && e.sourceRecordHash !== key)) errors.push("Xona band.");
+      if (!errors.length) accepted.push({ classCode: code, weekdayIndex: day, startTime: raw.boshlanish, endTime: raw.tugash, teacherId: teacher?.uid, room: raw.xona, sourceRecordHash: key });
+    }
+    const duplicate = seen.has(key) || (kind === "workplan" ? db.lessons || [] : existing).some((r) => r.institutionId === institutionId && (r.sourceRecordHash === key || r.id === "content-" + key));
+    if (kind === "workplan" && !duplicate && (db.lessons || []).some((r) => r.institutionId === institutionId && r.academicYear === year && (r.classCode === code || r.classCodes?.includes(code)) && (r.subjectName || r.subject) === raw.fan && r.quarter === Number(raw.chorak) && r.lessonNumber === Number(raw.tartib))) errors.push("Shu tartibdagi mavzu mavjud. Mavjud darsni tahrirlang.");
+    if (!errors.length) seen.add(key);
+    return { rowNumber, raw: { ...raw, sinf: code }, errors, status: errors.length ? "error" : duplicate ? "duplicate" : "valid", key };
+  });
+}
+
+// src/server/contentRoutes.ts
+function registerContentRoutes(app2, deps) {
+  const admin = (req, res) => {
+    const c = deps.authenticate(req);
+    if (!c) {
+      res.status(401).json({ error: "Hisobga kiring." });
+      return null;
+    }
+    if (!["admin", "platform_owner"].includes(c.user.role) || !c.user.platformAdmin || !c.user.emailVerified) {
+      res.status(403).json({ error: "Faqat tasdiqlangan administrator." });
+      return null;
+    }
+    return c;
+  };
+  const audit = (c, job, action) => c.db.auditLogs.push({ id: crypto8.randomUUID(), institutionId: c.user.institutionId, actorUid: c.user.uid, actorName: c.user.displayName, actorRole: c.user.role, action, target: job.fileName, recordId: job.id, createdAt: (/* @__PURE__ */ new Date()).toISOString() });
+  app2.get("/api/content-imports/templates/:kind", async (req, res) => {
+    const c = admin(req, res);
+    if (!c) return;
+    const kind = req.params.kind;
+    if (!templates[kind]) return res.status(404).json({ error: "Shablon topilmadi." });
+    const XLSX5 = await import("xlsx");
+    const wb = XLSX5.utils.book_new();
+    XLSX5.utils.book_append_sheet(wb, XLSX5.utils.aoa_to_sheet([templates[kind]]), "Shablon");
+    res.setHeader("Content-Disposition", `attachment; filename="specialized-${kind}.xlsx"`);
+    res.type("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet").send(XLSX5.write(wb, { type: "buffer", bookType: "xlsx" }));
+  });
+  app2.get("/api/content-imports", (req, res) => {
+    const c = admin(req, res);
+    if (!c) return;
+    res.json({ jobs: (c.db.contentImports || []).filter((j) => j.institutionId === c.user.institutionId).slice(-50).reverse() });
+  });
+  app2.post("/api/content-imports/preview", async (req, res) => {
+    const c = admin(req, res);
+    if (!c) return;
+    const parsed = z4.object({ kind: z4.enum(["workplan", "timetable"]), fileName: z4.string().max(180).regex(/\.(xlsx|csv)$/i), base64: z4.string().max(42e5), year: z4.string().regex(/^\d{4}-\d{4}$/) }).safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ error: "Excel/CSV fayli va o\u2018quv yilini tekshiring." });
+    const p = parsed.data, bytes = Buffer.from(p.base64, "base64");
+    if (!bytes.length || bytes.length > 3 * 1024 * 1024) return res.status(413).json({ error: "Fayl 3 MB dan oshmasin." });
+    try {
+      if (/\.xlsx$/i.test(p.fileName)) {
+        const JSZip3 = (await import("jszip")).default;
+        const zip = await JSZip3.loadAsync(bytes);
+        let expanded = 0;
+        for (const entry of Object.values(zip.files)) {
+          expanded += entry._data?.uncompressedSize || 0;
+          if (expanded > 20 * 1024 * 1024) throw Error("Expanded file too large");
+        }
+      }
+      const XLSX5 = await import("xlsx");
+      const book = XLSX5.read(bytes, { type: "buffer", sheetRows: 1003, raw: true });
+      if (book.SheetNames.length !== 1) return res.status(400).json({ error: "Shablon kabi bitta varaqli faylni yuklang." });
+      const matrix = XLSX5.utils.sheet_to_json(book.Sheets[book.SheetNames[0]], { header: 1, defval: "", blankrows: true });
+      if (matrix.length > 1001) return res.status(400).json({ error: "Bitta importda 1000 qatordan oshmasin." });
+      const headers = (matrix[0] || []).map((v) => String(v).trim().toLowerCase());
+      if (new Set(headers).size !== headers.length || headers.some((h) => !templates[p.kind].includes(h)) || templates[p.kind].some((h) => !headers.includes(h))) return res.status(400).json({ error: "Ustunlar shablonga mos emas. Shablonni yuklab oling." });
+      const raw = matrix.slice(1).map((row, i) => Object.fromEntries([...headers.map((h, n) => [h, String(row[n] ?? "").trim()]), ["__row", String(i + 2)]]));
+      const rows = validateContentRows(p.kind, raw.filter((r) => headers.some((h) => r[h])), c.db, c.user.institutionId, p.year);
+      if (!rows.length) return res.status(400).json({ error: "Faylda ma\u2019lumot qatori yo\u2018q." });
+      const job = { id: crypto8.randomUUID(), institutionId: c.user.institutionId, actorId: c.user.uid, kind: p.kind, year: p.year, fileName: p.fileName, createdAt: (/* @__PURE__ */ new Date()).toISOString(), status: "review", rows };
+      c.db.contentImports ||= [];
+      c.db.contentImports.push(job);
+      audit(c, job, "Kontent importi tekshirildi");
+      deps.save(c.env, c.db);
+      res.json({ job });
+    } catch {
+      return res.status(400).json({ error: "Fayl o\u2018qilmadi. Excel/CSV shablonni tekshiring." });
+    }
+  });
+  app2.post("/api/content-imports/:id/commit", (req, res) => {
+    const c = admin(req, res);
+    if (!c) return;
+    const job = c.db.contentImports?.find((j) => j.id === req.params.id && j.institutionId === c.user.institutionId);
+    if (!job) return res.status(404).json({ error: "Import topilmadi." });
+    if (job.status === "committed") return res.json({ job });
+    if (job.status !== "review" || !["draft", "publish"].includes(req.body.mode)) return res.status(409).json({ error: "Import holati yoki nashr tanlovi noto\u2018g\u2018ri." });
+    const rows = validateContentRows(job.kind, job.rows.map((r) => ({ ...r.raw, __row: String(r.rowNumber) })), c.db, c.user.institutionId, job.year);
+    const valid = rows.filter((r) => r.status === "valid");
+    if (!valid.length) return res.status(409).json({ error: "Kiritiladigan to\u2018g\u2018ri qator qolmadi.", rows });
+    const now = (/* @__PURE__ */ new Date()).toISOString();
+    job.created = [];
+    c.db.contentWriteLocks ||= {};
+    c.db.contentWriteLocks[c.user.institutionId] = (c.db.contentWriteLocks[c.user.institutionId] || 0) + 1;
+    const add = (collection, record) => {
+      const db = c.db;
+      db[collection] ||= [];
+      db[collection].push(record);
+      job.created.push({ collection, id: record.id, digest: contentHash(record) });
+    };
+    for (const row of valid) {
+      const r = row.raw, cls = c.db.classes.find((cl) => cl.institutionId === c.user.institutionId && cl.code === r.sinf);
+      if (job.kind === "workplan") {
+        if (cls.track === "T" && r.fan === "Matematika" && req.body.approveAdditionalMath !== true) return res.status(400).json({ error: "T sinflariga matematika uchun qo\u2018shimcha ruxsatni belgilang." });
+      }
+    }
+    for (const row of valid) {
+      const r = row.raw, cls = c.db.classes.find((cl) => cl.institutionId === c.user.institutionId && cl.code === r.sinf);
+      if (job.kind === "workplan") {
+        let subject = c.db.subjects.find((s) => s.institutionId === c.user.institutionId && s.name === r.fan);
+        if (!subject) {
+          subject = { id: crypto8.randomUUID(), institutionId: c.user.institutionId, name: r.fan, code: r.fan.toUpperCase().slice(0, 8), description: "", status: "active", createdAt: now };
+          add("subjects", subject);
+        }
+        const group = `${cls.id}:${r.fan}:${r.chorak}`;
+        let plan = c.db.workPlans.find((p) => p.importJobId === job.id && p.sourceWorksheet === group);
+        if (!plan) {
+          plan = { id: crypto8.randomUUID(), institutionId: c.user.institutionId, title: `${cls.code.toUpperCase()} \xB7 ${r.fan} \xB7 ${r.chorak}-chorak`, fileName: job.fileName, classId: cls.id, classIds: [cls.id], classCode: cls.code, classCodes: [cls.code], grade: cls.grade, track: cls.track, subjectId: subject.id, subjectName: r.fan, academicYear: job.year, quarter: Number(r.chorak), planType: "quarterly", status: req.body.mode === "publish" ? "published" : "draft", rows: [], warnings: [], importJobId: job.id, sourceWorksheet: group, createdByUid: c.user.uid, createdByName: c.user.displayName, createdAt: now };
+          add("workPlans", plan);
+        }
+        add("lessons", { id: "content-" + row.key, institutionId: c.user.institutionId, workPlanId: plan.id, importJobId: job.id, classId: cls.id, classIds: [cls.id], classCode: cls.code, classCodes: [cls.code], grade: cls.grade, track: cls.track, subjectId: subject.id, subjectName: r.fan, subject: r.fan, academicYear: job.year, quarter: Number(r.chorak), lessonNumber: Number(r.tartib), orderIndex: Number(r.tartib), title: r.mavzu, topicTitle: r.mavzu, topicName: r.mavzu, topicId: "", unitTitle: "", learningObjectives: [], content: r.sinf_ishi, classwork: r.sinf_ishi, homework: r.uy_vazifasi, hours: Number(r.soat), materials: [], relatedAssessmentIds: [], status: req.body.mode === "publish" ? "published" : "draft", additionalCurriculumAssignment: cls.track === "T" && r.fan === "Matematika", tTrackVisibilityApproved: cls.track === "T" && r.fan === "Matematika" ? true : void 0, sourceRecordHash: row.key, sourceFileName: job.fileName, sourceRow: row.rowNumber, createdAt: now });
+      } else {
+        c.db.timetables ||= [];
+        const mode = req.body.mode === "publish" ? "active" : "draft";
+        let timetable = c.db.timetables.find((t) => t.institutionId === c.user.institutionId && t.classId === cls.id && t.status === mode && (mode === "active" || job.created.some((r2) => r2.collection === "timetables" && r2.id === t.id)) && (t.academicYear || c.db.institutions.find((i) => i.id === c.user.institutionId)?.academicYear) === job.year);
+        if (!timetable) {
+          timetable = { id: crypto8.randomUUID(), institutionId: c.user.institutionId, classId: cls.id, classCode: cls.code, title: cls.code.toUpperCase() + " dars jadvali", academicYear: job.year, effectiveFrom: now.slice(0, 10), version: 1, status: mode, createdByUid: c.user.uid, createdByName: c.user.displayName, createdAt: now, updatedAt: now };
+          add("timetables", timetable);
+        }
+        add("timetableEntries", { id: "content-" + row.key, institutionId: c.user.institutionId, timetableId: timetable.id, classCode: cls.code, classId: cls.id, weekday: days[Number(r.__day)], weekdayIndex: Number(r.__day), lessonNumber: Number(r.dars), subject: r.fan, startTime: r.boshlanish, endTime: r.tugash, teacherId: r.__teacherId, teacherName: r.__teacherName, room: r.xona, sourceRecordHash: row.key, createdAt: now, updatedAt: now });
+      }
+    }
+    job.rows = rows;
+    job.mode = req.body.mode;
+    job.status = "committed";
+    job.committedAt = now;
+    audit(c, job, `Kontent kiritildi: ${valid.length} qator`);
+    deps.save(c.env, c.db);
+    res.json({ job });
+  });
+  app2.post("/api/content-imports/:id/publication", (req, res) => {
+    const c = admin(req, res);
+    if (!c) return;
+    const job = c.db.contentImports?.find((j) => j.id === req.params.id && j.institutionId === c.user.institutionId);
+    const mode = req.body.mode;
+    if (!job || job.status !== "committed" || !job.created) return res.status(404).json({ error: "Kiritilgan import topilmadi." });
+    if (mode === job.mode) return res.json({ job });
+    if (!["publish", "archive"].includes(mode) || job.mode === "archive" || mode === "archive" && job.kind !== "workplan") return res.status(400).json({ error: "Bu holatga o\u2018tish mumkin emas." });
+    for (const ref of job.created) {
+      const record = (c.db[ref.collection] || []).find((r) => r.id === ref.id);
+      if (!record || contentHash(record) !== ref.digest) return res.status(409).json({ error: "Import yozuvi keyin o\u2018zgartirilgan. Alohida tahrirlash oynasidan foydalaning." });
+    }
+    if (mode === "publish") {
+      const own = new Set(job.created.filter((r) => r.collection === "lessons" || r.collection === "timetableEntries").map((r) => r.id));
+      const view = { ...c.db, lessons: c.db.lessons.filter((l) => !own.has(l.id)), timetableEntries: (c.db.timetableEntries || []).filter((e) => !own.has(e.id)) };
+      const rows = validateContentRows(job.kind, job.rows.filter((r) => r.status === "valid").map((r) => r.raw), view, c.user.institutionId, job.year);
+      if (rows.some((r) => r.status !== "valid")) return res.status(409).json({ error: "Nashr qilishda to\u2018qnashuv yoki takror topildi. Jadvalni tekshiring.", rows });
+    }
+    c.db.contentWriteLocks ||= {};
+    c.db.contentWriteLocks[c.user.institutionId] = (c.db.contentWriteLocks[c.user.institutionId] || 0) + 1;
+    const removed = /* @__PURE__ */ new Set();
+    for (const ref of job.created) {
+      const record = (c.db[ref.collection] || []).find((r) => r.id === ref.id);
+      if (ref.collection === "lessons" || ref.collection === "workPlans") record.status = mode === "publish" ? "published" : "archived";
+      if (ref.collection === "timetables" && mode === "publish") {
+        const active = c.db.timetables.find((t) => t.id !== record.id && t.institutionId === c.user.institutionId && t.classId === record.classId && t.status === "active" && (t.academicYear || c.db.institutions.find((i) => i.id === c.user.institutionId)?.academicYear) === job.year);
+        if (active) {
+          for (const e of c.db.timetableEntries || []) if (e.timetableId === record.id) e.timetableId = active.id;
+          c.db.timetables = c.db.timetables.filter((t) => t.id !== record.id);
+          removed.add(record.id);
+        } else record.status = "active";
+      }
+    }
+    job.created = job.created.filter((r) => !removed.has(r.id));
+    for (const ref of job.created) ref.digest = contentHash((c.db[ref.collection] || []).find((r) => r.id === ref.id));
+    job.mode = mode;
+    audit(c, job, mode === "publish" ? "Kontent nashr qilindi" : "Kontent arxivlandi");
+    deps.save(c.env, c.db);
+    res.json({ job });
+  });
+  app2.post("/api/content-imports/:id/undo", (req, res) => {
+    const c = admin(req, res);
+    if (!c) return;
+    const job = c.db.contentImports?.find((j) => j.id === req.params.id && j.institutionId === c.user.institutionId);
+    if (!job) return res.status(404).json({ error: "Import topilmadi." });
+    if (job.status === "undone") return res.json({ job });
+    if (job.status !== "committed" || !job.created) return res.status(409).json({ error: "Bu import qaytarilmaydi." });
+    const created = job.created;
+    for (const ref of created) {
+      const record = (c.db[ref.collection] || []).find((r) => r.id === ref.id);
+      if (!record || contentHash(record) !== ref.digest) return res.status(409).json({ error: "Importdan keyin yozuv o\u2018zgargan. Avtomatik qaytarish xavfsiz emas." });
+      if (ref.collection === "timetables" && (c.db.timetableEntries || []).some((e) => e.timetableId === ref.id && !created.some((r) => r.collection === "timetableEntries" && r.id === e.id))) return res.status(409).json({ error: "Jadvalga keyin boshqa dars qo\u2018shilgan." });
+      if (ref.collection === "workPlans" && c.db.lessons.some((l) => l.workPlanId === ref.id && !created.some((r) => r.collection === "lessons" && r.id === l.id))) return res.status(409).json({ error: "Ish rejasiga boshqa darslar biriktirilgan." });
+      if (ref.collection === "subjects" && c.db.lessons.some((l) => l.subjectId === ref.id && !created.some((r) => r.collection === "lessons" && r.id === l.id))) return res.status(409).json({ error: "Fan boshqa darslarda ishlatilgan." });
+    }
+    c.db.contentWriteLocks ||= {};
+    c.db.contentWriteLocks[c.user.institutionId] = (c.db.contentWriteLocks[c.user.institutionId] || 0) + 1;
+    for (const ref of created) c.db[ref.collection] = c.db[ref.collection].filter((r) => r.id !== ref.id);
+    job.status = "undone";
+    job.undoneAt = (/* @__PURE__ */ new Date()).toISOString();
+    audit(c, job, "Kontent importi qaytarildi");
+    deps.save(c.env, c.db);
+    res.json({ job });
+  });
+}
+
+// src/server/studentHomeRoutes.ts
+function ownLesson(user, lesson, year) {
+  return lesson.institutionId === user.institutionId && lesson.status === "published" && lesson.academicYear === year && Boolean(user.classId && [lesson.classId, ...lesson.classIds || []].includes(user.classId) || user.classCode && [lesson.classCode, ...lesson.classCodes || []].includes(user.classCode)) && (!lesson.additionalCurriculumAssignment || lesson.tTrackVisibilityApproved === true);
+}
+function studentHomeData(db, user, now = /* @__PURE__ */ new Date()) {
+  const date = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Tashkent", year: "numeric", month: "2-digit", day: "2-digit" }).format(now);
+  const weekday = new Date(now.getTime() + 5 * 36e5).getUTCDay();
+  const inst = db.institutions.find((i) => i.id === user.institutionId);
+  const tables = (db.timetables || []).filter((t) => t.institutionId === user.institutionId && t.status === "active" && (!t.academicYear || t.academicYear === inst?.academicYear) && (t.classId === user.classId || t.classCode === user.classCode) && t.effectiveFrom <= date && (!t.effectiveTo || t.effectiveTo >= date)).sort((a, b) => b.effectiveFrom.localeCompare(a.effectiveFrom) || b.version - a.version);
+  const selected = tables[0];
+  const timetable = (db.timetableEntries || []).filter((e) => selected && e.timetableId === selected.id && e.institutionId === user.institutionId && e.weekdayIndex === weekday).sort((a, b) => a.startTime.localeCompare(b.startTime));
+  const tasks = [];
+  for (const a of db.studentAssignments || []) {
+    if (a.institutionId !== user.institutionId || a.status !== "published") continue;
+    const codes = a.targetClassCodes || [], ids = a.targetClassIds || [];
+    if (codes.length || ids.length) {
+      if (!codes.includes(user.classCode) && !ids.includes(user.classId || "")) continue;
+    } else if (!user.classId) continue;
+    const submitted = (db.assignmentSubmissions || []).some((s) => s.studentId === user.uid && s.assignmentId === a.id && Boolean(s.submittedAt || s.submissionDate) && s.status !== "Qaytarildi");
+    if (!submitted) tasks.push({ id: a.id, title: a.title, subject: a.subjectName || a.subject, due: a.dueDate, kind: "assignment", href: "/student/assignments", ready: true });
+  }
+  for (const e of db.assessments) {
+    if (e.status !== "published" || !canTakeExam(user, e) || !["open", "scheduled", "paused"].includes(e.examState || "") || Date.parse(e.dueDate) < now.getTime() || db.attempts.some((a) => a.studentId === user.uid && a.assessmentId === e.id)) continue;
+    const ready = examCanStart(e, now.getTime());
+    tasks.push({ id: e.id, title: e.title, subject: e.subject || "", due: e.dueDate, kind: "exam", href: ready ? `/student/assessments/${e.id}` : "/student/assessments", ready });
+  }
+  tasks.sort((a, b) => a.due.localeCompare(b.due));
+  const last = (db.studentLastLessons || []).find((r) => r.studentId === user.uid && r.institutionId === user.institutionId);
+  const lesson = last && db.lessons.find((l) => l.id === last.lessonId && ownLesson(user, l, inst?.academicYear || ""));
+  return { date, weekday, timetable, tasks, lastLesson: lesson ? { id: lesson.id, title: lesson.topicTitle || lesson.title, subject: lesson.subjectName, quarter: lesson.quarter } : null };
+}
+function registerStudentHomeRoutes(app2, deps) {
+  const student = (req, res) => {
+    const c = deps.authenticate(req);
+    if (!c) {
+      res.status(401).json({ error: "Hisobga kiring." });
+      return null;
+    }
+    if (c.user.role !== "student" || c.user.status !== "active") {
+      res.status(403).json({ error: "Faqat faol o\u2018quvchi." });
+      return null;
+    }
+    return c;
+  };
+  app2.get("/api/student-home", (req, res) => {
+    const c = student(req, res);
+    if (c) res.json(studentHomeData(c.db, c.user));
+  });
+  app2.post("/api/student-home/last-open", (req, res) => {
+    const c = student(req, res);
+    if (!c) return;
+    const year = c.db.institutions.find((i) => i.id === c.user.institutionId)?.academicYear || "";
+    const lesson = c.db.lessons.find((l) => l.id === req.body.lessonId && ownLesson(c.user, l, year));
+    if (!lesson) return res.status(404).json({ error: "Dars topilmadi." });
+    c.db.studentLastLessons ||= [];
+    const last = c.db.studentLastLessons.find((l) => l.studentId === c.user.uid);
+    const now = (/* @__PURE__ */ new Date()).toISOString();
+    if (last?.lessonId === lesson.id && Date.now() - Date.parse(last.openedAt) < 6e4) return res.json({ saved: true });
+    const record = { id: c.user.uid, institutionId: c.user.institutionId, studentId: c.user.uid, lessonId: lesson.id, openedAt: now };
+    if (last) Object.assign(last, record);
+    else c.db.studentLastLessons.push(record);
+    deps.save(c.env, c.db);
+    res.json({ saved: true });
+  });
+}
+
+// src/server/cloudState.ts
+import crypto9 from "node:crypto";
 import { gzipSync, gunzipSync } from "node:zlib";
 import { getFirestore as getFirestore2 } from "firebase-admin/firestore";
-var ROOT = "_specialized_runtime";
+
+// src/server/mergeState.ts
+var same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+var MergeConflictError = class extends Error {
+};
+function atomic(base, local, remote) {
+  if (same(base, local)) return remote;
+  if (same(base, remote)) return local;
+  throw new MergeConflictError("The same record changed concurrently");
+}
+function mergeState(base, local, remote) {
+  const result = {};
+  for (const key of /* @__PURE__ */ new Set([...Object.keys(base), ...Object.keys(local), ...Object.keys(remote)])) {
+    const b = base[key], l = local[key], r = remote[key];
+    if (same(b, l)) {
+      result[key] = r;
+      continue;
+    }
+    if (same(b, r)) {
+      result[key] = l;
+      continue;
+    }
+    const entityKey = (row) => row && typeof row === "object" && (typeof row.id === "string" ? row.id : typeof row.uid === "string" ? row.uid : null);
+    if ([b, l, r].every(Array.isArray) && [b, l, r].every((a) => a.every((v) => entityKey(v)) && new Set(a.map(entityKey)).size === a.length)) {
+      if (!["examSessions", "lessonPracticeResponses", "studentLastLessons", "auditLogs", "notifications"].includes(key)) throw new MergeConflictError("Collection invariants require a retry");
+      const maps = [b, l, r].map((a) => new Map(a.map((v) => [entityKey(v), v])));
+      const ids = /* @__PURE__ */ new Set([...r.map(entityKey), ...l.map(entityKey), ...b.map(entityKey)]);
+      result[key] = [...ids].map((id) => atomic(...maps.map((m) => m.get(id)))).filter((v) => v !== void 0);
+    } else if ([b, l, r].every((v) => v && typeof v === "object" && !Array.isArray(v))) {
+      const merged = {};
+      for (const id of /* @__PURE__ */ new Set([...Object.keys(b), ...Object.keys(l), ...Object.keys(r)])) {
+        const value = atomic(b[id], l[id], r[id]);
+        if (value !== void 0) merged[id] = value;
+      }
+      result[key] = merged;
+    } else result[key] = atomic(b, l, r);
+  }
+  return result;
+}
+
+// src/server/cloudState.ts
+var ROOT = runtimeNamespace();
 var CHUNK_BYTES = 35e4;
 var MAX_STATE_BYTES = 64 * 1024 * 1024;
 var StateConflictError = class extends Error {
@@ -3049,19 +3415,19 @@ function encodeState(value) {
     const compressed = gzipSync(Buffer.from(part));
     for (let offset = 0; offset < compressed.length; offset += CHUNK_BYTES) {
       const bytes = compressed.subarray(offset, offset + CHUNK_BYTES);
-      chunks.push({ id: crypto7.createHash("sha256").update(bytes).digest("hex"), data: bytes.toString("base64") });
+      chunks.push({ id: crypto9.createHash("sha256").update(bytes).digest("hex"), data: bytes.toString("base64") });
     }
   }
-  return { chunks, digest: crypto7.createHash("sha256").update(raw).digest("hex") };
+  return { chunks, digest: crypto9.createHash("sha256").update(raw).digest("hex") };
 }
 function decodeState(chunks, digest) {
   const compressed = Buffer.concat(chunks.map((c) => {
     const b = Buffer.from(c.data, "base64");
-    if (crypto7.createHash("sha256").update(b).digest("hex") !== c.id) throw Error("Snapshot chunk integrity failure");
+    if (crypto9.createHash("sha256").update(b).digest("hex") !== c.id) throw Error("Snapshot chunk integrity failure");
     return b;
   }));
   const raw = gunzipSync(compressed, { maxOutputLength: MAX_STATE_BYTES });
-  if (crypto7.createHash("sha256").update(raw).digest("hex") !== digest) throw Error("Snapshot integrity failure");
+  if (crypto9.createHash("sha256").update(raw).digest("hex") !== digest) throw Error("Snapshot integrity failure");
   return JSON.parse(raw.toString("utf8"));
 }
 var cache = null;
@@ -3103,10 +3469,10 @@ async function readCloudState() {
   cache = { revision: manifest.revision, serialized: JSON.stringify(state), chunks: manifest.chunks };
   return { state, revision: manifest.revision };
 }
-async function writeCloudState(state, expectedRevision) {
+async function writeCloudState(state, expectedRevision, baseState, retry = 0) {
   const db = database();
   const encoded = encodeState(state);
-  const revision = crypto7.randomUUID();
+  const revision = crypto9.randomUUID();
   const previous = cache?.revision === expectedRevision ? cache.chunks : [];
   const reused = new Set(previous);
   const changed = encoded.chunks.filter((chunk, i, all) => !reused.has(chunk.id) && all.findIndex((c) => c.id === chunk.id) === i);
@@ -3121,13 +3487,29 @@ async function writeCloudState(state, expectedRevision) {
     }
     await batch.commit();
   }
-  await db.runTransaction(async (tx) => {
-    const ref = db.doc(`${ROOT}/current`);
-    const head = await tx.get(ref);
-    if ((head.exists ? head.data().revision : null) !== expectedRevision) throw new StateConflictError();
-    if (head.exists) tx.set(db.doc(`${ROOT}/revisions/items/${head.data().revision}`), head.data());
-    tx.set(ref, { schema: 1, revision, chunks: encoded.chunks.map((c) => c.id), digest: encoded.digest, previousRevision: expectedRevision, updatedAt: (/* @__PURE__ */ new Date()).toISOString() });
-  });
+  try {
+    await db.runTransaction(async (tx) => {
+      const ref = db.doc(`${ROOT}/current`);
+      const head = await tx.get(ref);
+      if ((head.exists ? head.data().revision : null) !== expectedRevision) throw new StateConflictError();
+      if (head.exists) tx.set(db.doc(`${ROOT}/revisions/items/${head.data().revision}`), head.data());
+      tx.set(ref, { schema: 1, revision, chunks: encoded.chunks.map((c) => c.id), digest: encoded.digest, previousRevision: expectedRevision, updatedAt: (/* @__PURE__ */ new Date()).toISOString() });
+    });
+  } catch (error) {
+    if (error instanceof StateConflictError && baseState && retry < 2) {
+      const latest = await readCloudState();
+      let merged;
+      try {
+        merged = mergeState(JSON.parse(baseState), state, latest.state);
+      } catch {
+        throw new StateConflictError();
+      }
+      const saved = await writeCloudState(merged, latest.revision, JSON.stringify(latest.state), retry + 1);
+      Object.assign(state, merged);
+      return saved;
+    }
+    throw error;
+  }
   for (const chunk of encoded.chunks) remember(chunk.id, chunk.data);
   cache = { revision, serialized: JSON.stringify(state), chunks: encoded.chunks.map((c) => c.id) };
   return revision;
@@ -3139,6 +3521,7 @@ function createCloudStateMiddleware(store = { read: readCloudState, write: write
     if (process.env.PERSISTENCE_DRIVER !== "firestore" || !req.path.startsWith("/api/") || req.path === "/api/health") return next();
     try {
       const snapshot = await store.read();
+      const baseState = JSON.stringify(snapshot.state);
       const context = { ...snapshot, dirty: false, afterCommit: [] };
       const json = res.json.bind(res);
       let sending = false;
@@ -3147,7 +3530,7 @@ function createCloudStateMiddleware(store = { read: readCloudState, write: write
         sending = true;
         void (async () => {
           try {
-            if (context.dirty) await store.write(context.state, context.revision);
+            if (context.dirty) await store.write(context.state, context.revision, baseState);
             for (const action of context.afterCommit) action();
             json(body);
           } catch (error) {
@@ -3170,9 +3553,7 @@ import "dotenv/config";
 import express from "express";
 import path4 from "path";
 import { fileURLToPath } from "url";
-import { GoogleGenAI, Type } from "@google/genai";
-import * as XLSX5 from "xlsx";
-import { z as z4 } from "zod";
+import { z as z5 } from "zod";
 
 // src/utils/scoring.ts
 var MINIMUM_EVIDENCE_THRESHOLD = 3;
@@ -5782,7 +6163,7 @@ function generateStudentExportBuffer(students) {
 // src/utils/mathCurriculumImporter.ts
 import fs3 from "fs";
 import path3 from "path";
-import crypto8 from "crypto";
+import crypto10 from "crypto";
 import JSZip2 from "jszip";
 import * as XLSX4 from "xlsx";
 var OFFICIAL_MATH_ARCHIVE_DISPLAY_NAME = "Matematika  elektron jurnal uchun ish reja.zip";
@@ -5791,7 +6172,7 @@ var MAX_ZIP_SIZE_BYTES = 25 * 1024 * 1024;
 var MAX_ZIP_ENTRIES = 100;
 var MAX_UNCOMPRESSED_BYTES = 50 * 1024 * 1024;
 function computeSha256Hex(input) {
-  return crypto8.createHash("sha256").update(input).digest("hex");
+  return crypto10.createHash("sha256").update(input).digest("hex");
 }
 function resolveOfficialMathArchivePath() {
   const candidates = [
@@ -7359,36 +7740,36 @@ function calculateClassMonitoringSnapshot(classCode, grade, track, enrolledStude
 var CONFIGURED_OWNER_EMAIL = (process.env.PLATFORM_OWNER_EMAIL || PLATFORM_OWNER_EMAIL).trim().toLowerCase();
 var __filename = fileURLToPath(import.meta.url);
 var __dirname = path4.dirname(__filename);
-var AIAnalysisSchema = z4.object({
-  summary: z4.string().min(5),
-  topic_analysis: z4.array(
-    z4.object({
-      topic_id: z4.string(),
-      observed_performance: z4.string(),
-      possible_error_pattern: z4.string(),
-      evidence_count: z4.number(),
-      confidence: z4.enum(["low", "medium", "high"]),
-      recommendation: z4.string()
+var AIAnalysisSchema = z5.object({
+  summary: z5.string().min(5),
+  topic_analysis: z5.array(
+    z5.object({
+      topic_id: z5.string(),
+      observed_performance: z5.string(),
+      possible_error_pattern: z5.string(),
+      evidence_count: z5.number(),
+      confidence: z5.enum(["low", "medium", "high"]),
+      recommendation: z5.string()
     })
   ),
-  next_steps: z4.array(
-    z4.object({
-      topic_id: z4.string(),
-      activity: z4.string(),
-      reason: z4.string(),
-      priority: z4.enum(["low", "medium", "high"])
+  next_steps: z5.array(
+    z5.object({
+      topic_id: z5.string(),
+      activity: z5.string(),
+      reason: z5.string(),
+      priority: z5.enum(["low", "medium", "high"])
     })
   ),
-  teacher_summary: z4.string().min(5),
-  parent_summary: z4.string().optional()
+  teacher_summary: z5.string().min(5),
+  parent_summary: z5.string().optional()
 });
-var AIDraftedQuestionSchema = z4.object({
-  prompt: z4.string().min(5),
-  options: z4.array(z4.string()).length(4),
-  correctAnswer: z4.string().min(1),
-  explanation: z4.string().min(5)
+var AIDraftedQuestionSchema = z5.object({
+  prompt: z5.string().min(5),
+  options: z5.array(z5.string()).length(4),
+  correctAnswer: z5.string().min(1),
+  explanation: z5.string().min(5)
 });
-function getGeminiClient(req) {
+async function getGeminiClient(req) {
   if (req && resolveRequestEnv(req) === "test") {
     return null;
   }
@@ -7396,6 +7777,7 @@ function getGeminiClient(req) {
   if (!apiKey || apiKey === "MY_GEMINI_API_KEY") {
     return null;
   }
+  const { GoogleGenAI } = await import("@google/genai");
   return new GoogleGenAI({
     apiKey,
     httpOptions: {
@@ -7576,12 +7958,14 @@ async function startServer() {
   const uploadJsonParser = express.json({ limit: "20mb" });
   const standardJsonParser = express.json({ limit: "2mb" });
   app.use((req, res, next) => {
-    if (req.path.startsWith("/api/exams/drafts") || /^\/api\/exams\/[^/]+\/draft$/.test(req.path) || req.path.startsWith("/api/students/import/") || req.path.startsWith("/api/work-plans/upload") || req.path.startsWith("/api/imports/") || req.path.startsWith("/api/questions/media")) {
+    if (req.path.startsWith("/api/exams/drafts") || /^\/api\/exams\/[^/]+\/draft$/.test(req.path) || req.path.startsWith("/api/students/import/") || req.path.startsWith("/api/work-plans/upload") || req.path.startsWith("/api/imports/") || req.path.startsWith("/api/questions/media") || req.path === "/api/content-imports/preview") {
       return uploadJsonParser(req, res, next);
     }
     return standardJsonParser(req, res, next);
   });
   registerTeachingRoutes(app, { authenticate: authenticateRequest, save: saveDbState, hash: hashPassword, revoke: revokeAllUserSessions });
+  registerContentRoutes(app, { authenticate: authenticateRequest, save: saveDbState });
+  registerStudentHomeRoutes(app, { authenticate: authenticateRequest, save: saveDbState });
   app.use("/api", (req, res, next) => {
     const c = authenticateRequest(req);
     if (c?.user.role === "teacher" && !["/state", "/auth/logout"].includes(req.path) && !req.path.startsWith("/teaching/")) return res.status(403).json({ error: "O\u2018qituvchi uchun bu amalga ruxsat yo\u2018q." });
@@ -10546,7 +10930,8 @@ async function startServer() {
       subj.name,
       parsedQuarter
     );
-    const ai = getGeminiClient(req);
+    const { Type } = await import("@google/genai");
+    const ai = await getGeminiClient(req);
     if (rows.length === 0 && ai) {
       try {
         const parts = [];
@@ -13122,7 +13507,8 @@ async function startServer() {
           error: "Tahlil uchun diagnostika ma\u2019lumotlari yetarli emas."
         });
       }
-      const ai = getGeminiClient(req);
+      const { Type } = await import("@google/genai");
+      const ai = await getGeminiClient(req);
       if (!ai) {
         const fallback = buildDeterministicFallbackAnalysis(
           assessmentTitle,
@@ -13254,7 +13640,8 @@ Savollar va javoblar: ${JSON.stringify(anonymizedAnswers)}
   app.post("/api/ai/draft-question", async (req, res) => {
     try {
       const { topicName, difficulty, grade = 8, subject = "Matematika" } = req.body;
-      const ai = getGeminiClient(req);
+      const { Type } = await import("@google/genai");
+      const ai = await getGeminiClient(req);
       if (!ai) {
         return res.json({
           prompt: `${grade}-sinf ${subject} (${topicName}): Agar 3(2x - 5) = 21 bo\u2018lsa, x ning qiymatini toping.`,
@@ -13320,7 +13707,8 @@ Savollar va javoblar: ${JSON.stringify(anonymizedAnswers)}
         finalized: false
       });
     }
-    const ai = getGeminiClient(req);
+    const { Type } = await import("@google/genai");
+    const ai = await getGeminiClient(req);
     if (!ai) {
       const hasEquationsOrSteps = cleanStudentAnswer.length >= 25 && (/[=+\-*/0-9]/.test(cleanStudentAnswer) || cleanStudentAnswer.split(/\s+/).length >= 5);
       const suggestedPoints = hasEquationsOrSteps ? numericMax : Math.max(0.5, Math.round(numericMax / 2));
@@ -14282,7 +14670,7 @@ Ushbu javobni mezon asosida tahlil qilib, tavsiya etilgan ball (0 dan ${numericM
     saveDbState(env, db);
     return res.json({ success: true, importedCount });
   });
-  app.get("/api/attendance/export.xlsx", (req, res) => {
+  app.get("/api/attendance/export.xlsx", async (req, res) => {
     const authCtx = authenticateRequest(req);
     if (!authCtx) return res.status(401).json({ error: "Avtorizatsiya talab qilinadi." });
     const { user, db } = authCtx;
@@ -14311,6 +14699,7 @@ Ushbu javobni mezon asosida tahlil qilib, tavsiya etilgan ball (0 dan ${numericM
         ];
       })
     ];
+    const XLSX5 = await import("xlsx");
     const ws = XLSX5.utils.aoa_to_sheet(rows);
     const wb = XLSX5.utils.book_new();
     XLSX5.utils.book_append_sheet(wb, ws, "Davomat");
@@ -15136,7 +15525,7 @@ Ushbu javobni mezon asosida tahlil qilib, tavsiya etilgan ball (0 dan ${numericM
     saveDbState(env, db);
     return res.json({ report });
   });
-  app.get("/api/reports/:id/export", (req, res) => {
+  app.get("/api/reports/:id/export", async (req, res) => {
     const authCtx = authenticateRequest(req);
     if (!authCtx) return res.status(401).json({ error: "Avtorizatsiya talab qilinadi." });
     const { user, db } = authCtx;
@@ -15163,6 +15552,7 @@ Ushbu javobni mezon asosida tahlil qilib, tavsiya etilgan ball (0 dan ${numericM
       }
     }
     if (format === "xlsx") {
+      const XLSX5 = await import("xlsx");
       const wb = XLSX5.utils.book_new();
       const ws = XLSX5.utils.json_to_sheet(flatRows);
       XLSX5.utils.book_append_sheet(wb, ws, "Hisobot");
@@ -15798,6 +16188,7 @@ Ushbu javobni mezon asosida tahlil qilib, tavsiya etilgan ball (0 dan ${numericM
     const apiKey = process.env.GEMINI_API_KEY;
     if (apiKey && apiKey !== "MY_GEMINI_API_KEY") {
       try {
+        const { GoogleGenAI, Type } = await import("@google/genai");
         const ai = new GoogleGenAI({ apiKey });
         const prompt = `Siz ixtisoslashtirilgan maktabning akademik baholash yordamchisisiz.
 Topshiriq: "${asg?.title || sub.assignmentTitle}" (${asg?.subject || "Matematika"}).

@@ -3,11 +3,13 @@ import { gzipSync, gunzipSync } from 'node:zlib';
 import { getFirestore } from 'firebase-admin/firestore';
 import { getFirebaseAdminApp, loadFirebaseAppletConfig } from './firebaseAdminAuth';
 import type { PersistentDatabaseState } from './dbEngine';
+import {runtimeNamespace} from './runtimeScope';
+import {mergeState} from './mergeState';
 
 // Compatibility bridge for the existing synchronous domain services. Immutable,
 // compressed snapshots plus a CAS pointer prevent partial writes and lost updates.
 // Existing Firestore collections are not replaced or modified by this store.
-const ROOT = '_specialized_runtime';
+const ROOT = runtimeNamespace();
 const CHUNK_BYTES = 350_000;
 const MAX_STATE_BYTES = 64 * 1024 * 1024;
 export class StateConflictError extends Error { constructor() { super('State changed concurrently'); } }
@@ -59,7 +61,7 @@ export async function readCloudState():Promise<{state:PersistentDatabaseState;re
  cache={revision:manifest.revision,serialized:JSON.stringify(state),chunks:manifest.chunks};
  return {state,revision:manifest.revision};
 }
-export async function writeCloudState(state:PersistentDatabaseState,expectedRevision:string|null):Promise<string> {
+export async function writeCloudState(state:PersistentDatabaseState,expectedRevision:string|null,baseState?:string,retry=0):Promise<string> {
  const db=database();const encoded=encodeState(state);const revision=crypto.randomUUID();
  const previous=cache?.revision===expectedRevision?cache.chunks:[];
  const reused=new Set(previous);
@@ -67,7 +69,8 @@ export async function writeCloudState(state:PersistentDatabaseState,expectedRevi
  // Stage immutable chunks before publishing the pointer. An interrupted write leaves
  // only unreachable chunks; readers continue to use the preceding complete revision.
  for(let offset=0;offset<changed.length;){const batch=db.batch();let size=0,count=0;while(offset<changed.length&&count<400&&size+changed[offset].data.length+256<6*1024*1024){const chunk=changed[offset++];batch.set(db.doc(`${ROOT}/chunks/items/${chunk.id}`),{data:chunk.data});size+=chunk.data.length+256;count++;}await batch.commit();}
- await db.runTransaction(async tx=>{const ref=db.doc(`${ROOT}/current`);const head=await tx.get(ref);if((head.exists?head.data()!.revision:null)!==expectedRevision)throw new StateConflictError();if(head.exists)tx.set(db.doc(`${ROOT}/revisions/items/${head.data()!.revision}`),head.data()!);tx.set(ref,{schema:1,revision,chunks:encoded.chunks.map(c=>c.id),digest:encoded.digest,previousRevision:expectedRevision,updatedAt:new Date().toISOString()});});
+ try{await db.runTransaction(async tx=>{const ref=db.doc(`${ROOT}/current`);const head=await tx.get(ref);if((head.exists?head.data()!.revision:null)!==expectedRevision)throw new StateConflictError();if(head.exists)tx.set(db.doc(`${ROOT}/revisions/items/${head.data()!.revision}`),head.data()!);tx.set(ref,{schema:1,revision,chunks:encoded.chunks.map(c=>c.id),digest:encoded.digest,previousRevision:expectedRevision,updatedAt:new Date().toISOString()});});}
+ catch(error){if(error instanceof StateConflictError&&baseState&&retry<2){const latest=await readCloudState();let merged:PersistentDatabaseState;try{merged=mergeState(JSON.parse(baseState),state,latest.state);}catch{throw new StateConflictError();}const saved=await writeCloudState(merged,latest.revision,JSON.stringify(latest.state),retry+1);Object.assign(state,merged);return saved;}throw error;}
  for(const chunk of encoded.chunks)remember(chunk.id,chunk.data);
  cache={revision,serialized:JSON.stringify(state),chunks:encoded.chunks.map(c=>c.id)};return revision;
 }

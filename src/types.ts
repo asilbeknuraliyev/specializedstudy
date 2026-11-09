@@ -1859,6 +1859,7 @@ export type TimetableWeekday =
   | 'Shanba';
 
 export interface Timetable {
+  academicYear?: string;
   id: string;
   institutionId: string;
   classCode: OfficialClassCode;
@@ -1876,6 +1877,9 @@ export interface Timetable {
 }
 
 export interface TimetableEntry {
+  teacherId?: string;
+  teacherName?: string;
+  sourceRecordHash?: string;
   id: string;
   institutionId: string;
   timetableId: string;

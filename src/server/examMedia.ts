@@ -1,5 +1,7 @@
 import {getFirestore} from 'firebase-admin/firestore';
 import crypto from 'node:crypto';
+import {runtimeNamespace} from './runtimeScope';
+const mediaRoot=runtimeNamespace()==='_specialized_runtime'?'_specialized_exam_media':runtimeNamespace()+'_media';
 import {getFirebaseAdminApp,loadFirebaseAppletConfig} from './firebaseAdminAuth';
 export async function storeExamImage(institutionId:string,examId:string,dataUrl:string):Promise<string>{
  const match=dataUrl.match(/^data:image\/(jpeg|png);base64,(.+)$/);if(!match)throw Error('Image format rejected');const bytes=Buffer.from(match[2],'base64');
@@ -8,7 +10,7 @@ export async function storeExamImage(institutionId:string,examId:string,dataUrl:
  if(!(match[1]==='png'?png:jpeg))throw Error('Image signature rejected');
  const hash=crypto.createHash('sha256').update(institutionId).update(bytes).digest('hex');
  const db=getFirestore(getFirebaseAdminApp(),loadFirebaseAppletConfig().firestoreDatabaseId);
- await db.doc(`_specialized_exam_media/${hash}`).set({institutionId,data:match[2],mime:`image/${match[1]}`,createdAt:new Date().toISOString()});
+ await db.doc(`${mediaRoot}/${hash}`).set({institutionId,data:match[2],mime:`image/${match[1]}`,createdAt:new Date().toISOString()});
  return `/api/exams/${examId}/media/${hash}`;
 }
-export async function readExamImage(hash:string){const db=getFirestore(getFirebaseAdminApp(),loadFirebaseAppletConfig().firestoreDatabaseId);const doc=await db.doc(`_specialized_exam_media/${hash}`).get();return doc.exists?doc.data():null;}
+export async function readExamImage(hash:string){const db=getFirestore(getFirebaseAdminApp(),loadFirebaseAppletConfig().firestoreDatabaseId);const doc=await db.doc(`${mediaRoot}/${hash}`).get();return doc.exists?doc.data():null;}

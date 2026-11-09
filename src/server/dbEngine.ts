@@ -1,4 +1,5 @@
 import { requestDatabase } from './requestDatabase';
+import {runtimeNamespace} from './runtimeScope';
 import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
@@ -86,6 +87,9 @@ import {
 } from '../utils/academicOsEngine';
 
 export interface PersistentDatabaseState {
+  contentImports?: import('./contentImportEngine').ContentImportJob[];
+  contentWriteLocks?: Record<string, number>;
+  studentLastLessons?: Array<{id:string;institutionId:string;studentId:string;lessonId:string;openedAt:string}>;
   loginThrottles?: Record<string,{attempts:number;until:number}>;
   lessonPracticeResponses?: Array<{id:string;lessonId:string;studentId:string;institutionId:string;answers:string[];submittedAt?:string;status?:'draft'|'submitted';revision?:number;updatedAt?:string}>;
   examSessions?: import('../examTypes').ExamSession[];
@@ -167,7 +171,8 @@ if (process.env.NODE_ENV === 'production' && (!configuredSessionSecret || config
   throw new Error('Production requires a random SESSION_SECRET of at least 32 characters.');
 }
 // Development sessions expire when the process restarts unless configured explicitly.
-const TOKEN_SECRET = configuredSessionSecret || crypto.randomBytes(32).toString('hex');
+const baseSessionSecret=configuredSessionSecret||crypto.randomBytes(32).toString('hex');
+const TOKEN_SECRET = runtimeNamespace()==='_specialized_runtime'?baseSessionSecret:crypto.createHmac('sha256',baseSessionSecret).update(runtimeNamespace()).digest('hex');
 
 export function ensureSpecializedStudyStructure(
   state: PersistentDatabaseState
