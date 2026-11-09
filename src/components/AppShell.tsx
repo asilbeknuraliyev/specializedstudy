@@ -154,7 +154,7 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
         { to: '/admin/support-plans', label: 'Yordam rejalari', icon: HeartHandshake },
         { to: '/admin/settings', label: 'Sozlamalar', icon: Settings },
       ]
-    : [
+    : currentUser.role==='teacher'?[{to:'/teacher/dashboard',label:'Mening sinflarim',icon:Users,end:true}]:[
         {to:'/student/dashboard',label:'Bosh sahifa',icon:LayoutDashboard,end:true},
         {to:'/student/lessons',label:'Fanlar',icon:BookOpen},
         {to:'/student/timetable',label:'Jadval',icon:Calendar},

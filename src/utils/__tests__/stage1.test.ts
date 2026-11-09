@@ -1,3 +1,4 @@
+import {formatStudentDate} from '../studentHomeDate';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import express from 'express';
@@ -34,3 +35,5 @@ test('import dry-run, valid-only insert, idempotency, publication, archive and s
  }finally{server.closeAllConnections();await new Promise<void>(r=>server.close(()=>r()));}
 });
 test('student home uses Tashkent date, assigned class, active timetable and no submitted task',()=>{const db=fixture(),student:any={uid:'s',role:'student',status:'active',institutionId:'school',classId:'a',classCode:'8a1'};db.timetables=[{id:'t',classId:'a',status:'active',institutionId:'school',effectiveFrom:'2026-01-01',academicYear:'2026-2027',version:1},{id:'other',classId:'b',status:'active',institutionId:'school',effectiveFrom:'2026-01-01'}];db.timetableEntries=[{id:'a',timetableId:'t',institutionId:'school',weekdayIndex:1,startTime:'08:00'},{id:'b',timetableId:'other',institutionId:'school',weekdayIndex:1,startTime:'08:00'}];db.studentAssignments=[{id:'own',institutionId:'school',status:'published',targetClassIds:['a'],targetClassCodes:[],dueDate:'2026-11-10',title:'Own'},{id:'foreign',institutionId:'school',status:'published',targetClassIds:['b'],targetClassCodes:[],dueDate:'2026-11-10'}];const result=studentHomeData(db,student,new Date('2026-11-08T20:00:00Z'));assert.equal(result.date,'2026-11-09');assert.deepEqual(result.timetable.map(e=>e.id),['a']);assert.deepEqual(result.tasks.map(e=>e.id),['own']);db.assignmentSubmissions=[{studentId:'s',assignmentId:'own',submittedAt:'now',status:'Topshirildi'}];assert.equal(studentHomeData(db,student,new Date('2026-11-08T20:00:00Z')).tasks.length,0);});
+
+test('student date stays Uzbek even when the browser lacks Uzbek ICU locale data',()=>{assert.equal(formatStudentDate(new Date('2026-11-08T20:00:00Z')),'9-noyabr');});
