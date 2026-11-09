@@ -1,4 +1,5 @@
 import {PanelNavigation,ProfileMenu} from './PanelNavigation';
+import {useRouteScroll} from '../utils/useRouteScroll';
 import React, {Suspense, useState, useEffect, useRef } from 'react';
 import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import {
@@ -67,6 +68,8 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
   const searchInputRef = useRef<HTMLInputElement | null>(null);
   const navigate = useNavigate();
   const location = useLocation();
+  const viewportRef=useRef<HTMLElement|null>(null);
+  useRouteScroll(viewportRef,`${currentUser?.uid}:${location.pathname}`);
 
   // Close mobile drawer when route changes
   useEffect(() => {
@@ -420,7 +423,7 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
             <button
               onClick={toggleTheme}
               className="w-11 h-11 flex items-center justify-center rounded-lg border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
-              aria-label="Mavzuni o'zgartirish"
+              aria-label="Rang rejimini almashtirish"
             >
               {theme === 'light' ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4" />}
             </button>
@@ -428,7 +431,7 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
         </header>
 
         {/* Page Viewport */}
-        <main
+        <main ref={viewportRef}
           className={`flex-1 p-3.5 sm:p-5 lg:p-6 max-w-7xl w-full mx-auto min-w-0 ss-page-enter ${
             currentUser.role==='student' && !isActiveTestRunner ? 'pb-24 lg:pb-6' : 'pb-8 lg:pb-6'
           }`}

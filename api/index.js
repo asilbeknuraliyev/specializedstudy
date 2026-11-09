@@ -52,6 +52,10 @@ function registerDemoRoutes(app2, deps) {
     }
     return c;
   };
+  const audit = (c, lab, action) => {
+    c.db.auditLogs ||= [];
+    c.db.auditLogs.push({ id: crypto.randomUUID(), institutionId: c.user.institutionId, actorUid: c.user.uid, actorName: c.user.displayName, actorRole: c.user.role, action, target: "DEMO", recordId: lab.id, createdAt: (/* @__PURE__ */ new Date()).toISOString() });
+  };
   const isAdmin = (c) => ["admin", "platform_owner"].includes(c.user.role) && c.user.platformAdmin && c.user.emailVerified;
   const find = (c) => (c.db.demoLabs || []).find((l) => l.ownerId === c.user.uid || [l.studentId, l.teacherId].includes(c.user.uid));
   const view = (lab, c) => ({ ...lab, exams: lab.exams.map((e) => ({ ...e, questions: e.questions.map(({ key, explanation, ...q }) => q) })), responses: lab.responses.filter((r) => c.user.uid !== lab.studentId || r.studentId === c.user.uid).map((r) => ({ ...r, results: r.submittedAt ? lab.exams.find((e) => e.id === r.examId).questions.map((q) => ({ id: q.id, points: q.points, earned: q.kind === "written" ? r.writtenScore : demoScore(q, r.answers[q.id] || ""), explanation: q.kind === "written" ? "Ustoz tekshiradi." : q.explanation, correctAnswer: q.kind === "written" ? void 0 : q.key })) : void 0 })) });
@@ -91,6 +95,7 @@ function registerDemoRoutes(app2, deps) {
     c.db.timetableEntries ||= [];
     c.db.timetables.push({ id: id + "-table", institutionId, classId, classCode: "8a1", status: "active", effectiveFrom: now.slice(0, 10), academicYear: inst.academicYear, version: 1, title: "DEMO haftalik jadval", createdAt: now });
     for (let day = 1; day <= 6; day++) for (const [n, subject] of ["Matematika", "Fizika", "Ingliz tili"].entries()) c.db.timetableEntries.push({ id: `${id}-slot-${day}-${n}`, institutionId, timetableId: id + "-table", classId, classCode: "8a1", weekdayIndex: day, weekday: ["", "Dushanba", "Seshanba", "Chorshanba", "Payshanba", "Juma", "Shanba"][day], lessonNumber: n + 1, subject, startTime: `${String(8 + n).padStart(2, "0")}:00`, endTime: `${String(8 + n).padStart(2, "0")}:45`, teacherId, teacherName: "DEMO Ustoz", room: "DEMO", createdAt: now });
+    audit(c, lab, "DEMO sinf yaratildi");
     deps.save(c.env, c.db);
     res.json({ lab: view(lab, c), accounts: accounts.map((u) => ({ email: u.email, role: u.role, password })) });
   });
@@ -106,6 +111,7 @@ function registerDemoRoutes(app2, deps) {
       deps.revoke(uid, c.env);
       return { email: u.email, role: u.role, password };
     });
+    audit(c, lab, "DEMO parollari yangilandi");
     deps.save(c.env, c.db);
     res.json({ accounts });
   });
@@ -125,6 +131,7 @@ function registerDemoRoutes(app2, deps) {
       delete c.db.passwordHashes[uid];
       deps.revoke(uid, c.env);
     }
+    audit(c, lab, "DEMO sinf o\u2018chirildi");
     deps.save(c.env, c.db);
     res.json({ deleted: true });
   });
@@ -138,6 +145,7 @@ function registerDemoRoutes(app2, deps) {
     if (Object.keys(parsed.data.answers).some((id) => !exam.questions.some((q) => q.id === id))) return res.status(400).json({ error: "Begona savol." });
     let response = lab.responses.find((r) => r.examId === exam.id);
     if (response?.submittedAt) return res.json({ response: view(lab, c).responses.find((r) => r.examId === exam.id) });
+    if (Date.parse(exam.due) <= Date.now()) return res.status(409).json({ error: "DEMO mashq muddati tugagan. Administrator yangi DEMO yaratishi mumkin." });
     if ((response?.revision || 0) !== parsed.data.revision) return res.status(409).json({ error: "Boshqa qurilmada javob yangilangan. Qayta oching." });
     if (!response) {
       response = { id: crypto.randomUUID(), examId: exam.id, studentId: c.user.uid, revision: 0, answers: {} };
@@ -162,6 +170,7 @@ function registerDemoRoutes(app2, deps) {
     if (!r || !p.success) return res.status(400).json({ error: "0\u20132 ball va izoh kiriting." });
     r.writtenScore = p.data.score;
     r.feedback = p.data.feedback;
+    audit(c, lab, "DEMO yozma ish baholandi");
     deps.save(c.env, c.db);
     res.json({ response: view(lab, c).responses.find((x) => x.id === r.id) });
   });
@@ -3504,7 +3513,7 @@ function studentHomeData(db, user, now = /* @__PURE__ */ new Date()) {
   }
   const demo = db.demoLabs?.find((l) => l.studentId === user.uid);
   if (demo) {
-    for (const e of demo.exams) if (!demo.responses.some((r) => r.examId === e.id && r.submittedAt)) tasks.push({ id: e.id, title: e.title, subject: e.subject, due: e.due, kind: "exam", href: "/student/demo?exam=" + e.id, ready: true });
+    for (const e of demo.exams) if (Date.parse(e.due) > now.getTime() && !demo.responses.some((r) => r.examId === e.id && r.submittedAt)) tasks.push({ id: e.id, title: e.title, subject: e.subject, due: e.due, kind: "exam", href: "/student/demo?exam=" + e.id, ready: true });
   }
   tasks.sort((a, b) => a.due.localeCompare(b.due));
   const last = (db.studentLastLessons || []).find((r) => r.studentId === user.uid && r.institutionId === user.institutionId);
@@ -9180,7 +9189,7 @@ async function startServer() {
     if (user.role === "teacher") {
       const scoped = teacherClasses(user, db);
       const ids = new Set(scoped.map((c) => c.id));
-      return res.json({ user, institution, classes: scoped, users: db.users.filter((u) => u.institutionId === instId && (u.uid === user.uid || u.role === "student" && ids.has(u.classId || ""))).map(({ uid, displayName, role, classId, classCode, status }) => ({ uid, displayName, role, classId, classCode, status })), lessons: db.lessons.filter((l) => l.institutionId === instId && [l.classId, ...l.classIds || []].some((id) => ids.has(id)) && l.subjectName === user.subject).map((l) => ({ ...l, schoolDeliveredAt: [l.classId, ...l.classIds || []].filter((id) => ids.has(id)).every((id) => deliveredForClass(l, id)) ? l.schoolDeliveredAt || l.updatedAt : void 0 })), subjects: [], topics: [], workPlans: [], assessments: [], attempts: [], notifications: [] });
+      return res.json({ user, institution, classes: scoped, users: db.users.filter((u) => u.institutionId === instId && (u.uid === user.uid || u.role === "student" && ids.has(u.classId || ""))).map(({ uid, displayName, role, classId, classCode, status }) => ({ uid, displayName, role, classId, classCode, status })), lessons: db.lessons.filter((l) => l.institutionId === instId && [l.classId, ...l.classIds || []].some((id) => ids.has(id)) && (l.subjectName === user.subject || db.demoLabs?.some((lab) => lab.teacherId === user.uid && lab.institutionId === instId))).map((l) => ({ ...l, schoolDeliveredAt: [l.classId, ...l.classIds || []].filter((id) => ids.has(id)).every((id) => deliveredForClass(l, id)) ? l.schoolDeliveredAt || l.updatedAt : void 0 })), subjects: [], topics: [], workPlans: [], assessments: [], attempts: [], notifications: [] });
     }
     if (user.role === "student") {
       const myClass = db.classes.find(

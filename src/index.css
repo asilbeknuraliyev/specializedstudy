@@ -157,3 +157,5 @@ main :is(section,article,div).bg-white[class*="border"] { border-radius:var(--ss
  .ss-responsive-table td[colspan]::before { display:none; }
 }
 .dark { --ss-border:#334155; --ss-muted:#94a3b8; }
+
+button { min-width:44px; }
