@@ -163,7 +163,7 @@ function registerDemoRoutes(app2, deps) {
     r.writtenScore = p.data.score;
     r.feedback = p.data.feedback;
     deps.save(c.env, c.db);
-    res.json({ saved: true });
+    res.json({ response: view(lab, c).responses.find((x) => x.id === r.id) });
   });
 }
 
