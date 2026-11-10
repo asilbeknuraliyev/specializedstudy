@@ -132,6 +132,7 @@ section[id] { scroll-margin-top: 6rem; }
   .ss-field { @apply block min-h-11 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100; }
 }
 body.ss-exam-active aside, body.ss-exam-active header { display: none; }
+body.ss-exam-active nav[aria-label="O'quvchi mobil navigatsiyasi"] { display: none; }
 body.ss-exam-active { background: #f8fafc; }
 @media print { .ss-exam-active { visibility: hidden; } }
 /* Shared visual contract, including existing screens during gradual component migration. */
