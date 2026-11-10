@@ -1583,9 +1583,12 @@ export const LearnOSProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   const logout = useCallback(async () => {
     try {
-      await apiFetch('/api/auth/logout', { method: 'POST' });
+      const response=await apiFetch('/api/auth/logout', { method: 'POST' });
+      if(!response.ok)throw Error('Sessiyani bekor qilish tasdiqlanmadi.');
     } catch {
-      // Ignore network hiccup during logout
+      const message='Chiqish tasdiqlanmadi. Internetni tekshirib, qayta urining.';
+      addToast('error',message);
+      throw Error(message);
     }
     try {
       if (auth.currentUser) {
