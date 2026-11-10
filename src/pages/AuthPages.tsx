@@ -93,8 +93,8 @@ export const LoginPage: React.FC = () => {
       return;
     }
 
-    if (!email.trim() || !email.includes('@')) {
-      setErrorMsg("Iltimos, to'g'ri elektron pochta manzilini kiriting.");
+    if (!email.trim() || (!email.includes('@') && !/^[a-z0-9._]{3,40}$/.test(email.trim()))) {
+      setErrorMsg('Login yoki elektron pochta manzilini kiriting.');
       return;
     }
     if (!password || password.length < 6) {

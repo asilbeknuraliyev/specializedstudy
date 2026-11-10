@@ -58,7 +58,7 @@ export async function readCloudState():Promise<{state:PersistentDatabaseState;re
  const missing=[...new Set<string>(manifest.chunks)].filter(id=>!contents.has(id));
  if(missing.length){const docs=await db.getAll(...missing.map(id=>db.doc(`${ROOT}/chunks/items/${id}`)));docs.forEach((d,i)=>{if(!d.exists)throw Error('Snapshot incomplete');contents.set(missing[i],d.data()!.data);remember(missing[i],d.data()!.data);});}
  const state=decodeState(manifest.chunks.map((id:string)=>({id,data:contents.get(id)!})),manifest.digest);
- state.topicQuestions||=[];state.topicTests||=[];state.topicSessions||=[];state.topicReviews||=[];
+ state.topicImportBatches||=[];state.topicQuestions||=[];state.topicTests||=[];state.topicSessions||=[];state.topicReviews||=[];
  cache={revision:manifest.revision,serialized:JSON.stringify(state),chunks:manifest.chunks};
  return {state,revision:manifest.revision};
 }

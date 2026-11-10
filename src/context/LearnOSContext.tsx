@@ -1565,19 +1565,6 @@ export const LearnOSProvider: React.FC<{ children: React.ReactNode }> = ({ child
           }
           return syncedUser;
         } catch (popupErr) {
-          const popupMapped = mapFirebaseAuthError(popupErr);
-          // On mobile browsers where popups are blocked or unsupported, automatically fall back to signInWithRedirect
-          if (
-            isMobileOrTouchRedirectPreferred() &&
-            (popupMapped.code === 'auth/popup-blocked' ||
-              popupMapped.code === 'auth/operation-not-supported-in-this-environment')
-          ) {
-            if (inviteToken) {
-              sessionStorage.setItem('ss_pending_invite_token', inviteToken);
-            }
-            await signInWithRedirect(auth, provider);
-            return null;
-          }
           throw popupErr;
         }
       } catch (error) {

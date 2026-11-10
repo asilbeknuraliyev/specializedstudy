@@ -87,6 +87,7 @@ import {
 } from '../utils/academicOsEngine';
 
 export interface PersistentDatabaseState {
+  topicImportBatches?: Array<{id:string;institutionId:string;lessonId:string;questions:string[];createdAt:string;undone:boolean}>;
   topicQuestions?: import('./topicEngine').BankQuestion[];
   topicTests?: import('./topicEngine').TopicTest[];
   topicSessions?: import('./topicEngine').TopicSession[];
