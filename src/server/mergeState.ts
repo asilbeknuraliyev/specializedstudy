@@ -13,7 +13,7 @@ export function mergeState(base:any,local:any,remote:any):any{
   if(same(b,l)){result[key]=r;continue;}if(same(b,r)){result[key]=l;continue;}
   const entityKey=(row:any)=>row&&typeof row==='object'&&(typeof row.id==='string'?row.id:typeof row.uid==='string'?row.uid:null);
   if([b,l,r].every(Array.isArray)&&[b,l,r].every(a=>a.every((v:any)=>entityKey(v))&&new Set(a.map(entityKey)).size===a.length)){
-   if(!['topicImportBatches','topicQuestions','topicTests','topicSessions','topicReviews','examSessions','lessonPracticeResponses','studentLastLessons','auditLogs','notifications'].includes(key))throw new MergeConflictError('Collection invariants require a retry');
+   if(!['users','topicImportBatches','topicQuestions','topicTests','topicSessions','topicReviews','examSessions','lessonPracticeResponses','studentLastLessons','auditLogs','notifications'].includes(key))throw new MergeConflictError('Collection invariants require a retry');
    const maps=[b,l,r].map(a=>new Map(a.map((v:any)=>[entityKey(v),v])));
    const ids=new Set([...r.map(entityKey),...l.map(entityKey),...b.map(entityKey)]);
    result[key]=[...ids].map(id=>atomic(...maps.map(m=>m.get(id)) as [any,any,any])).filter(v=>v!==undefined);
@@ -22,6 +22,14 @@ export function mergeState(base:any,local:any,remote:any):any{
   }else result[key]=atomic(b,l,r);
  }
 
+ if(result.users){
+  const identities=new Map<string,string>();
+  for(const user of result.users)for(const raw of [user.login,user.email,user.linkedGoogleUid,...(user.loginAliases||[])]){
+   if(!raw)continue;const value=String(raw).toLowerCase();
+   if(identities.has(value)&&identities.get(value)!==user.uid)throw new MergeConflictError('Account identity must remain unique');
+   identities.set(value,user.uid);
+  }
+ }
  if(base.topicSessions&&local.topicSessions&&remote.topicSessions){
   const added=(rows:any[])=>rows.filter(s=>!base.topicSessions.some((b:any)=>b.id===s.id));
   if(added(local.topicSessions).some((s:any)=>s.studentId&&s.testId&&added(remote.topicSessions).some((r:any)=>r.id!==s.id&&r.studentId===s.studentId&&r.testId===s.testId)))throw new MergeConflictError('Concurrent starts must retry');

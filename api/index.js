@@ -4106,7 +4106,7 @@ function mergeState(base, local, remote) {
     }
     const entityKey = (row2) => row2 && typeof row2 === "object" && (typeof row2.id === "string" ? row2.id : typeof row2.uid === "string" ? row2.uid : null);
     if ([b, l, r].every(Array.isArray) && [b, l, r].every((a) => a.every((v) => entityKey(v)) && new Set(a.map(entityKey)).size === a.length)) {
-      if (!["topicImportBatches", "topicQuestions", "topicTests", "topicSessions", "topicReviews", "examSessions", "lessonPracticeResponses", "studentLastLessons", "auditLogs", "notifications"].includes(key)) throw new MergeConflictError("Collection invariants require a retry");
+      if (!["users", "topicImportBatches", "topicQuestions", "topicTests", "topicSessions", "topicReviews", "examSessions", "lessonPracticeResponses", "studentLastLessons", "auditLogs", "notifications"].includes(key)) throw new MergeConflictError("Collection invariants require a retry");
       const maps = [b, l, r].map((a) => new Map(a.map((v) => [entityKey(v), v])));
       const ids = /* @__PURE__ */ new Set([...r.map(entityKey), ...l.map(entityKey), ...b.map(entityKey)]);
       result[key] = [...ids].map((id) => atomic(...maps.map((m) => m.get(id)))).filter((v) => v !== void 0);
@@ -4118,6 +4118,15 @@ function mergeState(base, local, remote) {
       }
       result[key] = merged;
     } else result[key] = atomic(b, l, r);
+  }
+  if (result.users) {
+    const identities = /* @__PURE__ */ new Map();
+    for (const user of result.users) for (const raw of [user.login, user.email, user.linkedGoogleUid, ...user.loginAliases || []]) {
+      if (!raw) continue;
+      const value = String(raw).toLowerCase();
+      if (identities.has(value) && identities.get(value) !== user.uid) throw new MergeConflictError("Account identity must remain unique");
+      identities.set(value, user.uid);
+    }
   }
   if (base.topicSessions && local.topicSessions && remote.topicSessions) {
     const added = (rows) => rows.filter((s) => !base.topicSessions.some((b) => b.id === s.id));

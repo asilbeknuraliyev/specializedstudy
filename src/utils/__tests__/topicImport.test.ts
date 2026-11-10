@@ -19,3 +19,9 @@ test('parallel independent bank edits merge; duplicate starts for one learner re
  assert.throws(()=>mergeState({topicSessions:[]},{topicSessions:[{id:'a',studentId:'s',testId:'t'}]},{topicSessions:[{id:'b',studentId:'s',testId:'t'}]}),/Concurrent starts/);
  assert.equal(mergeState({topicSessions:[]},{topicSessions:[{id:'a',studentId:'s1',testId:'t'}]},{topicSessions:[{id:'b',studentId:'s2',testId:'t'}]}).topicSessions.length,2);
 });
+test('different users may log in concurrently while login identities stay unique',()=>{
+ const base={users:[{uid:'a',login:'alice'},{uid:'b',login:'bob'}]};
+ const merged=mergeState(base,{users:[{...base.users[0],lastLoginAt:'today'},base.users[1]]},{users:[base.users[0],{...base.users[1],lastLoginAt:'today'}]});
+ assert.ok(merged.users.every((u:any)=>u.lastLoginAt==='today'));
+ assert.throws(()=>mergeState({users:[]},{users:[{uid:'a',login:'same'}]},{users:[{uid:'b',login:'same'}]}),/unique/);
+});
