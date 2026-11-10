@@ -58,7 +58,7 @@ function registerDemoRoutes(app2, deps) {
   };
   const isAdmin = (c) => ["admin", "platform_owner"].includes(c.user.role) && c.user.platformAdmin && c.user.emailVerified;
   const find = (c) => (c.db.demoLabs || []).find((l) => l.ownerId === c.user.uid || [l.studentId, l.teacherId].includes(c.user.uid));
-  const view = (lab, c) => ({ ...lab, exams: lab.exams.map((e) => ({ ...e, questions: e.questions.map(({ key, explanation, ...q }) => q) })), responses: lab.responses.filter((r) => c.user.uid !== lab.studentId || r.studentId === c.user.uid).map((r) => ({ ...r, results: r.submittedAt ? lab.exams.find((e) => e.id === r.examId).questions.map((q) => ({ id: q.id, points: q.points, earned: q.kind === "written" ? r.writtenScore : demoScore(q, r.answers[q.id] || ""), explanation: q.kind === "written" ? "Ustoz tekshiradi." : q.explanation, correctAnswer: q.kind === "written" ? void 0 : q.key })) : void 0 })) });
+  const view = (lab, c) => ({ ...lab, exams: lab.exams.map((e) => ({ ...e, questions: e.questions.map(({ key, explanation, ...q }) => q) })), responses: lab.responses.filter((r) => c.user.uid !== lab.studentId || r.studentId === c.user.uid).map((r) => ({ ...r, results: r.submittedAt ? lab.exams.find((e) => e.id === r.examId).questions.map((q) => ({ id: q.id, points: q.points, earned: q.kind === "written" ? r.writtenScore : demoScore(q, r.answers[q.id] || ""), explanation: q.kind === "written" ? "Ustoz tekshiradi." : q.explanation, pending: q.kind === "written" && r.writtenScore === void 0 })) : void 0 })) });
   app2.get("/api/demo", (req, res) => {
     const c = context(req, res);
     if (!c) return;
@@ -135,14 +135,59 @@ function registerDemoRoutes(app2, deps) {
     deps.save(c.env, c.db);
     res.json({ deleted: true });
   });
+  app2.post("/api/demo/settings", (req, res) => {
+    const c = context(req, res);
+    if (!c) return;
+    const lab = find(c);
+    const p = z.object({ trackExits: z.boolean(), durationMinutes: z.number().int().min(0).max(120) }).safeParse(req.body);
+    if (!lab || lab.ownerId !== c.user.uid || !isAdmin(c)) return res.status(403).json({ error: "Faqat DEMO egasi." });
+    if (!p.success) return res.status(400).json({ error: "Sozlamalarni tekshiring." });
+    lab.settings = p.data;
+    deps.save(c.env, c.db);
+    res.json({ settings: lab.settings });
+  });
+  const sessionView = (lab, c, r) => {
+    const exam = lab.exams.find((e) => e.id === r.examId);
+    const publicR = view(lab, c).responses.find((x) => x.id === r.id);
+    return { ...publicR, score: r.score === void 0 ? void 0 : r.score + (r.writtenScore || 0), questions: exam.questions.map(({ key, explanation, ...q }) => q), maxScore: exam.questions.reduce((n, q) => n + q.points, 0), pending: r.submittedAt && r.writtenScore === void 0, title: exam.title, subject: exam.subject, flags: r.flags || [], events: r.events || [] };
+  };
+  app2.get("/api/demo/session/:exam", (req, res) => {
+    const c = context(req, res);
+    if (!c) return;
+    const lab = find(c);
+    if (!lab || lab.studentId !== c.user.uid) return res.status(403).json({ error: "Faqat DEMO o\u2018quvchi." });
+    const exam = lab.exams.find((e) => e.id === req.params.exam);
+    if (!exam) return res.status(404).json({ error: "Mashq topilmadi." });
+    const r = lab.responses.find((r2) => r2.examId === exam.id);
+    res.json({ session: r ? sessionView(lab, c, r) : null, exam: { ...exam, questions: exam.questions.map(({ key, explanation, ...q }) => q) }, serverNow: Date.now() });
+  });
+  app2.post("/api/demo/start/:exam", (req, res) => {
+    const c = context(req, res);
+    if (!c) return;
+    const lab = find(c);
+    if (!lab || lab.studentId !== c.user.uid) return res.status(403).json({ error: "Faqat DEMO o\u2018quvchi." });
+    const exam = lab.exams.find((e) => e.id === req.params.exam);
+    if (!exam || Date.parse(exam.due) <= Date.now()) return res.status(409).json({ error: "Mashq muddati tugagan." });
+    let r = lab.responses.find((r2) => r2.examId === exam.id);
+    if (!r) {
+      r = { id: crypto.randomUUID(), examId: exam.id, studentId: c.user.uid, revision: 0, answers: {}, flags: [] };
+      lab.responses.push(r);
+    }
+    if (!r.startedAt) {
+      r.startedAt = (/* @__PURE__ */ new Date()).toISOString();
+      r.deadlineAt = lab.settings?.durationMinutes ? new Date(Math.min(Date.parse(exam.due), Date.now() + lab.settings.durationMinutes * 6e4)).toISOString() : void 0;
+      deps.save(c.env, c.db);
+    }
+    res.json({ session: sessionView(lab, c, r), serverNow: Date.now() });
+  });
   app2.put("/api/demo/responses/:exam", (req, res) => {
     const c = context(req, res);
     if (!c) return;
     const lab = find(c), exam = lab?.exams.find((e) => e.id === req.params.exam);
     if (!lab || c.user.uid !== lab.studentId || !exam) return res.status(403).json({ error: "Bu DEMO sizga biriktirilmagan." });
-    const parsed = z.object({ revision: z.number().int().min(0), answers: z.record(z.string(), z.string().max(4e3)), submit: z.boolean().optional() }).safeParse(req.body);
+    const parsed = z.object({ revision: z.number().int().min(0), answers: z.record(z.string(), z.string().max(4e3)), submit: z.boolean().optional(), flags: z.array(z.string()).max(60).optional(), event: z.object({ id: z.uuid(), type: z.literal("tab_exit") }).optional() }).safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ error: "Javob shaklini tekshiring." });
-    if (Object.keys(parsed.data.answers).some((id) => !exam.questions.some((q) => q.id === id))) return res.status(400).json({ error: "Begona savol." });
+    if ([...Object.keys(parsed.data.answers), ...parsed.data.flags || []].some((id) => !exam.questions.some((q) => q.id === id))) return res.status(400).json({ error: "Begona savol." });
     let response = lab.responses.find((r) => r.examId === exam.id);
     if (response?.submittedAt) return res.json({ response: view(lab, c).responses.find((r) => r.examId === exam.id) });
     if (Date.parse(exam.due) <= Date.now()) return res.status(409).json({ error: "DEMO mashq muddati tugagan. Administrator yangi DEMO yaratishi mumkin." });
@@ -151,9 +196,15 @@ function registerDemoRoutes(app2, deps) {
       response = { id: crypto.randomUUID(), examId: exam.id, studentId: c.user.uid, revision: 0, answers: {} };
       lab.responses.push(response);
     }
-    response.answers = parsed.data.answers;
+    const expired = response.deadlineAt && Date.parse(response.deadlineAt) <= Date.now();
+    if (!expired) response.answers = parsed.data.answers;
+    response.flags = parsed.data.flags || response.flags || [];
+    if (lab.settings?.trackExits && parsed.data.event) {
+      response.events ||= [];
+      if (!response.events.some((e) => e.id === parsed.data.event.id)) response.events.push({ ...parsed.data.event, at: (/* @__PURE__ */ new Date()).toISOString() });
+    }
     response.revision++;
-    if (parsed.data.submit) {
+    if (parsed.data.submit || expired) {
       response.submittedAt = (/* @__PURE__ */ new Date()).toISOString();
       response.score = exam.questions.reduce((n, q) => n + demoScore(q, response.answers[q.id] || ""), 0);
     }
@@ -180,142 +231,61 @@ function registerDemoRoutes(app2, deps) {
 function scopeInstitutionResponse(body, state, institutionId) {
   const users = new Set(state.users.filter((u) => u.institutionId === institutionId).map((u) => u.uid));
   const result = { ...body };
-  for (const [key, value] of Object.entries(result)) if (Array.isArray(value)) result[key] = value.filter((row) => {
-    if (!row || typeof row !== "object") return true;
-    if (key === "institutions") return row.id === institutionId;
-    if (row.institutionId && row.institutionId !== "global") return row.institutionId === institutionId;
-    if (row.studentId) return users.has(row.studentId);
-    if (row.uid) return users.has(row.uid);
+  for (const [key, value] of Object.entries(result)) if (Array.isArray(value)) result[key] = value.filter((row2) => {
+    if (!row2 || typeof row2 !== "object") return true;
+    if (key === "institutions") return row2.id === institutionId;
+    if (row2.institutionId && row2.institutionId !== "global") return row2.institutionId === institutionId;
+    if (row2.studentId) return users.has(row2.studentId);
+    if (row2.uid) return users.has(row2.uid);
     return true;
   });
   return result;
 }
 
-// server.ts
-import nodeCrypto from "node:crypto";
+// src/server/sessionCookies.ts
+var secure = () => process.env.NODE_ENV === "production" || Boolean(process.env.VERCEL);
+var sessionCookieName = () => secure() ? "__Host-ss_session" : "ss_session";
+function cookieToken(req) {
+  const pair = String(req.headers.cookie || "").split(";").map((v) => v.trim()).find((v) => v.startsWith(sessionCookieName() + "="));
+  if (!pair) return;
+  try {
+    return decodeURIComponent(pair.slice(pair.indexOf("=") + 1));
+  } catch {
+    return;
+  }
+}
+function clearSessionCookie(res) {
+  res.clearCookie(sessionCookieName(), { httpOnly: true, secure: secure(), sameSite: "strict", path: "/" });
+}
+function sessionBody(res, body) {
+  if (body && typeof body.token === "string" && body.user) {
+    res.cookie(sessionCookieName(), body.token, { httpOnly: true, secure: secure(), sameSite: "strict", path: "/", maxAge: 7 * 864e5 });
+    return { ...body, token: "cookie" };
+  }
+  return body;
+}
+var localSessionResponse = (req, res, next) => {
+  if (process.env.PERSISTENCE_DRIVER !== "firestore") {
+    const json = res.json.bind(res);
+    res.json = (body) => json(sessionBody(res, body));
+  }
+  if (["POST", "PUT", "PATCH", "DELETE"].includes(req.method) && cookieToken(req) && req.headers.origin) {
+    let same2 = false;
+    try {
+      same2 = new URL(req.headers.origin).host === req.get("host");
+    } catch {
+    }
+    if (!same2) return res.status(403).json({ error: "So\u2018rov manbasi mos emas." });
+  }
+  next();
+};
 
-// src/server/practiceRoutes.ts
-import crypto2 from "node:crypto";
+// src/server/accountRoutes.ts
+import crypto4 from "node:crypto";
 import { z as z2 } from "zod";
-function registerPracticeRoutes(app2, deps) {
-  const access = (req) => {
-    const c = deps.authenticate(req), lesson = c?.db.lessons.find((l) => l.id === req.params.id);
-    if (!c || !lesson || c.user.role !== "student" || c.user.status !== "active" || lesson.institutionId !== c.user.institutionId || lesson.status !== "published" || ![lesson.classId, ...lesson.classIds || []].includes(c.user.classId) || lesson.additionalCurriculumAssignment && lesson.tTrackVisibilityApproved !== true) return null;
-    return { ...c, lesson };
-  };
-  app2.get("/api/lesson-practice/:id", (req, res) => {
-    const c = access(req);
-    if (!c) return res.status(403).json({ error: "Darsga ruxsat yo\u2018q." });
-    const record = c.db.lessonPracticeResponses?.find((r) => r.studentId === c.user.uid && r.lessonId === c.lesson.id);
-    res.json({ savedAnswers: record && record.status !== "draft" ? record.answers : void 0, draftAnswers: record?.status === "draft" ? record.answers : void 0, revision: record?.revision || 0, title: c.lesson.title, questions: [`\xAB${c.lesson.title}\xBB mavzusidagi asosiy qoida yoki tushunchani o\u2018z so\u2018zingiz bilan tushuntiring.`, `Shu mavzuga oid bitta misol keltiring va yechimingizni bosqichma-bosqich izohlang.`], mode: "reflection", notice: "Yozma takrorlash mashqi. Avtomatik baholanmaydi. Qoralama hisobingizga saqlanadi." });
-  });
-  const write5 = (submit) => (req, res) => {
-    const c = access(req);
-    if (!c) return res.status(403).json({ error: "Darsga ruxsat yo\u2018q." });
-    const parsed = z2.array(z2.string().max(1e4)).length(2).safeParse(req.body.answers);
-    if (!parsed.success || submit && parsed.data.some((a) => a.trim().length < 3)) return res.status(400).json({ error: "Javoblar shakli yoki uzunligi noto\u2018g\u2018ri." });
-    c.db.lessonPracticeResponses ||= [];
-    let record = c.db.lessonPracticeResponses.find((r) => r.studentId === c.user.uid && r.lessonId === c.lesson.id);
-    if (record && record.status !== "draft") return res.status(submit ? 200 : 409).json(submit ? { id: record.id, status: "received" } : { error: "Ish allaqachon topshirilgan." });
-    if ((req.body.revision ?? 0) !== (record?.revision || 0)) return res.status(409).json({ error: "Qoralama boshqa oynada yangilangan. Mashqni qayta oching." });
-    if (!record) {
-      record = { id: crypto2.randomUUID(), lessonId: c.lesson.id, studentId: c.user.uid, institutionId: c.user.institutionId, answers: [], status: "draft", revision: 0 };
-      c.db.lessonPracticeResponses.push(record);
-    }
-    record.answers = parsed.data;
-    record.revision = (record.revision || 0) + 1;
-    record.status = submit ? "submitted" : "draft";
-    record.updatedAt = (/* @__PURE__ */ new Date()).toISOString();
-    if (submit) record.submittedAt = record.updatedAt;
-    deps.save(c.env, c.db);
-    res.json({ id: record.id, status: submit ? "received" : "draft", revision: record.revision });
-  };
-  app2.put("/api/lesson-practice/:id", write5(false));
-  app2.post("/api/lesson-practice/:id", write5(true));
-}
-
-// src/server/teachingRoutes.ts
-import crypto3 from "node:crypto";
-import { z as z3 } from "zod";
-var deliveredForClass = (lesson, classId) => !lesson.schoolUndeliveredClassIds?.includes(classId) && Boolean(lesson.schoolDeliveredAt || lesson.schoolDeliveredClassIds?.includes(classId));
-var teacherClasses = (user, db) => db.classes.filter((c) => c.institutionId === user.institutionId && user.assignedClassIds?.includes(c.id));
-function registerTeachingRoutes(app2, deps) {
-  registerPracticeRoutes(app2, deps);
-  const admin = (c) => c && ["admin", "platform_owner"].includes(c.user.role) && c.user.platformAdmin === true && c.user.emailVerified === true;
-  const schema = z3.object({ displayName: z3.string().trim().min(3).max(120), email: z3.email().max(180).transform((v) => v.toLowerCase()), password: z3.string().min(12).max(128), subject: z3.string().min(2).max(100), classIds: z3.array(z3.string()).min(1).max(19) });
-  app2.post("/api/teaching/accounts", (req, res) => {
-    const c = deps.authenticate(req);
-    if (!admin(c)) return res.status(403).json({ error: "Faqat administrator." });
-    const parsed = schema.safeParse(req.body);
-    if (!parsed.success) return res.status(400).json({ error: parsed.error.issues[0]?.message });
-    const p = parsed.data;
-    if (c.db.users.some((u) => u.email.toLowerCase() === p.email)) return res.status(409).json({ error: "Bu email band." });
-    if (p.classIds.some((id) => !c.db.classes.some((cls) => cls.id === id && cls.institutionId === c.user.institutionId))) return res.status(400).json({ error: "Sinf mos emas." });
-    const user = { uid: crypto3.randomUUID(), displayName: p.displayName, email: p.email, role: "teacher", status: "active", institutionId: c.user.institutionId, assignedClassIds: [...new Set(p.classIds)], subject: p.subject, createdAt: (/* @__PURE__ */ new Date()).toISOString(), platformAdmin: false, emailVerified: false };
-    c.db.users.push(user);
-    c.db.passwordHashes[user.uid] = deps.hash(p.password);
-    deps.save(c.env, c.db);
-    res.status(201).json({ user });
-  });
-  app2.patch("/api/teaching/accounts/:id", (req, res) => {
-    const c = deps.authenticate(req);
-    if (!admin(c)) return res.status(403).json({ error: "Faqat administrator." });
-    const user = c.db.users.find((u) => u.uid === req.params.id && u.role === "teacher" && u.institutionId === c.user.institutionId);
-    if (!user) return res.status(404).json({ error: "Hisob topilmadi." });
-    if (req.body.password !== void 0) {
-      const parsed = z3.string().min(12).max(128).safeParse(req.body.password);
-      if (!parsed.success) return res.status(400).json({ error: "Parol kamida 12 belgi bo\u2018lsin." });
-      c.db.passwordHashes[user.uid] = deps.hash(parsed.data);
-      deps.revoke(user.uid, c.env);
-      deps.save(c.env, c.db);
-      return res.json({ user });
-    }
-    if (!["active", "suspended"].includes(req.body.status)) return res.status(400).json({ error: "Holat noto\u2018g\u2018ri." });
-    user.status = req.body.status;
-    deps.revoke(user.uid, c.env);
-    deps.save(c.env, c.db);
-    res.json({ user });
-  });
-  app2.post("/api/teaching/quarter/complete", (req, res) => {
-    const c = deps.authenticate(req);
-    if (!admin(c)) return res.status(403).json({ error: "Faqat administrator." });
-    const now = (/* @__PURE__ */ new Date()).toISOString();
-    let count = 0;
-    for (const lesson of c.db.lessons) if (lesson.institutionId === c.user.institutionId && lesson.academicYear === c.db.institutions.find((i) => i.id === c.user.institutionId)?.academicYear && lesson.quarter === 1 && lesson.status !== "archived" && !lesson.schoolDeliveredAt) {
-      lesson.schoolDeliveredAt = now;
-      count++;
-    }
-    deps.save(c.env, c.db);
-    res.json({ count });
-  });
-  app2.post("/api/teaching/lessons/:id/delivered", (req, res) => {
-    const c = deps.authenticate(req);
-    if (!c) return res.status(401).json({ error: "Hisobga kiring." });
-    const lesson = c.db.lessons.find((l) => l.id === req.params.id && l.institutionId === c.user.institutionId);
-    if (!lesson || !admin(c) && !(c.user.role === "teacher" && teacherClasses(c.user, c.db).some((cls) => [lesson.classId, ...lesson.classIds || []].includes(cls.id)) && lesson.subjectName === c.user.subject)) return res.status(403).json({ error: "Darsga ruxsat yo\u2018q." });
-    if (req.body.delivered !== void 0 && typeof req.body.delivered !== "boolean") return res.status(400).json({ error: "Belgi noto\u2018g\u2018ri." });
-    const delivered = req.body.delivered !== false, now = (/* @__PURE__ */ new Date()).toISOString();
-    if (admin(c)) {
-      lesson.schoolDeliveredAt = delivered ? now : void 0;
-      if (!delivered) lesson.schoolDeliveredClassIds = [];
-      lesson.schoolUndeliveredClassIds = [];
-    } else {
-      const allowed = teacherClasses(c.user, c.db).map((cls) => cls.id).filter((id) => [lesson.classId, ...lesson.classIds || []].includes(id));
-      lesson.schoolDeliveredClassIds = delivered ? [.../* @__PURE__ */ new Set([...lesson.schoolDeliveredClassIds || [], ...allowed])] : (lesson.schoolDeliveredClassIds || []).filter((id) => !allowed.includes(id));
-      lesson.schoolUndeliveredClassIds = delivered ? (lesson.schoolUndeliveredClassIds || []).filter((id) => !allowed.includes(id)) : [.../* @__PURE__ */ new Set([...lesson.schoolUndeliveredClassIds || [], ...allowed])];
-    }
-    lesson.updatedAt = now;
-    deps.save(c.env, c.db);
-    res.json({ lesson });
-  });
-}
-
-// src/server/examMedia.ts
-import { getFirestore } from "firebase-admin/firestore";
-import crypto6 from "node:crypto";
 
 // src/server/firebaseAdminAuth.ts
-import crypto5 from "crypto";
+import crypto3 from "crypto";
 import fs2 from "fs";
 import path2 from "path";
 import { initializeApp, getApps, cert } from "firebase-admin/app";
@@ -998,7 +968,7 @@ var requestDatabase = new AsyncLocalStorage();
 // src/server/dbEngine.ts
 import fs from "fs";
 import path from "path";
-import crypto4 from "crypto";
+import crypto2 from "crypto";
 
 // src/utils/gamificationEngine.ts
 var GAMIFICATION_LEVELS = [
@@ -2085,8 +2055,8 @@ var configuredSessionSecret = process.env.SESSION_SECRET;
 if (process.env.NODE_ENV === "production" && (!configuredSessionSecret || configuredSessionSecret.length < 32 || configuredSessionSecret.includes("REPLACE_WITH"))) {
   throw new Error("Production requires a random SESSION_SECRET of at least 32 characters.");
 }
-var baseSessionSecret = configuredSessionSecret || crypto4.randomBytes(32).toString("hex");
-var TOKEN_SECRET = runtimeNamespace() === "_specialized_runtime" ? baseSessionSecret : crypto4.createHmac("sha256", baseSessionSecret).update(runtimeNamespace()).digest("hex");
+var baseSessionSecret = configuredSessionSecret || crypto2.randomBytes(32).toString("hex");
+var TOKEN_SECRET = runtimeNamespace() === "_specialized_runtime" ? baseSessionSecret : crypto2.createHmac("sha256", baseSessionSecret).update(runtimeNamespace()).digest("hex");
 function ensureSpecializedStudyStructure(state) {
   if (runtimeNamespace().startsWith("_specialized_preview_") && state.demoLabs?.length) {
     const labs = state.demoLabs;
@@ -2587,21 +2557,21 @@ function resetTestDbState() {
   saveDbState("test", empty);
 }
 function hashPassword(password) {
-  const salt = crypto4.randomBytes(16).toString("hex");
-  const derived = crypto4.scryptSync(password, salt, 64).toString("hex");
+  const salt = crypto2.randomBytes(16).toString("hex");
+  const derived = crypto2.scryptSync(password, salt, 64).toString("hex");
   return `${salt}:${derived}`;
 }
 function generateSecureRandomPassword() {
-  return `SS-${crypto4.randomBytes(16).toString("hex")}!9a`;
+  return `SS-${crypto2.randomBytes(16).toString("hex")}!9a`;
 }
 function verifyPassword(password, storedHash) {
   if (!storedHash || !storedHash.includes(":")) return false;
   const [salt, key] = storedHash.split(":");
-  const derived = crypto4.scryptSync(password, salt, 64).toString("hex");
+  const derived = crypto2.scryptSync(password, salt, 64).toString("hex");
   const keyBuf = Buffer.from(key, "hex");
   const derivedBuf = Buffer.from(derived, "hex");
   if (keyBuf.length !== derivedBuf.length) return false;
-  return crypto4.timingSafeEqual(keyBuf, derivedBuf);
+  return crypto2.timingSafeEqual(keyBuf, derivedBuf);
 }
 function revokeSessionToken(token) {
   if (!token) return;
@@ -2611,7 +2581,7 @@ function revokeSessionToken(token) {
     context.state.revokedSessionHashes = Object.fromEntries(Object.entries(context.state.revokedSessionHashes || {}).filter(([, expiry]) => expiry > now));
     try {
       const payload = JSON.parse(Buffer.from(token.split(".")[0], "base64url").toString("utf8"));
-      context.state.revokedSessionHashes[crypto4.createHash("sha256").update(token.trim()).digest("hex")] = Number(payload.exp) || now + 6048e5;
+      context.state.revokedSessionHashes[crypto2.createHash("sha256").update(token.trim()).digest("hex")] = Number(payload.exp) || now + 6048e5;
       context.dirty = true;
     } catch {
     }
@@ -2631,16 +2601,16 @@ function revokeAllUserSessions(uid) {
   revokedBeforeTimestampByUser.set(uid, Date.now());
 }
 function issueSessionToken(uid, env, expiresInMs = 1e3 * 60 * 60 * 24 * 7) {
-  const now = Date.now();
+  const now = Math.max(Date.now(), (requestDatabase.getStore()?.state.revokedBeforeByUser?.[uid] || 0) + 1);
   const payload = JSON.stringify({
     uid,
     env,
-    jti: crypto4.randomBytes(8).toString("hex"),
+    jti: crypto2.randomBytes(8).toString("hex"),
     iat: now,
     exp: now + expiresInMs
   });
   const base64Payload = Buffer.from(payload, "utf-8").toString("base64url");
-  const signature = crypto4.createHmac("sha256", TOKEN_SECRET).update(base64Payload).digest("base64url");
+  const signature = crypto2.createHmac("sha256", TOKEN_SECRET).update(base64Payload).digest("base64url");
   return `${base64Payload}.${signature}`;
 }
 function verifySessionToken(token) {
@@ -2648,15 +2618,15 @@ function verifySessionToken(token) {
   const cleanToken = token.trim();
   if (revokedTokenSet.has(cleanToken)) return null;
   const durableRevocations = requestDatabase.getStore()?.state.revokedSessionHashes;
-  if (durableRevocations?.[crypto4.createHash("sha256").update(cleanToken).digest("hex")]) return null;
+  if (durableRevocations?.[crypto2.createHash("sha256").update(cleanToken).digest("hex")]) return null;
   const parts = cleanToken.split(".");
   if (parts.length !== 2) return null;
   const [base64Payload, signature] = parts;
   if (!base64Payload || !signature) return null;
-  const expectedSig = crypto4.createHmac("sha256", TOKEN_SECRET).update(base64Payload).digest("base64url");
+  const expectedSig = crypto2.createHmac("sha256", TOKEN_SECRET).update(base64Payload).digest("base64url");
   const sigBuf = Buffer.from(signature, "utf-8");
   const expectedBuf = Buffer.from(expectedSig, "utf-8");
-  if (sigBuf.length !== expectedBuf.length || !crypto4.timingSafeEqual(sigBuf, expectedBuf)) {
+  if (sigBuf.length !== expectedBuf.length || !crypto2.timingSafeEqual(sigBuf, expectedBuf)) {
     return null;
   }
   try {
@@ -2677,7 +2647,7 @@ function verifySessionToken(token) {
   }
 }
 function generateCryptographicInviteToken(rolePrefix) {
-  const rand = crypto4.randomBytes(4).toString("hex").toUpperCase();
+  const rand = crypto2.randomBytes(4).toString("hex").toUpperCase();
   const rawToken = `INV-${rolePrefix.slice(0, 3).toUpperCase()}-${rand}`;
   const tokenHash = computeSimpleHash(rawToken);
   return { rawToken, tokenHash };
@@ -2724,10 +2694,10 @@ async function verifyFirebaseIdToken(idToken, env, db) {
       };
     }
     const [, encoded, sig] = parts;
-    const expectedSig = crypto5.createHmac("sha256", TEST_ID_TOKEN_SECRET).update(`test-fb-jwt.${encoded}`).digest("base64url");
+    const expectedSig = crypto3.createHmac("sha256", TEST_ID_TOKEN_SECRET).update(`test-fb-jwt.${encoded}`).digest("base64url");
     const sigBuf = Buffer.from(sig, "utf-8");
     const expBuf = Buffer.from(expectedSig, "utf-8");
-    if (sigBuf.length !== expBuf.length || !crypto5.timingSafeEqual(sigBuf, expBuf)) {
+    if (sigBuf.length !== expBuf.length || !crypto3.timingSafeEqual(sigBuf, expBuf)) {
       return {
         valid: false,
         errorCode: "auth/invalid-credential",
@@ -2962,7 +2932,506 @@ async function provisionAuthorizedAdmins(env, db) {
   };
 }
 
+// src/server/accountRoutes.ts
+var loginSchema = z2.string().trim().regex(/^[a-z0-9._]{3,40}$/);
+var row = z2.object({ displayName: z2.string().trim().min(3).max(120), role: z2.enum(["student", "teacher"]), login: loginSchema.optional(), classCode: z2.string().max(12).optional(), subject: z2.string().max(100).optional(), password: z2.string().min(8).max(128).optional(), mustChangePassword: z2.boolean().default(true) });
+function registerAccountRoutes(app2, deps) {
+  const access = (req, res, admin = false) => {
+    const c = deps.authenticate(req);
+    if (!c || c.user.status !== "active") {
+      res.status(401).json({ error: "Hisobga kiring." });
+      return null;
+    }
+    if (admin && (!["admin", "platform_owner"].includes(c.user.role) || !c.user.emailVerified || !c.user.platformAdmin)) {
+      res.status(403).json({ error: "Faqat administrator." });
+      return null;
+    }
+    return c;
+  };
+  const audit = (c, action, id) => {
+    c.db.auditLogs.push({ id: crypto4.randomUUID(), institutionId: c.user.institutionId, actorUid: c.user.uid, actorName: c.user.displayName, actorRole: c.user.role, action, target: "Hisoblar", recordId: id, createdAt: (/* @__PURE__ */ new Date()).toISOString() });
+  };
+  app2.get("/api/accounts", (req, res) => {
+    const c = access(req, res, true);
+    if (!c) return;
+    const q = String(req.query.q || "").toLowerCase().slice(0, 100), page = Math.max(0, Number(req.query.page) || 0);
+    const all = c.db.users.filter((u) => u.institutionId === c.user.institutionId && ["student", "teacher"].includes(u.role) && `${u.login || ""} ${u.displayName} ${u.email}`.toLowerCase().includes(q));
+    res.json({ total: all.length, users: all.slice(page * 25, page * 25 + 25).map(({ uid, login, displayName, email, role, status, classCode, subject, mustChangePassword }) => ({ uid, login, displayName, email, role, status, classCode, subject, mustChangePassword })) });
+  });
+  app2.post("/api/accounts", (req, res) => {
+    const c = access(req, res, true);
+    if (!c) return;
+    const parsed = z2.object({ operationId: z2.uuid(), rows: z2.array(row).min(1).max(200) }).safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ error: "F.I.Sh., rol, login yoki parol shaklini tekshiring." });
+    c.db.accountOperations ||= [];
+    if (c.db.accountOperations.includes(parsed.data.operationId)) return res.status(409).json({ error: "Bu paket avval yaratilgan. Kerak bo\u2018lsa parollarini tiklang." });
+    const errors = [];
+    const names = /* @__PURE__ */ new Set();
+    const rows = parsed.data.rows.map((r, i) => {
+      const cls = r.classCode ? c.db.classes.find((cl) => cl.institutionId === c.user.institutionId && cl.code === r.classCode.toLowerCase()) : void 0;
+      if (r.classCode && !cls) errors.push({ row: i + 2, error: "Sinf topilmadi." });
+      if (r.role === "teacher" && (!cls || !r.subject)) errors.push({ row: i + 2, error: "Ustoz uchun sinf va fan majburiy." });
+      if (r.login && (names.has(r.login) || c.db.users.some((u) => u.login === r.login || String(u.email || "").toLowerCase() === r.login))) errors.push({ row: i + 2, error: "Login band." });
+      if (r.login) names.add(r.login);
+      return { ...r, cls };
+    });
+    if (errors.length) return res.status(400).json({ error: "Xato qatorlarni tuzating.", errors });
+    const accounts = rows.map((r) => {
+      let login = r.login;
+      if (!login) do {
+        login = `${r.role === "student" ? "st" : "tc"}${crypto4.randomInt(1e7, 99999999)}`;
+      } while (names.has(login) || c.db.users.some((u) => u.login === login));
+      names.add(login);
+      const password = r.password || crypto4.randomBytes(15).toString("base64url"), uid = crypto4.randomUUID();
+      const user = { uid, login, email: login + "@accounts.specialized.invalid", displayName: r.displayName, role: r.role, status: "active", institutionId: c.user.institutionId, classId: r.role === "student" ? r.cls?.id : void 0, classCode: r.role === "student" ? r.cls?.code : void 0, assignedClassIds: r.role === "teacher" ? [r.cls.id] : void 0, subject: r.subject, mustChangePassword: r.mustChangePassword, createdAt: (/* @__PURE__ */ new Date()).toISOString() };
+      c.db.users.push(user);
+      c.db.passwordHashes[uid] = deps.hash(password);
+      audit(c, "Hisob yaratildi", uid);
+      return { uid, login, password, displayName: r.displayName, classCode: r.cls?.code, role: r.role };
+    });
+    c.db.accountOperations.push(parsed.data.operationId);
+    deps.save(c.env, c.db);
+    res.status(201).json({ accounts });
+  });
+  app2.patch("/api/accounts/:uid", (req, res) => {
+    const c = access(req, res, true);
+    if (!c) return;
+    const u = c.db.users.find((u2) => u2.uid === req.params.uid && u2.institutionId === c.user.institutionId && ["student", "teacher"].includes(u2.role));
+    if (!u) return res.status(404).json({ error: "Hisob topilmadi." });
+    let password;
+    if (req.body.resetPassword === true) {
+      password = crypto4.randomBytes(15).toString("base64url");
+      c.db.passwordHashes[u.uid] = deps.hash(password);
+      u.mustChangePassword = true;
+    } else if (["active", "suspended"].includes(req.body.status)) u.status = req.body.status;
+    else return res.status(400).json({ error: "Amalni tekshiring." });
+    deps.revoke(u.uid, c.env);
+    audit(c, password ? "Parol tiklandi" : "Hisob holati yangilandi", u.uid);
+    deps.save(c.env, c.db);
+    res.json({ login: u.login || u.email, password, status: u.status });
+  });
+  app2.post("/api/account/password", (req, res) => {
+    const c = access(req, res);
+    if (!c) return;
+    const parsed = z2.object({ oldPassword: z2.string().max(128), password: z2.string().min(12).max(128) }).safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ error: "Yangi parol kamida 12 belgidan iborat bo\u2018lsin." });
+    if (parsed.data.password === parsed.data.oldPassword) return res.status(400).json({ error: "Yangi parol joriy paroldan farq qilsin." });
+    if (!deps.verify(parsed.data.oldPassword, c.db.passwordHashes[c.user.uid])) return res.status(400).json({ error: "Joriy parol noto\u2018g\u2018ri." });
+    c.db.passwordHashes[c.user.uid] = deps.hash(parsed.data.password);
+    c.user.mustChangePassword = false;
+    deps.revoke(c.user.uid, c.env);
+    audit(c, "O\u2018z parolini yangiladi", c.user.uid);
+    deps.save(c.env, c.db);
+    res.json({ user: c.user, token: deps.issue(c.user.uid, c.env) });
+  });
+  app2.post("/api/account/native-credentials", async (req, res) => {
+    const c = access(req, res);
+    if (!c) return;
+    const p = z2.object({ login: loginSchema, password: z2.string().min(12).max(128), idToken: z2.string().max(1e4) }).safeParse(req.body);
+    if (!p.success) return res.status(400).json({ error: "Login va kuchli parol kiriting." });
+    try {
+      const id = await getFirebaseAdminAuth().verifyIdToken(p.data.idToken, true);
+      if (id.firebase?.sign_in_provider !== "google.com" || !id.email_verified || Date.now() / 1e3 - id.auth_time > 300 || ![c.user.uid, c.user.linkedGoogleUid].includes(id.uid)) return res.status(403).json({ error: "O\u2018z Google hisobingizni qayta tasdiqlang." });
+      if (c.db.users.some((u) => u.uid !== c.user.uid && (u.login === p.data.login || u.email === p.data.login))) return res.status(409).json({ error: "Login band." });
+      c.user.login = p.data.login;
+      c.db.passwordHashes[c.user.uid] = deps.hash(p.data.password);
+      c.user.mustChangePassword = false;
+      deps.revoke(c.user.uid, c.env);
+      audit(c, "Shaxsiy login yoqildi", c.user.uid);
+      deps.save(c.env, c.db);
+      res.json({ user: c.user, token: deps.issue(c.user.uid, c.env) });
+    } catch {
+      return res.status(403).json({ error: "Google tasdiqlashi bajarilmadi." });
+    }
+  });
+  app2.post("/api/account/google-link", async (req, res) => {
+    const c = access(req, res);
+    if (!c) return;
+    try {
+      const identity = await getFirebaseAdminAuth().verifyIdToken(String(req.body.idToken || ""), true);
+      if (Date.now() / 1e3 - identity.auth_time > 300 || !identity.email_verified || identity.firebase?.sign_in_provider !== "google.com") return res.status(403).json({ error: "Tasdiqlangan Google hisobi kerak." });
+      if (c.db.users.some((u) => u.uid !== c.user.uid && (u.uid === identity.uid || u.linkedGoogleUid === identity.uid || String(u.email || "").toLowerCase() === identity.email?.toLowerCase()))) return res.status(409).json({ error: "Bu Google hisobi boshqa hisobga ulangan." });
+      c.user.linkedGoogleUid = identity.uid;
+      audit(c, "Google hisobini biriktirdi", c.user.uid);
+      deps.save(c.env, c.db);
+      res.json({ linked: true });
+    } catch {
+      return res.status(403).json({ error: "Google tasdiqlashi bajarilmadi." });
+    }
+  });
+}
+
+// src/server/topicRoutes.ts
+import crypto6 from "node:crypto";
+import { z as z4 } from "zod";
+
+// src/server/topicEngine.ts
+import crypto5 from "node:crypto";
+import { z as z3 } from "zod";
+var bankQuestion = z3.object({ id: z3.string().max(100).optional(), revision: z3.number().int().optional(), kind: z3.enum(["single", "multiple", "short", "matching", "ordering", "blank", "written"]), prompt: z3.string().trim().min(3).max(12e3), options: z3.array(z3.string().min(1).max(1e3)).max(20).default([]), labels: z3.array(z3.string().max(1e3)).max(12).default([]), key: z3.string().max(8e3), accepted: z3.array(z3.string().max(1e3)).max(20).default([]), explanation: z3.string().max(5e3).default(""), hint: z3.string().max(2e3).default(""), points: z3.number().min(0.5).max(100), difficulty: z3.enum(["easy", "medium", "hard"]).default("medium"), sourceImages: z3.array(z3.string().max(7e5).regex(/^data:image\/(png|jpeg);base64,[a-zA-Z0-9+/=]+$/)).max(10).default([]), image: z3.string().max(7e5).refine((s) => !s || /^data:image\/(png|jpeg);base64,[a-zA-Z0-9+/=]+$/.test(s)).default("") }).superRefine((q, c) => {
+  if (q.options.some((o) => o.includes("|"))) c.addIssue({ code: "custom", message: "Variant ichida | belgisi ishlatilmasin." });
+  if (q.kind === "matching" && q.key.split("|").some((k) => !q.options.includes(k))) c.addIssue({ code: "custom", message: "Juftlik kaliti variantlarga mos bo\u2018lsin." });
+  if (new Set(q.options).size !== q.options.length) c.addIssue({ code: "custom", message: "Variantlar takrorlanmasin." });
+  if (["single", "multiple", "ordering", "matching"].includes(q.kind) && q.options.length < 2) c.addIssue({ code: "custom", message: "Kamida ikki variant kiriting." });
+  if (q.kind === "single" && !q.options.includes(q.key)) c.addIssue({ code: "custom", message: "To\u2018g\u2018ri javob variantlardan bo\u2018lsin." });
+  if (q.kind !== "written" && !q.key.trim()) c.addIssue({ code: "custom", message: "Javob kaliti majburiy." });
+  if (q.kind === "matching" && (q.labels.length < 2 || q.key.split("|").length !== q.labels.length)) c.addIssue({ code: "custom", message: "Har bir juftlik uchun kalit kiriting." });
+  if (q.kind === "multiple" && q.key.split("|").some((s) => !q.options.includes(s))) c.addIssue({ code: "custom", message: "Ko\u2018p javob kaliti variantlarga mos emas." });
+  if (q.kind === "ordering" && (q.key.split("|").length !== q.options.length || new Set(q.key.split("|")).size !== q.options.length || q.key.split("|").some((s) => !q.options.includes(s)))) c.addIssue({ code: "custom", message: "Tartib kaliti barcha variantlarni o\u2018z ichiga olsin." });
+});
+var norm = (s) => s.trim().toLowerCase().replace(/\s+/g, " ");
+function gradeQuestion(q, answer) {
+  if (q.kind === "written") return 0;
+  if (q.kind === "multiple") {
+    const list = (s) => [...new Set(s.split("|").map(norm).filter(Boolean))].sort().join("|");
+    return list(answer) === list(q.key) ? q.points : 0;
+  }
+  return [q.key, ...q.accepted || []].some((a) => norm(a) === norm(answer)) ? q.points : 0;
+}
+function shuffle(list) {
+  const a = [...list];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = crypto5.randomInt(i + 1);
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+function publicQuestion(q) {
+  const { key, accepted, explanation, ...safe } = q;
+  return safe;
+}
+function publicSession(s, release = true) {
+  return { ...s, questions: s.questions.map(publicQuestion), results: s.submittedAt && release ? s.results : void 0, score: s.submittedAt && release ? s.score : void 0 };
+}
+
+// src/server/topicRoutes.ts
+function registerTopicRoutes(app2, deps) {
+  const access = (req, res, admin = false) => {
+    const c = deps.authenticate(req);
+    if (!c || c.user.status !== "active") {
+      res.status(401).json({ error: "Hisobga kiring." });
+      return null;
+    }
+    if (admin && (!["admin", "platform_owner"].includes(c.user.role) || !c.user.platformAdmin || !c.user.emailVerified)) {
+      res.status(403).json({ error: "Faqat administrator." });
+      return null;
+    }
+    return c;
+  };
+  const ownLesson2 = (c, id) => c.db.lessons.find((l) => l.id === id && l.institutionId === c.user.institutionId);
+  const canStudy = (c, l) => l && c.user.role === "student" && l.status === "published" && [l.classId, ...l.classIds || []].includes(c.user.classId) && (!l.additionalCurriculumAssignment || l.tTrackVisibilityApproved);
+  const audit = (c, action, id) => {
+    c.db.auditLogs.push({ id: crypto6.randomUUID(), institutionId: c.user.institutionId, actorUid: c.user.uid, actorName: c.user.displayName, actorRole: c.user.role, action, target: "Mavzu testi", recordId: id, createdAt: (/* @__PURE__ */ new Date()).toISOString() });
+  };
+  app2.get("/api/topic-bank/:lesson", (req, res) => {
+    const c = access(req, res, true);
+    if (!c) return;
+    if (!ownLesson2(c, req.params.lesson)) return res.status(404).json({ error: "Mavzu topilmadi." });
+    res.json({ questions: (c.db.topicQuestions || []).filter((q) => q.institutionId === c.user.institutionId && q.lessonId === req.params.lesson), tests: (c.db.topicTests || []).filter((t) => t.institutionId === c.user.institutionId && t.lessonId === req.params.lesson) });
+  });
+  app2.post("/api/topic-bank/:lesson/questions", (req, res) => {
+    const c = access(req, res, true);
+    if (!c) return;
+    if (!ownLesson2(c, req.params.lesson)) return res.status(404).json({ error: "Mavzu topilmadi." });
+    const p = z4.object({ questions: z4.array(bankQuestion).min(1).max(100) }).safeParse(req.body);
+    if (!p.success) return res.status(400).json({ error: p.error.issues[0]?.message });
+    if (new Set(p.data.questions.filter((q) => q.id).map((q) => q.id)).size !== p.data.questions.filter((q) => q.id).length) return res.status(400).json({ error: "Bir savol paketda takrorlanmasin." });
+    c.db.topicQuestions ||= [];
+    for (const q of p.data.questions) {
+      const old = q.id && c.db.topicQuestions.find((x) => x.id === q.id && x.institutionId === c.user.institutionId && x.lessonId === req.params.lesson);
+      if (q.id && !old) return res.status(404).json({ error: "Savol topilmadi." });
+      if (old && q.revision !== old.revision) return res.status(409).json({ error: "Savol yangilangan. Bankni qayta oching." });
+    }
+    const records = p.data.questions.map((q) => {
+      const old = q.id && c.db.topicQuestions.find((x) => x.id === q.id);
+      const record = { ...q, id: q.id || crypto6.randomUUID(), institutionId: c.user.institutionId, lessonId: req.params.lesson, revision: (old?.revision || 0) + 1, status: "draft" };
+      if (old) Object.assign(old, record);
+      else c.db.topicQuestions.push(record);
+      return record;
+    });
+    audit(c, "Savollar banki yangilandi", req.params.lesson);
+    deps.save(c.env, c.db);
+    res.json({ questions: records });
+  });
+  app2.post("/api/topic-bank/:lesson/test", (req, res) => {
+    const c = access(req, res, true);
+    if (!c) return;
+    if (!ownLesson2(c, req.params.lesson)) return res.status(404).json({ error: "Mavzu topilmadi." });
+    const p = z4.object({ id: z4.string().optional(), expectedVersion: z4.number().int().optional(), title: z4.string().min(3).max(180), questionIds: z4.array(z4.string()).min(1).max(100), count: z4.number().int().min(1).max(60), durationMinutes: z4.number().int().min(0).max(180), maxAttempts: z4.number().int().min(1).max(10), passPercent: z4.number().min(0).max(100), trackExits: z4.boolean(), release: z4.enum(["immediate", "review"]), shuffle: z4.boolean(), publish: z4.boolean() }).safeParse(req.body);
+    if (!p.success) return res.status(400).json({ error: "Test sozlamalarini tekshiring." });
+    const d = p.data, questions = (c.db.topicQuestions || []).filter((q) => q.institutionId === c.user.institutionId && q.lessonId === req.params.lesson && d.questionIds.includes(q.id));
+    if (questions.length !== new Set(d.questionIds).size || d.count > questions.length) return res.status(400).json({ error: "Savollar soni yoki bank tanlovi mos emas." });
+    c.db.topicTests ||= [];
+    const old = d.id && c.db.topicTests.find((t) => t.id === d.id && t.institutionId === c.user.institutionId && t.lessonId === req.params.lesson);
+    if (d.id && !old) return res.status(404).json({ error: "Test topilmadi." });
+    if (old && d.expectedVersion !== old.version) return res.status(409).json({ error: "Test versiyasi yangilangan. Qayta oching." });
+    const { publish, ...settings } = d;
+    const record = { ...settings, id: old?.id || crypto6.randomUUID(), institutionId: c.user.institutionId, lessonId: req.params.lesson, status: publish ? "published" : "draft", version: (old?.version || 0) + 1, snapshot: structuredClone(questions) };
+    if (old) Object.assign(old, record);
+    else c.db.topicTests.push(record);
+    audit(c, publish ? "Mavzu testi nashr qilindi" : "Mavzu testi qoralamasi saqlandi", record.id);
+    deps.save(c.env, c.db);
+    res.json({ test: record });
+  });
+  app2.get("/api/topic-tests", (req, res) => {
+    const c = access(req, res);
+    if (!c) return;
+    if (c.user.role !== "student") return res.status(403).json({ error: "Faqat o\u2018quvchi." });
+    res.json({ tests: (c.db.topicTests || []).filter((t) => t.institutionId === c.user.institutionId && t.status === "published" && canStudy(c, ownLesson2(c, t.lessonId))).map(({ snapshot, ...t }) => t), sessions: (c.db.topicSessions || []).filter((s) => s.studentId === c.user.uid && s.institutionId === c.user.institutionId).map((s) => ({ id: s.id, testId: s.testId, title: s.title, submittedAt: s.submittedAt, startedAt: s.startedAt, score: (s.release || (c.db.topicTests || []).find((t) => t.id === s.testId)?.release) === "review" && s.pending ? void 0 : s.score, maxScore: s.maxScore, pending: s.pending })) });
+  });
+  const testAccess = (req, res) => {
+    const c = access(req, res);
+    if (!c) return;
+    const test = c.db.topicTests?.find((t) => t.id === req.params.id && t.institutionId === c.user.institutionId && t.status === "published");
+    if (!test || !canStudy(c, ownLesson2(c, test.lessonId))) {
+      res.status(403).json({ error: "Bu sinf mavzusiga ruxsat yo\u2018q." });
+      return;
+    }
+    return { ...c, test };
+  };
+  app2.post("/api/topic-tests/:id/start", (req, res) => {
+    const c = testAccess(req, res);
+    if (!c) return;
+    c.db.topicSessions ||= [];
+    const old = c.db.topicSessions.find((s) => s.studentId === c.user.uid && s.testId === c.test.id && !s.submittedAt);
+    if (old) return res.json({ session: publicSession(old), test: c.test.title, serverNow: Date.now() });
+    if (c.db.topicSessions.filter((s) => s.studentId === c.user.uid && s.testId === c.test.id).length >= c.test.maxAttempts) return res.status(409).json({ error: "Urinishlar tugagan." });
+    let questions = c.test.shuffle ? shuffle(c.test.snapshot) : c.test.snapshot;
+    questions = structuredClone(questions.slice(0, c.test.count));
+    for (const q of questions) if (c.test.shuffle && ["single", "multiple"].includes(q.kind)) q.options = shuffle(q.options);
+    const now = Date.now();
+    const session = { id: crypto6.randomUUID(), institutionId: c.user.institutionId, studentId: c.user.uid, testId: c.test.id, version: c.test.version, title: c.test.title, subject: ownLesson2(c, c.test.lessonId)?.subjectName, release: c.test.release, trackExits: c.test.trackExits, passPercent: c.test.passPercent, questions, answers: {}, flags: [], revision: 0, startedAt: new Date(now).toISOString(), deadlineAt: c.test.durationMinutes ? new Date(now + c.test.durationMinutes * 6e4).toISOString() : void 0, maxScore: questions.reduce((n, q) => n + q.points, 0), pending: false, events: [] };
+    c.db.topicSessions.push(session);
+    deps.save(c.env, c.db);
+    res.json({ session: publicSession(session), test: c.test.title, serverNow: now });
+  });
+  const sessionAccess = (req, res) => {
+    const c = access(req, res);
+    if (!c) return;
+    const s = c.db.topicSessions?.find((s2) => s2.id === req.params.id && s2.studentId === c.user.uid && s2.institutionId === c.user.institutionId);
+    if (c.user.role !== "student" || !s) {
+      res.status(403).json({ error: "Sessiyaga ruxsat yo\u2018q." });
+      return;
+    }
+    const test = c.db.topicTests?.find((t) => t.id === s.testId);
+    if (!canStudy(c, ownLesson2(c, test?.lessonId))) {
+      res.status(403).json({ error: "Sinfga ruxsat bekor qilingan." });
+      return;
+    }
+    return { ...c, s, test };
+  };
+  const submit = (c) => {
+    const s = c.s;
+    if (s.submittedAt) return;
+    s.results = s.questions.map((q) => ({ id: q.id, earned: gradeQuestion(q, s.answers[q.id] || ""), points: q.points, explanation: q.explanation, pending: q.kind === "written" }));
+    s.score = s.results.reduce((n, r) => n + r.earned, 0);
+    s.pending = s.results.some((r) => r.pending);
+    s.submittedAt = (/* @__PURE__ */ new Date()).toISOString();
+    c.db.topicReviews ||= [];
+    for (const q of s.questions) if (q.kind !== "written" && gradeQuestion(q, s.answers[q.id] || "") < q.points) {
+      const id = s.studentId + ":" + q.id;
+      let record = c.db.topicReviews.find((r) => r.id === id);
+      const value = { id, institutionId: s.institutionId, studentId: s.studentId, question: structuredClone(q), answer: s.answers[q.id] || "", dueAt: (/* @__PURE__ */ new Date()).toISOString(), streak: 0, status: "due" };
+      if (record) Object.assign(record, value);
+      else c.db.topicReviews.push(value);
+    }
+  };
+  app2.get("/api/topic-sessions/:id", (req, res) => {
+    const c = sessionAccess(req, res);
+    if (!c) return;
+    if (c.s.deadlineAt && Date.now() >= Date.parse(c.s.deadlineAt) && !c.s.submittedAt) {
+      submit(c);
+      deps.save(c.env, c.db);
+    }
+    res.json({ session: publicSession(c.s, (c.s.release || c.test.release) === "immediate" || !c.s.pending), title: c.s.title || c.test.title, serverNow: Date.now() });
+  });
+  app2.put("/api/topic-sessions/:id", (req, res) => {
+    const c = sessionAccess(req, res);
+    if (!c) return;
+    const p = z4.object({ revision: z4.number().int().min(0), answers: z4.record(z4.string(), z4.string().max(8e3)), flags: z4.array(z4.string()).max(100), submit: z4.boolean().optional(), event: z4.object({ id: z4.uuid(), type: z4.literal("tab_exit") }).optional() }).safeParse(req.body);
+    if (!p.success) return res.status(400).json({ error: "Javob shaklini tekshiring." });
+    if (c.s.submittedAt) return res.json({ session: publicSession(c.s, (c.s.release || c.test.release) === "immediate" || !c.s.pending) });
+    if (c.s.deadlineAt && Date.now() >= Date.parse(c.s.deadlineAt)) {
+      submit(c);
+      deps.save(c.env, c.db);
+      return res.json({ session: publicSession(c.s, (c.s.release || c.test.release) === "immediate" || !c.s.pending) });
+    }
+    if (c.s.revision !== p.data.revision) return res.status(409).json({ error: "Boshqa oynada yangi javob bor. Qayta oching." });
+    if ([...Object.keys(p.data.answers), ...p.data.flags].some((id) => !c.s.questions.some((q) => q.id === id))) return res.status(400).json({ error: "Begona savol." });
+    c.s.answers = p.data.answers;
+    c.s.flags = p.data.flags;
+    c.s.revision++;
+    if ((c.s.trackExits ?? c.test.trackExits) && p.data.event && !c.s.events.some((e) => e.id === p.data.event.id)) c.s.events.push({ ...p.data.event, at: (/* @__PURE__ */ new Date()).toISOString() });
+    if (p.data.submit) submit(c);
+    deps.save(c.env, c.db);
+    res.json({ session: publicSession(c.s, (c.s.release || c.test.release) === "immediate" || !c.s.pending) });
+  });
+  app2.post("/api/topic-bank/:lesson/preview", (req, res) => {
+    const c = access(req, res, true);
+    if (!c) return;
+    const p = z4.object({ questionIds: z4.array(z4.string()).min(1).max(100), answers: z4.record(z4.string(), z4.string().max(8e3)) }).safeParse(req.body);
+    if (!ownLesson2(c, req.params.lesson) || !p.success) return res.status(400).json({ error: "Sinov ma\u2019lumotlarini tekshiring." });
+    const questions = (c.db.topicQuestions || []).filter((q) => q.institutionId === c.user.institutionId && q.lessonId === req.params.lesson && p.data.questionIds.includes(q.id));
+    res.json({ score: questions.reduce((n, q) => n + gradeQuestion(q, p.data.answers[q.id] || ""), 0), maxScore: questions.reduce((n, q) => n + q.points, 0), pending: questions.some((q) => q.kind === "written"), persisted: false });
+  });
+  app2.get("/api/topic-review", (req, res) => {
+    const c = access(req, res);
+    if (!c) return;
+    if (c.user.role !== "student") return res.status(403).json({ error: "Faqat o\u2018quvchi." });
+    res.json({ records: (c.db.topicReviews || []).filter((r) => r.studentId === c.user.uid && r.institutionId === c.user.institutionId).map(({ question: question2, ...r }) => ({ ...r, question: publicQuestion(question2) })) });
+  });
+  app2.post("/api/topic-review/:id", (req, res) => {
+    const c = access(req, res);
+    if (!c) return;
+    const r = c.db.topicReviews?.find((r2) => r2.id === req.params.id && r2.studentId === c.user.uid && r2.institutionId === c.user.institutionId);
+    const p = z4.object({ answer: z4.string().max(8e3), operationId: z4.uuid() }).safeParse(req.body);
+    if (!r || c.user.role !== "student") return res.status(403).json({ error: "Yozuvga ruxsat yo\u2018q." });
+    if (!p.success) return res.status(400).json({ error: "Javobni tekshiring." });
+    if (r.lastOperation !== p.data.operationId) {
+      const correct = gradeQuestion(r.question, p.data.answer) === r.question.points;
+      if (Date.parse(r.dueAt) <= Date.now()) {
+        r.streak = correct ? r.streak + 1 : 0;
+        r.status = r.streak >= 3 ? "mastered" : "due";
+        r.dueAt = new Date(Date.now() + [1, 3, 7, 14][Math.min(3, Math.max(0, r.streak - 1))] * 864e5).toISOString();
+      }
+      r.lastOperation = p.data.operationId;
+      r.lastCorrect = correct;
+      r.answer = p.data.answer;
+      deps.save(c.env, c.db);
+    }
+    res.json({ correct: r.lastCorrect, explanation: r.question.explanation, dueAt: r.dueAt, status: r.status });
+  });
+}
+
+// src/server/canonicalOrigin.ts
+var CANONICAL_ORIGIN = "https://specializedstudy.vercel.app";
+var canonicalProduction = (req, res, next) => {
+  if (process.env.VERCEL_ENV === "production" && req.hostname !== "specializedstudy.vercel.app") return res.redirect(307, CANONICAL_ORIGIN + req.originalUrl);
+  next();
+};
+
+// server.ts
+import nodeCrypto from "node:crypto";
+
+// src/server/practiceRoutes.ts
+import crypto7 from "node:crypto";
+import { z as z5 } from "zod";
+function registerPracticeRoutes(app2, deps) {
+  const access = (req) => {
+    const c = deps.authenticate(req), lesson = c?.db.lessons.find((l) => l.id === req.params.id);
+    if (!c || !lesson || c.user.role !== "student" || c.user.status !== "active" || lesson.institutionId !== c.user.institutionId || lesson.status !== "published" || ![lesson.classId, ...lesson.classIds || []].includes(c.user.classId) || lesson.additionalCurriculumAssignment && lesson.tTrackVisibilityApproved !== true) return null;
+    return { ...c, lesson };
+  };
+  app2.get("/api/lesson-practice/:id", (req, res) => {
+    const c = access(req);
+    if (!c) return res.status(403).json({ error: "Darsga ruxsat yo\u2018q." });
+    const record = c.db.lessonPracticeResponses?.find((r) => r.studentId === c.user.uid && r.lessonId === c.lesson.id);
+    res.json({ savedAnswers: record && record.status !== "draft" ? record.answers : void 0, draftAnswers: record?.status === "draft" ? record.answers : void 0, revision: record?.revision || 0, title: c.lesson.title, questions: [`\xAB${c.lesson.title}\xBB mavzusidagi asosiy qoida yoki tushunchani o\u2018z so\u2018zingiz bilan tushuntiring.`, `Shu mavzuga oid bitta misol keltiring va yechimingizni bosqichma-bosqich izohlang.`], mode: "reflection", notice: "Yozma takrorlash mashqi. Avtomatik baholanmaydi. Qoralama hisobingizga saqlanadi." });
+  });
+  const write5 = (submit) => (req, res) => {
+    const c = access(req);
+    if (!c) return res.status(403).json({ error: "Darsga ruxsat yo\u2018q." });
+    const parsed = z5.array(z5.string().max(1e4)).length(2).safeParse(req.body.answers);
+    if (!parsed.success || submit && parsed.data.some((a) => a.trim().length < 3)) return res.status(400).json({ error: "Javoblar shakli yoki uzunligi noto\u2018g\u2018ri." });
+    c.db.lessonPracticeResponses ||= [];
+    let record = c.db.lessonPracticeResponses.find((r) => r.studentId === c.user.uid && r.lessonId === c.lesson.id);
+    if (record && record.status !== "draft") return res.status(submit ? 200 : 409).json(submit ? { id: record.id, status: "received" } : { error: "Ish allaqachon topshirilgan." });
+    if ((req.body.revision ?? 0) !== (record?.revision || 0)) return res.status(409).json({ error: "Qoralama boshqa oynada yangilangan. Mashqni qayta oching." });
+    if (!record) {
+      record = { id: crypto7.randomUUID(), lessonId: c.lesson.id, studentId: c.user.uid, institutionId: c.user.institutionId, answers: [], status: "draft", revision: 0 };
+      c.db.lessonPracticeResponses.push(record);
+    }
+    record.answers = parsed.data;
+    record.revision = (record.revision || 0) + 1;
+    record.status = submit ? "submitted" : "draft";
+    record.updatedAt = (/* @__PURE__ */ new Date()).toISOString();
+    if (submit) record.submittedAt = record.updatedAt;
+    deps.save(c.env, c.db);
+    res.json({ id: record.id, status: submit ? "received" : "draft", revision: record.revision });
+  };
+  app2.put("/api/lesson-practice/:id", write5(false));
+  app2.post("/api/lesson-practice/:id", write5(true));
+}
+
+// src/server/teachingRoutes.ts
+import crypto8 from "node:crypto";
+import { z as z6 } from "zod";
+var deliveredForClass = (lesson, classId) => !lesson.schoolUndeliveredClassIds?.includes(classId) && Boolean(lesson.schoolDeliveredAt || lesson.schoolDeliveredClassIds?.includes(classId));
+var teacherClasses = (user, db) => db.classes.filter((c) => c.institutionId === user.institutionId && user.assignedClassIds?.includes(c.id));
+function registerTeachingRoutes(app2, deps) {
+  registerPracticeRoutes(app2, deps);
+  const admin = (c) => c && ["admin", "platform_owner"].includes(c.user.role) && c.user.platformAdmin === true && c.user.emailVerified === true;
+  const schema = z6.object({ displayName: z6.string().trim().min(3).max(120), email: z6.email().max(180).transform((v) => v.toLowerCase()), password: z6.string().min(12).max(128), subject: z6.string().min(2).max(100), classIds: z6.array(z6.string()).min(1).max(19) });
+  app2.post("/api/teaching/accounts", (req, res) => {
+    const c = deps.authenticate(req);
+    if (!admin(c)) return res.status(403).json({ error: "Faqat administrator." });
+    const parsed = schema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ error: parsed.error.issues[0]?.message });
+    const p = parsed.data;
+    if (c.db.users.some((u) => u.email.toLowerCase() === p.email)) return res.status(409).json({ error: "Bu email band." });
+    if (p.classIds.some((id) => !c.db.classes.some((cls) => cls.id === id && cls.institutionId === c.user.institutionId))) return res.status(400).json({ error: "Sinf mos emas." });
+    const user = { uid: crypto8.randomUUID(), displayName: p.displayName, email: p.email, role: "teacher", status: "active", institutionId: c.user.institutionId, assignedClassIds: [...new Set(p.classIds)], subject: p.subject, createdAt: (/* @__PURE__ */ new Date()).toISOString(), platformAdmin: false, emailVerified: false };
+    c.db.users.push(user);
+    c.db.passwordHashes[user.uid] = deps.hash(p.password);
+    deps.save(c.env, c.db);
+    res.status(201).json({ user });
+  });
+  app2.patch("/api/teaching/accounts/:id", (req, res) => {
+    const c = deps.authenticate(req);
+    if (!admin(c)) return res.status(403).json({ error: "Faqat administrator." });
+    const user = c.db.users.find((u) => u.uid === req.params.id && u.role === "teacher" && u.institutionId === c.user.institutionId);
+    if (!user) return res.status(404).json({ error: "Hisob topilmadi." });
+    if (req.body.password !== void 0) {
+      const parsed = z6.string().min(12).max(128).safeParse(req.body.password);
+      if (!parsed.success) return res.status(400).json({ error: "Parol kamida 12 belgi bo\u2018lsin." });
+      c.db.passwordHashes[user.uid] = deps.hash(parsed.data);
+      deps.revoke(user.uid, c.env);
+      deps.save(c.env, c.db);
+      return res.json({ user });
+    }
+    if (!["active", "suspended"].includes(req.body.status)) return res.status(400).json({ error: "Holat noto\u2018g\u2018ri." });
+    user.status = req.body.status;
+    deps.revoke(user.uid, c.env);
+    deps.save(c.env, c.db);
+    res.json({ user });
+  });
+  app2.post("/api/teaching/quarter/complete", (req, res) => {
+    const c = deps.authenticate(req);
+    if (!admin(c)) return res.status(403).json({ error: "Faqat administrator." });
+    const now = (/* @__PURE__ */ new Date()).toISOString();
+    let count = 0;
+    for (const lesson of c.db.lessons) if (lesson.institutionId === c.user.institutionId && lesson.academicYear === c.db.institutions.find((i) => i.id === c.user.institutionId)?.academicYear && lesson.quarter === 1 && lesson.status !== "archived" && !lesson.schoolDeliveredAt) {
+      lesson.schoolDeliveredAt = now;
+      count++;
+    }
+    deps.save(c.env, c.db);
+    res.json({ count });
+  });
+  app2.post("/api/teaching/lessons/:id/delivered", (req, res) => {
+    const c = deps.authenticate(req);
+    if (!c) return res.status(401).json({ error: "Hisobga kiring." });
+    const lesson = c.db.lessons.find((l) => l.id === req.params.id && l.institutionId === c.user.institutionId);
+    if (!lesson || !admin(c) && !(c.user.role === "teacher" && teacherClasses(c.user, c.db).some((cls) => [lesson.classId, ...lesson.classIds || []].includes(cls.id)) && lesson.subjectName === c.user.subject)) return res.status(403).json({ error: "Darsga ruxsat yo\u2018q." });
+    if (req.body.delivered !== void 0 && typeof req.body.delivered !== "boolean") return res.status(400).json({ error: "Belgi noto\u2018g\u2018ri." });
+    const delivered = req.body.delivered !== false, now = (/* @__PURE__ */ new Date()).toISOString();
+    if (admin(c)) {
+      lesson.schoolDeliveredAt = delivered ? now : void 0;
+      if (!delivered) lesson.schoolDeliveredClassIds = [];
+      lesson.schoolUndeliveredClassIds = [];
+    } else {
+      const allowed = teacherClasses(c.user, c.db).map((cls) => cls.id).filter((id) => [lesson.classId, ...lesson.classIds || []].includes(id));
+      lesson.schoolDeliveredClassIds = delivered ? [.../* @__PURE__ */ new Set([...lesson.schoolDeliveredClassIds || [], ...allowed])] : (lesson.schoolDeliveredClassIds || []).filter((id) => !allowed.includes(id));
+      lesson.schoolUndeliveredClassIds = delivered ? (lesson.schoolUndeliveredClassIds || []).filter((id) => !allowed.includes(id)) : [.../* @__PURE__ */ new Set([...lesson.schoolUndeliveredClassIds || [], ...allowed])];
+    }
+    lesson.updatedAt = now;
+    deps.save(c.env, c.db);
+    res.json({ lesson });
+  });
+}
+
 // src/server/examMedia.ts
+import { getFirestore } from "firebase-admin/firestore";
+import crypto9 from "node:crypto";
 var mediaRoot = runtimeNamespace() === "_specialized_runtime" ? "_specialized_exam_media" : runtimeNamespace() + "_media";
 async function storeExamImage(institutionId, examId, dataUrl) {
   const match = dataUrl.match(/^data:image\/(jpeg|png);base64,(.+)$/);
@@ -2971,7 +3440,7 @@ async function storeExamImage(institutionId, examId, dataUrl) {
   if (bytes.length > 5e5 || bytes.length < 8) throw Error("Image size rejected");
   const png = bytes[0] === 137 && bytes[1] === 80 && bytes[2] === 78 && bytes[3] === 71, jpeg = bytes[0] === 255 && bytes[1] === 216 && bytes[2] === 255;
   if (!(match[1] === "png" ? png : jpeg)) throw Error("Image signature rejected");
-  const hash = crypto6.createHash("sha256").update(institutionId).update(bytes).digest("hex");
+  const hash = crypto9.createHash("sha256").update(institutionId).update(bytes).digest("hex");
   const db = getFirestore(getFirebaseAdminApp(), loadFirebaseAppletConfig().firestoreDatabaseId);
   await db.doc(`${mediaRoot}/${hash}`).set({ institutionId, data: match[2], mime: `image/${match[1]}`, createdAt: (/* @__PURE__ */ new Date()).toISOString() });
   return `/api/exams/${examId}/media/${hash}`;
@@ -2983,8 +3452,8 @@ async function readExamImage(hash) {
 }
 
 // src/server/examRoutes.ts
-import crypto7 from "node:crypto";
-import { z as z4 } from "zod";
+import crypto10 from "node:crypto";
+import { z as z7 } from "zod";
 
 // src/utils/examPolicy.ts
 function canTakeExam(user, exam) {
@@ -3018,9 +3487,9 @@ function sanitizeExamQuestion(q) {
 }
 
 // src/server/examRoutes.ts
-var image = z4.string().max(65e4).refine((v) => /^data:image\/(jpeg|png);base64,[A-Za-z0-9+/=]+$/.test(v), "Faqat JPEG/PNG tasvirlari.");
-var question = z4.object({ sourceNumber: z4.number().int().positive(), variant: z4.string().max(12), prompt: z4.string().min(3).max(18e3), sourcePages: z4.array(z4.number().int().positive()).max(20), sourceImages: z4.array(image).max(20), fields: z4.array(z4.object({ id: z4.string().max(80), label: z4.string().max(120), imageIndex: z4.number().int().min(0), x: z4.number().min(0).max(1), y: z4.number().min(0).max(1), width: z4.number().min(0.01).max(1), height: z4.number().min(0.01).max(1) })).max(40), points: z4.number().min(0).max(100), type: z4.enum(["written_open", "single_choice"]), options: z4.array(z4.string().max(4e3)).max(8), correctAnswer: z4.string().max(4e3), rubricText: z4.string().max(12e3) });
-var draftSchema = z4.object({ sourceLayoutVersion: z4.literal(2, { error: "Importni yangilash uchun sahifani qayta oching." }), title: z4.string().min(3).max(200), examKind: z4.enum(["BSB", "CHSB"]), examNumber: z4.number().int().min(1).max(2), quarter: z4.number().int().min(1).max(4), academicYear: z4.string().regex(/^\d{4}-\d{4}$/), subject: z4.string().min(2).max(100), classCodes: z4.array(z4.string()).min(1).max(19), durationMinutes: z4.number().int().min(1).max(180), availableFrom: z4.string().datetime(), dueDate: z4.string().datetime(), sourceFileName: z4.string().max(200), sourceHash: z4.string().regex(/^[a-f0-9]{64}$/), contextImages: z4.array(image).max(20), questions: z4.array(question).min(1).max(60) });
+var image = z7.string().max(65e4).refine((v) => /^data:image\/(jpeg|png);base64,[A-Za-z0-9+/=]+$/.test(v), "Faqat JPEG/PNG tasvirlari.");
+var question = z7.object({ sourceNumber: z7.number().int().positive(), variant: z7.string().max(12), prompt: z7.string().min(3).max(18e3), sourcePages: z7.array(z7.number().int().positive()).max(20), sourceImages: z7.array(image).max(20), fields: z7.array(z7.object({ id: z7.string().max(80), label: z7.string().max(120), imageIndex: z7.number().int().min(0), x: z7.number().min(0).max(1), y: z7.number().min(0).max(1), width: z7.number().min(0.01).max(1), height: z7.number().min(0.01).max(1) })).max(40), points: z7.number().min(0).max(100), type: z7.enum(["written_open", "single_choice"]), options: z7.array(z7.string().max(4e3)).max(8), correctAnswer: z7.string().max(4e3), rubricText: z7.string().max(12e3) });
+var draftSchema = z7.object({ sourceLayoutVersion: z7.literal(2, { error: "Importni yangilash uchun sahifani qayta oching." }), title: z7.string().min(3).max(200), examKind: z7.enum(["BSB", "CHSB"]), examNumber: z7.number().int().min(1).max(2), quarter: z7.number().int().min(1).max(4), academicYear: z7.string().regex(/^\d{4}-\d{4}$/), subject: z7.string().min(2).max(100), classCodes: z7.array(z7.string()).min(1).max(19), durationMinutes: z7.number().int().min(1).max(180), availableFrom: z7.string().datetime(), dueDate: z7.string().datetime(), sourceFileName: z7.string().max(200), sourceHash: z7.string().regex(/^[a-f0-9]{64}$/), contextImages: z7.array(image).max(20), questions: z7.array(question).min(1).max(60) });
 function registerExamRoutes(app2, deps) {
   const admin = (req, res) => {
     const c = deps.authenticate(req);
@@ -3048,7 +3517,7 @@ function registerExamRoutes(app2, deps) {
     if (Date.parse(data.availableFrom) >= Date.parse(data.dueDate)) return res.status(400).json({ error: "Vaqt oralig\u2018ini tekshiring." });
     const existing = c.db.assessments.find((a) => a.institutionId === c.user.institutionId && a.sourceHash === data.sourceHash && a.sourceLayoutVersion === data.sourceLayoutVersion && a.title === data.title && a.examKind === data.examKind && a.academicYear === data.academicYear && a.examNumber === data.examNumber && a.quarter === data.quarter && JSON.stringify(a.assignedClassCodes) === JSON.stringify(data.classCodes));
     if (existing) return res.json({ assessment: existing, replayed: true });
-    const now = (/* @__PURE__ */ new Date()).toISOString(), id = "exam-" + crypto7.randomUUID();
+    const now = (/* @__PURE__ */ new Date()).toISOString(), id = "exam-" + crypto10.randomUUID();
     try {
       for (const q of data.questions) q.sourceImages = await Promise.all(q.sourceImages.map((image2) => storeExamImage(c.user.institutionId, id, image2)));
       data.contextImages = await Promise.all(data.contextImages.map((image2) => storeExamImage(c.user.institutionId, id, image2)));
@@ -3068,7 +3537,7 @@ function registerExamRoutes(app2, deps) {
     if (!c) return;
     const exam = c.db.assessments.find((a) => a.id === req.params.id && a.examKind && a.institutionId === c.user.institutionId);
     if (!exam || exam.examState !== "draft") return res.status(409).json({ error: "Faqat nashr qilinmagan qoralamani tahrirlash mumkin." });
-    const edit = draftSchema.omit({ sourceLayoutVersion: true, sourceHash: true, sourceFileName: true, contextImages: true, questions: true }).extend({ questions: z4.array(question.omit({ sourceImages: true }).extend({ sourceImages: z4.array(z4.union([image, z4.string().max(180)])).max(20) })).min(1).max(60), contextImages: z4.array(z4.union([image, z4.string().max(180)])).max(20).optional() }).safeParse(req.body);
+    const edit = draftSchema.omit({ sourceLayoutVersion: true, sourceHash: true, sourceFileName: true, contextImages: true, questions: true }).extend({ questions: z7.array(question.omit({ sourceImages: true }).extend({ sourceImages: z7.array(z7.union([image, z7.string().max(180)])).max(20) })).min(1).max(60), contextImages: z7.array(z7.union([image, z7.string().max(180)])).max(20).optional() }).safeParse(req.body);
     if (!edit.success) return res.status(400).json({ error: edit.error.issues[0]?.message });
     const d = edit.data;
     const classes = c.db.classes.filter((cls) => cls.institutionId === c.user.institutionId && d.classCodes.includes(cls.code));
@@ -3175,7 +3644,7 @@ function registerExamRoutes(app2, deps) {
     if (!session) {
       if (!examCanStart(exam)) return res.status(409).json({ error: "Nazorat ishi boshlanmagan yoki yopilgan." });
       if (c.db.attempts.some((a) => a.assessmentId === exam.id && a.studentId === c.user.uid)) return res.status(409).json({ error: "Nazorat ishi allaqachon topshirilgan." });
-      session = { id: crypto7.randomUUID(), assessmentId: exam.id, studentId: c.user.uid, institutionId: c.user.institutionId, startedAt: (/* @__PURE__ */ new Date()).toISOString(), deadlineAt: new Date(Date.now() + exam.durationMinutes * 6e4).toISOString(), pauseAtStart: exam.totalPausedMs || 0, revision: 0, answers: {}, events: [] };
+      session = { id: crypto10.randomUUID(), assessmentId: exam.id, studentId: c.user.uid, institutionId: c.user.institutionId, startedAt: (/* @__PURE__ */ new Date()).toISOString(), deadlineAt: new Date(Date.now() + exam.durationMinutes * 6e4).toISOString(), pauseAtStart: exam.totalPausedMs || 0, revision: 0, answers: {}, events: [] };
       c.db.examSessions.push(session);
       deps.save(c.env, c.db);
     }
@@ -3195,7 +3664,7 @@ function registerExamRoutes(app2, deps) {
     const exam = c.db.assessments.find((a) => a.id === req.params.id && a.examKind);
     const session = c.db.examSessions?.find((s) => s.assessmentId === req.params.id && s.studentId === c.user.uid);
     if (!exam || !session || !canTakeExam(c.user, exam)) return res.status(403).json({ error: "Ruxsat yo\u2018q." });
-    const id = z4.string().uuid().safeParse(req.body.eventId);
+    const id = z7.string().uuid().safeParse(req.body.eventId);
     if (!id.success) return res.status(400).json({ error: "Hodisa noto\u2018g\u2018ri." });
     session.exitIds ||= [];
     if (!session.submittedAttemptId && !session.stoppedAt && !session.exitIds.includes(id.data)) {
@@ -3217,7 +3686,7 @@ function registerExamRoutes(app2, deps) {
     if (session.submittedAttemptId) return res.status(409).json({ error: "Ish topshirilgan." });
     if (req.body.revision !== session.revision) return res.status(409).json({ error: "Javoblar boshqa oynada yangilangan. Sahifani yangilang." });
     if (exam.examState === "paused" || exam.examState === "closed" || Date.now() > examDeadline(exam, session)) return res.status(409).json({ error: "Nazorat to\u2018xtatilgan yoki vaqti tugagan." });
-    const incoming = z4.record(z4.string(), z4.string().max(25e4)).safeParse(req.body.answers);
+    const incoming = z7.record(z7.string(), z7.string().max(25e4)).safeParse(req.body.answers);
     if (!incoming.success || Buffer.byteLength(JSON.stringify(incoming.data)) > 18e5) return res.status(400).json({ error: "Javoblar hajmi yoki shakli noto\u2018g\u2018ri." });
     if (Object.keys(incoming.data).some((id) => !exam.questionIds.includes(id))) return res.status(400).json({ error: "Noma\u2019lum savol." });
     session.answers = incoming.data;
@@ -3229,12 +3698,12 @@ function registerExamRoutes(app2, deps) {
 }
 
 // src/server/contentRoutes.ts
-import crypto9 from "node:crypto";
-import { z as z5 } from "zod";
+import crypto12 from "node:crypto";
+import { z as z8 } from "zod";
 
 // src/server/contentImportEngine.ts
-import crypto8 from "node:crypto";
-var contentHash = (value) => crypto8.createHash("sha256").update(JSON.stringify(value)).digest("hex");
+import crypto11 from "node:crypto";
+var contentHash = (value) => crypto11.createHash("sha256").update(JSON.stringify(value)).digest("hex");
 var days = ["", "Dushanba", "Seshanba", "Chorshanba", "Payshanba", "Juma", "Shanba"];
 var templates = { workplan: ["sinf", "fan", "chorak", "tartib", "mavzu", "soat", "sinf_ishi", "uy_vazifasi"], timetable: ["sinf", "kun", "dars", "boshlanish", "tugash", "fan", "oqituvchi", "xona"], questions: ["sinf", "fan", "chorak", "mavzu", "tur", "savol", "A", "B", "C", "D", "javob", "ball", "izoh"] };
 var minute = (s) => /^([01]\d|2[0-3]):[0-5]\d$/.test(s) ? Number(s.slice(0, 2)) * 60 + Number(s.slice(3)) : NaN;
@@ -3296,7 +3765,7 @@ function registerContentRoutes(app2, deps) {
     }
     return c;
   };
-  const audit = (c, job, action) => c.db.auditLogs.push({ id: crypto9.randomUUID(), institutionId: c.user.institutionId, actorUid: c.user.uid, actorName: c.user.displayName, actorRole: c.user.role, action, target: job.fileName, recordId: job.id, createdAt: (/* @__PURE__ */ new Date()).toISOString() });
+  const audit = (c, job, action) => c.db.auditLogs.push({ id: crypto12.randomUUID(), institutionId: c.user.institutionId, actorUid: c.user.uid, actorName: c.user.displayName, actorRole: c.user.role, action, target: job.fileName, recordId: job.id, createdAt: (/* @__PURE__ */ new Date()).toISOString() });
   app2.get("/api/content-imports/templates/:kind", async (req, res) => {
     const c = admin(req, res);
     if (!c) return;
@@ -3325,7 +3794,7 @@ function registerContentRoutes(app2, deps) {
   app2.post("/api/content-imports/preview", async (req, res) => {
     const c = admin(req, res);
     if (!c) return;
-    const parsed = z5.object({ kind: z5.enum(["workplan", "timetable"]), fileName: z5.string().max(180).regex(/\.(xlsx|csv)$/i), base64: z5.string().max(42e5), year: z5.string().regex(/^\d{4}-\d{4}$/) }).safeParse(req.body);
+    const parsed = z8.object({ kind: z8.enum(["workplan", "timetable"]), fileName: z8.string().max(180).regex(/\.(xlsx|csv)$/i), base64: z8.string().max(42e5), year: z8.string().regex(/^\d{4}-\d{4}$/) }).safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ error: "Excel/CSV fayli va o\u2018quv yilini tekshiring." });
     const p = parsed.data, bytes = Buffer.from(p.base64, "base64");
     if (!bytes.length || bytes.length > 3 * 1024 * 1024) return res.status(413).json({ error: "Fayl 3 MB dan oshmasin." });
@@ -3346,10 +3815,10 @@ function registerContentRoutes(app2, deps) {
       if (matrix.length > 1001) return res.status(400).json({ error: "Bitta importda 1000 qatordan oshmasin." });
       const headers = (matrix[0] || []).map((v) => String(v).trim().toLowerCase());
       if (new Set(headers).size !== headers.length || headers.some((h) => !templates[p.kind].includes(h)) || templates[p.kind].some((h) => !headers.includes(h))) return res.status(400).json({ error: "Ustunlar shablonga mos emas. Shablonni yuklab oling." });
-      const raw = matrix.slice(1).map((row, i) => Object.fromEntries([...headers.map((h, n) => [h, String(row[n] ?? "").trim()]), ["__row", String(i + 2)]]));
+      const raw = matrix.slice(1).map((row2, i) => Object.fromEntries([...headers.map((h, n) => [h, String(row2[n] ?? "").trim()]), ["__row", String(i + 2)]]));
       const rows = validateContentRows(p.kind, raw.filter((r) => headers.some((h) => r[h])), c.db, c.user.institutionId, p.year);
       if (!rows.length) return res.status(400).json({ error: "Faylda ma\u2019lumot qatori yo\u2018q." });
-      const job = { id: crypto9.randomUUID(), institutionId: c.user.institutionId, actorId: c.user.uid, kind: p.kind, year: p.year, fileName: p.fileName, createdAt: (/* @__PURE__ */ new Date()).toISOString(), status: "review", rows };
+      const job = { id: crypto12.randomUUID(), institutionId: c.user.institutionId, actorId: c.user.uid, kind: p.kind, year: p.year, fileName: p.fileName, createdAt: (/* @__PURE__ */ new Date()).toISOString(), status: "review", rows };
       c.db.contentImports ||= [];
       c.db.contentImports.push(job);
       audit(c, job, "Kontent importi tekshirildi");
@@ -3379,36 +3848,36 @@ function registerContentRoutes(app2, deps) {
       db[collection].push(record);
       job.created.push({ collection, id: record.id, digest: contentHash(record) });
     };
-    for (const row of valid) {
-      const r = row.raw, cls = c.db.classes.find((cl) => cl.institutionId === c.user.institutionId && cl.code === r.sinf);
+    for (const row2 of valid) {
+      const r = row2.raw, cls = c.db.classes.find((cl) => cl.institutionId === c.user.institutionId && cl.code === r.sinf);
       if (job.kind === "workplan") {
         if (cls.track === "T" && r.fan === "Matematika" && req.body.approveAdditionalMath !== true) return res.status(400).json({ error: "T sinflariga matematika uchun qo\u2018shimcha ruxsatni belgilang." });
       }
     }
-    for (const row of valid) {
-      const r = row.raw, cls = c.db.classes.find((cl) => cl.institutionId === c.user.institutionId && cl.code === r.sinf);
+    for (const row2 of valid) {
+      const r = row2.raw, cls = c.db.classes.find((cl) => cl.institutionId === c.user.institutionId && cl.code === r.sinf);
       if (job.kind === "workplan") {
         let subject = c.db.subjects.find((s) => s.institutionId === c.user.institutionId && s.name === r.fan);
         if (!subject) {
-          subject = { id: crypto9.randomUUID(), institutionId: c.user.institutionId, name: r.fan, code: r.fan.toUpperCase().slice(0, 8), description: "", status: "active", createdAt: now };
+          subject = { id: crypto12.randomUUID(), institutionId: c.user.institutionId, name: r.fan, code: r.fan.toUpperCase().slice(0, 8), description: "", status: "active", createdAt: now };
           add("subjects", subject);
         }
         const group = `${cls.id}:${r.fan}:${r.chorak}`;
         let plan = c.db.workPlans.find((p) => p.importJobId === job.id && p.sourceWorksheet === group);
         if (!plan) {
-          plan = { id: crypto9.randomUUID(), institutionId: c.user.institutionId, title: `${cls.code.toUpperCase()} \xB7 ${r.fan} \xB7 ${r.chorak}-chorak`, fileName: job.fileName, classId: cls.id, classIds: [cls.id], classCode: cls.code, classCodes: [cls.code], grade: cls.grade, track: cls.track, subjectId: subject.id, subjectName: r.fan, academicYear: job.year, quarter: Number(r.chorak), planType: "quarterly", status: req.body.mode === "publish" ? "published" : "draft", rows: [], warnings: [], importJobId: job.id, sourceWorksheet: group, createdByUid: c.user.uid, createdByName: c.user.displayName, createdAt: now };
+          plan = { id: crypto12.randomUUID(), institutionId: c.user.institutionId, title: `${cls.code.toUpperCase()} \xB7 ${r.fan} \xB7 ${r.chorak}-chorak`, fileName: job.fileName, classId: cls.id, classIds: [cls.id], classCode: cls.code, classCodes: [cls.code], grade: cls.grade, track: cls.track, subjectId: subject.id, subjectName: r.fan, academicYear: job.year, quarter: Number(r.chorak), planType: "quarterly", status: req.body.mode === "publish" ? "published" : "draft", rows: [], warnings: [], importJobId: job.id, sourceWorksheet: group, createdByUid: c.user.uid, createdByName: c.user.displayName, createdAt: now };
           add("workPlans", plan);
         }
-        add("lessons", { id: "content-" + row.key, institutionId: c.user.institutionId, workPlanId: plan.id, importJobId: job.id, classId: cls.id, classIds: [cls.id], classCode: cls.code, classCodes: [cls.code], grade: cls.grade, track: cls.track, subjectId: subject.id, subjectName: r.fan, subject: r.fan, academicYear: job.year, quarter: Number(r.chorak), lessonNumber: Number(r.tartib), orderIndex: Number(r.tartib), title: r.mavzu, topicTitle: r.mavzu, topicName: r.mavzu, topicId: "", unitTitle: "", learningObjectives: [], content: r.sinf_ishi, classwork: r.sinf_ishi, homework: r.uy_vazifasi, hours: Number(r.soat), materials: [], relatedAssessmentIds: [], status: req.body.mode === "publish" ? "published" : "draft", additionalCurriculumAssignment: cls.track === "T" && r.fan === "Matematika", tTrackVisibilityApproved: cls.track === "T" && r.fan === "Matematika" ? true : void 0, sourceRecordHash: row.key, sourceFileName: job.fileName, sourceRow: row.rowNumber, createdAt: now });
+        add("lessons", { id: "content-" + row2.key, institutionId: c.user.institutionId, workPlanId: plan.id, importJobId: job.id, classId: cls.id, classIds: [cls.id], classCode: cls.code, classCodes: [cls.code], grade: cls.grade, track: cls.track, subjectId: subject.id, subjectName: r.fan, subject: r.fan, academicYear: job.year, quarter: Number(r.chorak), lessonNumber: Number(r.tartib), orderIndex: Number(r.tartib), title: r.mavzu, topicTitle: r.mavzu, topicName: r.mavzu, topicId: "", unitTitle: "", learningObjectives: [], content: r.sinf_ishi, classwork: r.sinf_ishi, homework: r.uy_vazifasi, hours: Number(r.soat), materials: [], relatedAssessmentIds: [], status: req.body.mode === "publish" ? "published" : "draft", additionalCurriculumAssignment: cls.track === "T" && r.fan === "Matematika", tTrackVisibilityApproved: cls.track === "T" && r.fan === "Matematika" ? true : void 0, sourceRecordHash: row2.key, sourceFileName: job.fileName, sourceRow: row2.rowNumber, createdAt: now });
       } else {
         c.db.timetables ||= [];
         const mode = req.body.mode === "publish" ? "active" : "draft";
         let timetable = c.db.timetables.find((t) => t.institutionId === c.user.institutionId && t.classId === cls.id && t.status === mode && (mode === "active" || job.created.some((r2) => r2.collection === "timetables" && r2.id === t.id)) && (t.academicYear || c.db.institutions.find((i) => i.id === c.user.institutionId)?.academicYear) === job.year);
         if (!timetable) {
-          timetable = { id: crypto9.randomUUID(), institutionId: c.user.institutionId, classId: cls.id, classCode: cls.code, title: cls.code.toUpperCase() + " dars jadvali", academicYear: job.year, effectiveFrom: now.slice(0, 10), version: 1, status: mode, createdByUid: c.user.uid, createdByName: c.user.displayName, createdAt: now, updatedAt: now };
+          timetable = { id: crypto12.randomUUID(), institutionId: c.user.institutionId, classId: cls.id, classCode: cls.code, title: cls.code.toUpperCase() + " dars jadvali", academicYear: job.year, effectiveFrom: now.slice(0, 10), version: 1, status: mode, createdByUid: c.user.uid, createdByName: c.user.displayName, createdAt: now, updatedAt: now };
           add("timetables", timetable);
         }
-        add("timetableEntries", { id: "content-" + row.key, institutionId: c.user.institutionId, timetableId: timetable.id, classCode: cls.code, classId: cls.id, weekday: days[Number(r.__day)], weekdayIndex: Number(r.__day), lessonNumber: Number(r.dars), subject: r.fan, startTime: r.boshlanish, endTime: r.tugash, teacherId: r.__teacherId, teacherName: r.__teacherName, room: r.xona, sourceRecordHash: row.key, createdAt: now, updatedAt: now });
+        add("timetableEntries", { id: "content-" + row2.key, institutionId: c.user.institutionId, timetableId: timetable.id, classCode: cls.code, classId: cls.id, weekday: days[Number(r.__day)], weekdayIndex: Number(r.__day), lessonNumber: Number(r.dars), subject: r.fan, startTime: r.boshlanish, endTime: r.tugash, teacherId: r.__teacherId, teacherName: r.__teacherName, room: r.xona, sourceRecordHash: row2.key, createdAt: now, updatedAt: now });
       }
     }
     job.rows = rows;
@@ -3515,6 +3984,7 @@ function studentHomeData(db, user, now = /* @__PURE__ */ new Date()) {
   if (demo) {
     for (const e of demo.exams) if (Date.parse(e.due) > now.getTime() && !demo.responses.some((r) => r.examId === e.id && r.submittedAt)) tasks.push({ id: e.id, title: e.title, subject: e.subject, due: e.due, kind: "exam", href: "/student/demo?exam=" + e.id, ready: true });
   }
+  for (const t of db.topicTests || []) if (t.institutionId === user.institutionId && t.status === "published" && db.lessons.some((l) => l.id === t.lessonId && ownLesson(user, l, inst?.academicYear || "")) && !(db.topicSessions || []).some((s) => s.testId === t.id && s.studentId === user.uid && s.submittedAt)) tasks.push({ id: t.id, title: t.title, subject: "Mavzu testi", due: date, kind: "exam", href: "/student/topic-tests", ready: true });
   tasks.sort((a, b) => a.due.localeCompare(b.due));
   const last = (db.studentLastLessons || []).find((r) => r.studentId === user.uid && r.institutionId === user.institutionId);
   const lesson = last && db.lessons.find((l) => l.id === last.lessonId && ownLesson(user, l, inst?.academicYear || ""));
@@ -3556,7 +4026,7 @@ function registerStudentHomeRoutes(app2, deps) {
 }
 
 // src/server/cloudState.ts
-import crypto10 from "node:crypto";
+import crypto13 from "node:crypto";
 import { gzipSync, gunzipSync } from "node:zlib";
 import { getFirestore as getFirestore2 } from "firebase-admin/firestore";
 
@@ -3581,9 +4051,9 @@ function mergeState(base, local, remote) {
       result[key] = l;
       continue;
     }
-    const entityKey = (row) => row && typeof row === "object" && (typeof row.id === "string" ? row.id : typeof row.uid === "string" ? row.uid : null);
+    const entityKey = (row2) => row2 && typeof row2 === "object" && (typeof row2.id === "string" ? row2.id : typeof row2.uid === "string" ? row2.uid : null);
     if ([b, l, r].every(Array.isArray) && [b, l, r].every((a) => a.every((v) => entityKey(v)) && new Set(a.map(entityKey)).size === a.length)) {
-      if (!["examSessions", "lessonPracticeResponses", "studentLastLessons", "auditLogs", "notifications"].includes(key)) throw new MergeConflictError("Collection invariants require a retry");
+      if (!["topicQuestions", "topicTests", "topicSessions", "topicReviews", "examSessions", "lessonPracticeResponses", "studentLastLessons", "auditLogs", "notifications"].includes(key)) throw new MergeConflictError("Collection invariants require a retry");
       const maps = [b, l, r].map((a) => new Map(a.map((v) => [entityKey(v), v])));
       const ids = /* @__PURE__ */ new Set([...r.map(entityKey), ...l.map(entityKey), ...b.map(entityKey)]);
       result[key] = [...ids].map((id) => atomic(...maps.map((m) => m.get(id)))).filter((v) => v !== void 0);
@@ -3595,6 +4065,10 @@ function mergeState(base, local, remote) {
       }
       result[key] = merged;
     } else result[key] = atomic(b, l, r);
+  }
+  if (base.topicSessions && local.topicSessions && remote.topicSessions) {
+    const added = (rows) => rows.filter((s) => !base.topicSessions.some((b) => b.id === s.id));
+    if (added(local.topicSessions).some((s) => s.studentId && s.testId && added(remote.topicSessions).some((r) => r.id !== s.id && r.studentId === s.studentId && r.testId === s.testId))) throw new MergeConflictError("Concurrent starts must retry");
   }
   return result;
 }
@@ -3628,19 +4102,19 @@ function encodeState(value) {
     const compressed = gzipSync(Buffer.from(part));
     for (let offset = 0; offset < compressed.length; offset += CHUNK_BYTES) {
       const bytes = compressed.subarray(offset, offset + CHUNK_BYTES);
-      chunks.push({ id: crypto10.createHash("sha256").update(bytes).digest("hex"), data: bytes.toString("base64") });
+      chunks.push({ id: crypto13.createHash("sha256").update(bytes).digest("hex"), data: bytes.toString("base64") });
     }
   }
-  return { chunks, digest: crypto10.createHash("sha256").update(raw).digest("hex") };
+  return { chunks, digest: crypto13.createHash("sha256").update(raw).digest("hex") };
 }
 function decodeState(chunks, digest) {
   const compressed = Buffer.concat(chunks.map((c) => {
     const b = Buffer.from(c.data, "base64");
-    if (crypto10.createHash("sha256").update(b).digest("hex") !== c.id) throw Error("Snapshot chunk integrity failure");
+    if (crypto13.createHash("sha256").update(b).digest("hex") !== c.id) throw Error("Snapshot chunk integrity failure");
     return b;
   }));
   const raw = gunzipSync(compressed, { maxOutputLength: MAX_STATE_BYTES });
-  if (crypto10.createHash("sha256").update(raw).digest("hex") !== digest) throw Error("Snapshot integrity failure");
+  if (crypto13.createHash("sha256").update(raw).digest("hex") !== digest) throw Error("Snapshot integrity failure");
   return JSON.parse(raw.toString("utf8"));
 }
 var cache = null;
@@ -3679,13 +4153,17 @@ async function readCloudState() {
     });
   }
   const state = decodeState(manifest.chunks.map((id) => ({ id, data: contents.get(id) })), manifest.digest);
+  state.topicQuestions ||= [];
+  state.topicTests ||= [];
+  state.topicSessions ||= [];
+  state.topicReviews ||= [];
   cache = { revision: manifest.revision, serialized: JSON.stringify(state), chunks: manifest.chunks };
   return { state, revision: manifest.revision };
 }
 async function writeCloudState(state, expectedRevision, baseState, retry = 0) {
   const db = database();
   const encoded = encodeState(state);
-  const revision = crypto10.randomUUID();
+  const revision = crypto13.randomUUID();
   const previous = cache?.revision === expectedRevision ? cache.chunks : [];
   const reused = new Set(previous);
   const changed = encoded.chunks.filter((chunk, i, all) => !reused.has(chunk.id) && all.findIndex((c) => c.id === chunk.id) === i);
@@ -3745,7 +4223,7 @@ function createCloudStateMiddleware(store = { read: readCloudState, write: write
           try {
             if (context.dirty) await store.write(context.state, context.revision, baseState);
             for (const action of context.afterCommit) action();
-            json(body);
+            json(sessionBody(res, body));
           } catch (error) {
             res.status(error instanceof StateConflictError ? 409 : 503);
             json({ error: error instanceof StateConflictError ? "Ma\u2019lumot yangilangan. Sahifani yangilab, qayta urinib ko\u2018ring." : "Ma\u2019lumot saqlanmadi. Keyinroq qayta urinib ko\u2018ring." });
@@ -3766,7 +4244,7 @@ import "dotenv/config";
 import express from "express";
 import path4 from "path";
 import { fileURLToPath } from "url";
-import { z as z6 } from "zod";
+import { z as z9 } from "zod";
 
 // src/utils/scoring.ts
 var MINIMUM_EVIDENCE_THRESHOLD = 3;
@@ -4354,10 +4832,10 @@ function parseBoolCell(val) {
   const s = String(val ?? "").trim().toLowerCase();
   return s === "true" || s === "1" || s === "yes" || s === "ha" || s === "correct";
 }
-function makeValidationError(sheet, row, column, problem, severity = "error") {
+function makeValidationError(sheet, row2, column, problem, severity = "error") {
   return {
     sheet,
-    row,
+    row: row2,
     column,
     problem,
     message: problem,
@@ -4674,9 +5152,9 @@ async function parseAndValidateImportPackage(fileBuffer, fileName, knownTopics, 
       );
     }
     if (nonEmptyAssess.length >= 1) {
-      const row = nonEmptyAssess[0];
-      const title = String(row.assessment_title || row.title || "").trim();
-      const code = String(row.assessment_code || `ASM-${Date.now()}`).trim();
+      const row2 = nonEmptyAssess[0];
+      const title = String(row2.assessment_title || row2.title || "").trim();
+      const code = String(row2.assessment_code || `ASM-${Date.now()}`).trim();
       if (!title) {
         errors.push(
           makeValidationError(
@@ -4687,22 +5165,22 @@ async function parseAndValidateImportPackage(fileBuffer, fileName, knownTopics, 
           )
         );
       }
-      const maxAtt = Math.max(1, Number(row.maximum_attempts || row.attempt_limit) || 1);
+      const maxAtt = Math.max(1, Number(row2.maximum_attempts || row2.attempt_limit) || 1);
       assessmentMeta = {
         code,
         title: title || "Import qilingan diagnostik test",
-        description: String(row.description || "").trim(),
-        subject: String(row.subject || "Matematika").trim(),
-        subjectCode: String(row.subject_code || "MAT8").trim(),
-        grade: Number(row.grade) || 8,
-        durationMinutes: Math.max(5, Number(row.duration_minutes) || 30),
-        passingScorePercent: Number(row.passing_score || row.passing_score_percent) || 60,
-        shuffleQuestions: parseBoolCell(row.shuffle_questions),
+        description: String(row2.description || "").trim(),
+        subject: String(row2.subject || "Matematika").trim(),
+        subjectCode: String(row2.subject_code || "MAT8").trim(),
+        grade: Number(row2.grade) || 8,
+        durationMinutes: Math.max(5, Number(row2.duration_minutes) || 30),
+        passingScorePercent: Number(row2.passing_score || row2.passing_score_percent) || 60,
+        shuffleQuestions: parseBoolCell(row2.shuffle_questions),
         attemptLimit: maxAtt,
         maximumAttempts: maxAtt,
-        instructions: String(row.instructions || "").trim(),
-        availabilityStart: String(row.availability_start || "").trim() || void 0,
-        availabilityEnd: String(row.availability_end || "").trim() || void 0
+        instructions: String(row2.instructions || "").trim(),
+        availabilityStart: String(row2.availability_start || "").trim() || void 0,
+        availabilityEnd: String(row2.availability_end || "").trim() || void 0
       };
     }
   }
@@ -5340,13 +5818,13 @@ function parseWorkPlanRowsFromBufferOrText(fileName, buffer, rawText, explicitRo
     }
   }
   const seenNumbers = /* @__PURE__ */ new Set();
-  for (const row of extractedRows) {
-    if (seenNumbers.has(row.lessonNumber)) {
-      warnings.push(`Takroriy dars raqami aniqlandi: ${row.lessonNumber}-dars.`);
+  for (const row2 of extractedRows) {
+    if (seenNumbers.has(row2.lessonNumber)) {
+      warnings.push(`Takroriy dars raqami aniqlandi: ${row2.lessonNumber}-dars.`);
     }
-    seenNumbers.add(row.lessonNumber);
-    if (!row.scheduledDate) {
-      warnings.push(`${row.lessonNumber}-dars ("${row.lessonTitle}") uchun sana ko\u2018rsatilmagan.`);
+    seenNumbers.add(row2.lessonNumber);
+    if (!row2.scheduledDate) {
+      warnings.push(`${row2.lessonNumber}-dars ("${row2.lessonTitle}") uchun sana ko\u2018rsatilmagan.`);
     }
   }
   return { rows: extractedRows, warnings };
@@ -5835,9 +6313,9 @@ function detectHeaderRowIndex(rawMatrix) {
   let bestRowIndex = 0;
   let bestScore = -1;
   for (let r = 0; r < maxScan; r++) {
-    const row = rawMatrix[r];
-    if (!Array.isArray(row)) continue;
-    const cells = row.map((c) => String(c ?? "").trim()).filter(Boolean);
+    const row2 = rawMatrix[r];
+    if (!Array.isArray(row2)) continue;
+    const cells = row2.map((c) => String(c ?? "").trim()).filter(Boolean);
     if (cells.length === 0) continue;
     const mapping = detectColumnMappingFromHeaders(cells);
     let score = 0;
@@ -6225,12 +6703,12 @@ function parseAndValidateStudentWorkbook(buffer, fileName, options = {}, existin
       errorCount: 0
     });
   }
-  for (const row of rows) {
-    if (row.normalizedClassCode && groupMap.has(row.normalizedClassCode)) {
-      const grp = groupMap.get(row.normalizedClassCode);
+  for (const row2 of rows) {
+    if (row2.normalizedClassCode && groupMap.has(row2.normalizedClassCode)) {
+      const grp = groupMap.get(row2.normalizedClassCode);
       grp.totalCount += 1;
-      if (row.status === "error") grp.errorCount += 1;
-      else if (row.status === "duplicate") grp.duplicateCount += 1;
+      if (row2.status === "error") grp.errorCount += 1;
+      else if (row2.status === "duplicate") grp.duplicateCount += 1;
       else grp.validCount += 1;
     }
   }
@@ -6376,7 +6854,7 @@ function generateStudentExportBuffer(students) {
 // src/utils/mathCurriculumImporter.ts
 import fs3 from "fs";
 import path3 from "path";
-import crypto11 from "crypto";
+import crypto14 from "crypto";
 import JSZip2 from "jszip";
 import * as XLSX4 from "xlsx";
 var OFFICIAL_MATH_ARCHIVE_DISPLAY_NAME = "Matematika  elektron jurnal uchun ish reja.zip";
@@ -6385,7 +6863,7 @@ var MAX_ZIP_SIZE_BYTES = 25 * 1024 * 1024;
 var MAX_ZIP_ENTRIES = 100;
 var MAX_UNCOMPRESSED_BYTES = 50 * 1024 * 1024;
 function computeSha256Hex(input) {
-  return crypto11.createHash("sha256").update(input).digest("hex");
+  return crypto14.createHash("sha256").update(input).digest("hex");
 }
 function resolveOfficialMathArchivePath() {
   const candidates = [
@@ -7043,36 +7521,36 @@ function applyCurriculumZipPreviewToDatabase(preview, existingWorkPlans, existin
     let currentQuarterTracker = 1;
     let lastAssessmentMilestoneId;
     for (let idx = 0; idx < wb.rows.length; idx++) {
-      const row = wb.rows[idx];
-      if (row.quarter !== currentQuarterTracker) {
-        currentQuarterTracker = row.quarter;
+      const row2 = wb.rows[idx];
+      if (row2.quarter !== currentQuarterTracker) {
+        currentQuarterTracker = row2.quarter;
         precedingRegularInQuarter = [];
         allRegularInQuarter = [];
         lastAssessmentMilestoneId = void 0;
       }
       const lessonId = `lesson-${wb.workbookKey}-${String(idx + 1).padStart(3, "0")}`;
       const classified = classifyCurriculumLessonEvent(
-        row.lessonType || "Oddiy dars-31",
-        row.lessonTitle
+        row2.lessonType || "Oddiy dars-31",
+        row2.lessonTitle
       );
-      const topicCode = `TOP-MATH-${wb.grade}-${wb.track}-${wb.curriculumArea.slice(0, 3).toUpperCase()}-Q${row.quarter}`;
+      const topicCode = `TOP-MATH-${wb.grade}-${wb.track}-${wb.curriculumArea.slice(0, 3).toUpperCase()}-Q${row2.quarter}`;
       let topicRec = topicByKey.get(topicCode);
       if (!topicRec) {
         topicRec = {
-          id: `topic-${wb.workbookKey}-q${row.quarter}`,
+          id: `topic-${wb.workbookKey}-q${row2.quarter}`,
           code: topicCode,
           institutionId,
           subjectId: "subj-matematika",
           subjectCode: "MAT",
-          unitTitle: `${row.quarter}-chorak \u2022 ${wb.curriculumArea}`,
-          quarter: row.quarter,
+          unitTitle: `${row2.quarter}-chorak \u2022 ${wb.curriculumArea}`,
+          quarter: row2.quarter,
           classCode: primaryClassCode,
           track: wb.track,
-          name: `${wb.grade}-sinf ${wb.curriculumArea} (${row.quarter}-chorak)`,
+          name: `${wb.grade}-sinf ${wb.curriculumArea} (${row2.quarter}-chorak)`,
           subject: "Matematika",
           grade: wb.grade,
-          description: `${wb.grade}-sinf ${wb.trackLabel} yo'nalishi ${wb.curriculumArea} kursi ${row.quarter}-chorak mavzulari.`,
-          learningObjectives: `${wb.curriculumArea} ${row.quarter}-chorak darslari bo'yicha nazariy va amaliy ko'nikmalar.`,
+          description: `${wb.grade}-sinf ${wb.trackLabel} yo'nalishi ${wb.curriculumArea} kursi ${row2.quarter}-chorak mavzulari.`,
+          learningObjectives: `${wb.curriculumArea} ${row2.quarter}-chorak darslari bo'yicha nazariy va amaliy ko'nikmalar.`,
           status: "active",
           orderIndex: existingTopics.length + 1
         };
@@ -7094,7 +7572,7 @@ function applyCurriculumZipPreviewToDatabase(preview, existingWorkPlans, existin
         precedingRegularInQuarter.push(lessonId);
         allRegularInQuarter.push(lessonId);
       }
-      const existingLesson = lessonById.get(lessonId) || (row.sourceRecordHash ? lessonByHash.get(row.sourceRecordHash) : void 0);
+      const existingLesson = lessonById.get(lessonId) || (row2.sourceRecordHash ? lessonByHash.get(row2.sourceRecordHash) : void 0);
       const desiredStatus = publishImmediately ? "published" : "planned";
       const desiredPubStatus = publishImmediately ? "PUBLISHED" : "DRAFT_IMPORTED";
       if (existingLesson) {
@@ -7119,21 +7597,21 @@ function applyCurriculumZipPreviewToDatabase(preview, existingWorkPlans, existin
         existingLesson.curriculumArea = wb.curriculumArea;
         existingLesson.additionalCurriculumAssignment = wb.additionalCurriculumAssignment;
         existingLesson.tTrackVisibilityApproved = wb.additionalCurriculumAssignment ? tTrackVisibilityApproved : true;
-        existingLesson.quarter = row.quarter;
-        existingLesson.quarterLabel = row.quarterLabel;
-        existingLesson.lessonNumber = row.lessonNumber;
-        existingLesson.lessonOrder = row.lessonNumber;
-        existingLesson.rawLessonOrder = row.rawLessonOrder;
+        existingLesson.quarter = row2.quarter;
+        existingLesson.quarterLabel = row2.quarterLabel;
+        existingLesson.lessonNumber = row2.lessonNumber;
+        existingLesson.lessonOrder = row2.lessonNumber;
+        existingLesson.rawLessonOrder = row2.rawLessonOrder;
         existingLesson.topicId = topicRec.id;
-        existingLesson.topicName = row.topicName;
-        existingLesson.topicTitle = row.lessonTitle;
-        existingLesson.title = row.lessonTitle;
-        existingLesson.lessonType = row.lessonType;
+        existingLesson.topicName = row2.topicName;
+        existingLesson.topicTitle = row2.lessonTitle;
+        existingLesson.title = row2.lessonTitle;
+        existingLesson.lessonType = row2.lessonType;
         existingLesson.eventCategory = classified.eventCategory;
-        existingLesson.classwork = row.classwork;
-        existingLesson.homework = row.homework;
-        existingLesson.notes = row.notes ?? "";
-        existingLesson.hours = row.hours;
+        existingLesson.classwork = row2.classwork;
+        existingLesson.homework = row2.homework;
+        existingLesson.notes = row2.notes ?? "";
+        existingLesson.hours = row2.hours;
         existingLesson.maxPoints = classified.maxPoints;
         existingLesson.milestoneType = classified.milestoneType;
         existingLesson.milestoneCode = classified.milestoneCode;
@@ -7164,26 +7642,26 @@ function applyCurriculumZipPreviewToDatabase(preview, existingWorkPlans, existin
           additionalCurriculumAssignment: wb.additionalCurriculumAssignment,
           tTrackVisibilityApproved: wb.additionalCurriculumAssignment ? tTrackVisibilityApproved : true,
           academicYear,
-          quarter: row.quarter,
-          quarterLabel: row.quarterLabel || `${row.quarter}-chorak`,
-          weekNumber: Math.ceil(row.lessonNumber / 3),
-          lessonNumber: row.lessonNumber,
-          lessonOrder: row.lessonNumber,
-          rawLessonOrder: row.rawLessonOrder || String(row.lessonNumber),
-          unitTitle: `${row.quarter}-chorak \u2022 ${wb.curriculumArea}`,
-          unit: `${row.quarter}-chorak \u2022 ${wb.curriculumArea}`,
+          quarter: row2.quarter,
+          quarterLabel: row2.quarterLabel || `${row2.quarter}-chorak`,
+          weekNumber: Math.ceil(row2.lessonNumber / 3),
+          lessonNumber: row2.lessonNumber,
+          lessonOrder: row2.lessonNumber,
+          rawLessonOrder: row2.rawLessonOrder || String(row2.lessonNumber),
+          unitTitle: `${row2.quarter}-chorak \u2022 ${wb.curriculumArea}`,
+          unit: `${row2.quarter}-chorak \u2022 ${wb.curriculumArea}`,
           topicId: topicRec.id,
-          topicName: row.topicName,
-          topicTitle: row.lessonTitle,
-          title: row.lessonTitle,
-          lessonType: row.lessonType || "Oddiy dars-31",
+          topicName: row2.topicName,
+          topicTitle: row2.lessonTitle,
+          title: row2.lessonTitle,
+          lessonType: row2.lessonType || "Oddiy dars-31",
           eventCategory: classified.eventCategory,
-          classwork: row.classwork || "",
-          learningObjectives: row.classwork ? `Sinf ishi: ${row.classwork}` : `${row.lessonTitle} mavzusi bo\u2018yicha bilim va ko\u2018nikmalarni shakllantirish.`,
-          content: `${row.lessonTitle}. Sinf ishi: ${row.classwork || "-"}. Uyga vazifa: ${row.homework || "-"}.`,
-          homework: row.homework || "",
-          notes: row.notes ?? "",
-          hours: row.hours || 1,
+          classwork: row2.classwork || "",
+          learningObjectives: row2.classwork ? `Sinf ishi: ${row2.classwork}` : `${row2.lessonTitle} mavzusi bo\u2018yicha bilim va ko\u2018nikmalarni shakllantirish.`,
+          content: `${row2.lessonTitle}. Sinf ishi: ${row2.classwork || "-"}. Uyga vazifa: ${row2.homework || "-"}.`,
+          homework: row2.homework || "",
+          notes: row2.notes ?? "",
+          hours: row2.hours || 1,
           maxPoints: classified.maxPoints,
           milestoneType: classified.milestoneType,
           milestoneCode: classified.milestoneCode,
@@ -7193,19 +7671,19 @@ function applyCurriculumZipPreviewToDatabase(preview, existingWorkPlans, existin
           sourceFileName: wb.fileName,
           sourceDirectory: wb.sourceDirectory,
           sourceWorksheet: wb.worksheetName,
-          sourceRow: row.sourceRow,
-          sourceRowNumber: row.sourceRow,
-          sourceRecordHash: row.sourceRecordHash,
+          sourceRow: row2.sourceRow,
+          sourceRowNumber: row2.sourceRow,
+          sourceRecordHash: row2.sourceRecordHash,
           originalSourceSnapshot: {
-            lessonOrder: row.lessonNumber,
-            rawLessonOrder: row.rawLessonOrder || String(row.lessonNumber),
-            topicTitle: row.lessonTitle,
-            lessonType: row.lessonType || "Oddiy dars-31",
-            classwork: row.classwork || "",
-            homework: row.homework || "",
-            hours: row.hours || 1,
-            notes: row.notes ?? "",
-            quarterLabel: row.quarterLabel || `${row.quarter}-chorak`
+            lessonOrder: row2.lessonNumber,
+            rawLessonOrder: row2.rawLessonOrder || String(row2.lessonNumber),
+            topicTitle: row2.lessonTitle,
+            lessonType: row2.lessonType || "Oddiy dars-31",
+            classwork: row2.classwork || "",
+            homework: row2.homework || "",
+            hours: row2.hours || 1,
+            notes: row2.notes ?? "",
+            quarterLabel: row2.quarterLabel || `${row2.quarter}-chorak`
           },
           modificationHistory: [],
           materials: [],
@@ -7568,13 +8046,13 @@ function validateAttendanceImportRows(rawRows, existingRecords, studentsList) {
     if (s.email) studentsByCodeOrEmail.set(s.email.toLowerCase(), s);
     studentsByCodeOrEmail.set(s.displayName.toLowerCase(), s);
   }
-  rawRows.forEach((row, idx) => {
+  rawRows.forEach((row2, idx) => {
     const rowNumber = idx + 2;
-    const rawStudentId = String(row["studentId"] || row["ID"] || row["Oquvchi ID"] || row["studentCode"] || "").trim();
-    const rawStudentName = String(row["studentName"] || row["F.I.Sh."] || row["Ism"] || row["name"] || "").trim();
-    const rawClassCode = String(row["classCode"] || row["Sinf"] || row["class"] || "").trim();
-    let rawDate = String(row["date"] || row["Sana"] || "").trim();
-    const rawStatus = String(row["status"] || row["Holat"] || row["Davomat"] || "").trim();
+    const rawStudentId = String(row2["studentId"] || row2["ID"] || row2["Oquvchi ID"] || row2["studentCode"] || "").trim();
+    const rawStudentName = String(row2["studentName"] || row2["F.I.Sh."] || row2["Ism"] || row2["name"] || "").trim();
+    const rawClassCode = String(row2["classCode"] || row2["Sinf"] || row2["class"] || "").trim();
+    let rawDate = String(row2["date"] || row2["Sana"] || "").trim();
+    const rawStatus = String(row2["status"] || row2["Holat"] || row2["Davomat"] || "").trim();
     if (/^\d{5}$/.test(rawDate)) {
       const serial = parseInt(rawDate, 10);
       const utcDays = serial - 25569;
@@ -7953,34 +8431,34 @@ function calculateClassMonitoringSnapshot(classCode, grade, track, enrolledStude
 var CONFIGURED_OWNER_EMAIL = (process.env.PLATFORM_OWNER_EMAIL || PLATFORM_OWNER_EMAIL).trim().toLowerCase();
 var __filename = fileURLToPath(import.meta.url);
 var __dirname = path4.dirname(__filename);
-var AIAnalysisSchema = z6.object({
-  summary: z6.string().min(5),
-  topic_analysis: z6.array(
-    z6.object({
-      topic_id: z6.string(),
-      observed_performance: z6.string(),
-      possible_error_pattern: z6.string(),
-      evidence_count: z6.number(),
-      confidence: z6.enum(["low", "medium", "high"]),
-      recommendation: z6.string()
+var AIAnalysisSchema = z9.object({
+  summary: z9.string().min(5),
+  topic_analysis: z9.array(
+    z9.object({
+      topic_id: z9.string(),
+      observed_performance: z9.string(),
+      possible_error_pattern: z9.string(),
+      evidence_count: z9.number(),
+      confidence: z9.enum(["low", "medium", "high"]),
+      recommendation: z9.string()
     })
   ),
-  next_steps: z6.array(
-    z6.object({
-      topic_id: z6.string(),
-      activity: z6.string(),
-      reason: z6.string(),
-      priority: z6.enum(["low", "medium", "high"])
+  next_steps: z9.array(
+    z9.object({
+      topic_id: z9.string(),
+      activity: z9.string(),
+      reason: z9.string(),
+      priority: z9.enum(["low", "medium", "high"])
     })
   ),
-  teacher_summary: z6.string().min(5),
-  parent_summary: z6.string().optional()
+  teacher_summary: z9.string().min(5),
+  parent_summary: z9.string().optional()
 });
-var AIDraftedQuestionSchema = z6.object({
-  prompt: z6.string().min(5),
-  options: z6.array(z6.string()).length(4),
-  correctAnswer: z6.string().min(1),
-  explanation: z6.string().min(5)
+var AIDraftedQuestionSchema = z9.object({
+  prompt: z9.string().min(5),
+  options: z9.array(z9.string()).length(4),
+  correctAnswer: z9.string().min(1),
+  explanation: z9.string().min(5)
 });
 async function getGeminiClient(req) {
   if (req && resolveRequestEnv(req) === "test") {
@@ -8040,12 +8518,13 @@ function getRequestId(req) {
 function extractRawTokenFromRequest(req) {
   const authHeader = req.headers.authorization;
   if (authHeader && authHeader.startsWith("Bearer ")) {
-    return authHeader.slice(7).trim();
+    const value = authHeader.slice(7).trim();
+    return value === "cookie" ? cookieToken(req) : value;
   }
   if (req.path === "/api/events" && typeof req.query.token === "string") {
-    return req.query.token.trim();
+    return req.query.token === "cookie" ? cookieToken(req) : req.query.token.trim();
   }
-  return void 0;
+  return cookieToken(req);
 }
 function authenticateRequest(req) {
   const token = extractRawTokenFromRequest(req);
@@ -8102,6 +8581,7 @@ function pushNotification(db, institutionId, recipientUid, title, message, link)
   db.notifications.unshift(notif);
 }
 var app = express();
+app.use(canonicalProduction);
 async function startServer() {
   app.disable("x-powered-by");
   app.use((req, res, next) => {
@@ -8168,14 +8648,22 @@ async function startServer() {
     });
   });
   app.use(cloudStateMiddleware);
+  app.use(localSessionResponse);
   const uploadJsonParser = express.json({ limit: "20mb" });
   const standardJsonParser = express.json({ limit: "2mb" });
   app.use((req, res, next) => {
-    if (req.path.startsWith("/api/exams/drafts") || /^\/api\/exams\/[^/]+\/draft$/.test(req.path) || req.path.startsWith("/api/students/import/") || req.path.startsWith("/api/work-plans/upload") || req.path.startsWith("/api/imports/") || req.path.startsWith("/api/questions/media") || req.path === "/api/content-imports/preview") {
+    if (req.path.startsWith("/api/topic-bank/") || req.path.startsWith("/api/exams/drafts") || /^\/api\/exams\/[^/]+\/draft$/.test(req.path) || req.path.startsWith("/api/students/import/") || req.path.startsWith("/api/work-plans/upload") || req.path.startsWith("/api/imports/") || req.path.startsWith("/api/questions/media") || req.path === "/api/content-imports/preview") {
       return uploadJsonParser(req, res, next);
     }
     return standardJsonParser(req, res, next);
   });
+  app.use("/api", (req, res, next) => {
+    const c = authenticateRequest(req);
+    if (c?.user.mustChangePassword && !["/state", "/account/password", "/auth/logout", "/auth/login", "/auth/firebase-sync"].includes(req.path)) return res.status(403).json({ error: "Davom etish uchun parolni o\u2018zgartiring.", code: "PASSWORD_CHANGE_REQUIRED" });
+    next();
+  });
+  registerTopicRoutes(app, { authenticate: authenticateRequest, save: saveDbState });
+  registerAccountRoutes(app, { authenticate: authenticateRequest, save: saveDbState, hash: hashPassword, verify: verifyPassword, revoke: revokeAllUserSessions, issue: issueSessionToken });
   registerTeachingRoutes(app, { authenticate: authenticateRequest, save: saveDbState, hash: hashPassword, revoke: revokeAllUserSessions });
   registerDemoRoutes(app, { authenticate: authenticateRequest, save: saveDbState, hash: hashPassword, revoke: revokeAllUserSessions });
   registerContentRoutes(app, { authenticate: authenticateRequest, save: saveDbState });
@@ -8371,16 +8859,17 @@ async function startServer() {
     const db = getDbState(env);
     const reqId = getRequestId(req);
     const ipHash = getClientIpHash(req);
-    const { email, password } = req.body;
-    if (env === "prod" && (isAuthorizedAdminEmail(String(email || ""), CONFIGURED_OWNER_EMAIL) || db.users.some((u) => u.email.toLowerCase() === String(email || "").trim().toLowerCase() && (u.role === "admin" || u.role === "platform_owner")))) {
+    const { password } = req.body;
+    const email = String(req.body.login || req.body.email || "").trim().toLowerCase();
+    if (env === "prod" && !db.users.some((u) => u.login === email) && (isAuthorizedAdminEmail(String(email || ""), CONFIGURED_OWNER_EMAIL) || db.users.some((u) => u.email.toLowerCase() === String(email || "").trim().toLowerCase() && (u.role === "admin" || u.role === "platform_owner")))) {
       return res.status(403).json({ error: "Administrator Google orqali tasdiqlangan hisob bilan kirishi kerak." });
     }
     if (!email || !password) {
-      return res.status(400).json({ error: "Elektron pochta va parolni kiriting." });
+      return res.status(400).json({ error: "Login va parolni kiriting." });
     }
     const normalizedEmail = String(email).trim().toLowerCase();
     const instId = db.institutions[0]?.id || "inst-spec-study";
-    const user = db.users.find((u) => u.email.toLowerCase() === normalizedEmail);
+    const user = db.users.find((u) => u.login?.toLowerCase() === normalizedEmail || u.loginAliases?.includes(normalizedEmail) || u.email.toLowerCase() === normalizedEmail);
     const throttleKey = nodeCrypto.createHash("sha256").update(normalizedEmail + ":" + ipHash).digest("hex");
     db.loginThrottles ||= {};
     if ((db.loginThrottles[throttleKey]?.until || 0) > Date.now()) return res.status(429).json({ error: "Ko\u2018p noto\u2018g\u2018ri urinish. 15 daqiqadan keyin qayta urining." });
@@ -8410,19 +8899,19 @@ async function startServer() {
     };
     if (!user) {
       recordFailedLogin("hisob topilmadi");
-      return res.status(401).json({ error: "Hisob topilmadi yoki parol noto\u2018g\u2018ri." });
+      return res.status(401).json({ error: "Login yoki parol noto\u2018g\u2018ri." });
     }
     if (user.status === "suspended" || user.status === "archived") {
       recordFailedLogin("hisob faol emas");
-      return res.status(403).json({ error: "Sizning hisobingiz vaqtincha to\u2018xtatilgan." });
+      return res.status(401).json({ error: "Login yoki parol noto\u2018g\u2018ri." });
     }
     if (!verifyPassword(String(password), db.passwordHashes[user.uid])) {
       recordFailedLogin("noto\u2018g\u2018ri parol");
-      return res.status(401).json({ error: "Hisob topilmadi yoki parol noto\u2018g\u2018ri." });
+      return res.status(401).json({ error: "Login yoki parol noto\u2018g\u2018ri." });
     }
     delete db.loginThrottles[throttleKey];
     failedLoginCounter.delete(`${env}:${normalizedEmail}:${ipHash}`);
-    if (isAuthorizedAdminEmail(normalizedEmail, CONFIGURED_OWNER_EMAIL)) {
+    if (isAuthorizedAdminEmail(user.email, CONFIGURED_OWNER_EMAIL) && user.emailVerified && user.platformAdmin && db.customClaims?.[user.uid]?.platformAdmin === true) {
       user.role = "platform_owner";
       user.platformOwner = true;
       user.platformAdmin = true;
@@ -8452,6 +8941,7 @@ async function startServer() {
     return res.json({ user, token });
   });
   app.post("/api/auth/logout", (req, res) => {
+    clearSessionCookie(res);
     const authCtx = authenticateRequest(req);
     if (authCtx) {
       revokeSessionToken(authCtx.token);
@@ -8677,14 +9167,19 @@ async function startServer() {
         customClaims: provisionStatus.preservedCustomClaims
       });
     }
-    let existingStudent = db.users.find((u) => u.uid === verifiedUid) || db.users.find((u) => u.email.trim().toLowerCase() === verifiedEmail);
+    let existingStudent = db.users.find((u) => u.uid === verifiedUid || u.linkedGoogleUid === verifiedUid) || db.users.find((u) => u.email.trim().toLowerCase() === verifiedEmail);
+    if (existingStudent && db.passwordHashes[existingStudent.uid] && existingStudent.uid !== verifiedUid && existingStudent.linkedGoogleUid !== verifiedUid) return res.status(409).json({ error: "Avval login bilan kirib, profilingizda Google hisobini biriktiring." });
     if (existingStudent) {
       if (existingStudent.status === "suspended" || existingStudent.status === "archived") {
         return res.status(403).json({ error: "Sizning hisobingiz vaqtincha to\u2018xtatilgan." });
       }
+      if (existingStudent.email !== verifiedEmail) {
+        existingStudent.loginAliases ||= [];
+        if (!existingStudent.loginAliases.includes(existingStudent.email.toLowerCase())) existingStudent.loginAliases.push(existingStudent.email.toLowerCase());
+      }
       existingStudent.email = verifiedEmail;
       existingStudent.emailVerified = true;
-      existingStudent.role = "student";
+      existingStudent.role = (existingStudent.linkedGoogleUid === verifiedUid || existingStudent.uid === verifiedUid) && existingStudent.role === "teacher" ? "teacher" : "student";
       existingStudent.platformOwner = false;
       existingStudent.platformAdmin = false;
       if (verifiedDisplayName && (!existingStudent.displayName || existingStudent.displayName.includes("@"))) {
@@ -9189,7 +9684,7 @@ async function startServer() {
     if (user.role === "teacher") {
       const scoped = teacherClasses(user, db);
       const ids = new Set(scoped.map((c) => c.id));
-      return res.json({ user, institution, classes: scoped, users: db.users.filter((u) => u.institutionId === instId && (u.uid === user.uid || u.role === "student" && ids.has(u.classId || ""))).map(({ uid, displayName, role, classId, classCode, status }) => ({ uid, displayName, role, classId, classCode, status })), lessons: db.lessons.filter((l) => l.institutionId === instId && [l.classId, ...l.classIds || []].some((id) => ids.has(id)) && (l.subjectName === user.subject || db.demoLabs?.some((lab) => lab.teacherId === user.uid && lab.institutionId === instId))).map((l) => ({ ...l, schoolDeliveredAt: [l.classId, ...l.classIds || []].filter((id) => ids.has(id)).every((id) => deliveredForClass(l, id)) ? l.schoolDeliveredAt || l.updatedAt : void 0 })), subjects: [], topics: [], workPlans: [], assessments: [], attempts: [], notifications: [] });
+      return res.json({ user, institution, classes: scoped, users: db.users.filter((u) => u.institutionId === instId && (u.uid === user.uid || u.role === "student" && ids.has(u.classId || ""))).map(({ uid, displayName, role, classId, classCode, status, login, mustChangePassword }) => ({ uid, displayName, role, classId, classCode, status, login, mustChangePassword })), lessons: db.lessons.filter((l) => l.institutionId === instId && [l.classId, ...l.classIds || []].some((id) => ids.has(id)) && (l.subjectName === user.subject || db.demoLabs?.some((lab) => lab.teacherId === user.uid && lab.institutionId === instId))).map((l) => ({ ...l, schoolDeliveredAt: [l.classId, ...l.classIds || []].filter((id) => ids.has(id)).every((id) => deliveredForClass(l, id)) ? l.schoolDeliveredAt || l.updatedAt : void 0 })), subjects: [], topics: [], workPlans: [], assessments: [], attempts: [], notifications: [] });
     }
     if (user.role === "student") {
       const myClass = db.classes.find(
@@ -10113,17 +10608,17 @@ async function startServer() {
     const nowIso = (/* @__PURE__ */ new Date()).toISOString();
     const expiresIso = new Date(Date.now() + 1e3 * 60 * 60 * 24 * 14).toISOString();
     const createdInvites = [];
-    for (const row of validation.validRows) {
+    for (const row2 of validation.validRows) {
       const matchedClass = db.classes.find(
-        (c) => c.code.toLowerCase() === row.className?.toLowerCase() || c.name.toLowerCase() === row.className?.toLowerCase() || c.id === defaultClassId
+        (c) => c.code.toLowerCase() === row2.className?.toLowerCase() || c.name.toLowerCase() === row2.className?.toLowerCase() || c.id === defaultClassId
       ) || db.classes[0];
       const { rawToken, tokenHash } = generateCryptographicInviteToken("STU");
       const inv = {
         id: `inv-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
         institutionId: user.institutionId,
         institutionName: inst?.name || "Specialized Study",
-        email: row.email,
-        inviteeName: row.displayName,
+        email: row2.email,
+        inviteeName: row2.displayName,
         role: "student",
         classId: matchedClass?.id,
         classCode: matchedClass?.code,
@@ -10140,8 +10635,8 @@ async function startServer() {
       };
       db.invitations.unshift(inv);
       createdInvites.push({
-        inviteeName: row.displayName,
-        email: row.email,
+        inviteeName: row2.displayName,
+        email: row2.email,
         rawToken
       });
     }
@@ -11361,8 +11856,8 @@ async function startServer() {
     }
     const createdLessons = [];
     const createdTopics = [];
-    for (const row of finalRows) {
-      const cleanTopicName = String(row.topicName || row.lessonTitle).trim();
+    for (const row2 of finalRows) {
+      const cleanTopicName = String(row2.topicName || row2.lessonTitle).trim();
       let topicRecord = db.topics.find(
         (t) => t.subject.toLowerCase() === subj.name.toLowerCase() && t.grade === cls.grade && t.name.toLowerCase() === cleanTopicName.toLowerCase()
       );
@@ -11373,15 +11868,15 @@ async function startServer() {
           institutionId: user.institutionId,
           subjectId: subj.id,
           subjectCode: subj.code,
-          unitTitle: row.unitTitle,
-          quarter: row.quarter || parsedQuarter,
+          unitTitle: row2.unitTitle,
+          quarter: row2.quarter || parsedQuarter,
           classCode: cls.code,
           track: cls.track,
           name: cleanTopicName,
           subject: subj.name,
           grade: cls.grade,
-          description: row.learningObjectives || cleanTopicName,
-          learningObjectives: row.learningObjectives,
+          description: row2.learningObjectives || cleanTopicName,
+          learningObjectives: row2.learningObjectives,
           status: "active",
           orderIndex: db.topics.length + 1
         };
@@ -11389,19 +11884,19 @@ async function startServer() {
         createdTopics.push(topicRecord);
       }
       const existingLesson = db.lessons.find(
-        (l) => l.classCode.toLowerCase() === cls.code.toLowerCase() && l.subjectName.toLowerCase() === subj.name.toLowerCase() && l.quarter === (row.quarter || parsedQuarter) && l.lessonNumber === Number(row.lessonNumber)
+        (l) => l.classCode.toLowerCase() === cls.code.toLowerCase() && l.subjectName.toLowerCase() === subj.name.toLowerCase() && l.quarter === (row2.quarter || parsedQuarter) && l.lessonNumber === Number(row2.lessonNumber)
       );
       if (existingLesson) {
         existingLesson.workPlanId = confirmedPlan.id;
-        existingLesson.unitTitle = String(row.unitTitle || existingLesson.unitTitle);
+        existingLesson.unitTitle = String(row2.unitTitle || existingLesson.unitTitle);
         existingLesson.topicId = topicRecord.id;
         existingLesson.topicName = topicRecord.name;
-        existingLesson.title = String(row.lessonTitle || existingLesson.title);
+        existingLesson.title = String(row2.lessonTitle || existingLesson.title);
         existingLesson.learningObjectives = String(
-          row.learningObjectives || existingLesson.learningObjectives
+          row2.learningObjectives || existingLesson.learningObjectives
         );
-        existingLesson.scheduledDate = row.scheduledDate || existingLesson.scheduledDate;
-        existingLesson.homework = row.homework || existingLesson.homework;
+        existingLesson.scheduledDate = row2.scheduledDate || existingLesson.scheduledDate;
+        existingLesson.homework = row2.homework || existingLesson.homework;
         if (publishLessons) {
           existingLesson.status = "published";
         }
@@ -11409,7 +11904,7 @@ async function startServer() {
         createdLessons.push(existingLesson);
       } else {
         const newLesson = {
-          id: `lesson-${cls.code}-${subj.code.toLowerCase()}-${Date.now()}-${row.lessonNumber}`,
+          id: `lesson-${cls.code}-${subj.code.toLowerCase()}-${Date.now()}-${row2.lessonNumber}`,
           institutionId: user.institutionId,
           workPlanId: confirmedPlan.id,
           classId: cls.id,
@@ -11419,20 +11914,20 @@ async function startServer() {
           subjectId: subj.id,
           subjectName: subj.name,
           academicYear: confirmedPlan.academicYear,
-          quarter: row.quarter || parsedQuarter,
-          weekNumber: row.weekNumber || Math.ceil(Number(row.lessonNumber) / 3),
-          lessonNumber: Number(row.lessonNumber),
-          unitTitle: String(row.unitTitle || `${parsedQuarter}-chorak bo\u2018limi`),
+          quarter: row2.quarter || parsedQuarter,
+          weekNumber: row2.weekNumber || Math.ceil(Number(row2.lessonNumber) / 3),
+          lessonNumber: Number(row2.lessonNumber),
+          unitTitle: String(row2.unitTitle || `${parsedQuarter}-chorak bo\u2018limi`),
           topicId: topicRecord.id,
           topicName: topicRecord.name,
-          title: String(row.lessonTitle || cleanTopicName),
+          title: String(row2.lessonTitle || cleanTopicName),
           learningObjectives: String(
-            row.learningObjectives || "Mavzu bo\u2018yicha bilim va ko\u2018nikmalarni shakllantirish."
+            row2.learningObjectives || "Mavzu bo\u2018yicha bilim va ko\u2018nikmalarni shakllantirish."
           ),
-          content: `${row.lessonTitle || cleanTopicName}. O\u2018quv maqsadi: ${row.learningObjectives || ""}`,
-          homework: row.homework,
-          scheduledDate: row.scheduledDate,
-          hours: Number(row.hours) || 1,
+          content: `${row2.lessonTitle || cleanTopicName}. O\u2018quv maqsadi: ${row2.learningObjectives || ""}`,
+          homework: row2.homework,
+          scheduledDate: row2.scheduledDate,
+          hours: Number(row2.hours) || 1,
           materials: [],
           relatedAssessmentIds: [],
           status: publishLessons ? "published" : "planned",
@@ -12420,31 +12915,31 @@ async function startServer() {
       targetPlan.status = "confirmed";
       targetPlan.confirmedAt = nowIso;
       const builtLessons = [];
-      for (const row of targetPlan.rows) {
+      for (const row2 of targetPlan.rows) {
         let topicRec = db.topics.find(
-          (t) => t.subject.toLowerCase() === targetPlan.subjectName.toLowerCase() && t.name.toLowerCase() === row.topicName.toLowerCase()
+          (t) => t.subject.toLowerCase() === targetPlan.subjectName.toLowerCase() && t.name.toLowerCase() === row2.topicName.toLowerCase()
         );
         if (!topicRec) {
           topicRec = {
             id: `topic-${Date.now()}-${Math.random().toString(36).slice(2, 5)}`,
             institutionId: user.institutionId,
             subjectId: targetPlan.subjectId,
-            name: row.topicName,
+            name: row2.topicName,
             subject: targetPlan.subjectName,
             grade: targetPlan.grade,
             classCode: targetPlan.classCode,
             track: targetPlan.track,
-            description: row.learningObjectives,
+            description: row2.learningObjectives,
             orderIndex: db.topics.length + 1
           };
           db.topics.push(topicRec);
         }
         const existingLesson = db.lessons.find(
-          (l) => l.classCode.toLowerCase() === targetPlan.classCode.toLowerCase() && l.subjectName.toLowerCase() === targetPlan.subjectName.toLowerCase() && l.lessonNumber === row.lessonNumber
+          (l) => l.classCode.toLowerCase() === targetPlan.classCode.toLowerCase() && l.subjectName.toLowerCase() === targetPlan.subjectName.toLowerCase() && l.lessonNumber === row2.lessonNumber
         );
         if (!existingLesson) {
           const lessonItem = {
-            id: `lesson-${targetPlan.classCode}-${Date.now()}-${row.lessonNumber}`,
+            id: `lesson-${targetPlan.classCode}-${Date.now()}-${row2.lessonNumber}`,
             institutionId: user.institutionId,
             workPlanId: targetPlan.id,
             classId: targetPlan.classId,
@@ -12454,17 +12949,17 @@ async function startServer() {
             subjectId: targetPlan.subjectId,
             subjectName: targetPlan.subjectName,
             academicYear: targetPlan.academicYear,
-            quarter: row.quarter || 1,
-            weekNumber: row.weekNumber || Math.ceil(row.lessonNumber / 3),
-            lessonNumber: row.lessonNumber,
-            unitTitle: row.unitTitle,
+            quarter: row2.quarter || 1,
+            weekNumber: row2.weekNumber || Math.ceil(row2.lessonNumber / 3),
+            lessonNumber: row2.lessonNumber,
+            unitTitle: row2.unitTitle,
             topicId: topicRec.id,
             topicName: topicRec.name,
-            title: row.lessonTitle,
-            learningObjectives: row.learningObjectives,
-            content: `${row.lessonTitle} \u2014 ${row.learningObjectives}`,
-            scheduledDate: row.scheduledDate,
-            hours: row.hours || 1,
+            title: row2.lessonTitle,
+            learningObjectives: row2.learningObjectives,
+            content: `${row2.lessonTitle} \u2014 ${row2.learningObjectives}`,
+            scheduledDate: row2.scheduledDate,
+            hours: row2.hours || 1,
             materials: [],
             relatedAssessmentIds: [],
             status: "planned",
@@ -15786,9 +16281,9 @@ Ushbu javobni mezon asosida tahlil qilib, tavsiya etilgan ball (0 dan ${numericM
       return res.send(buf);
     }
     const csvLines = ["Ko_rsatkich,Qiymat"];
-    for (const row of flatRows) {
-      const k = String(row.Ko_rsatkich).replace(/"/g, '""');
-      const v = String(row.Qiymat).replace(/"/g, '""');
+    for (const row2 of flatRows) {
+      const k = String(row2.Ko_rsatkich).replace(/"/g, '""');
+      const v = String(row2.Qiymat).replace(/"/g, '""');
       csvLines.push(`"${k}","${v}"`);
     }
     res.setHeader("Content-Type", "text/csv; charset=utf-8");

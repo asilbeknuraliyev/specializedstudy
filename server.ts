@@ -1,5 +1,9 @@
 import {registerDemoRoutes} from './src/server/demoRoutes';
 import {scopeInstitutionResponse} from './src/server/institutionView';
+import {cookieToken,clearSessionCookie,localSessionResponse} from './src/server/sessionCookies';
+import {registerAccountRoutes} from './src/server/accountRoutes';
+import {registerTopicRoutes} from './src/server/topicRoutes';
+import {canonicalProduction} from './src/server/canonicalOrigin';
 import nodeCrypto from 'node:crypto';
 import {registerTeachingRoutes,teacherClasses,deliveredForClass} from './src/server/teachingRoutes';
 import { registerExamRoutes } from './src/server/examRoutes';
@@ -318,12 +322,12 @@ function getRequestId(req: Request): string {
 function extractRawTokenFromRequest(req: Request): string | undefined {
   const authHeader = req.headers.authorization;
   if (authHeader && authHeader.startsWith('Bearer ')) {
-    return authHeader.slice(7).trim();
+    const value=authHeader.slice(7).trim();return value==='cookie'?cookieToken(req):value;
   }
   if (req.path === '/api/events' && typeof req.query.token === 'string') {
-    return req.query.token.trim();
+    return req.query.token==='cookie'?cookieToken(req):req.query.token.trim();
   }
-  return undefined;
+  return cookieToken(req);
 }
 
 function authenticateRequest(
@@ -410,6 +414,7 @@ function pushNotification(
 }
 
 export const app = express();
+  app.use(canonicalProduction);
 
 async function startServer() {
   app.disable('x-powered-by');
@@ -490,10 +495,12 @@ async function startServer() {
   });
 
   app.use(cloudStateMiddleware);
+  app.use(localSessionResponse);
   const uploadJsonParser = express.json({ limit: '20mb' });
   const standardJsonParser = express.json({ limit: '2mb' });
   app.use((req, res, next) => {
     if (
+      req.path.startsWith('/api/topic-bank/') ||
       req.path.startsWith('/api/exams/drafts') ||
       /^\/api\/exams\/[^/]+\/draft$/.test(req.path) ||
       req.path.startsWith('/api/students/import/') ||
@@ -507,6 +514,9 @@ async function startServer() {
     return standardJsonParser(req, res, next);
   });
 
+  app.use('/api',(req,res,next)=>{const c=authenticateRequest(req);if(c?.user.mustChangePassword&&!['/state','/account/password','/auth/logout','/auth/login','/auth/firebase-sync'].includes(req.path))return res.status(403).json({error:'Davom etish uchun parolni o‘zgartiring.',code:'PASSWORD_CHANGE_REQUIRED'});next();});
+  registerTopicRoutes(app,{authenticate:authenticateRequest,save:saveDbState});
+  registerAccountRoutes(app,{authenticate:authenticateRequest,save:saveDbState,hash:hashPassword,verify:verifyPassword,revoke:revokeAllUserSessions,issue:issueSessionToken});
   registerTeachingRoutes(app,{authenticate:authenticateRequest,save:saveDbState,hash:hashPassword,revoke:revokeAllUserSessions});
   registerDemoRoutes(app,{authenticate:authenticateRequest,save:saveDbState,hash:hashPassword,revoke:revokeAllUserSessions});
   registerContentRoutes(app,{authenticate:authenticateRequest,save:saveDbState});
@@ -724,19 +734,19 @@ async function startServer() {
     const db = getDbState(env);
     const reqId = getRequestId(req);
     const ipHash = getClientIpHash(req);
-    const { email, password } = req.body;
-    if (env === 'prod' && (isAuthorizedAdminEmail(String(email || ''), CONFIGURED_OWNER_EMAIL) || db.users.some(u => u.email.toLowerCase() === String(email || '').trim().toLowerCase() && (u.role === 'admin' || u.role === 'platform_owner')))) {
+    const { password } = req.body;const email=String(req.body.login||req.body.email||'').trim().toLowerCase();
+    if (env === 'prod' && !db.users.some(u=>u.login===email) && (isAuthorizedAdminEmail(String(email || ''), CONFIGURED_OWNER_EMAIL) || db.users.some(u => u.email.toLowerCase() === String(email || '').trim().toLowerCase() && (u.role === 'admin' || u.role === 'platform_owner')))) {
       return res.status(403).json({ error: 'Administrator Google orqali tasdiqlangan hisob bilan kirishi kerak.' });
     }
 
 
     if (!email || !password) {
-      return res.status(400).json({ error: 'Elektron pochta va parolni kiriting.' });
+      return res.status(400).json({ error: 'Login va parolni kiriting.' });
     }
 
     const normalizedEmail = String(email).trim().toLowerCase();
     const instId = db.institutions[0]?.id || 'inst-spec-study';
-    const user = db.users.find((u) => u.email.toLowerCase() === normalizedEmail);
+    const user = db.users.find((u) => (u.login?.toLowerCase()===normalizedEmail||u.loginAliases?.includes(normalizedEmail)||u.email.toLowerCase()===normalizedEmail));
     const throttleKey=nodeCrypto.createHash('sha256').update(normalizedEmail+':'+ipHash).digest('hex');
     db.loginThrottles||={};
     if((db.loginThrottles[throttleKey]?.until||0)>Date.now())return res.status(429).json({error:'Ko‘p noto‘g‘ri urinish. 15 daqiqadan keyin qayta urining.'});
@@ -766,22 +776,22 @@ async function startServer() {
 
     if (!user) {
       recordFailedLogin('hisob topilmadi');
-      return res.status(401).json({ error: 'Hisob topilmadi yoki parol noto‘g‘ri.' });
+      return res.status(401).json({ error: 'Login yoki parol noto‘g‘ri.' });
     }
     if (user.status === 'suspended' || user.status === 'archived') {
       recordFailedLogin('hisob faol emas');
-      return res.status(403).json({ error: 'Sizning hisobingiz vaqtincha to‘xtatilgan.' });
+      return res.status(401).json({ error: 'Login yoki parol noto‘g‘ri.' });
     }
     if (!verifyPassword(String(password), db.passwordHashes[user.uid])) {
       recordFailedLogin('noto‘g‘ri parol');
-      return res.status(401).json({ error: 'Hisob topilmadi yoki parol noto‘g‘ri.' });
+      return res.status(401).json({ error: 'Login yoki parol noto‘g‘ri.' });
     }
 
     delete db.loginThrottles![throttleKey];
     failedLoginCounter.delete(`${env}:${normalizedEmail}:${ipHash}`);
 
     // Enforce authorized Platform Admin claim on login
-    if (isAuthorizedAdminEmail(normalizedEmail, CONFIGURED_OWNER_EMAIL)) {
+    if (isAuthorizedAdminEmail(user.email, CONFIGURED_OWNER_EMAIL)&&user.emailVerified&&user.platformAdmin&&db.customClaims?.[user.uid]?.platformAdmin===true) {
       user.role = 'platform_owner';
       user.platformOwner = true;
       user.platformAdmin = true;
@@ -814,6 +824,7 @@ async function startServer() {
 
   // Logout & Session Revocation
   app.post('/api/auth/logout', (req, res) => {
+    clearSessionCookie(res);
     const authCtx = authenticateRequest(req);
     if (authCtx) {
       revokeSessionToken(authCtx.token);
@@ -1076,16 +1087,18 @@ async function startServer() {
 
     // 4. Non-admin Google account: strictly Student workflow (never grant admin access)
     let existingStudent =
-      db.users.find((u) => u.uid === verifiedUid) ||
+      db.users.find((u) => u.uid === verifiedUid||u.linkedGoogleUid===verifiedUid) ||
       db.users.find((u) => u.email.trim().toLowerCase() === verifiedEmail);
 
+    if(existingStudent&&db.passwordHashes[existingStudent.uid]&&existingStudent.uid!==verifiedUid&&existingStudent.linkedGoogleUid!==verifiedUid)return res.status(409).json({error:'Avval login bilan kirib, profilingizda Google hisobini biriktiring.'});
     if (existingStudent) {
       if (existingStudent.status === 'suspended' || existingStudent.status === 'archived') {
         return res.status(403).json({ error: 'Sizning hisobingiz vaqtincha to‘xtatilgan.' });
       }
+      if(existingStudent.email!==verifiedEmail){existingStudent.loginAliases||=[];if(!existingStudent.loginAliases.includes(existingStudent.email.toLowerCase()))existingStudent.loginAliases.push(existingStudent.email.toLowerCase());}
       existingStudent.email = verifiedEmail;
       existingStudent.emailVerified = true;
-      existingStudent.role = 'student';
+      existingStudent.role = (existingStudent.linkedGoogleUid===verifiedUid||existingStudent.uid===verifiedUid)&&existingStudent.role==='teacher'?'teacher':'student';
       existingStudent.platformOwner = false;
       existingStudent.platformAdmin = false;
       if (verifiedDisplayName && (!existingStudent.displayName || existingStudent.displayName.includes('@'))) {
@@ -1666,7 +1679,7 @@ async function startServer() {
 
     if(user.role==='teacher'){
       const scoped=teacherClasses(user,db);const ids=new Set(scoped.map(c=>c.id));
-      return res.json({user,institution,classes:scoped,users:db.users.filter(u=>u.institutionId===instId&&(u.uid===user.uid||(u.role==='student'&&ids.has(u.classId||'')))).map(({uid,displayName,role,classId,classCode,status})=>({uid,displayName,role,classId,classCode,status})),lessons:db.lessons.filter(l=>l.institutionId===instId&&[l.classId,...(l.classIds||[])].some(id=>ids.has(id))&&(l.subjectName===user.subject||db.demoLabs?.some(lab=>lab.teacherId===user.uid&&lab.institutionId===instId))).map(l=>({...l,schoolDeliveredAt:[l.classId,...(l.classIds||[])].filter(id=>ids.has(id)).every(id=>deliveredForClass(l,id))?(l.schoolDeliveredAt||l.updatedAt):undefined})),subjects:[],topics:[],workPlans:[],assessments:[],attempts:[],notifications:[]});
+      return res.json({user,institution,classes:scoped,users:db.users.filter(u=>u.institutionId===instId&&(u.uid===user.uid||(u.role==='student'&&ids.has(u.classId||'')))).map(({uid,displayName,role,classId,classCode,status,login,mustChangePassword})=>({uid,displayName,role,classId,classCode,status,login,mustChangePassword})),lessons:db.lessons.filter(l=>l.institutionId===instId&&[l.classId,...(l.classIds||[])].some(id=>ids.has(id))&&(l.subjectName===user.subject||db.demoLabs?.some(lab=>lab.teacherId===user.uid&&lab.institutionId===instId))).map(l=>({...l,schoolDeliveredAt:[l.classId,...(l.classIds||[])].filter(id=>ids.has(id)).every(id=>deliveredForClass(l,id))?(l.schoolDeliveredAt||l.updatedAt):undefined})),subjects:[],topics:[],workPlans:[],assessments:[],attempts:[],notifications:[]});
     }
     if (user.role === 'student') {
       const myClass = db.classes.find(

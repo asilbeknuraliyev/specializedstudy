@@ -87,6 +87,11 @@ import {
 } from '../utils/academicOsEngine';
 
 export interface PersistentDatabaseState {
+  topicQuestions?: import('./topicEngine').BankQuestion[];
+  topicTests?: import('./topicEngine').TopicTest[];
+  topicSessions?: import('./topicEngine').TopicSession[];
+  topicReviews?: import('./topicEngine').ReviewRecord[];
+  accountOperations?: string[];
   demoLabs?: import('./demoLabEngine').DemoLab[];
   contentImports?: import('./contentImportEngine').ContentImportJob[];
   contentWriteLocks?: Record<string, number>;
@@ -764,7 +769,7 @@ export function issueSessionToken(
   env: 'prod' | 'test',
   expiresInMs: number = 1000 * 60 * 60 * 24 * 7
 ): string {
-  const now = Date.now();
+  const now = Math.max(Date.now(),(requestDatabase.getStore()?.state.revokedBeforeByUser?.[uid]||0)+1);
   const payload = JSON.stringify({
     uid,
     env,

@@ -905,7 +905,7 @@ export const LearnOSProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
 
   const [sessionToken, setSessionToken] = useState<string | null>(() => {
-    return localStorage.getItem('learnos_session_token');
+    localStorage.setItem('learnos_session_token','cookie');return 'cookie';
   });
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(() => {
     try {
@@ -995,6 +995,7 @@ export const LearnOSProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   // Remove any legacy demo state cache from browser storage on mount
   useEffect(() => {
+    for(const key of Object.keys(localStorage))if(/^(learnos_(test|exam|assessment)_|ss-exam-|specialized_study_autosave_)/.test(key))localStorage.removeItem(key);
     localStorage.removeItem('learnos_demo_state_v1');
     localStorage.removeItem('learnos_active_user');
     localStorage.removeItem('learnos_is_demo');
@@ -1381,19 +1382,7 @@ export const LearnOSProvider: React.FC<{ children: React.ReactNode }> = ({ child
         }
       }
 
-      const syntheticDemoIds = [
-        'demo-student-1',
-        'demo-teacher-1',
-        'demo-parent-1',
-        'demo-admin-1',
-      ];
-      for (const synId of syntheticDemoIds) {
-        try {
-          await deleteDoc(doc(db, 'users', synId));
-        } catch {
-          // Ignore if not present or restricted
-        }
-      }
+
     });
 
     return () => {

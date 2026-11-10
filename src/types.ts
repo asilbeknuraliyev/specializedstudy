@@ -107,6 +107,10 @@ export interface AcademicYearItem {
 export type StudentAccountStatus = 'active' | 'pending_activation' | 'suspended' | 'archived';
 
 export interface UserProfile {
+  login?: string;
+  mustChangePassword?: boolean;
+  linkedGoogleUid?: string;
+  loginAliases?: string[];
   uid: string;
   displayName: string;
   firstName?: string;

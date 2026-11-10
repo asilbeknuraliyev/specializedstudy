@@ -178,75 +178,7 @@ export const LoginPage: React.FC = () => {
                 {authError.recoveryAction}
               </p>
 
-              {authError.code === 'auth/unauthorized-domain' && (
-                <div className="p-3 rounded-lg bg-white/90 dark:bg-slate-900/90 border border-rose-200 dark:border-rose-800/80 space-y-2.5">
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="min-w-0">
-                      <span className="block text-[10px] uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                        Joriy domen (Authorized domains ga qo‘shish uchun)
-                      </span>
-                      <code className="block text-xs font-mono font-bold text-slate-900 dark:text-white truncate">
-                        {authError.detectedHostname || runtimeDiag.hostname}
-                      </code>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={handleCopyHostname}
-                      className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 text-[11px] font-semibold shrink-0 min-h-[36px]"
-                    >
-                      {copiedDomain ? (
-                        <>
-                          <Check className="w-3.5 h-3.5 text-emerald-600" />
-                          <span>Nusxalandi</span>
-                        </>
-                      ) : (
-                        <>
-                          <Copy className="w-3.5 h-3.5" />
-                          <span>Nusxalash</span>
-                        </>
-                      )}
-                    </button>
-                  </div>
-                  <div className="text-[11px] text-slate-600 dark:text-slate-400 space-y-1">
-                    <p>
-                      Firebase loyiha ID: <strong className="font-mono">{runtimeDiag.projectId}</strong>
-                    </p>
-                    <ol className="list-decimal list-inside space-y-0.5 text-[11px] text-slate-700 dark:text-slate-300">
-                      <li>Yuqoridagi «Nusxalash» tugmasini bosing.</li>
-                      <li>Quyidagi tugma orqali Firebase Console oynasini ochib, «Add domain» tugmasini bosing.</li>
-                      <li>
-                        <strong className="font-mono">
-                          {authError.detectedHostname || runtimeDiag.hostname}
-                        </strong>{' '}
-                        domenini kiritib «Add» tugmasini bosing va qayta kiring.
-                      </li>
-                    </ol>
-                  </div>
-                  <a
-                    href={`https://console.firebase.google.com/project/${encodeURIComponent(
-                      runtimeDiag.projectId || 'specialized-study'
-                    )}/authentication/settings`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="w-full min-h-[38px] inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-[11px] font-semibold transition-colors"
-                  >
-                    <ExternalLink className="w-3.5 h-3.5 shrink-0" />
-                    <span>Firebase Console → Authorized domains oynasini ochish</span>
-                  </a>
-                </div>
-              )}
 
-              {(authError.shouldOfferRedirectFallback || isMobileBrowser) && (
-                <button
-                  type="button"
-                  onClick={() => handleGoogleLogin(true)}
-                  disabled={isGoogleSigningIn}
-                  className="w-full sm:w-auto min-h-[44px] inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-lg bg-rose-600 hover:bg-rose-700 text-white font-semibold transition-colors"
-                >
-                  <RefreshCw className="w-3.5 h-3.5 shrink-0" />
-                  <span>Yo‘naltirish orqali kirish</span>
-                </button>
-              )}
             </div>
           )}
 
@@ -259,63 +191,6 @@ export const LoginPage: React.FC = () => {
             </div>
           )}
 
-          {!resetMode && (
-            <div className="space-y-3.5">
-              <button
-                type="button"
-                onClick={() => handleGoogleLogin(false)}
-                disabled={isGoogleSigningIn || submitting}
-                className="w-full min-h-[48px] flex items-center justify-center gap-3 py-3 px-4 text-sm font-semibold text-slate-900 dark:text-white bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/80 active:scale-[0.99] rounded-xl transition-all disabled:opacity-60 shadow-2xs"
-              >
-                {isGoogleSigningIn ? (
-                  <>
-                    <div className="w-4 h-4 rounded-full border-2 border-blue-600 border-t-transparent animate-spin shrink-0" />
-                    <span>Google hisobi tekshirilmoqda...</span>
-                  </>
-                ) : (
-                  <>
-                    <svg className="w-5 h-5 shrink-0" viewBox="0 0 24 24" aria-hidden="true">
-                      <path
-                        fill="#4285F4"
-                        d="M23.49 12.27c0-.79-.07-1.54-.19-2.27H12v4.51h6.47c-.29 1.48-1.14 2.73-2.4 3.58v3h3.86c2.26-2.09 3.56-5.17 3.56-8.82Z"
-                      />
-                      <path
-                        fill="#34A853"
-                        d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.86-3c-1.08.72-2.45 1.16-4.07 1.16-3.13 0-5.78-2.11-6.73-4.96H1.29v3.09C3.26 21.3 7.31 24 12 24Z"
-                      />
-                      <path
-                        fill="#FBBC05"
-                        d="M5.27 14.29c-.25-.72-.38-1.49-.38-2.29s.14-1.57.38-2.29V6.62H1.29C.47 8.24 0 10.06 0 12s.47 3.76 1.29 5.38l3.98-3.09Z"
-                      />
-                      <path
-                        fill="#EA4335"
-                        d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.31 0 3.26 2.7 1.29 6.62l3.98 3.09c.95-2.85 3.6-4.96 6.73-4.96Z"
-                      />
-                    </svg>
-                    <span>Google bilan kirish</span>
-                  </>
-                )}
-              </button>
-
-              {isMobileBrowser && !authError && (
-                <button
-                  type="button"
-                  onClick={() => handleGoogleLogin(true)}
-                  disabled={isGoogleSigningIn || submitting}
-                  className="w-full min-h-[40px] flex items-center justify-center gap-1.5 py-2 px-3 text-xs font-medium text-slate-600 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
-                >
-                  <ExternalLink className="w-3.5 h-3.5 shrink-0" />
-                  <span>Mobil brauzerda yo‘naltirish (Redirect) orqali kirish</span>
-                </button>
-              )}
-
-              <div className="relative flex py-1 items-center">
-                <div className="grow border-t border-slate-200 dark:border-slate-800" />
-                <span className="shrink mx-3 text-xs text-slate-400">yoki elektron pochta</span>
-                <div className="grow border-t border-slate-200 dark:border-slate-800" />
-              </div>
-            </div>
-          )}
 
           {resetSent && resetMode ? (
             <div className="p-4 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 space-y-3">
@@ -340,18 +215,18 @@ export const LoginPage: React.FC = () => {
                   htmlFor="login-email"
                   className="block text-xs font-semibold text-slate-700 dark:text-slate-300"
                 >
-                  Elektron pochta
+                  Login yoki elektron pochta
                 </label>
                 <div className="relative">
                   <Mail className="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5 pointer-events-none" />
                   <input
                     id="login-email"
-                    type="email"
-                    autoComplete="email"
-                    inputMode="email"
+                    type="text"
+                    autoComplete="username"
+                    inputMode="text"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    placeholder="foydalanuvchi@specialized.uz"
+                    placeholder="st131344"
                     className="w-full min-h-[46px] pl-10 pr-4 py-2.5 text-sm bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl focus:outline-none focus:border-blue-600"
                   />
                 </div>
@@ -411,6 +286,53 @@ export const LoginPage: React.FC = () => {
                 </button>
               )}
             </form>
+          )}
+
+          {!resetMode && (
+            <div className="space-y-3.5">
+              <button
+                type="button"
+                onClick={() => handleGoogleLogin(false)}
+                disabled={isGoogleSigningIn || submitting}
+                className="w-full min-h-[48px] flex items-center justify-center gap-3 py-3 px-4 text-sm font-semibold text-slate-900 dark:text-white bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/80 active:scale-[0.99] rounded-xl transition-all disabled:opacity-60 shadow-2xs"
+              >
+                {isGoogleSigningIn ? (
+                  <>
+                    <div className="w-4 h-4 rounded-full border-2 border-blue-600 border-t-transparent animate-spin shrink-0" />
+                    <span>Google hisobi tekshirilmoqda...</span>
+                  </>
+                ) : (
+                  <>
+                    <svg className="w-5 h-5 shrink-0" viewBox="0 0 24 24" aria-hidden="true">
+                      <path
+                        fill="#4285F4"
+                        d="M23.49 12.27c0-.79-.07-1.54-.19-2.27H12v4.51h6.47c-.29 1.48-1.14 2.73-2.4 3.58v3h3.86c2.26-2.09 3.56-5.17 3.56-8.82Z"
+                      />
+                      <path
+                        fill="#34A853"
+                        d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.86-3c-1.08.72-2.45 1.16-4.07 1.16-3.13 0-5.78-2.11-6.73-4.96H1.29v3.09C3.26 21.3 7.31 24 12 24Z"
+                      />
+                      <path
+                        fill="#FBBC05"
+                        d="M5.27 14.29c-.25-.72-.38-1.49-.38-2.29s.14-1.57.38-2.29V6.62H1.29C.47 8.24 0 10.06 0 12s.47 3.76 1.29 5.38l3.98-3.09Z"
+                      />
+                      <path
+                        fill="#EA4335"
+                        d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.31 0 3.26 2.7 1.29 6.62l3.98 3.09c.95-2.85 3.6-4.96 6.73-4.96Z"
+                      />
+                    </svg>
+                    <span>Google bilan kirish</span>
+                  </>
+                )}
+              </button>
+
+
+              <div className="relative flex py-1 items-center">
+                <div className="grow border-t border-slate-200 dark:border-slate-800" />
+                <span className="shrink mx-3 text-xs text-slate-400">yoki Google orqali</span>
+                <div className="grow border-t border-slate-200 dark:border-slate-800" />
+              </div>
+            </div>
           )}
 
           <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs text-slate-500 flex items-start gap-2.5">

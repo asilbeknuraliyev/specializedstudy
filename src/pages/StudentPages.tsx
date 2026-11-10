@@ -969,28 +969,13 @@ const LegacyAssessmentRunnerPage: React.FC = () => {
 
   const storageKey = `specialized_study_autosave_${assessment?.id}`;
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [answersMap, setAnswersMap] = useState<Record<string, string>>(() => {
-    const saved = localStorage.getItem(storageKey);
-    if (saved) {
-      try {
-        return JSON.parse(saved);
-      } catch {
-        return {};
-      }
-    }
-    return {};
-  });
+  const [answersMap,setAnswersMap]=useState<Record<string,string>>({});
   const [flaggedIds, setFlaggedIds] = useState<Record<string, boolean>>({});
   const [secondsLeft, setSecondsLeft] = useState((assessment?.durationMinutes || 20) * 60);
   const [confirmModalOpen, setConfirmModalOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [zoomImageUrl, setZoomImageUrl] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (assessment?.id) {
-      localStorage.setItem(storageKey, JSON.stringify(answersMap));
-    }
-  }, [answersMap, assessment?.id, storageKey]);
 
   useEffect(() => {
     const timer = setInterval(() => {

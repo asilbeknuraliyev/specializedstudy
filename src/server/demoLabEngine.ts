@@ -1,6 +1,6 @@
 import crypto from 'node:crypto';
 export type DemoQuestion={id:string;prompt:string;kind:'single'|'multiple'|'short'|'matching'|'blank'|'written';options?:string[];labels?:string[];key:string;explanation:string;points:number};
-export type DemoLab={id:string;ownerId:string;institutionId:string;studentId:string;teacherId:string;exams:Array<{id:string;subject:string;title:string;due:string;questions:DemoQuestion[]}>;responses:Array<{id:string;examId:string;studentId:string;revision:number;answers:Record<string,string>;submittedAt?:string;score?:number;feedback?:string;writtenScore?:number}>};
+export type DemoLab={settings?:{trackExits:boolean;durationMinutes:number};id:string;ownerId:string;institutionId:string;studentId:string;teacherId:string;exams:Array<{id:string;subject:string;title:string;due:string;questions:DemoQuestion[]}>;responses:Array<{id:string;examId:string;studentId:string;revision:number;startedAt?:string;deadlineAt?:string;flags?:string[];events?:Array<{id:string;type:string;at:string}>;answers:Record<string,string>;submittedAt?:string;score?:number;feedback?:string;writtenScore?:number}>};
 export const normalizeDemo=(value:string)=>value.trim().toLowerCase().replace(/\s+/g,' ');
 export function demoScore(q:DemoQuestion,answer:string){if(q.kind==='written')return 0;if(q.kind==='multiple'){const clean=(s:string)=>s.split('|').map(normalizeDemo).sort().join('|');return clean(answer)===clean(q.key)?q.points:0;}return normalizeDemo(answer)===normalizeDemo(q.key)?q.points:0;}
 export function buildDemoExams(){const topics=[

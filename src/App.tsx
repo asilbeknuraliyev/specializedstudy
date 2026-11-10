@@ -48,12 +48,21 @@ const AdminHelpDocsPage = lazy(() => import('./pages/ParentAndAdminPages').then(
 const DemoPanel=lazy(()=>import('./components/DemoPanel').then(m=>({default:m.DemoPanel})));
 const ContentCenter=lazy(()=>import('./components/ContentCenter').then(m=>({default:m.ContentCenter})));
 const StudentTaskHub=lazy(()=>import('./components/StudentHome').then(m=>({default:m.StudentTaskHub})));
+const AccountsCenter=lazy(()=>import('./components/AccountsCenter').then(m=>({default:m.AccountsCenter})));
+const AccountSecurity=lazy(()=>import('./components/AccountsCenter').then(m=>({default:m.AccountSecurity})));
+const TopicBankCenter=lazy(()=>import('./components/TopicBankCenter').then(m=>({default:m.TopicBankCenter})));
+const TopicTestsPage=lazy(()=>import('./components/TopicStudyPages').then(m=>({default:m.TopicTestsPage})));
+const TopicSessionPage=lazy(()=>import('./components/TopicStudyPages').then(m=>({default:m.TopicSessionPage})));
+const ReviewNotebook=lazy(()=>import('./components/TopicStudyPages').then(m=>({default:m.ReviewNotebook})));
+const HelpPage=lazy(()=>import('./components/HelpPages').then(m=>({default:m.HelpPage})));
+const MissingPage=lazy(()=>import('./components/HelpPages').then(m=>({default:m.MissingPage})));
 const TeachingPanel = lazy(() => import('./components/TeachingPanel').then(m=>({default:m.TeachingPanel})));
 // Navigation guard only. Every API endpoint must independently authorize requests.
 const ProtectedRoute: React.FC<{ allowedRole: 'admin' | 'student' | 'teacher'; children: React.ReactNode }> = ({ allowedRole, children }) => {
   const { currentUser, authReady, isPlatformOwner } = useLearnOS();
   if (!authReady) return <main className="min-h-screen grid place-items-center bg-slate-50 text-slate-600" role="status" aria-live="polite">Hisob tekshirilmoqda…</main>;
   if (!currentUser) return <Navigate to="/login" replace />;
+  if(currentUser.mustChangePassword)return <Navigate to="/account/security" replace/>;
   if (currentUser.status !== 'active') return <Navigate to="/login" replace />;
   if (allowedRole === 'admin' && !isPlatformOwner) return <Navigate to={currentUser.role === 'student' ? '/student/dashboard' : '/login'} replace />;
   if (allowedRole === 'student' && currentUser.role !== 'student') return <Navigate to={isPlatformOwner ? '/admin/dashboard' : '/login'} replace />;
@@ -61,13 +70,14 @@ const ProtectedRoute: React.FC<{ allowedRole: 'admin' | 'student' | 'teacher'; c
   return <AppShell>{children}</AppShell>;
 };
 
+function SecurityRoute(){const {currentUser,authReady}=useLearnOS();if(!authReady)return <p role="status">Hisob tekshirilmoqda…</p>;return currentUser?<AppShell><AccountSecurity/></AppShell>:<Navigate to="/login" replace/>;}
 export default function App() {
   return (
     <LearnOSProvider>
       <BrowserRouter>
         <Suspense fallback={<main className="min-h-[60vh] grid place-items-center text-slate-500" role="status">Sahifa yuklanmoqda…</main>}>
         <Routes>
-          {/* Public Routes */}
+          <Route path="/account/security" element={<SecurityRoute/>}/><Route path="/admin/accounts" element={<ProtectedRoute allowedRole="admin"><AccountsCenter/></ProtectedRoute>}/><Route path="/help" element={<HelpPage/>}/>{/* Public Routes */}
           <Route path="/" element={<LandingPage />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
@@ -75,7 +85,7 @@ export default function App() {
           <Route path="/privacy" element={<PrivacyPage />} />
           <Route path="/terms" element={<TermsPage />} />
 
-          {/* Student Routes */}
+          <Route path="/admin/topic-bank" element={<ProtectedRoute allowedRole="admin"><TopicBankCenter/></ProtectedRoute>}/><Route path="/student/topic-tests" element={<ProtectedRoute allowedRole="student"><TopicTestsPage/></ProtectedRoute>}/><Route path="/student/topic-session/:id" element={<ProtectedRoute allowedRole="student"><TopicSessionPage/></ProtectedRoute>}/><Route path="/student/review" element={<ProtectedRoute allowedRole="student"><ReviewNotebook/></ProtectedRoute>}/>{/* Student Routes */}
           <Route path="/admin/demo" element={<ProtectedRoute allowedRole="admin"><DemoPanel/></ProtectedRoute>}/>
           <Route path="/teacher/demo" element={<ProtectedRoute allowedRole="teacher"><DemoPanel/></ProtectedRoute>}/>
           <Route path="/student/demo" element={<ProtectedRoute allowedRole="student"><DemoPanel/></ProtectedRoute>}/>
@@ -460,7 +470,7 @@ export default function App() {
           />
 
           {/* Fallback */}
-          <Route path="*" element={<Navigate to="/" replace />} />
+          <Route path="*" element={<MissingPage/>}/>
         </Routes>
         </Suspense>
         <ToastContainer />

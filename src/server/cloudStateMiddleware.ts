@@ -1,3 +1,4 @@
+import {sessionBody} from './sessionCookies';
 import type { RequestHandler } from 'express';
 import { requestDatabase } from './requestDatabase';
 import { readCloudState, writeCloudState, StateConflictError } from './cloudState';
@@ -18,7 +19,7 @@ return async (req,res,next) => {
        try {
          if(context.dirty) await store.write(context.state,context.revision,baseState);
          for(const action of context.afterCommit)action();
-         json(body);
+         json(sessionBody(res,body));
        } catch(error) {
          res.status(error instanceof StateConflictError?409:503);
          json({error:error instanceof StateConflictError?'Ma’lumot yangilangan. Sahifani yangilab, qayta urinib ko‘ring.':'Ma’lumot saqlanmadi. Keyinroq qayta urinib ko‘ring.'});

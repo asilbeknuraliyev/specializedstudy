@@ -9,7 +9,7 @@ const envMeta = (typeof import.meta !== 'undefined' && (import.meta as any).env)
 export const resolvedFirebaseConfig = {
   apiKey: String(envMeta.VITE_FIREBASE_API_KEY || appletFirebaseConfig.apiKey || '').trim(),
   authDomain: String(
-    envMeta.VITE_FIREBASE_AUTH_DOMAIN || appletFirebaseConfig.authDomain || ''
+    (typeof window!=='undefined'&&window.location.hostname==='specializedstudy.vercel.app'?'specializedstudy.vercel.app':envMeta.VITE_FIREBASE_AUTH_DOMAIN || appletFirebaseConfig.authDomain || '')
   ).trim(),
   projectId: String(
     envMeta.VITE_FIREBASE_PROJECT_ID || appletFirebaseConfig.projectId || ''

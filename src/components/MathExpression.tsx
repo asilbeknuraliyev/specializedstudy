@@ -1,0 +1,2 @@
+import React from 'react';import katex from 'katex';import 'katex/dist/katex.min.css';
+export default function MathExpression({source}:{source:string}){return <span className="inline-block max-w-full overflow-x-auto align-middle" dangerouslySetInnerHTML={{__html:katex.renderToString(source.replace(/^\$\$?|\$\$?$/g,''),{throwOnError:false,trust:false,strict:'warn',maxExpand:200,maxSize:10,displayMode:source.startsWith('$$')})}}/>;}
