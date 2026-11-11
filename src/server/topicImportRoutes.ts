@@ -21,18 +21,20 @@ export function registerTopicImports(app:Express,deps:any,guards:any) {
   if(p.data.dryRun)return res.json({dryRun:true,valid:valid.length,errors});
   c.db.topicImportBatches||=[];
   const old=c.db.topicImportBatches.find((b:any)=>b.id===p.data.operationId);
-  if(old){if(old.institutionId!==c.user.institutionId||old.lessonId!==req.params.lesson)return res.status(409).json({error:'Paket identifikatori band.'});return res.json({id:old.id,created:old.questions.length,duplicate:true,undone:old.undone,errors});}
+  if(old){if(old.institutionId!==c.user.institutionId||old.schoolId&&old.schoolId!==c.user.institutionId||old.lessonId!==req.params.lesson)return res.status(409).json({error:'Paket identifikatori band.'});return res.json({id:old.id,created:old.questions.length,duplicate:true,undone:old.undone,errors});}
   if(errors.length&&!p.data.validOnly)return res.status(400).json({error:'Xato qatorlarni tuzating yoki to‘g‘ri qismini alohida kiriting.',errors});
   if(!valid.length)return res.status(400).json({error:'Kiritish uchun to‘g‘ri savol yo‘q.',errors});
   c.db.topicQuestions||=[];
-  const questions=valid.map(q=>({...q,id:crypto.randomUUID(),institutionId:c.user.institutionId,lessonId:req.params.lesson,revision:1,status:'draft'}));
+  const questions=valid.map(q=>({...q,id:crypto.randomUUID(),institutionId:c.user.institutionId,schoolId:c.user.institutionId,lessonId:req.params.lesson,revision:1,status:'draft'}));
   c.db.topicQuestions.push(...questions);
-  const batch={id:p.data.operationId,institutionId:c.user.institutionId,lessonId:req.params.lesson,questions:questions.map(q=>q.id),createdAt:new Date().toISOString(),undone:false};
+  for(const q of questions)guards.questionVersion?.(c,q);
+  const batch={id:p.data.operationId,institutionId:c.user.institutionId,schoolId:c.user.institutionId,lessonId:req.params.lesson,questions:questions.map(q=>q.id),createdAt:new Date().toISOString(),undone:false};
   c.db.topicImportBatches.push(batch);audit(c,'Savollar paketi import qilindi',batch.id);deps.save(c.env,c.db);
   res.json({id:batch.id,created:questions.length,errors});
  });
  app.post('/api/topic-bank/:lesson/import/:batch/undo',(req,res)=>{
   const c=access(req,res,true);if(!c)return;
+  if(!ownLesson(c,req.params.lesson))return res.status(403).json({error:'Bu mavzu importiga ruxsat yo‘q.'});
   const batch=c.db.topicImportBatches?.find((b:any)=>b.id===req.params.batch&&b.institutionId===c.user.institutionId&&b.lessonId===req.params.lesson);
   if(!batch)return res.status(404).json({error:'Paket topilmadi.'});
   if(batch.undone)return res.json({undone:true});

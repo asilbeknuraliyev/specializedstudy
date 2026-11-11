@@ -87,6 +87,10 @@ import {
 } from '../utils/academicOsEngine';
 
 export interface PersistentDatabaseState {
+  topicWriteOperations?: Array<{id:string;schoolId:string;actorUid:string;kind:string;signature:string;refs:Array<{id:string;version:number}>;createdAt:string}>;
+  learningDemos?: import('./learningDemoRoutes').LearningDemo[];
+  topicQuestionVersions?: import('./topicEngine').TopicQuestionVersion[];
+  topicTestVersions?: import('./topicEngine').TopicTestVersion[];
   topicImportBatches?: Array<{id:string;institutionId:string;lessonId:string;questions:string[];createdAt:string;undone:boolean}>;
   topicQuestions?: import('./topicEngine').BankQuestion[];
   topicTests?: import('./topicEngine').TopicTest[];

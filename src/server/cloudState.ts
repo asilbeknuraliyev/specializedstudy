@@ -1,3 +1,4 @@
+import {coalescedRead} from './coalescedRead';
 import crypto from 'node:crypto';
 import { gzipSync, gunzipSync } from 'node:zlib';
 import { getFirestore } from 'firebase-admin/firestore';
@@ -46,7 +47,7 @@ const chunkCache=new Map<string,string>();
 let cachedBytes=0;
 function remember(id:string,data:string){if(chunkCache.has(id))return;chunkCache.set(id,data);cachedBytes+=data.length;while(cachedBytes>32*1024*1024){const key=chunkCache.keys().next().value!;cachedBytes-=chunkCache.get(key)!.length;chunkCache.delete(key);}}
 function database(){return getFirestore(getFirebaseAdminApp(),loadFirebaseAppletConfig().firestoreDatabaseId);}
-export async function readCloudState():Promise<{state:PersistentDatabaseState;revision:string}> {
+async function readCloudStateOnce():Promise<{state:PersistentDatabaseState;revision:string}> {
  const db=database();const head=await db.doc(`${ROOT}/current`).get();
  if(!head.exists)throw Error('Cloud state has not been migrated');
  const manifest=head.data()!;
@@ -58,10 +59,11 @@ export async function readCloudState():Promise<{state:PersistentDatabaseState;re
  const missing=[...new Set<string>(manifest.chunks)].filter(id=>!contents.has(id));
  if(missing.length){const docs=await db.getAll(...missing.map(id=>db.doc(`${ROOT}/chunks/items/${id}`)));docs.forEach((d,i)=>{if(!d.exists)throw Error('Snapshot incomplete');contents.set(missing[i],d.data()!.data);remember(missing[i],d.data()!.data);});}
  const state=decodeState(manifest.chunks.map((id:string)=>({id,data:contents.get(id)!})),manifest.digest);
- state.topicImportBatches||=[];state.topicQuestions||=[];state.topicTests||=[];state.topicSessions||=[];state.topicReviews||=[];
+ state.topicWriteOperations||=[];state.learningDemos||=[];state.topicQuestionVersions||=[];state.topicTestVersions||=[];state.topicImportBatches||=[];state.topicQuestions||=[];state.topicTests||=[];state.topicSessions||=[];state.topicReviews||=[];
  cache={revision:manifest.revision,serialized:JSON.stringify(state),chunks:manifest.chunks};
  return {state,revision:manifest.revision};
 }
+export const readCloudState=coalescedRead(readCloudStateOnce);
 export async function writeCloudState(state:PersistentDatabaseState,expectedRevision:string|null,baseState?:string,retry=0):Promise<string> {
  const db=database();const encoded=encodeState(state);const revision=crypto.randomUUID();
  const previous=cache?.revision===expectedRevision?cache.chunks:[];

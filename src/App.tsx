@@ -50,6 +50,8 @@ const ContentCenter=lazy(()=>import('./components/ContentCenter').then(m=>({defa
 const StudentTaskHub=lazy(()=>import('./components/StudentHome').then(m=>({default:m.StudentTaskHub})));
 const AccountsCenter=lazy(()=>import('./components/AccountsCenter').then(m=>({default:m.AccountsCenter})));
 const AccountSecurity=lazy(()=>import('./components/AccountsCenter').then(m=>({default:m.AccountSecurity})));
+const LearningDemoCenter=lazy(()=>import('./components/LearningDemoCenter').then(m=>({default:m.LearningDemoCenter})));
+const TopicGradingCenter=lazy(()=>import('./components/TopicGradingCenter').then(m=>({default:m.TopicGradingCenter})));
 const TopicBankCenter=lazy(()=>import('./components/TopicBankCenter').then(m=>({default:m.TopicBankCenter})));
 const TopicTestsPage=lazy(()=>import('./components/TopicStudyPages').then(m=>({default:m.TopicTestsPage})));
 const TopicSessionPage=lazy(()=>import('./components/TopicStudyPages').then(m=>({default:m.TopicSessionPage})));
@@ -85,7 +87,7 @@ export default function App() {
           <Route path="/privacy" element={<PrivacyPage />} />
           <Route path="/terms" element={<TermsPage />} />
 
-          <Route path="/admin/topic-bank" element={<ProtectedRoute allowedRole="admin"><TopicBankCenter/></ProtectedRoute>}/><Route path="/student/topic-tests" element={<ProtectedRoute allowedRole="student"><TopicTestsPage/></ProtectedRoute>}/><Route path="/student/topic-session/:id" element={<ProtectedRoute allowedRole="student"><TopicSessionPage/></ProtectedRoute>}/><Route path="/student/review" element={<ProtectedRoute allowedRole="student"><ReviewNotebook/></ProtectedRoute>}/>{/* Student Routes */}
+          <Route path="/admin/learning-demo" element={<ProtectedRoute allowedRole="admin"><LearningDemoCenter/></ProtectedRoute>}/><Route path="/admin/topic-review" element={<ProtectedRoute allowedRole="admin"><TopicGradingCenter/></ProtectedRoute>}/><Route path="/teacher/topic-review" element={<ProtectedRoute allowedRole="teacher"><TopicGradingCenter/></ProtectedRoute>}/><Route path="/teacher/topic-bank" element={<ProtectedRoute allowedRole="teacher"><TopicBankCenter/></ProtectedRoute>}/><Route path="/admin/topic-bank" element={<ProtectedRoute allowedRole="admin"><TopicBankCenter/></ProtectedRoute>}/><Route path="/student/topic-tests" element={<ProtectedRoute allowedRole="student"><TopicTestsPage/></ProtectedRoute>}/><Route path="/student/topic-session/:id" element={<ProtectedRoute allowedRole="student"><TopicSessionPage/></ProtectedRoute>}/><Route path="/student/review" element={<ProtectedRoute allowedRole="student"><ReviewNotebook/></ProtectedRoute>}/>{/* Student Routes */}
           <Route path="/admin/demo" element={<ProtectedRoute allowedRole="admin"><DemoPanel/></ProtectedRoute>}/>
           <Route path="/teacher/demo" element={<ProtectedRoute allowedRole="teacher"><DemoPanel/></ProtectedRoute>}/>
           <Route path="/student/demo" element={<ProtectedRoute allowedRole="student"><DemoPanel/></ProtectedRoute>}/>

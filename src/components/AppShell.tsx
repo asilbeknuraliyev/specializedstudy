@@ -155,7 +155,7 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
         { to: '/admin/work-plans', label: 'Ish rejalari', icon: FileSpreadsheet },
         { to: '/admin/lessons', label: 'Darslar', icon: BookOpen },
         { to: '/admin/curriculum-map', label: "O'quv xaritasi", icon: Compass },
-        {to:'/admin/topic-bank',label:'Mavzu testlari',icon:ClipboardCheck},
+        {to:'/admin/learning-demo',label:'O‘quv tsikli DEMO',icon:ClipboardCheck},{to:'/admin/topic-bank',label:'Mavzu testlari',icon:ClipboardCheck},{to:'/admin/topic-review',label:'Mavzu yozma tekshiruv',icon:FileText},
         { to: '/admin/assessments', label: 'Testlar', icon: ClipboardCheck },
         { to: '/admin/results', label: 'Natijalar', icon: BarChart3 },
         { to: '/admin/reports', label: 'Hisobotlar', icon: FileSpreadsheet },
@@ -163,7 +163,7 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
         { to: '/admin/support-plans', label: 'Yordam rejalari', icon: HeartHandshake },
         { to: '/admin/settings', label: 'Sozlamalar', icon: Settings },
       ]
-    : currentUser.role==='teacher'?[{to:'/teacher/dashboard',label:'Mening sinflarim',icon:Users,end:true},{to:'/teacher/demo',label:'DEMO tekshiruv',icon:ClipboardCheck}]:[
+    : currentUser.role==='teacher'?[{to:'/teacher/dashboard',label:'Mening sinflarim',icon:Users,end:true},{to:'/teacher/topic-bank',label:'Mavzu testlari',icon:ClipboardCheck},{to:'/teacher/topic-review',label:'Yozma tekshiruv',icon:FileText},{to:'/teacher/demo',label:'DEMO tekshiruv',icon:ClipboardCheck}]:[
         {to:'/student/dashboard',label:'Bosh sahifa',icon:LayoutDashboard,end:true},
         {to:'/student/lessons',label:'Fanlar',icon:BookOpen},
         {to:'/student/timetable',label:'Jadval',icon:Calendar},

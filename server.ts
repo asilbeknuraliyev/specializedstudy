@@ -2,6 +2,7 @@ import {registerDemoRoutes} from './src/server/demoRoutes';
 import {scopeInstitutionResponse} from './src/server/institutionView';
 import {cookieToken,clearSessionCookie,localSessionResponse} from './src/server/sessionCookies';
 import {registerAccountRoutes} from './src/server/accountRoutes';
+import {registerLearningDemoRoutes} from './src/server/learningDemoRoutes';
 import {registerTopicRoutes} from './src/server/topicRoutes';
 import {canonicalProduction} from './src/server/canonicalOrigin';
 import nodeCrypto from 'node:crypto';
@@ -516,6 +517,7 @@ async function startServer() {
 
   app.use('/api',(req,res,next)=>{const c=authenticateRequest(req);if(c?.user.mustChangePassword&&!['/state','/account/password','/auth/logout','/auth/login','/auth/firebase-sync'].includes(req.path))return res.status(403).json({error:'Davom etish uchun parolni o‘zgartiring.',code:'PASSWORD_CHANGE_REQUIRED'});next();});
   registerTopicRoutes(app,{authenticate:authenticateRequest,save:saveDbState});
+  registerLearningDemoRoutes(app,{authenticate:authenticateRequest,save:saveDbState,hash:hashPassword,revoke:(uid:string)=>revokeAllUserSessions(uid)});
   registerAccountRoutes(app,{authenticate:authenticateRequest,save:saveDbState,hash:hashPassword,verify:verifyPassword,revoke:revokeAllUserSessions,issue:issueSessionToken});
   registerTeachingRoutes(app,{authenticate:authenticateRequest,save:saveDbState,hash:hashPassword,revoke:revokeAllUserSessions});
   registerDemoRoutes(app,{authenticate:authenticateRequest,save:saveDbState,hash:hashPassword,revoke:revokeAllUserSessions});

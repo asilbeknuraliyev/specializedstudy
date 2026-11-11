@@ -7,7 +7,9 @@ export function createCloudStateMiddleware(store = { read: readCloudState, write
 return async (req,res,next) => {
  if(process.env.PERSISTENCE_DRIVER!=='firestore'||!req.path.startsWith('/api/')||req.path==='/api/health')return next();
  try {
+   const began=performance.now();
    const snapshot=await store.read();
+   const readMs=performance.now()-began;
    const baseState=JSON.stringify(snapshot.state);
    const context={...snapshot,dirty:false,afterCommit:[] as Array<()=>void>};
    const json=res.json.bind(res);
@@ -17,8 +19,10 @@ return async (req,res,next) => {
      sending=true;
      void (async()=>{
        try {
+         const commitBegan=performance.now();
          if(context.dirty) await store.write(context.state,context.revision,baseState);
          for(const action of context.afterCommit)action();
+         res.setHeader('Server-Timing',`state;dur=${readMs.toFixed(1)}, commit;dur=${(performance.now()-commitBegan).toFixed(1)}`);
          json(sessionBody(res,body));
        } catch(error) {
          res.status(error instanceof StateConflictError?409:503);

@@ -1,0 +1,16 @@
+import React,{useEffect,useState} from 'react';
+import {useExamApi} from '../utils/useExamApi';
+import {Button,Card,Drawer,Input} from './DesignSystem';
+import {RichQuestionText} from './QuestionInput';
+export function TopicGradingCenter(){
+ const api=useExamApi(),[page,setPage]=useState(0),[data,setData]=useState<any>(),[selected,setSelected]=useState<any>(),[error,setError]=useState(''),[busy,setBusy]=useState(false),[forms,setForms]=useState<Record<string,{earned:string;comment:string}>>({});
+ const load=async()=>setData(await api('/api/topic-grading?page='+page));
+ useEffect(()=>{void load().catch(e=>setError(e.message));},[api,page]);
+ return <main className="mx-auto max-w-4xl space-y-5"><h1 className="text-3xl font-bold">Mavzu yozma ishlarini tekshirish</h1><p className="text-sm text-slate-500">Faqat biriktirilgan sinf va faningiz. Bu mashq bo‘yicha fikr-mulohaza; rasmiy elektron jurnal bahosi emas.</p>
+  {error&&<p role="alert" className="text-rose-700">{error}</p>}{!data?<div className="ss-surface h-32 animate-pulse" role="status" aria-label="Yozma ishlar yuklanmoqda"/>:!data.total?<Card>Hozircha tekshiruv kutayotgan mavzu javobi yo‘q.</Card>:<><p className="text-sm">{data.total} ta ish tekshiruvda</p>{data.rows.map((r:any)=><Card key={r.id}><h2 className="font-semibold">{r.title}</h2><p className="mt-2 text-sm">{r.student?.displayName} · {r.student?.classCode?.toUpperCase()} · {r.subject}</p><Button className="mt-4" onClick={()=>{setSelected(r);setForms({});}}>Yozma ishni ochish</Button></Card>)}<div className="flex justify-between"><Button disabled={!page} onClick={()=>setPage(p=>p-1)}>Oldingi</Button><span>{page+1}/{Math.ceil(data.total/20)}</span><Button disabled={(page+1)*20>=data.total} onClick={()=>setPage(p=>p+1)}>Keyingi</Button></div></>}
+  {selected&&<Drawer title="Yozma javob va fikr-mulohaza" onClose={()=>{if(!busy)setSelected(undefined);}}><h2 className="mb-4 font-semibold">{selected.student?.displayName} · {selected.title}</h2>{selected.questions.filter((q:any)=>q.result?.pending).map((q:any)=>{
+   const f=forms[q.id]||{earned:'',comment:''};const update=(part:any)=>setForms(a=>({...a,[q.id]:{...f,...part}}));
+   return <Card key={q.id} className="mb-5"><RichQuestionText text={q.prompt}/><p className="mt-4 whitespace-pre-wrap rounded-xl bg-slate-50 p-4 text-sm dark:bg-slate-800">{q.answer||'Javob yozilmagan.'}</p><label className="mt-4 block text-sm">Ball (0–{q.points})<Input aria-label="Yozma javob balli" type="number" min="0" max={q.points} step="0.5" value={f.earned} onChange={e=>update({earned:e.target.value})}/></label><label className="mt-4 block text-sm">Ustoz izohi<textarea aria-label="Ustoz izohi" className="ss-field mt-2 min-h-28" value={f.comment} onChange={e=>update({comment:e.target.value})}/></label><Button className="mt-4" busy={busy} disabled={f.earned===''||f.comment.trim().length<3} onClick={async()=>{if(busy)return;setBusy(true);setError('');try{const d=await api('/api/topic-grading/'+selected.id,'POST',{questionId:q.id,earned:Number(f.earned),comment:f.comment,revision:selected.revision,operationId:crypto.randomUUID()});setSelected(d.row.pending?d.row:undefined);await load();}catch(e){setError((e as Error).message);}finally{setBusy(false);}}}>Ball va izohni saqlash</Button></Card>;
+  })}</Drawer>}
+ </main>;
+}
