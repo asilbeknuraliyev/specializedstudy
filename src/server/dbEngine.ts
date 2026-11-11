@@ -87,6 +87,12 @@ import {
 } from '../utils/academicOsEngine';
 
 export interface PersistentDatabaseState {
+  mistakeRecords?: import('./spacedReviewEngine').MistakeRecord[];
+  spacedReviewQueue?: import('./spacedReviewEngine').ReviewQueueItem[];
+  spacedReviewSessions?: import('./spacedReviewEngine').ReviewSession[];
+  spacedReviewAnswers?: import('./spacedReviewEngine').ReviewAnswer[];
+  reviewDailyUsage?: import('./spacedReviewEngine').ReviewDailyUsage[];
+  studentTopicProgress?: import('./spacedReviewEngine').StudentTopicProgress[];
   topicWriteOperations?: Array<{id:string;schoolId:string;actorUid:string;kind:string;signature:string;refs:Array<{id:string;version:number}>;createdAt:string}>;
   learningDemos?: import('./learningDemoRoutes').LearningDemo[];
   topicQuestionVersions?: import('./topicEngine').TopicQuestionVersion[];

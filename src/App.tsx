@@ -55,7 +55,10 @@ const TopicGradingCenter=lazy(()=>import('./components/TopicGradingCenter').then
 const TopicBankCenter=lazy(()=>import('./components/TopicBankCenter').then(m=>({default:m.TopicBankCenter})));
 const TopicTestsPage=lazy(()=>import('./components/TopicStudyPages').then(m=>({default:m.TopicTestsPage})));
 const TopicSessionPage=lazy(()=>import('./components/TopicStudyPages').then(m=>({default:m.TopicSessionPage})));
-const ReviewNotebook=lazy(()=>import('./components/TopicStudyPages').then(m=>({default:m.ReviewNotebook})));
+const ReviewDashboard=lazy(()=>import('./components/SpacedReviewPages').then(m=>({default:m.ReviewDashboard})));
+const MistakeNotebook=lazy(()=>import('./components/SpacedReviewPages').then(m=>({default:m.MistakeNotebook})));
+const TopicProgressMap=lazy(()=>import('./components/SpacedReviewPages').then(m=>({default:m.TopicProgressMap})));
+const ReviewSessionPage=lazy(()=>import('./components/SpacedReviewPages').then(m=>({default:m.ReviewSessionPage})));
 const HelpPage=lazy(()=>import('./components/HelpPages').then(m=>({default:m.HelpPage})));
 const MissingPage=lazy(()=>import('./components/HelpPages').then(m=>({default:m.MissingPage})));
 const TeachingPanel = lazy(() => import('./components/TeachingPanel').then(m=>({default:m.TeachingPanel})));
@@ -87,7 +90,7 @@ export default function App() {
           <Route path="/privacy" element={<PrivacyPage />} />
           <Route path="/terms" element={<TermsPage />} />
 
-          <Route path="/admin/learning-demo" element={<ProtectedRoute allowedRole="admin"><LearningDemoCenter/></ProtectedRoute>}/><Route path="/admin/topic-review" element={<ProtectedRoute allowedRole="admin"><TopicGradingCenter/></ProtectedRoute>}/><Route path="/teacher/topic-review" element={<ProtectedRoute allowedRole="teacher"><TopicGradingCenter/></ProtectedRoute>}/><Route path="/teacher/topic-bank" element={<ProtectedRoute allowedRole="teacher"><TopicBankCenter/></ProtectedRoute>}/><Route path="/admin/topic-bank" element={<ProtectedRoute allowedRole="admin"><TopicBankCenter/></ProtectedRoute>}/><Route path="/student/topic-tests" element={<ProtectedRoute allowedRole="student"><TopicTestsPage/></ProtectedRoute>}/><Route path="/student/topic-session/:id" element={<ProtectedRoute allowedRole="student"><TopicSessionPage/></ProtectedRoute>}/><Route path="/student/review" element={<ProtectedRoute allowedRole="student"><ReviewNotebook/></ProtectedRoute>}/>{/* Student Routes */}
+          <Route path="/admin/learning-demo" element={<ProtectedRoute allowedRole="admin"><LearningDemoCenter/></ProtectedRoute>}/><Route path="/admin/topic-review" element={<ProtectedRoute allowedRole="admin"><TopicGradingCenter/></ProtectedRoute>}/><Route path="/teacher/topic-review" element={<ProtectedRoute allowedRole="teacher"><TopicGradingCenter/></ProtectedRoute>}/><Route path="/teacher/topic-bank" element={<ProtectedRoute allowedRole="teacher"><TopicBankCenter/></ProtectedRoute>}/><Route path="/admin/topic-bank" element={<ProtectedRoute allowedRole="admin"><TopicBankCenter/></ProtectedRoute>}/><Route path="/student/topic-tests" element={<ProtectedRoute allowedRole="student"><TopicTestsPage/></ProtectedRoute>}/><Route path="/student/topic-session/:id" element={<ProtectedRoute allowedRole="student"><TopicSessionPage/></ProtectedRoute>}/><Route path="/student/review" element={<ProtectedRoute allowedRole="student"><ReviewDashboard/></ProtectedRoute>}/><Route path="/student/mistakes" element={<ProtectedRoute allowedRole="student"><MistakeNotebook/></ProtectedRoute>}/><Route path="/student/topic-progress" element={<ProtectedRoute allowedRole="student"><TopicProgressMap/></ProtectedRoute>}/><Route path="/student/review-session/:id" element={<ProtectedRoute allowedRole="student"><ReviewSessionPage/></ProtectedRoute>}/>{/* Student Routes */}
           <Route path="/admin/demo" element={<ProtectedRoute allowedRole="admin"><DemoPanel/></ProtectedRoute>}/>
           <Route path="/teacher/demo" element={<ProtectedRoute allowedRole="teacher"><DemoPanel/></ProtectedRoute>}/>
           <Route path="/student/demo" element={<ProtectedRoute allowedRole="student"><DemoPanel/></ProtectedRoute>}/>

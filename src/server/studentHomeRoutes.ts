@@ -1,3 +1,4 @@
+import {reviewSummary} from './spacedReviewEngine';
 import type {Express} from 'express';
 import type {PersistentDatabaseState} from './dbEngine';
 import type {UserProfile,LessonItem} from '../types';
@@ -19,7 +20,7 @@ export function studentHomeData(db:PersistentDatabaseState,user:UserProfile,now=
  tasks.sort((a,b)=>a.due.localeCompare(b.due));
  const last=(db.studentLastLessons||[]).find(r=>r.studentId===user.uid&&r.institutionId===user.institutionId);
  const lesson=last&&db.lessons.find(l=>l.id===last.lessonId&&ownLesson(user,l,inst?.academicYear||''));
- return {date,weekday,timetable,tasks,lastLesson:lesson?{id:lesson.id,title:lesson.topicTitle||lesson.title,subject:lesson.subjectName,quarter:lesson.quarter}:null};
+ return {date,weekday,timetable,tasks,learning:reviewSummary(db,user,now),lastLesson:lesson?{id:lesson.id,title:lesson.topicTitle||lesson.title,subject:lesson.subjectName,quarter:lesson.quarter}:null};
 }
 export function registerStudentHomeRoutes(app:Express,deps:{authenticate:(req:any)=>{user:UserProfile;db:PersistentDatabaseState;env:'prod'|'test'}|null;save:(env:'prod'|'test',db:PersistentDatabaseState)=>void}){
  const student=(req:any,res:any)=>{const c=deps.authenticate(req);if(!c){res.status(401).json({error:'Hisobga kiring.'});return null;}if(c.user.role!=='student'||c.user.status!=='active'){res.status(403).json({error:'Faqat faol o‘quvchi.'});return null;}return c;};

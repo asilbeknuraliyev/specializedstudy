@@ -43,7 +43,7 @@ export type TopicSession={
  id:string;institutionId:string;schoolId?:string;studentId:string;classId?:string;testId:string;version:number;lessonId?:string;
  title?:string;subject?:string;release?:string;trackExits?:boolean;passPercent?:number;confidenceEnabled?:boolean;
  questions:BankQuestion[];answers:Record<string,string>;flags:string[];revision:number;startedAt:string;deadlineAt?:string;
- submittedAt?:string;score?:number;maxScore:number;pending:boolean;results?:TopicResult[];
+ submittedAt?:string;score?:number;maxScore:number;pending:boolean;results?:TopicResult[];reviewRecordedAt?:string;
  confidence?:Record<string,Confidence>;hintsUsed?:Record<string,number>;timeSpentMs?:Record<string,number>;
  operations?:string[];events:Array<{id:string;type:string;at:string}>;
 };

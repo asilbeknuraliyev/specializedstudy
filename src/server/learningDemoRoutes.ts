@@ -50,6 +50,7 @@ export function registerLearningDemoRoutes(app:Express,deps:any){
   c.db.lessons=c.db.lessons.filter((l:any)=>!lessons.has(l.id));c.db.topicQuestions=c.db.topicQuestions.filter((q:any)=>!lessons.has(q.lessonId));c.db.topicTests=c.db.topicTests.filter((t:any)=>!lessons.has(t.lessonId));
   c.db.topicQuestionVersions=c.db.topicQuestionVersions.filter((v:any)=>!questions.has(v.questionId)&&!lessons.has(v.question.lessonId));c.db.topicTestVersions=c.db.topicTestVersions.filter((v:any)=>!tests.has(v.testId));
   c.db.topicSessions=(c.db.topicSessions||[]).filter((s:any)=>!users.has(s.studentId)&&!tests.has(s.testId));c.db.topicReviews=(c.db.topicReviews||[]).filter((r:any)=>!users.has(r.studentId));c.db.topicImportBatches=(c.db.topicImportBatches||[]).filter((b:any)=>!lessons.has(b.lessonId));
+  for(const name of ['mistakeRecords','spacedReviewQueue','spacedReviewSessions','spacedReviewAnswers','reviewDailyUsage','studentTopicProgress'])c.db[name]=(c.db[name]||[]).filter((r:any)=>!users.has(r.studentId));
   c.db.topicWriteOperations=(c.db.topicWriteOperations||[]).filter((o:any)=>!users.has(o.actorUid)&&!o.refs.some((r:any)=>questions.has(r.id)||tests.has(r.id)));
   c.db.auditLogs=c.db.auditLogs.filter((a:any)=>!users.has(a.actorUid)&&!lessons.has(a.recordId)&&!questions.has(a.recordId)&&!tests.has(a.recordId));
   c.db.learningDemos=c.db.learningDemos.filter((r:any)=>r.id!==d.id);deps.save(c.env,c.db);res.json({deleted:true});

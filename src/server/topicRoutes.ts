@@ -1,3 +1,5 @@
+import {recordTopicLearning} from './spacedReviewEngine';
+import {registerSpacedReviewRoutes} from './spacedReviewRoutes';
 import crypto from 'node:crypto';
 import type {Express} from 'express';
 import {z} from 'zod';
@@ -33,6 +35,7 @@ export function registerTopicRoutes(app:Express,deps:any){
  const questionVersion=(c:any,q:any)=>{c.db.topicQuestionVersions||=[];if(!c.db.topicQuestionVersions.some((v:any)=>v.questionId===q.id&&v.revision===q.revision))c.db.topicQuestionVersions.push({id:q.id+':'+q.revision,schoolId:c.user.institutionId,questionId:q.id,revision:q.revision,question:structuredClone(q),createdAt:new Date().toISOString()});};
  registerTopicImports(app,deps,{access,ownLesson:(c:any,id:string)=>{const l=ownLesson(c,id);return canAuthor(c,l)?l:undefined;},audit,questionVersion});
  registerTopicGrading(app,deps,{access,ownLesson,canAuthor,audit});
+ registerSpacedReviewRoutes(app,deps);
 
  app.get('/api/topic-bank/:lesson',(req,res)=>{
   const c=author(req,res);if(!c)return;
@@ -120,12 +123,7 @@ export function registerTopicRoutes(app:Express,deps:any){
   const s:TopicSession=c.s;if(s.submittedAt)return;
   s.results=s.questions.map(q=>({id:q.id,earned:gradeQuestion(q,s.answers[q.id]||''),points:q.points,explanation:q.explanation,pending:q.kind==='written'}));
   s.score=s.results.reduce((n,r)=>n+r.earned,0);s.pending=s.results.some(r=>r.pending);s.submittedAt=new Date().toISOString();
-  c.db.topicReviews||=[];
-  for(const q of s.questions)if(q.kind!=='written'&&gradeQuestion(q,s.answers[q.id]||'')<q.points){
-   const id=s.studentId+':'+q.id,old=c.db.topicReviews.find((r:any)=>r.id===id);
-   const record={id,institutionId:s.institutionId,schoolId:s.institutionId,studentId:s.studentId,question:structuredClone(q),answer:s.answers[q.id]||'',dueAt:new Date().toISOString(),streak:0,status:'due'};
-   if(old)Object.assign(old,record);else c.db.topicReviews.push(record);
-  }
+  recordTopicLearning(c.db,c.user,s,new Date());
  };
  app.post('/api/topic-tests/:id/start',(req,res)=>{
   const c=access(req,res);if(!c)return;
@@ -174,7 +172,4 @@ export function registerTopicRoutes(app:Express,deps:any){
   }
   res.json({session:visible(c),hintPolicy:'Maslahat ballni kamaytirmaydi; undan foydalanish alohida qayd etiladi.'});
  });
- // Existing notebook remains compatible; its new scheduling rules are stage (b).
- app.get('/api/topic-review',(req,res)=>{const c=access(req,res);if(!c)return;if(c.user.role!=='student')return res.status(403).json({error:'Faqat o‘quvchi.'});res.json({records:(c.db.topicReviews||[]).filter((r:any)=>r.studentId===c.user.uid&&r.institutionId===c.user.institutionId).map(({question,...r}:any)=>({...r,question:publicQuestion(question)}))});});
- app.post('/api/topic-review/:id',(req,res)=>{const c=access(req,res);if(!c)return;const r=c.db.topicReviews?.find((r:any)=>r.id===req.params.id&&r.studentId===c.user.uid&&r.institutionId===c.user.institutionId);const p=z.object({answer:z.string().max(8000),operationId:z.uuid()}).safeParse(req.body);if(!r||c.user.role!=='student')return res.status(403).json({error:'Yozuvga ruxsat yo‘q.'});if(!p.success)return res.status(400).json({error:'Javobni tekshiring.'});if(r.lastOperation!==p.data.operationId){const correct=gradeQuestion(r.question,p.data.answer)===r.question.points;if(Date.parse(r.dueAt)<=Date.now()){r.streak=correct?r.streak+1:0;r.status=r.streak>=3?'mastered':'due';r.dueAt=new Date(Date.now()+[1,3,7,14][Math.min(3,Math.max(0,r.streak-1))]*86400000).toISOString();}r.lastOperation=p.data.operationId;r.lastCorrect=correct;r.answer=p.data.answer;save(c);}res.json({correct:r.lastCorrect,explanation:r.question.explanation,dueAt:r.dueAt,status:r.status});});
 }
