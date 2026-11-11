@@ -277,7 +277,7 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
   return (
     <div className="min-h-screen flex bg-[#F8FAFC] dark:bg-[#0B0F17] text-slate-900 dark:text-slate-100 transition-colors overflow-x-clip">
       {/* Desktop Sidebar — Clean Linear/Notion style */}
-      <aside className="w-60 shrink-0 border-r border-slate-200/80 dark:border-slate-800/80 bg-white dark:bg-[#0F1623] hidden lg:flex flex-col sticky top-0 h-dvh self-start">
+      <aside data-shell-sidebar className="w-60 shrink-0 border-r border-slate-200/80 dark:border-slate-800/80 bg-white dark:bg-[#0F1623] hidden lg:flex flex-col sticky top-0 h-dvh self-start">
         <div className="flex min-h-0 flex-1 flex-col">
           <div className="h-14 shrink-0 px-5 flex items-center gap-2.5 border-b border-slate-200/70 dark:border-slate-800/70">
             <div className="w-7 h-7 rounded-md bg-blue-600 flex items-center justify-center text-white font-bold text-xs tracking-tight shadow-xs">
@@ -302,7 +302,7 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
             className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs"
             onClick={() => setMobileMenuOpen(false)}
           />
-          <aside className="relative w-72 max-w-[84vw] bg-white dark:bg-[#0F1623] h-full flex flex-col justify-between z-10 shadow-xl">
+          <aside data-shell-sidebar className="relative w-72 max-w-[84vw] bg-white dark:bg-[#0F1623] h-full flex flex-col justify-between z-10 shadow-xl">
             <div>
               <div className="h-14 px-4 flex items-center justify-between border-b border-slate-200 dark:border-slate-800">
                 <div className="flex items-center gap-2 min-w-0">
@@ -333,7 +333,7 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col min-w-0">
         {/* Minimalist Top Header — Displays ONLY current section + Quick Command Search */}
-        <header className="h-14 border-b border-slate-200/80 dark:border-slate-800/80 bg-white/95 dark:bg-[#0F1623]/95 backdrop-blur-md px-3 sm:px-4 lg:px-6 flex items-center justify-between gap-2 sticky top-0 z-30">
+        <header data-shell-header className="h-14 border-b border-slate-200/80 dark:border-slate-800/80 bg-white/95 dark:bg-[#0F1623]/95 backdrop-blur-md px-3 sm:px-4 lg:px-6 flex items-center justify-between gap-2 sticky top-0 z-30">
           <div className="flex items-center gap-2 min-w-0">
             <button
               onClick={() => setMobileMenuOpen(true)}
