@@ -1,0 +1,14 @@
+import test from 'node:test';import assert from 'node:assert/strict';import crypto from 'node:crypto';import express from 'express';import {registerLearningDemoRoutes} from '../../server/learningDemoRoutes';
+test('preview DEMO creates reviewed content, returns passwords once and deletes only its own records',async()=>{
+ const previous=process.env.PERSISTENCE_NAMESPACE;process.env.PERSISTENCE_NAMESPACE='_specialized_preview_cycle_a_test';
+ const admin={uid:'owner',role:'admin',institutionId:'s',status:'active',platformAdmin:true,emailVerified:true};
+ const db:any={users:[admin,{uid:'preserve',institutionId:'s',displayName:'Existing fixture'}],institutions:[{id:'s',academicYear:'2026-2027'}],classes:[{id:'c',code:'8a2',institutionId:'s'},{id:'foreign',code:'7a1',institutionId:'s'}],lessons:[{id:'preserve',institutionId:'s',title:'Existing fixture'}],passwordHashes:{},auditLogs:[]};
+ const app=express();app.use(express.json());registerLearningDemoRoutes(app,{authenticate:()=>({user:admin,db,env:'test'}),hash:(s:string)=>crypto.createHash('sha256').update(s).digest('hex'),revoke:()=>{},save:()=>{}});
+ const server=app.listen(0,'127.0.0.1');await new Promise<void>(r=>server.once('listening',r));const call=async(method='GET')=>{const r=await fetch(`http://127.0.0.1:${(server.address() as any).port}/api/learning-demo`,{method});return{status:r.status,data:await r.json()};};
+ try{
+  const created=await call('POST');assert.equal(created.status,201);assert.equal(created.data.demo.questions,72);assert.equal(created.data.accounts.length,5);assert.equal(db.topicQuestions.length,72);assert.equal(db.topicTestVersions.length,6);assert.ok(db.topicQuestions.every((q:any)=>q.schoolId==='s'&&q.approval.revision===1&&q.explanation));
+  assert.equal((await call('POST')).status,409);const view=await call();assert.equal(view.data.accounts,undefined);for(const a of created.data.accounts)assert.ok(!JSON.stringify(db).includes(a.password));
+  const deleted=await call('DELETE');assert.equal(deleted.status,200);assert.deepEqual(db.users.map((u:any)=>u.uid),['owner','preserve']);assert.deepEqual(db.lessons.map((l:any)=>l.id),['preserve']);assert.equal(db.topicQuestions.length,0);assert.equal(db.topicTests.length,0);assert.equal(db.topicQuestionVersions.length,0);assert.equal(db.topicTestVersions.length,0);
+  process.env.PERSISTENCE_NAMESPACE='_specialized_runtime';assert.equal((await call()).status,404);
+ }finally{if(previous===undefined)delete process.env.PERSISTENCE_NAMESPACE;else process.env.PERSISTENCE_NAMESPACE=previous;server.closeAllConnections();await new Promise<void>(r=>server.close(()=>r()));}
+});

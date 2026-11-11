@@ -155,7 +155,8 @@ export function registerTopicRoutes(app:Express,deps:any){
   for(const [id,value]of Object.entries(d.confidence||{}))if(!s.answers[id])s.confidence[id]=value;
   if(s.confidenceEnabled&&Object.entries(d.answers).some(([id,a])=>a.trim()&&!s.confidence?.[id]))return res.status(400).json({error:'Javobdan oldin ishonch darajasini tanlang.'});
   const elapsed=Math.max(0,Date.now()-Date.parse(s.startedAt));
-  for(const [id,value]of Object.entries(d.timeSpentMs||{}))s.timeSpentMs[id]=Math.max(s.timeSpentMs[id]||0,Math.min(elapsed,value));
+  let available=Math.max(0,elapsed-Object.values(s.timeSpentMs).reduce((n,v)=>n+v,0));
+  for(const [id,value]of Object.entries(d.timeSpentMs||{})){const old=s.timeSpentMs[id]||0,increment=Math.min(available,Math.max(0,value-old));s.timeSpentMs[id]=old+increment;available-=increment;}
   s.answers=d.answers;s.flags=d.flags;s.revision++;
   if((s.trackExits??c.test.trackExits)&&d.event&&!s.events.some(e=>e.id===d.event!.id))s.events=[...s.events,{...d.event,at:new Date().toISOString()}].slice(-500);
   if(d.operationId)s.operations=[...(s.operations||[]),d.operationId].slice(-100);
