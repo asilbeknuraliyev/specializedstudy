@@ -4,8 +4,9 @@ import {useExamApi} from '../utils/useExamApi';
 import {useTopicMutation} from '../utils/useTopicMutation';
 import {Button,Card,Drawer,Select} from './DesignSystem';
 import {RichQuestionText} from './QuestionInput';
+import {formatStudentDate} from '../utils/studentHomeDate';
 export {ReviewSessionPage} from './SpacedReviewSession';
-export const formatReviewDate=(date?:string)=>date?new Intl.DateTimeFormat('uz-UZ',{timeZone:'Asia/Tashkent',day:'numeric',month:'long'}).format(new Date(date)):'—';
+export const formatReviewDate=(date?:string)=>date?formatStudentDate(new Date(date)):'—';
 const stateNames:Record<string,string>={new:'Yangi',working:'Qayta ishlanmoqda',mastered:'O‘zlashtirildi'};
 function LearningLinks(){return <nav className="flex flex-wrap gap-3 text-sm"><Link className="ss-secondary" to="/student/review">Takrorlash</Link><Link className="ss-secondary" to="/student/mistakes">Xatolar daftari</Link><Link className="ss-secondary" to="/student/topic-progress">Mening o‘sish xaritam</Link><Link className="ss-secondary" to="/student/topic-tests">Mavzu testlari tarixi</Link></nav>;}
 export function ReviewDashboard(){
