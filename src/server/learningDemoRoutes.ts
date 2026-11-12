@@ -1,8 +1,9 @@
+import {seedLearningDemoAnalysis} from './learningDemoAnalysis';
 import crypto from 'node:crypto';
 import type {Express} from 'express';
 import {runtimeNamespace} from './runtimeScope';
 import {learningDemoTopics,learningDemoQuestions} from './learningDemoContent';
-export type LearningDemo={id:string;schoolId:string;ownerId:string;userIds:string[];lessonIds:string[];createdAt:string};
+export type LearningDemo={id:string;schoolId:string;ownerId:string;userIds:string[];lessonIds:string[];createdAt:string;analysisSeededAt?:string};
 export function registerLearningDemoRoutes(app:Express,deps:any){
  const access=(req:any,res:any)=>{
   if(!runtimeNamespace().startsWith('_specialized_preview_')){res.status(404).json({error:'Bu DEMO faqat preview uchun.'});return;}
@@ -11,7 +12,7 @@ export function registerLearningDemoRoutes(app:Express,deps:any){
   return c;
  };
  const own=(c:any)=>(c.db.learningDemos||[]).find((d:LearningDemo)=>d.ownerId===c.user.uid&&d.schoolId===c.user.institutionId);
- const summary=(d:LearningDemo)=>({id:d.id,topics:d.lessonIds.length,questions:d.lessonIds.length*12,subjects:3,accounts:d.userIds.length});
+ const summary=(d:LearningDemo)=>({id:d.id,topics:d.lessonIds.length,questions:d.lessonIds.length*12,subjects:3,accounts:d.userIds.length,analysisReady:!!d.analysisSeededAt});
  app.get('/api/learning-demo',(req,res)=>{const c=access(req,res);if(!c)return;const d=own(c);res.json({demo:d?summary(d):null});});
  app.post('/api/learning-demo',(req,res)=>{
   const c=access(req,res);if(!c)return;
@@ -37,6 +38,10 @@ export function registerLearningDemoRoutes(app:Express,deps:any){
    return lessonId;
   });
   const demo:LearningDemo={id,schoolId,ownerId:c.user.uid,userIds:accounts.map(a=>a.uid),lessonIds,createdAt:now};c.db.learningDemos||=[];c.db.learningDemos.push(demo);deps.save(c.env,c.db);res.status(201).json({demo:summary(demo),accounts});
+ });
+ app.post('/api/learning-demo/analysis',(req,res)=>{
+  const c=access(req,res);if(!c)return;const d=own(c);if(!d)return res.status(404).json({error:'Avval DEMO yarating.'});
+  try{const seeded=seedLearningDemoAnalysis(c.db,d);if(seeded.created)deps.save(c.env,c.db);res.json({...seeded,demo:summary(d)});}catch(e){res.status(409).json({error:(e as Error).message});}
  });
  app.post('/api/learning-demo/credentials',(req,res)=>{
   const c=access(req,res);if(!c)return;const d=own(c);if(!d)return res.status(404).json({error:'DEMO topilmadi.'});
