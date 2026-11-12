@@ -3,7 +3,7 @@ import {AnalysisCache} from './analysisCache';
 import type {Express} from 'express';
 import {z} from 'zod';
 import {publicQuestion,type TopicSession} from './topicEngine';
-import {schoolDay} from './spacedReviewEngine';
+import {schoolDay,allowedReviewCatalog} from './spacedReviewEngine';
 import {analysisQuestion,cachedAnalysisItems,cohortId,firstAnalysisFacts,inAnalysisRange,itemId,recordTopicAnalysis,type AnalysisCohort,type AnalysisFact,type ItemAnalysis} from './topicAnalysisEngine';
 
 const reportCache=new AnalysisCache<any>();
@@ -26,9 +26,9 @@ export function registerTopicAnalysisRoutes(app:Express,deps:any,guards:any){
  };
  const report=(c:any)=>{
   const fingerprint=crypto.createHash('sha256').update(JSON.stringify([
-   process.env.PERSISTENCE_NAMESPACE,c.env,c.schoolId,c.user.uid,c.admin,c.user.subject,c.user.assignedClassIds,
+   process.env.PERSISTENCE_NAMESPACE,c.env,c.schoolId,c.db.institutions.find((i:any)=>i.id===c.schoolId)?.academicYear,c.user.uid,c.admin,c.user.subject,c.user.assignedClassIds,
    [c.filters.subject,c.filters.classId,c.filters.lesson,c.filters.from,c.filters.to],
-   c.selectedClasses.map((v:any)=>[v.id,v.code]),c.selectedLessons.map((v:any)=>[v.id,v.title,v.topicTitle,v.subjectName,v.subject,v.classId,v.classIds,v.status]),
+   c.selectedClasses.map((v:any)=>[v.id,v.code]),c.selectedLessons.map((v:any)=>[v.id,v.title,v.topicTitle,v.subjectName,v.subject,v.classId,v.classIds,v.status,v.academicYear,v.additionalCurriculumAssignment,v.tTrackVisibilityApproved]),
    (c.db.topicAnalysisCohorts||[]).filter(c.scoped).map((v:any)=>[v.id,v.revision]),
    (c.db.topicAnalysisFacts||[]).filter(c.scoped).map((v:any)=>v.id),
    c.db.users.filter((v:any)=>v.institutionId===c.schoolId&&v.role==='student'&&c.selectedClassIds.has(v.classId)).map((v:any)=>[v.uid,v.displayName,v.classId,v.classCode,v.status]),
@@ -68,8 +68,9 @@ export function registerTopicAnalysisRoutes(app:Express,deps:any,guards:any){
   const roster=db.users.filter((u:any)=>u.role==='student'&&u.status==='active'&&u.institutionId===c.schoolId&&c.selectedClassIds.has(u.classId)&&rosterClassIds.has(u.classId));
   const sessions=(db.topicSessions||[]).filter((s:TopicSession)=>s.institutionId===c.schoolId&&(!s.schoolId||s.schoolId===c.schoolId)&&c.selectedClassIds.has(s.classId)&&c.lessonIds.has(s.lessonId)&&inAnalysisRange(s.submittedAt||s.startedAt,f.from,f.to));
   const students=roster.map((u:any)=>{
+   const currentQuestions=allowedReviewCatalog(db,u);
    const attempts=rangeFacts.filter((a:AnalysisFact)=>a.studentId===u.uid&&a.classId===u.classId).sort((a:AnalysisFact,b:AnalysisFact)=>b.submittedAt.localeCompare(a.submittedAt)),latest=attempts.slice(0,3);
-   return{id:u.uid,displayName:u.displayName,classId:u.classId,classCode:u.classCode||c.selectedClasses.find((cl:any)=>cl.id===u.classId)?.code,submissions:attempts.length,state:attempts.length?'submitted':sessions.some((s:TopicSession)=>s.studentId===u.uid&&!s.submittedAt)?'in_progress':sessions.some((s:TopicSession)=>s.studentId===u.uid&&s.submittedAt)?'history_pending':'not_started',openMistakes:(db.mistakeRecords||[]).filter((m:any)=>m.schoolId===c.schoolId&&m.studentId===u.uid&&m.state!=='mastered'&&c.lessonIds.has(m.lessonId)).length,supportSuggested:latest.length===3&&latest.every((a:AnalysisFact)=>a.autoCorrect/a.autoTotal<0.5),latestAt:attempts[0]?.submittedAt};
+   return{id:u.uid,displayName:u.displayName,classId:u.classId,classCode:u.classCode||c.selectedClasses.find((cl:any)=>cl.id===u.classId)?.code,submissions:attempts.length,state:attempts.length?'submitted':sessions.some((s:TopicSession)=>s.studentId===u.uid&&!s.submittedAt)?'in_progress':sessions.some((s:TopicSession)=>s.studentId===u.uid&&s.submittedAt)?'history_pending':'not_started',openMistakes:(db.mistakeRecords||[]).filter((m:any)=>m.schoolId===c.schoolId&&m.studentId===u.uid&&m.state!=='mastered'&&c.lessonIds.has(m.lessonId)&&currentQuestions.has(m.id)).length,supportSuggested:latest.length===3&&latest.every((a:AnalysisFact)=>a.autoCorrect/a.autoTotal<0.5),latestAt:attempts[0]?.submittedAt};
   }).sort((a:any,b:any)=>a.displayName.localeCompare(b.displayName));
   const pendingWritten=sessions.reduce((n:number,s:TopicSession)=>n+(s.results||[]).filter(r=>r.pending&&s.questions.some(q=>q.id===r.id&&q.kind==='written')).length,0);
   const pendingHistory=sessions.filter((s:TopicSession)=>s.submittedAt&&!db.topicAnalysisFacts?.some((a:AnalysisFact)=>a.id===s.id)&&s.questions.some(q=>q.kind!=='written'&&q.status==='published'&&q.institutionId===c.schoolId&&(!q.schoolId||q.schoolId===c.schoolId)&&q.approval?.revision===q.revision));

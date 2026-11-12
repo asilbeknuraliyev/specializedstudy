@@ -49,7 +49,7 @@ Keyingi dars tavsiyasi savol namunasida n≥5 va p<60% bo‘lsagina tuziladi. Ma
 
 Shaxsiy ro‘yxat joriy faol va test biriktirilgan sinf o‘quvchilaridan, **alifbo tartibida**. Kamida bitta mos ish topshirgan bo‘lsa “Topshirgan”; hali boshlagan bo‘lsa “Davom etmoqda”; topshirilgan eski ish hali indekslanmagan bo‘lsa “Oldingi ish tahlilga ulanmagan”, bunday odam “Boshlamagan”ga qo‘shilmaydi. Sana davridagi oxirgi 3 mashqning barchasida avtomatik to‘g‘ri ulush <50% bo‘lsa, hukmsiz qayta tushuntirish signali chiqadi. Bu diagnoz yoki o‘quvchi reytingi emas.
 
-Ochiq xatolar soni — tegishli fan/mavzulardagi **hozirgi** xatolar daftari holati; tarixiy sana filtriga bog‘lanmagan. Shaxsiy ro‘yxat joriy sinf ro‘yxati, o‘tgan davrdagi to‘liq tarixiy roster rekonstruksiyasi emas. Tarixiy sinf almashgan o‘quvchining eski natijasi o‘sha sinf agregatida qolishi mumkin; joriy shaxsiy ro‘yxatda boshqa sinf o‘quvchisi ko‘rsatilmaydi.
+Ochiq xatolar soni — tegishli fan/mavzulardagi, o‘quvchining joriy sinfi va amaldagi nashr qilingan savol versiyalariga mos **hozirgi** xatolar daftari holati; tarixiy sana filtriga bog‘lanmagan. Shaxsiy ro‘yxat joriy sinf ro‘yxati, o‘tgan davrdagi to‘liq tarixiy roster rekonstruksiyasi emas. Tarixiy sinf almashgan o‘quvchining eski natijasi o‘sha sinf agregatida qolishi mumkin; joriy shaxsiy ro‘yxatda boshqa sinf o‘quvchisi ko‘rsatilmaydi.
 
 ## Saqlash va ruxsatlar
 
