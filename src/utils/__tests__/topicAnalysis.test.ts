@@ -61,7 +61,7 @@ test('paging and latest draft revisions preserve the published historical result
 test('Excel cells neutralize formulas and PDF HTML escapes untrusted names/prompts',()=>{
  assert.equal(safeExportText(' =HYPERLINK("x")'),'\' =HYPERLINK("x")');assert.equal(safeExportText(-2),-2);
  const data:any={items:[],topics:[],students:[{displayName:'<img src=x onerror=alert(1)>',classCode:'8a2',submissions:1,state:'submitted',openMistakes:0}],filters:{from:'2026-11-01',to:'2026-11-12'},notice:'DEMO',method:'first'};
- const html=analysisPrintHtml(data);assert.ok(!html.includes('<img'));assert.ok(html.includes('&lt;img'));assert.equal(analysisExportRows(data)['O‘quvchilar'].length,2);
+ const html=analysisPrintHtml(data);assert.ok(!html.includes('<img'));assert.ok(html.includes('&lt;img'));assert.equal(analysisExportRows(data)['O‘quvchilar'].length,2);assert.equal(analysisExportRows(data)['O‘quvchilar'][1][3],'Topshirgan');assert.equal(analysisExportRows(data)['O‘quvchilar'][1][1],'8A2');data.items=[{classCode:'8a2',subject:'Math',lessonTitle:'DEMO',question:{prompt:'DEMO'},n:10,correctRate:0,options:[],flags:['very_hard']}];assert.ok(analysisPrintHtml(data).includes('Qiyin (&lt;20%)'));assert.ok(!analysisPrintHtml(data).includes('very_hard'));
 });
 test('private report cache isolates values, expires and bounds entries/bytes; an oversized result is not retained',()=>{
  let time=0;const cache=new AnalysisCache<any>(100,60,2,10,()=>time);cache.set('a',{n:1});cache.get('a').n=99;assert.equal(cache.get('a').n,1);cache.set('b',{n:2});cache.set('c',{n:3});assert.equal(cache.get('a'),undefined);cache.set('large',{value:'x'.repeat(100)});assert.equal(cache.get('large'),undefined);time=11;assert.equal(cache.get('b'),undefined);assert.equal(cache.get('c'),undefined);
