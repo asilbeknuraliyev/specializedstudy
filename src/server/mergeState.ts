@@ -13,7 +13,7 @@ export function mergeState(base:any,local:any,remote:any):any{
   if(same(b,l)){result[key]=r;continue;}if(same(b,r)){result[key]=l;continue;}
   const entityKey=(row:any)=>row&&typeof row==='object'&&(typeof row.id==='string'?row.id:typeof row.uid==='string'?row.uid:null);
   if([b,l,r].every(Array.isArray)&&[b,l,r].every(a=>a.every((v:any)=>entityKey(v))&&new Set(a.map(entityKey)).size===a.length)){
-   if(!['mistakeRecords','spacedReviewQueue','spacedReviewSessions','spacedReviewAnswers','reviewDailyUsage','studentTopicProgress','topicWriteOperations','topicQuestionVersions','topicTestVersions','users','topicImportBatches','topicQuestions','topicTests','topicSessions','topicReviews','examSessions','lessonPracticeResponses','studentLastLessons','auditLogs','notifications'].includes(key))throw new MergeConflictError('Collection invariants require a retry');
+   if(!['topicAnalysisFacts','topicAnalysisCohorts','mistakeRecords','spacedReviewQueue','spacedReviewSessions','spacedReviewAnswers','reviewDailyUsage','studentTopicProgress','topicWriteOperations','topicQuestionVersions','topicTestVersions','users','topicImportBatches','topicQuestions','topicTests','topicSessions','topicReviews','examSessions','lessonPracticeResponses','studentLastLessons','auditLogs','notifications'].includes(key))throw new MergeConflictError('Collection invariants require a retry');
    const maps=[b,l,r].map(a=>new Map(a.map((v:any)=>[entityKey(v),v])));
    const ids=new Set([...r.map(entityKey),...l.map(entityKey),...b.map(entityKey)]);
    result[key]=[...ids].map(id=>atomic(...maps.map(m=>m.get(id)) as [any,any,any])).filter(v=>v!==undefined);

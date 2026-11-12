@@ -87,6 +87,8 @@ import {
 } from '../utils/academicOsEngine';
 
 export interface PersistentDatabaseState {
+  topicAnalysisFacts?: import('./topicAnalysisEngine').AnalysisFact[];
+  topicAnalysisCohorts?: import('./topicAnalysisEngine').AnalysisCohort[];
   mistakeRecords?: import('./spacedReviewEngine').MistakeRecord[];
   spacedReviewQueue?: import('./spacedReviewEngine').ReviewQueueItem[];
   spacedReviewSessions?: import('./spacedReviewEngine').ReviewSession[];

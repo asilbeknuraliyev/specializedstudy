@@ -1,3 +1,5 @@
+import {registerTopicAnalysisRoutes} from './topicAnalysisRoutes';
+import {recordTopicAnalysis} from './topicAnalysisEngine';
 import {recordTopicLearning} from './spacedReviewEngine';
 import {registerSpacedReviewRoutes} from './spacedReviewRoutes';
 import crypto from 'node:crypto';
@@ -36,6 +38,7 @@ export function registerTopicRoutes(app:Express,deps:any){
  registerTopicImports(app,deps,{access,ownLesson:(c:any,id:string)=>{const l=ownLesson(c,id);return canAuthor(c,l)?l:undefined;},audit,questionVersion});
  registerTopicGrading(app,deps,{access,ownLesson,canAuthor,audit});
  registerSpacedReviewRoutes(app,deps);
+ registerTopicAnalysisRoutes(app,deps,{access,audit});
 
  app.get('/api/topic-bank/:lesson',(req,res)=>{
   const c=author(req,res);if(!c)return;
@@ -124,6 +127,7 @@ export function registerTopicRoutes(app:Express,deps:any){
   s.results=s.questions.map(q=>({id:q.id,earned:gradeQuestion(q,s.answers[q.id]||''),points:q.points,explanation:q.explanation,pending:q.kind==='written'}));
   s.score=s.results.reduce((n,r)=>n+r.earned,0);s.pending=s.results.some(r=>r.pending);s.submittedAt=new Date().toISOString();
   recordTopicLearning(c.db,c.user,s,new Date());
+  recordTopicAnalysis(c.db,s);
  };
  app.post('/api/topic-tests/:id/start',(req,res)=>{
   const c=access(req,res);if(!c)return;
