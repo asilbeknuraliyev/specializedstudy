@@ -1,0 +1,5589 @@
+{
+  "authorization": "User approved all work and production release; Graphify explicitly prohibited by latest steering. No parent portal; internal contact logs only. No automated sanctions; official policy requires school/admin approval.",
+  "sources": [
+    "C:\\Users\\HP\\.codex\\attachments\\74f973e2-2a47-44f5-9e00-f51d7a4e7e8a\\Pasted text.txt",
+    "C:\\Users\\HP\\.codex\\attachments\\ec300870-3a04-48f6-be4e-6be5f1994ce8\\Pasted text.txt"
+  ],
+  "requirements": [
+    {
+      "id": "D1-004",
+      "source": 1,
+      "line": 4,
+      "section": "LOYIHA",
+      "requirement": "- Sayt: https://specializedstudy.vercel.app (foydalanuvchi faqat shu manzil orqali ishlaydi)",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D1-005",
+      "source": 1,
+      "line": 5,
+      "section": "LOYIHA",
+      "requirement": "- Repo: asilbeknuraliyev/specializedstudy",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D1-006",
+      "source": 1,
+      "line": 6,
+      "section": "LOYIHA",
+      "requirement": "- Stack: React + TypeScript, React Router, Tailwind, Vite, Node.js + Express, Firebase Auth, Firestore (Admin SDK), Vercel.",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D1-007",
+      "source": 1,
+      "line": 7,
+      "section": "LOYIHA",
+      "requirement": "- Rollar: administrator, o'qituvchi, o'quvchi. Platforma rasmiy elektron jurnal o'rnini bosmaydi.",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D1-008",
+      "source": 1,
+      "line": 8,
+      "section": "LOYIHA",
+      "requirement": "- Avvalgi ishlar (qayta ko'rib chiqma, mavjud komponent va uslublardan foydalan): kontent markazi, dry-run import, jadval to'qnashuvlari, o'quvchi bosh sahifasi, SPA admin, yagona dizayn tizimi, DEMO to'plam. Avvalgi promptlardagi hali bajarilmagan ishlar ham shu ish bilan birga davom etsin: login/parol bilan kirish (email shart emas, Google ham qoladi), mavzu testlarining to'liq ekranli ko'rinishi, faqat bitta domen, savollar banki va mavzu testi, izohli fikr-mulohaza, xatolar daftari, oraliq takrorlash, o'qituvchi tahlili, pilot o'lchov asosi. Ularning qaysi biri allaqachon bajarilganini avval kodda tekshirib, faqat bajarilmaganini qil.",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D1-011",
+      "source": 1,
+      "line": 11,
+      "section": "ISH TARTIBI VA QOIDALAR (majburiy)",
+      "requirement": "- Hamma ish alohida branch va Vercel preview'da. Production'ga faqat mening aniq ruxsatim bilan. Majlis va pilot kunlari production'ga katta o'zgarish qo'shma.",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D1-012",
+      "source": 1,
+      "line": 12,
+      "section": "ISH TARTIBI VA QOIDALAR (majburiy)",
+      "requirement": "- Haqiqiy foydalanuvchi ma'lumotini o'zgartirma. Demo ma'lumotni DEMO belgisi bilan yarat, bitta tugma bilan o'chiriladigan bo'lsin.",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D1-013",
+      "source": 1,
+      "line": 13,
+      "section": "ISH TARTIBI VA QOIDALAR (majburiy)",
+      "requirement": "- Limitni tejash: Graphify yo'q, grep/ripgrep bilan kerakli fayllarni top, takror o'qima, avval tekshirilganlarni qayta tekshirma, bosqich o'rtasida faqat tegishli testlar.",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D1-014",
+      "source": 1,
+      "line": 14,
+      "section": "ISH TARTIBI VA QOIDALAR (majburiy)",
+      "requirement": "- Maxfiy kalitlarni chiqarma. Hamma yangi ma'lumot Firestore'da (global). Katta hujjatlarni bo'l, ro'yxatlarda sahifalash, kvotaga e'tibor ber.",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D1-015",
+      "source": 1,
+      "line": 15,
+      "section": "ISH TARTIBI VA QOIDALAR (majburiy)",
+      "requirement": "- Aniq bo'lmasa taxmin qilma, savol ber. Faqat o'zing tekshirgan narsani \"tayyor\" de. Bir muammoni 3 marta tuzatib bo'lmasa to'xta va sababini yoz.",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D1-016",
+      "source": 1,
+      "line": 16,
+      "section": "ISH TARTIBI VA QOIDALAR (majburiy)",
+      "requirement": "- Har bir bosqich oxirida qisqa hisobot ber va mening tasdig'imni kut.",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D1-021",
+      "source": 1,
+      "line": 21,
+      "section": "A.0 Asosiy g'oya va qoidalar",
+      "requirement": "- O'qituvchi o'quvchiga qoidabuzarlik uchun jarima balli qo'yadi. Standart: har bir jarima 1 ball (admin turi bo'yicha og'irlikni o'zgartira oladi). Maksimal chegara standart 30 ball (admin o'zgartira oladi). Chegaraga yetganda o'quvchiga ogohlantirish xati yoki intizom choralari ko'riladi.",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D1-022",
+      "source": 1,
+      "line": 22,
+      "section": "A.0 Asosiy g'oya va qoidalar",
+      "requirement": "- MUHIM: chora AVTOMATIK qo'llanmasin. Chegaraga yetganda tizim administratorga (va mas'ul zavuchga) \"qaror qabul qilish kerak\" vazifasini yaratadi, ogohlantirish xati qoralamasini tayyorlaydi. Yakuniy qaror faqat inson (admin/rahbariyat) qo'lida.",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D1-023",
+      "source": 1,
+      "line": 23,
+      "section": "A.0 Asosiy g'oya va qoidalar",
+      "requirement": "- Ballar sanasi bo'yicha davr: standart har chorak boshida yangilanadi (davr sozlanadi: chorak/yarim yil/o'quv yili). Eski davr yozuvlari arxivda saqlanadi va o'chirilmaydi.",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D1-024",
+      "source": 1,
+      "line": 24,
+      "section": "A.0 Asosiy g'oya va qoidalar",
+      "requirement": "- Jazo emas, tarbiyaviy yondashuv: o'quvchiga hurmatli ohangdagi matn, sharmanda qiluvchi ko'rinish va ommaviy reyting YO'Q. Boshqa o'quvchilar bir-birining ballini ko'ra olmaydi.",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D1-029",
+      "source": 1,
+      "line": 29,
+      "section": "A.1 Jarima turlari (admin boshqaradi, sinab turadigan boshlang'ich ro'yxat)",
+      "requirement": "1. Darsga kechikdi",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D1-030",
+      "source": 1,
+      "line": 30,
+      "section": "A.1 Jarima turlari (admin boshqaradi, sinab turadigan boshlang'ich ro'yxat)",
+      "requirement": "2. Darsga tayyorlanmay keldi (uy vazifasi bajarilmagan)",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D1-031",
+      "source": 1,
+      "line": 31,
+      "section": "A.1 Jarima turlari (admin boshqaradi, sinab turadigan boshlang'ich ro'yxat)",
+      "requirement": "3. Dars jihozlari yo'q (daftar, kitob va h.k.)",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D1-032",
+      "source": 1,
+      "line": 32,
+      "section": "A.1 Jarima turlari (admin boshqaradi, sinab turadigan boshlang'ich ro'yxat)",
+      "requirement": "4. Dars paytida xalaqit berdi",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D1-033",
+      "source": 1,
+      "line": 33,
+      "section": "A.1 Jarima turlari (admin boshqaradi, sinab turadigan boshlang'ich ro'yxat)",
+      "requirement": "5. Telefon/ruxsatsiz qurilmadan foydalandi",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D1-034",
+      "source": 1,
+      "line": 34,
+      "section": "A.1 Jarima turlari (admin boshqaradi, sinab turadigan boshlang'ich ro'yxat)",
+      "requirement": "6. Maktab forma/qoidasiga rioya qilmadi",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D1-035",
+      "source": 1,
+      "line": 35,
+      "section": "A.1 Jarima turlari (admin boshqaradi, sinab turadigan boshlang'ich ro'yxat)",
+      "requirement": "7. O'qituvchi yoki tengdoshga hurmatsizlik",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D1-036",
+      "source": 1,
+      "line": 36,
+      "section": "A.1 Jarima turlari (admin boshqaradi, sinab turadigan boshlang'ich ro'yxat)",
+      "requirement": "8. Darsni qoldirdi (sababsiz)",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D1-037",
+      "source": 1,
+      "line": 37,
+      "section": "A.1 Jarima turlari (admin boshqaradi, sinab turadigan boshlang'ich ro'yxat)",
+      "requirement": "9. Maktab mulkiga ziyon",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D1-038",
+      "source": 1,
+      "line": 38,
+      "section": "A.1 Jarima turlari (admin boshqaradi, sinab turadigan boshlang'ich ro'yxat)",
+      "requirement": "10. Boshqa (izoh majburiy)",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D1-042",
+      "source": 1,
+      "line": 42,
+      "section": "A.2 O'qituvchi paneli: tezkor kiritish",
+      "requirement": "- O'qituvchi sinfni tanlaydi, o'quvchini qidiradi (ism/login) yoki sinf ro'yxatidan bosadi.",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D1-043",
+      "source": 1,
+      "line": 43,
+      "section": "A.2 O'qituvchi paneli: tezkor kiritish",
+      "requirement": "- Tezkor tugmalar: eng ko'p ishlatiladigan 5-6 tur bitta bosishda (masalan, \"Kechikdi +1\", \"Uy vazifasi yo'q +1\"), bosilganda darhol saqlanadi va 5 soniya ichida \"Bekor qilish\" imkoniyati ko'rinadi.",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D1-044",
+      "source": 1,
+      "line": 44,
+      "section": "A.2 O'qituvchi paneli: tezkor kiritish",
+      "requirement": "- \"Boshqa jarima\" tugmasi: turni tanlash yoki \"Boshqa\" + majburiy izoh, ixtiyoriy dalil (matn, ixtiyoriy rasm), sana/dars (jadvaldan avtomatik taklif).",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D1-045",
+      "source": 1,
+      "line": 45,
+      "section": "A.2 O'qituvchi paneli: tezkor kiritish",
+      "requirement": "- Bir nechta o'quvchiga bir vaqtda (ommaviy): sinf ro'yxatida bir nechta o'quvchini belgilab, bitta turni qo'llash.",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D1-046",
+      "source": 1,
+      "line": 46,
+      "section": "A.2 O'qituvchi paneli: tezkor kiritish",
+      "requirement": "- Har yozuvda avtomatik: kim qo'ydi (o'qituvchi), qachon, qaysi fan/dars, tur, ball, izoh. O'qituvchi o'z yozuvini ma'lum vaqt (masalan 15 daqiqa) ichida tahrirlay/bekor qila oladi, keyin faqat \"tuzatish so'rovi\" admin orqali.",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D1-047",
+      "source": 1,
+      "line": 47,
+      "section": "A.2 O'qituvchi paneli: tezkor kiritish",
+      "requirement": "- O'qituvchi faqat o'z sinflaridagi/o'z faniga tegishli o'quvchilarga yoza oladi (server tekshiradi). Sinf rahbari o'z sinfining barcha jarimalarini ko'radi.",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D1-048",
+      "source": 1,
+      "line": 48,
+      "section": "A.2 O'qituvchi paneli: tezkor kiritish",
+      "requirement": "- Takroriy bosishdan himoya (bir xil jarima bir necha soniyada ikki marta yozilmasin).",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D1-049",
+      "source": 1,
+      "line": 49,
+      "section": "A.2 O'qituvchi paneli: tezkor kiritish",
+      "requirement": "- O'qituvchi o'z bergan jarimalar tarixini, o'z sinfi bo'yicha qisqa statistikani (nechta jarima, qaysi turlar) ko'radi. Natija jamlama bo'lsin, ortiqcha shaxsiy tafsilot emas.",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D1-050",
+      "source": 1,
+      "line": 50,
+      "section": "A.2 O'qituvchi paneli: tezkor kiritish",
+      "requirement": "- \"Ijobiy qayd\" (ixtiyoriy): ibratli xatti-harakat uchun rag'bat yozuvi (alohida tur, ball jarima ballini kamaytirmaydi, alohida hisoblanadi). Admin yoqib-o'chira oladi.",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D1-053",
+      "source": 1,
+      "line": 53,
+      "section": "A.3 Chegara va bosqichli ogohlantirish",
+      "requirement": "- Admin sozlamasi: umumiy chegara (30), oraliq bosqichlar (masalan, 10 ball: \"Suhbat\", 20 ball: \"Og'zaki ogohlantirish\", 30 ball: \"Yozma ogohlantirish xati va rahbariyat qarori\"). Har bosqich uchun nom, matn shabloni, mas'ul rol (sinf rahbari/zavuch/direktor) sozlanadi.",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D1-054",
+      "source": 1,
+      "line": 54,
+      "section": "A.3 Chegara va bosqichli ogohlantirish",
+      "requirement": "- Bosqichga yetganda: sinf rahbariga va adminga bildirishnoma + \"Qaror kerak\" vazifasi. Tizim \"ogohlantirish xati\" qoralamasini (o'quvchi ismi, sinf, davr, ballar, jarimalar ro'yxati sanasi va sababi bilan) PDF qilib tayyorlaydi, admin tahrirlaydi va tasdiqlaydi, keyin o'quvchi profilida \"Rasmiy xabar\" sifatida ko'rinadi.",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D1-055",
+      "source": 1,
+      "line": 55,
+      "section": "A.3 Chegara va bosqichli ogohlantirish",
+      "requirement": "- Admin qaror turlari: \"Suhbat o'tkazildi\", \"Ogohlantirish xati berildi\", \"Rahbariyatga yuborildi\", \"Qaror qilinmadi (sabab bilan)\", \"Ballar kechirildi/kamaytirildi (sabab bilan)\". Har qaror kim tomonidan, qachon, nima uchun saqlanadi.",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D1-056",
+      "source": 1,
+      "line": 56,
+      "section": "A.3 Chegara va bosqichli ogohlantirish",
+      "requirement": "- Chegaradan oshgan holat bir marta vazifa yaratadi (har jarimada takror vazifa yaratmasin).",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D1-059",
+      "source": 1,
+      "line": 59,
+      "section": "A.4 O'quvchi uchun adolat va shaffoflik",
+      "requirement": "- O'quvchi o'z profilida \"Mening intizom holatim\"ni ko'radi: joriy ball, chegaragacha qolgan, har yozuv (sana, tur, kim qo'ygan, izoh). Ohang hurmatli va tarbiyaviy (\"Bu hafta 2 ball. Keling, yaxshilashga harakat qilamiz\").",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D1-060",
+      "source": 1,
+      "line": 60,
+      "section": "A.4 O'quvchi uchun adolat va shaffoflik",
+      "requirement": "- O'quvchi yozuvga \"Izoh/E'tiroz\" yoza oladi (masalan, \"Men kechikmadim, sabab: ...\"). Admin/sinf rahbari ko'rib chiqadi: qabul qildi (ball bekor qilinadi, sabab bilan) yoki rad etdi (sabab bilan). E'tiroz holati ko'rinadi.",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D1-061",
+      "source": 1,
+      "line": 61,
+      "section": "A.4 O'quvchi uchun adolat va shaffoflik",
+      "requirement": "- O'quvchi faqat o'z ma'lumotini ko'radi. Boshqa o'quvchining ballari, reyting, \"eng ko'p jarimali\" ro'yxati hech qachon o'quvchiga ko'rsatilmasin.",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D1-062",
+      "source": 1,
+      "line": 62,
+      "section": "A.4 O'quvchi uchun adolat va shaffoflik",
+      "requirement": "- Ota-ona paneli hozircha yo'q: ota-onaga xabar chiqarish funksiyasini kelajak uchun ma'lumot modelida joy qoldir, lekin hozir qurma.",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D1-065",
+      "source": 1,
+      "line": 65,
+      "section": "A.5 Admin paneli: \"Intizom\" bo'limi",
+      "requirement": "- Barcha jarimalar jadvali: o'quvchi, sinf, tur, ball, kim bergan (o'qituvchi), fan/dars, sana-vaqt, izoh, dalil, holat (faol/bekor qilingan/e'tiroz ko'rilmoqda), tahrir tarixi.",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D1-066",
+      "source": 1,
+      "line": 66,
+      "section": "A.5 Admin paneli: \"Intizom\" bo'limi",
+      "requirement": "- Filtrlar: sinf, o'quvchi, o'qituvchi, tur, sana oralig'i, davr, holat, ball diapazoni. Qidiruv. Sahifalash. Excel/PDF eksport.",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D1-067",
+      "source": 1,
+      "line": 67,
+      "section": "A.5 Admin paneli: \"Intizom\" bo'limi",
+      "requirement": "- Dashbord: bu davrda jami jarima, eng ko'p uchraydigan turlar, sinflar bo'yicha taqsimot, chegaraga yaqin o'quvchilar ro'yxati (10, 20 ball bosqichlari), kutilayotgan \"qaror kerak\" vazifalari, e'tirozlar. Ko'rsatkichlar tahlil uchun, shaxsni tamg'alash uchun emas.",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D1-068",
+      "source": 1,
+      "line": 68,
+      "section": "A.5 Admin paneli: \"Intizom\" bo'limi",
+      "requirement": "- O'qituvchi bo'yicha tahlil: qaysi ustoz nechta, qaysi turda jarima bergan. Maqsad: bir xillikni ta'minlash (masalan, bir ustoz ortiqcha qattiqqo'l emasmi). Ehtiyotkorlik bilan ko'rsat.",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D1-069",
+      "source": 1,
+      "line": 69,
+      "section": "A.5 Admin paneli: \"Intizom\" bo'limi",
+      "requirement": "- Admin tuzatish/bekor qilish huquqi: sabab majburiy, hamma narsa audit jurnaliga yoziladi (kim, nima, qachon, eski va yangi qiymat). Yozuvlar hech qachon jismonan o'chirilmaydi, faqat \"bekor qilingan\" holatiga o'tadi.",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D1-070",
+      "source": 1,
+      "line": 70,
+      "section": "A.5 Admin paneli: \"Intizom\" bo'limi",
+      "requirement": "- Sozlamalar: jarima turlari, ball og'irligi, chegara va bosqichlar, davr, o'qituvchi tahrirlash oynasi, ijobiy qaydlar yoqilishi, xat shablonlari.",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D1-071",
+      "source": 1,
+      "line": 71,
+      "section": "A.5 Admin paneli: \"Intizom\" bo'limi",
+      "requirement": "- Ogohlantirish xatlari bo'limi: qoralama, tasdiqlangan, berilgan; PDF.",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D1-074",
+      "source": 1,
+      "line": 74,
+      "section": "A.6 Xavfsizlik va maxfiylik (intizom ma'lumoti nozik)",
+      "requirement": "- Server tomonida rol/sinf/fan ruxsati har so'rovda tekshiriladi. O'quvchi boshqa o'quvchi ma'lumotiga, o'qituvchi o'z sinfidan tashqariga kira olmaydi (403).",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D1-075",
+      "source": 1,
+      "line": 75,
+      "section": "A.6 Xavfsizlik va maxfiylik (intizom ma'lumoti nozik)",
+      "requirement": "- Hamma o'zgarish audit jurnalida. Eksport faqat admin/ruxsatli rol, eksport harakati ham jurnalga yoziladi.",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D1-076",
+      "source": 1,
+      "line": 76,
+      "section": "A.6 Xavfsizlik va maxfiylik (intizom ma'lumoti nozik)",
+      "requirement": "- Ma'lumot saqlash muddati va o'chirish siyosati hujjatlashtirilsin (masalan, o'quvchi maktabni tugatgach arxivga o'tadi). Intizom ma'lumoti ommaviy tahlil/portfolio statistikasiga shaxsiy ko'rinishda chiqmasin.",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D1-077",
+      "source": 1,
+      "line": 77,
+      "section": "A.6 Xavfsizlik va maxfiylik (intizom ma'lumoti nozik)",
+      "requirement": "- Test: begona sinfga yozishga urinish rad etiladi, o'quvchi API orqali boshqa o'quvchi ballini ola olmaydi, takroriy so'rov ikki marta hisoblanmaydi, chegara vazifasi bir marta yaratiladi.",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D1-084",
+      "source": 1,
+      "line": 84,
+      "section": "QISM B. O'QITUVCHI PANELI: PROFESSIONAL QAYTA TASHKIL QILISH",
+      "requirement": "- Mening sinflarim: sinf kartasi, o'quvchilar ro'yxati, har o'quvchi uchun qisqa profil (davomat, test natijalari, intizom ballari, xatolar daftari ko'rsatkichi, faqat o'z fani/sinfi doirasida).",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D1-085",
+      "source": 1,
+      "line": 85,
+      "section": "QISM B. O'QITUVCHI PANELI: PROFESSIONAL QAYTA TASHKIL QILISH",
+      "requirement": "- Darslar va ish rejasi: mavzularni \"o'tilgan\" deb belgilash, keyingi dars, qidiruv.",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D1-086",
+      "source": 1,
+      "line": 86,
+      "section": "QISM B. O'QITUVCHI PANELI: PROFESSIONAL QAYTA TASHKIL QILISH",
+      "requirement": "- Testlar va nazoratlar: mavzu testi yaratish/tahrirlash/nashr, natijalar, savol tahlili (\"qaysi savolda adashdi\"), yozma ishlarni tekshirish (ball, izoh).",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D1-087",
+      "source": 1,
+      "line": 87,
+      "section": "QISM B. O'QITUVCHI PANELI: PROFESSIONAL QAYTA TASHKIL QILISH",
+      "requirement": "- Davomat: sinf bo'yicha tez belgilash (keldi/kechikdi/yo'q/sababli), tarix, oylik hisobot. Kechikdi belgilanganda \"jarima qo'shilsinmi?\" tezkor taklifi (ixtiyoriy).",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D1-088",
+      "source": 1,
+      "line": 88,
+      "section": "QISM B. O'QITUVCHI PANELI: PROFESSIONAL QAYTA TASHKIL QILISH",
+      "requirement": "- Intizom (A qism).",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D1-089",
+      "source": 1,
+      "line": 89,
+      "section": "QISM B. O'QITUVCHI PANELI: PROFESSIONAL QAYTA TASHKIL QILISH",
+      "requirement": "- Topshiriqlar va materiallar, e'lonlar.",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D1-090",
+      "source": 1,
+      "line": 90,
+      "section": "QISM B. O'QITUVCHI PANELI: PROFESSIONAL QAYTA TASHKIL QILISH",
+      "requirement": "- Hisobotlar va Excel/PDF eksport (faqat o'z sinflari).",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D1-091",
+      "source": 1,
+      "line": 91,
+      "section": "QISM B. O'QITUVCHI PANELI: PROFESSIONAL QAYTA TASHKIL QILISH",
+      "requirement": "- Profil: parolni o'zgartirish, o'ng yuqori burchakda chiqish.",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D1-095",
+      "source": 1,
+      "line": 95,
+      "section": "QISM C. ADMIN PANELI: TO'LIQ BOSHQARUV",
+      "requirement": "- Chap tarafda qotib turadigan guruhlangan menyu (O'quv reja, Nazorat va testlar, Kundalik ish, Intizom, Natijalar, Hisoblar, Boshqaruv), pastga tushmasdan bosiladi. Profil/chiqish o'ng yuqorida. Bitta sahifa (SPA) tajribasi, tafsilot drawer/modalda.",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D1-096",
+      "source": 1,
+      "line": 96,
+      "section": "QISM C. ADMIN PANELI: TO'LIQ BOSHQARUV",
+      "requirement": "- Bosh dashbord: kontent to'liqligi (qaysi fan/mavzuda reja yoki test yo'q), kutilayotgan vazifalar (qaror kerak, e'tirozlar, tekshiruvdagi yozma ishlar), tizim holati (oxirgi xatolar, Firestore o'qish/yozish ko'rsatkichi), tezkor harakatlar.",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D1-097",
+      "source": 1,
+      "line": 97,
+      "section": "QISM C. ADMIN PANELI: TO'LIQ BOSHQARUV",
+      "requirement": "- Hisoblar: o'quvchi/o'qituvchi yaratish (bitta va Excel orqali ommaviy, login avtomatik tuziladi, tasodifiy birinchi parol, birinchi kirishda parolni o'zgartirish majburiy), parol tiklash, to'xtatish/faollashtirish, login qidirish, PDF kartochka (login/parol bir martagina ko'rsatiladi, ochiq saqlanmaydi). Parol xeshi mavjud scrypt, noto'g'ri urinishda bloklash, sessiya httpOnly cookie.",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D1-098",
+      "source": 1,
+      "line": 98,
+      "section": "QISM C. ADMIN PANELI: TO'LIQ BOSHQARUV",
+      "requirement": "- Audit jurnalini ko'rish va qidirish, zaxira nusxa olish tugmasi, ma'lumotni Excel'ga eksport, rol va ruxsatlarni ko'rish.",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D1-099",
+      "source": 1,
+      "line": 99,
+      "section": "QISM C. ADMIN PANELI: TO'LIQ BOSHQARUV",
+      "requirement": "- Kontent markazi va dars jadvali (mavjud) ustida ishlash: ommaviy kiritish hamma fanlar uchun ish reja va jadval.",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D1-100",
+      "source": 1,
+      "line": 100,
+      "section": "QISM C. ADMIN PANELI: TO'LIQ BOSHQARUV",
+      "requirement": "- Sozlamalar: maktab ma'lumoti, o'quv yili va choraklar, jarima sozlamalari, bildirishnomalar.",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D1-103",
+      "source": 1,
+      "line": 103,
+      "section": "QISM D. O'QUVCHI PANELI: ULTRA QULAY",
+      "requirement": "- Birinchi sahifa \"Bugun\": bugungi jadval, muddati yaqin vazifa va testlar, \"Davom ettir\", \"Takrorlash: bugun N ta savol\", \"Xatolar daftari: N ta\", kichik haftalik progress, muhim e'lonlar. Intizom holati bosh sahifada ko'rsatilmasin (shaxsiy, alohida bo'limda).",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D1-104",
+      "source": 1,
+      "line": 104,
+      "section": "QISM D. O'QUVCHI PANELI: ULTRA QULAY",
+      "requirement": "- Navigatsiya (5 ta): Bosh sahifa, Fanlar, Jadval, Vazifalar, Men. \"Men\" ichida: natijalarim, intizom holatim (A.4), parolni o'zgartirish, chiqish (o'ng yuqori menyuda ham).",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D1-105",
+      "source": 1,
+      "line": 105,
+      "section": "QISM D. O'QUVCHI PANELI: ULTRA QULAY",
+      "requirement": "- Mavzu testi to'liq ekranda (BSB/CHSB kabi), izohli fikr-mulohaza, ishonch darajasi, xatolar daftari, oraliq takrorlash.",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D1-106",
+      "source": 1,
+      "line": 106,
+      "section": "QISM D. O'QUVCHI PANELI: ULTRA QULAY",
+      "requirement": "- Telefon birinchi: katta tugmalar (44px+), skelet yuklanish, bo'sh va xato holatlari, qorong'i rejim (imkon bo'lsa), tushunarli o'zbekcha matn.",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D1-107",
+      "source": 1,
+      "line": 107,
+      "section": "QISM D. O'QUVCHI PANELI: ULTRA QULAY",
+      "requirement": "- Bosim va qaramlik yaratadigan elementlar yo'q (cheksiz lenta, tasodifiy mukofot, reklama, majburlovchi bildirishnoma). \"Bugun yetarli\" xabari.",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D1-110",
+      "source": 1,
+      "line": 110,
+      "section": "QISM E. HAMMA PANEL UCHUN UMUMIY",
+      "requirement": "- Bildirishnomalar markazi (qo'ng'iroqcha): yangi vazifa, test muddati, \"qaror kerak\", e'tiroz natijasi, e'lon. O'qilgan/o'qilmagan holati. Majburlovchi push yo'q.",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D1-111",
+      "source": 1,
+      "line": 111,
+      "section": "QISM E. HAMMA PANEL UCHUN UMUMIY",
+      "requirement": "- Global qidiruv (bo'lim, sinf, o'quvchi, mavzu), rolga qarab.",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D1-112",
+      "source": 1,
+      "line": 112,
+      "section": "QISM E. HAMMA PANEL UCHUN UMUMIY",
+      "requirement": "- Yagona dizayn tizimi: bir xil rang, tipografiya, komponentlar (Button, Card, Table, Input, Modal/Drawer, Badge, EmptyState, Skeleton, Toast, Tabs), jadval telefonda kartaga aylanadi, formada aniq xato xabarlari, klaviatura va kontrast.",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D1-113",
+      "source": 1,
+      "line": 113,
+      "section": "QISM E. HAMMA PANEL UCHUN UMUMIY",
+      "requirement": "- Xato sahifalari (404, ruxsat yo'q, tarmoq yo'q), chiqishdan oldin saqlanmagan o'zgarish haqida ogohlantirish.",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D1-114",
+      "source": 1,
+      "line": 114,
+      "section": "QISM E. HAMMA PANEL UCHUN UMUMIY",
+      "requirement": "- Qisqa \"Yordam\" sahifasi har rol uchun (qanday qilinadi, 5-6 qisqa band).",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D1-115",
+      "source": 1,
+      "line": 115,
+      "section": "QISM E. HAMMA PANEL UCHUN UMUMIY",
+      "requirement": "- Tezlik: oddiy tugma 1 soniyadan kam, sahifa o'tish 1-2 soniya. Bosilganda darhol vizual javob, ikki marta bosishdan himoya, mumkin joyda optimistik yangilash. 409 parallel yozish, eski test qoralamalari, sovuq start muammolarini hal qil.",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D1-116",
+      "source": 1,
+      "line": 116,
+      "section": "QISM E. HAMMA PANEL UCHUN UMUMIY",
+      "requirement": "- O'zing mulohaza qilib, loyiha uchun kerakli deb topgan, lekin men aytmagan muhim narsalarni qo'sh (masalan, ma'lumot zaxirasi, tizim holati, kirishdagi xavfsizlik, tushunarli xatolar). Qo'shgan har narsangni hisobotda sabab bilan yoz. Katta xavf tug'diradigan yoki ko'p vaqt oladigan narsani qo'shmasdan avval menga taklif qil.",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D1-129",
+      "source": 1,
+      "line": 129,
+      "section": "TEKSHIRUV (faqat yangi/o'zgargan qismlar)",
+      "requirement": "- Testlar: ruxsatlar (begona sinf/o'quvchi), kalitlar sizmasligi, takroriy so'rov, chegara vazifasi bir marta yaratilishi, bekor qilish/e'tiroz oqimi, davr yangilanishi, ball hisobi to'g'riligi (chegara holatlari), audit jurnali yozilishi.",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D1-130",
+      "source": 1,
+      "line": 130,
+      "section": "TEKSHIRUV (faqat yangi/o'zgargan qismlar)",
+      "requirement": "- Playwright bilan DEMO'da oqim: o'qituvchi tezkor tugma bilan jarima qo'yadi va bekor qiladi, \"Boshqa\" bilan izohli yozadi, o'quvchi o'z holatini ko'radi va e'tiroz yozadi, admin e'tirozni ko'rib chiqadi, chegaraga yetganda \"qaror kerak\" vazifasi va xat PDF'i chiqadi, admin hamma jarimalarni filtrlab ko'radi va eksport qiladi. Uch rol, 375px va 1440px. Konsolda xato yo'q.",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D1-131",
+      "source": 1,
+      "line": 131,
+      "section": "TEKSHIRUV (faqat yangi/o'zgargan qismlar)",
+      "requirement": "- typecheck, build, testlar. Preview'ga deploy.",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D1-134",
+      "source": 1,
+      "line": 134,
+      "section": "HISOBOT (qisqa, o'zbek tilida, har bosqichdan keyin)",
+      "requirement": "1. Nima qilindi (fayllar, commit, preview havolasi, DEMO hisoblari).",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D1-135",
+      "source": 1,
+      "line": 135,
+      "section": "HISOBOT (qisqa, o'zbek tilida, har bosqichdan keyin)",
+      "requirement": "2. Qanday tekshirildi va natija.",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D1-136",
+      "source": 1,
+      "line": 136,
+      "section": "HISOBOT (qisqa, o'zbek tilida, har bosqichdan keyin)",
+      "requirement": "3. Hali tugallanmagan/xavfli joylar va menga savollar.",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D1-137",
+      "source": 1,
+      "line": 137,
+      "section": "HISOBOT (qisqa, o'zbek tilida, har bosqichdan keyin)",
+      "requirement": "4. Qo'shimcha o'zing qo'shgan narsalar va sababi.",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D1-138",
+      "source": 1,
+      "line": 138,
+      "section": "HISOBOT (qisqa, o'zbek tilida, har bosqichdan keyin)",
+      "requirement": "5. Production'ga tayyormi. Production'ga o'zing qo'shma, mening ruxsatimni kut. Ruxsatdan keyin: zaxira, rollback yo'li, tezkor production tekshiruvi.",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-012",
+      "source": 2,
+      "line": 12,
+      "section": "ROL VA ASOSIY VAZIFA",
+      "requirement": "- Nomi: Specialized Study",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-013",
+      "source": 2,
+      "line": 13,
+      "section": "ROL VA ASOSIY VAZIFA",
+      "requirement": "- Sayt: https://specializedstudy.vercel.app",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-014",
+      "source": 2,
+      "line": 14,
+      "section": "ROL VA ASOSIY VAZIFA",
+      "requirement": "- GitHub: asilbeknuraliyev/specializedstudy",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-015",
+      "source": 2,
+      "line": 15,
+      "section": "ROL VA ASOSIY VAZIFA",
+      "requirement": "- Oldingi ishchi branch: codex/curriculum-release",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-016",
+      "source": 2,
+      "line": 16,
+      "section": "ROL VA ASOSIY VAZIFA",
+      "requirement": "- Texnologiyalar: React, TypeScript, Vite, Tailwind, Node.js, Express, Firebase Authentication, Firestore, Vercel",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-017",
+      "source": 2,
+      "line": 17,
+      "section": "ROL VA ASOSIY VAZIFA",
+      "requirement": "- Rollar: Administrator, o'qituvchi, o'quvchi",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-018",
+      "source": 2,
+      "line": 18,
+      "section": "ROL VA ASOSIY VAZIFA",
+      "requirement": "- Auditoriya: Kattaqo'rg'on tuman ixtisoslashtirilgan maktabi",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-043",
+      "source": 2,
+      "line": 43,
+      "section": "1.1. Tezkor hodisa qayd etish",
+      "requirement": "- Sinf",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-044",
+      "source": 2,
+      "line": 44,
+      "section": "1.1. Tezkor hodisa qayd etish",
+      "requirement": "- O'quvchi",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-045",
+      "source": 2,
+      "line": 45,
+      "section": "1.1. Tezkor hodisa qayd etish",
+      "requirement": "- Hodisa turi",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-046",
+      "source": 2,
+      "line": 46,
+      "section": "1.1. Tezkor hodisa qayd etish",
+      "requirement": "- Sana va vaqt",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-047",
+      "source": 2,
+      "line": 47,
+      "section": "1.1. Tezkor hodisa qayd etish",
+      "requirement": "- Dars/fan",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-048",
+      "source": 2,
+      "line": 48,
+      "section": "1.1. Tezkor hodisa qayd etish",
+      "requirement": "- Hodisa tavsifi",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-049",
+      "source": 2,
+      "line": 49,
+      "section": "1.1. Tezkor hodisa qayd etish",
+      "requirement": "- Ball",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-050",
+      "source": 2,
+      "line": 50,
+      "section": "1.1. Tezkor hodisa qayd etish",
+      "requirement": "- Ixtiyoriy dalil yoki ilova",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-051",
+      "source": 2,
+      "line": 51,
+      "section": "1.1. Tezkor hodisa qayd etish",
+      "requirement": "- O'qituvchi izohi",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-052",
+      "source": 2,
+      "line": 52,
+      "section": "1.1. Tezkor hodisa qayd etish",
+      "requirement": "- Holat: qoralama / yuborilgan / ko'rib chiqilmoqda / tasdiqlangan / bekor qilingan",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-056",
+      "source": 2,
+      "line": 56,
+      "section": "1.1. Tezkor hodisa qayd etish",
+      "requirement": "1. Darsga kechikish",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-057",
+      "source": 2,
+      "line": 57,
+      "section": "1.1. Tezkor hodisa qayd etish",
+      "requirement": "2. Uy vazifasini bajarmaslik",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-058",
+      "source": 2,
+      "line": 58,
+      "section": "1.1. Tezkor hodisa qayd etish",
+      "requirement": "3. Darsga tayyorgarliksiz kelish",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-059",
+      "source": 2,
+      "line": 59,
+      "section": "1.1. Tezkor hodisa qayd etish",
+      "requirement": "4. Dars jarayoniga xalaqit berish",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-060",
+      "source": 2,
+      "line": 60,
+      "section": "1.1. Tezkor hodisa qayd etish",
+      "requirement": "5. O'qituvchi ko'rsatmasiga rioya qilmaslik",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-061",
+      "source": 2,
+      "line": 61,
+      "section": "1.1. Tezkor hodisa qayd etish",
+      "requirement": "6. Sinfdoshiga hurmatsiz muomala",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-062",
+      "source": 2,
+      "line": 62,
+      "section": "1.1. Tezkor hodisa qayd etish",
+      "requirement": "7. Darsda telefondan ruxsatsiz foydalanish",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-063",
+      "source": 2,
+      "line": 63,
+      "section": "1.1. Tezkor hodisa qayd etish",
+      "requirement": "8. Darsda sababsiz qatnashmaslik",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-064",
+      "source": 2,
+      "line": 64,
+      "section": "1.1. Tezkor hodisa qayd etish",
+      "requirement": "9. Maktab mulkiga ehtiyotsiz munosabat",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-065",
+      "source": 2,
+      "line": 65,
+      "section": "1.1. Tezkor hodisa qayd etish",
+      "requirement": "10. Maktabning tasdiqlangan ichki tartib-qoidalarini buzish",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-066",
+      "source": 2,
+      "line": 66,
+      "section": "1.1. Tezkor hodisa qayd etish",
+      "requirement": "11. Boshqa holat — qo'lda kiritish",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-078",
+      "source": 2,
+      "line": 78,
+      "section": "1.2. Ballar va 30 ball chegarasi",
+      "requirement": "- Har bir tasdiqlangan hodisa: standart 1 ball.",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-079",
+      "source": 2,
+      "line": 79,
+      "section": "1.2. Ballar va 30 ball chegarasi",
+      "requirement": "- Takroriy bir xil hodisalar kuzatilsin.",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-080",
+      "source": 2,
+      "line": 80,
+      "section": "1.2. Ballar va 30 ball chegarasi",
+      "requirement": "- Har bir o'quvchining joriy ballari hisoblanib borsin.",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-081",
+      "source": 2,
+      "line": 81,
+      "section": "1.2. Ballar va 30 ball chegarasi",
+      "requirement": "- Ballar admin tomonidan belgilangan muddat (masalan, chorak) uchun hisoblanishi mumkin.",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-082",
+      "source": 2,
+      "line": 82,
+      "section": "1.2. Ballar va 30 ball chegarasi",
+      "requirement": "- Eski chorak ma'lumotlari arxivda saqlansin.",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-083",
+      "source": 2,
+      "line": 83,
+      "section": "1.2. Ballar va 30 ball chegarasi",
+      "requirement": "- Bir hodisa ikki marta hisoblanmasin.",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-087",
+      "source": 2,
+      "line": 87,
+      "section": "1.2. Ballar va 30 ball chegarasi",
+      "requirement": "| Ball | Tizim harakati |",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-088",
+      "source": 2,
+      "line": 88,
+      "section": "1.2. Ballar va 30 ball chegarasi",
+      "requirement": "|---|---|",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-089",
+      "source": 2,
+      "line": 89,
+      "section": "1.2. Ballar va 30 ball chegarasi",
+      "requirement": "| 1–9 | Holatlar qayd etiladi, kerak bo'lsa pedagogik suhbat |",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-090",
+      "source": 2,
+      "line": 90,
+      "section": "1.2. Ballar va 30 ball chegarasi",
+      "requirement": "| 10–19 | Mas'ul o'qituvchiga holatni tahlil qilish eslatmasi |",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-091",
+      "source": 2,
+      "line": 91,
+      "section": "1.2. Ballar va 30 ball chegarasi",
+      "requirement": "| 20–29 | Sinf rahbari va ma'muriyatga ko'rib chiqish taklifi |",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-092",
+      "source": 2,
+      "line": 92,
+      "section": "1.2. Ballar va 30 ball chegarasi",
+      "requirement": "| 30 | Rasmiy ko'rib chiqish uchun administratorga yuborish |",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-099",
+      "source": 2,
+      "line": 99,
+      "section": "1.2. Ballar va 30 ball chegarasi",
+      "requirement": "1. Administratorga ogohlantirish yuborish.",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-100",
+      "source": 2,
+      "line": 100,
+      "section": "1.2. Ballar va 30 ball chegarasi",
+      "requirement": "2. Hodisalar tarixini jamlash.",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-101",
+      "source": 2,
+      "line": 101,
+      "section": "1.2. Ballar va 30 ball chegarasi",
+      "requirement": "3. Takrorlangan holatlarni aniqlash.",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-102",
+      "source": 2,
+      "line": 102,
+      "section": "1.2. Ballar va 30 ball chegarasi",
+      "requirement": "4. O'quvchining izohini olish imkonini berish.",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-103",
+      "source": 2,
+      "line": 103,
+      "section": "1.2. Ballar va 30 ball chegarasi",
+      "requirement": "5. Sinf rahbari bilan suhbat belgilash.",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-104",
+      "source": 2,
+      "line": 104,
+      "section": "1.2. Ballar va 30 ball chegarasi",
+      "requirement": "6. Zarur bo'lsa ota-ona bilan aloqa jarayonini boshlash.",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-105",
+      "source": 2,
+      "line": 105,
+      "section": "1.2. Ballar va 30 ball chegarasi",
+      "requirement": "7. Maktabning tasdiqlangan ichki qoidalari asosida vakolatli mas'ul qaror qabul qilishi uchun ish ochish.",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-114",
+      "source": 2,
+      "line": 114,
+      "section": "1.3. Administrator uchun intizom paneli",
+      "requirement": "- Barcha hodisalar",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-115",
+      "source": 2,
+      "line": 115,
+      "section": "1.3. Administrator uchun intizom paneli",
+      "requirement": "- Bugungi yangi qaydlar",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-116",
+      "source": 2,
+      "line": 116,
+      "section": "1.3. Administrator uchun intizom paneli",
+      "requirement": "- Ko'rib chiqilayotgan holatlar",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-117",
+      "source": 2,
+      "line": 117,
+      "section": "1.3. Administrator uchun intizom paneli",
+      "requirement": "- Tasdiqlangan holatlar",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-118",
+      "source": 2,
+      "line": 118,
+      "section": "1.3. Administrator uchun intizom paneli",
+      "requirement": "- Bekor qilingan holatlar",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-119",
+      "source": 2,
+      "line": 119,
+      "section": "1.3. Administrator uchun intizom paneli",
+      "requirement": "- Ogohlantirish chegarasiga yaqinlashgan o'quvchilar",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-120",
+      "source": 2,
+      "line": 120,
+      "section": "1.3. Administrator uchun intizom paneli",
+      "requirement": "- Rasmiy ko'rib chiqish uchun kelgan holatlar",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-121",
+      "source": 2,
+      "line": 121,
+      "section": "1.3. Administrator uchun intizom paneli",
+      "requirement": "- O'qituvchilar bo'yicha statistikalar",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-122",
+      "source": 2,
+      "line": 122,
+      "section": "1.3. Administrator uchun intizom paneli",
+      "requirement": "- Sinflar bo'yicha umumiy tahlillar",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-123",
+      "source": 2,
+      "line": 123,
+      "section": "1.3. Administrator uchun intizom paneli",
+      "requirement": "- Vaqt bo'yicha o'zgarishlar",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-124",
+      "source": 2,
+      "line": 124,
+      "section": "1.3. Administrator uchun intizom paneli",
+      "requirement": "- Apellyatsiyalar",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-125",
+      "source": 2,
+      "line": 125,
+      "section": "1.3. Administrator uchun intizom paneli",
+      "requirement": "- Yordam rejalari",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-126",
+      "source": 2,
+      "line": 126,
+      "section": "1.3. Administrator uchun intizom paneli",
+      "requirement": "- Ota-onaga yuborilgan xabarlar tarixi",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-130",
+      "source": 2,
+      "line": 130,
+      "section": "1.3. Administrator uchun intizom paneli",
+      "requirement": "- Kim qayd etdi?",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-131",
+      "source": 2,
+      "line": 131,
+      "section": "1.3. Administrator uchun intizom paneli",
+      "requirement": "- Qaysi o'quvchi?",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-132",
+      "source": 2,
+      "line": 132,
+      "section": "1.3. Administrator uchun intizom paneli",
+      "requirement": "- Qaysi sinf va fan?",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-133",
+      "source": 2,
+      "line": 133,
+      "section": "1.3. Administrator uchun intizom paneli",
+      "requirement": "- Qachon?",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-134",
+      "source": 2,
+      "line": 134,
+      "section": "1.3. Administrator uchun intizom paneli",
+      "requirement": "- Nima sodir bo'ldi?",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-135",
+      "source": 2,
+      "line": 135,
+      "section": "1.3. Administrator uchun intizom paneli",
+      "requirement": "- Nima uchun qayd qilindi?",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-136",
+      "source": 2,
+      "line": 136,
+      "section": "1.3. Administrator uchun intizom paneli",
+      "requirement": "- Qaysi qoida bilan bog'liq?",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-137",
+      "source": 2,
+      "line": 137,
+      "section": "1.3. Administrator uchun intizom paneli",
+      "requirement": "- Qanday ball qo'shildi?",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-138",
+      "source": 2,
+      "line": 138,
+      "section": "1.3. Administrator uchun intizom paneli",
+      "requirement": "- Kim tasdiqladi?",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-139",
+      "source": 2,
+      "line": 139,
+      "section": "1.3. Administrator uchun intizom paneli",
+      "requirement": "- Kim tahrirladi yoki bekor qildi?",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-140",
+      "source": 2,
+      "line": 140,
+      "section": "1.3. Administrator uchun intizom paneli",
+      "requirement": "- Qanday pedagogik chora ko'rildi?",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-141",
+      "source": 2,
+      "line": 141,
+      "section": "1.3. Administrator uchun intizom paneli",
+      "requirement": "- O'quvchi qanday izoh berdi?",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-142",
+      "source": 2,
+      "line": 142,
+      "section": "1.3. Administrator uchun intizom paneli",
+      "requirement": "- Ish qachon yopildi?",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-151",
+      "source": 2,
+      "line": 151,
+      "section": "1.4. Ogohlantirish xati generatori",
+      "requirement": "- Maktab nomi",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-152",
+      "source": 2,
+      "line": 152,
+      "section": "1.4. Ogohlantirish xati generatori",
+      "requirement": "- Hujjat raqami",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-153",
+      "source": 2,
+      "line": 153,
+      "section": "1.4. Ogohlantirish xati generatori",
+      "requirement": "- Sana",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-154",
+      "source": 2,
+      "line": 154,
+      "section": "1.4. Ogohlantirish xati generatori",
+      "requirement": "- O'quvchi F.I.Sh.",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-155",
+      "source": 2,
+      "line": 155,
+      "section": "1.4. Ogohlantirish xati generatori",
+      "requirement": "- Sinf",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-156",
+      "source": 2,
+      "line": 156,
+      "section": "1.4. Ogohlantirish xati generatori",
+      "requirement": "- Ko'rib chiqilgan hodisalar qisqacha mazmuni",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-157",
+      "source": 2,
+      "line": 157,
+      "section": "1.4. Ogohlantirish xati generatori",
+      "requirement": "- Suhbat va profilaktik tadbirlar",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-158",
+      "source": 2,
+      "line": 158,
+      "section": "1.4. Ogohlantirish xati generatori",
+      "requirement": "- Mas'ul shaxs",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-159",
+      "source": 2,
+      "line": 159,
+      "section": "1.4. Ogohlantirish xati generatori",
+      "requirement": "- Keyingi qadamlar",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-160",
+      "source": 2,
+      "line": 160,
+      "section": "1.4. Ogohlantirish xati generatori",
+      "requirement": "- Ota-ona bilan aloqa holati",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-161",
+      "source": 2,
+      "line": 161,
+      "section": "1.4. Ogohlantirish xati generatori",
+      "requirement": "- Izoh va tasdiqlash maydonlari",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-171",
+      "source": 2,
+      "line": 171,
+      "section": "1.5. O'quvchi uchun adolatli jarayon",
+      "requirement": "- Hodisa sanasi",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-172",
+      "source": 2,
+      "line": 172,
+      "section": "1.5. O'quvchi uchun adolatli jarayon",
+      "requirement": "- Sababi",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-173",
+      "source": 2,
+      "line": 173,
+      "section": "1.5. O'quvchi uchun adolatli jarayon",
+      "requirement": "- Ball",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-174",
+      "source": 2,
+      "line": 174,
+      "section": "1.5. O'quvchi uchun adolatli jarayon",
+      "requirement": "- Holati",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-175",
+      "source": 2,
+      "line": 175,
+      "section": "1.5. O'quvchi uchun adolatli jarayon",
+      "requirement": "- Izoh berish",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-176",
+      "source": 2,
+      "line": 176,
+      "section": "1.5. O'quvchi uchun adolatli jarayon",
+      "requirement": "- Xatoni tuzatishni so'rash",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-177",
+      "source": 2,
+      "line": 177,
+      "section": "1.5. O'quvchi uchun adolatli jarayon",
+      "requirement": "- Apellyatsiya yuborish",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-178",
+      "source": 2,
+      "line": 178,
+      "section": "1.5. O'quvchi uchun adolatli jarayon",
+      "requirement": "- Ko'rib chiqish natijasi",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-196",
+      "source": 2,
+      "line": 196,
+      "section": "2.1. O'qituvchi bosh sahifasi",
+      "requirement": "- Bugungi dars jadvali",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-197",
+      "source": 2,
+      "line": 197,
+      "section": "2.1. O'qituvchi bosh sahifasi",
+      "requirement": "- Hozirgi va keyingi dars",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-198",
+      "source": 2,
+      "line": 198,
+      "section": "2.1. O'qituvchi bosh sahifasi",
+      "requirement": "- Biriktirilgan sinflar",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-199",
+      "source": 2,
+      "line": 199,
+      "section": "2.1. O'qituvchi bosh sahifasi",
+      "requirement": "- Tekshirilmagan yozma ishlar",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-200",
+      "source": 2,
+      "line": 200,
+      "section": "2.1. O'qituvchi bosh sahifasi",
+      "requirement": "- Faol uy vazifalari",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-201",
+      "source": 2,
+      "line": 201,
+      "section": "2.1. O'qituvchi bosh sahifasi",
+      "requirement": "- Yaqinlashayotgan BSB/CHSB",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-202",
+      "source": 2,
+      "line": 202,
+      "section": "2.1. O'qituvchi bosh sahifasi",
+      "requirement": "- Davomat kiritilmagan darslar",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-203",
+      "source": 2,
+      "line": 203,
+      "section": "2.1. O'qituvchi bosh sahifasi",
+      "requirement": "- Yangi o'quvchi savollari",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-204",
+      "source": 2,
+      "line": 204,
+      "section": "2.1. O'qituvchi bosh sahifasi",
+      "requirement": "- Ko'rib chiqish talab qiladigan holatlar",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-205",
+      "source": 2,
+      "line": 205,
+      "section": "2.1. O'qituvchi bosh sahifasi",
+      "requirement": "- Muhim e'lonlar",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-208",
+      "source": 2,
+      "line": 208,
+      "section": "2.1. O'qituvchi bosh sahifasi",
+      "requirement": "- Davomat olish",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-209",
+      "source": 2,
+      "line": 209,
+      "section": "2.1. O'qituvchi bosh sahifasi",
+      "requirement": "- Topshiriq berish",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-210",
+      "source": 2,
+      "line": 210,
+      "section": "2.1. O'qituvchi bosh sahifasi",
+      "requirement": "- Mavzu testini yaratish",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-211",
+      "source": 2,
+      "line": 211,
+      "section": "2.1. O'qituvchi bosh sahifasi",
+      "requirement": "- Nazorat yaratish",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-212",
+      "source": 2,
+      "line": 212,
+      "section": "2.1. O'qituvchi bosh sahifasi",
+      "requirement": "- Natijalarni ko'rish",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-213",
+      "source": 2,
+      "line": 213,
+      "section": "2.1. O'qituvchi bosh sahifasi",
+      "requirement": "- Intizomiy holat qayd etish",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-214",
+      "source": 2,
+      "line": 214,
+      "section": "2.1. O'qituvchi bosh sahifasi",
+      "requirement": "- O'quvchiga izoh yuborish",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-218",
+      "source": 2,
+      "line": 218,
+      "section": "2.2. O'qituvchi boshqaradigan asosiy modullar",
+      "requirement": "1. Bosh sahifa",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-219",
+      "source": 2,
+      "line": 219,
+      "section": "2.2. O'qituvchi boshqaradigan asosiy modullar",
+      "requirement": "2. Mening sinflarim",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-220",
+      "source": 2,
+      "line": 220,
+      "section": "2.2. O'qituvchi boshqaradigan asosiy modullar",
+      "requirement": "3. Mening fanlarim",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-221",
+      "source": 2,
+      "line": 221,
+      "section": "2.2. O'qituvchi boshqaradigan asosiy modullar",
+      "requirement": "4. Dars jadvali",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-222",
+      "source": 2,
+      "line": 222,
+      "section": "2.2. O'qituvchi boshqaradigan asosiy modullar",
+      "requirement": "5. Ish rejalari",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-223",
+      "source": 2,
+      "line": 223,
+      "section": "2.2. O'qituvchi boshqaradigan asosiy modullar",
+      "requirement": "6. Mavzular",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-224",
+      "source": 2,
+      "line": 224,
+      "section": "2.2. O'qituvchi boshqaradigan asosiy modullar",
+      "requirement": "7. Dars materiallari",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-225",
+      "source": 2,
+      "line": 225,
+      "section": "2.2. O'qituvchi boshqaradigan asosiy modullar",
+      "requirement": "8. Uy vazifalari",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-226",
+      "source": 2,
+      "line": 226,
+      "section": "2.2. O'qituvchi boshqaradigan asosiy modullar",
+      "requirement": "9. Mavzu testlari",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-227",
+      "source": 2,
+      "line": 227,
+      "section": "2.2. O'qituvchi boshqaradigan asosiy modullar",
+      "requirement": "10. Savollar banki",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-228",
+      "source": 2,
+      "line": 228,
+      "section": "2.2. O'qituvchi boshqaradigan asosiy modullar",
+      "requirement": "11. BSB/CHSB",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-229",
+      "source": 2,
+      "line": 229,
+      "section": "2.2. O'qituvchi boshqaradigan asosiy modullar",
+      "requirement": "12. Davomat",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-230",
+      "source": 2,
+      "line": 230,
+      "section": "2.2. O'qituvchi boshqaradigan asosiy modullar",
+      "requirement": "13. Yozma ishlarni tekshirish",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-231",
+      "source": 2,
+      "line": 231,
+      "section": "2.2. O'qituvchi boshqaradigan asosiy modullar",
+      "requirement": "14. Natijalar va baholash",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-232",
+      "source": 2,
+      "line": 232,
+      "section": "2.2. O'qituvchi boshqaradigan asosiy modullar",
+      "requirement": "15. O'quvchi bilim xaritasi",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-233",
+      "source": 2,
+      "line": 233,
+      "section": "2.2. O'qituvchi boshqaradigan asosiy modullar",
+      "requirement": "16. Intizomiy holatlar",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-234",
+      "source": 2,
+      "line": 234,
+      "section": "2.2. O'qituvchi boshqaradigan asosiy modullar",
+      "requirement": "17. O'quvchiga yordam rejalari",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-235",
+      "source": 2,
+      "line": 235,
+      "section": "2.2. O'qituvchi boshqaradigan asosiy modullar",
+      "requirement": "18. Xabarlar va e'lonlar",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-236",
+      "source": 2,
+      "line": 236,
+      "section": "2.2. O'qituvchi boshqaradigan asosiy modullar",
+      "requirement": "19. Hisobotlar",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-237",
+      "source": 2,
+      "line": 237,
+      "section": "2.2. O'qituvchi boshqaradigan asosiy modullar",
+      "requirement": "20. O'qituvchi sozlamalari",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-246",
+      "source": 2,
+      "line": 246,
+      "section": "2.3. Tezkor davomat",
+      "requirement": "- Qatnashdi",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-247",
+      "source": 2,
+      "line": 247,
+      "section": "2.3. Tezkor davomat",
+      "requirement": "- Kechikdi",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-248",
+      "source": 2,
+      "line": 248,
+      "section": "2.3. Tezkor davomat",
+      "requirement": "- Sababli kelmadi",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-249",
+      "source": 2,
+      "line": 249,
+      "section": "2.3. Tezkor davomat",
+      "requirement": "- Sababsiz kelmadi",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-250",
+      "source": 2,
+      "line": 250,
+      "section": "2.3. Tezkor davomat",
+      "requirement": "- Hali belgilanmagan",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-258",
+      "source": 2,
+      "line": 258,
+      "section": "2.4. O'quvchi 360° profili",
+      "requirement": "- O'z fanidagi natijalar",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-259",
+      "source": 2,
+      "line": 259,
+      "section": "2.4. O'quvchi 360° profili",
+      "requirement": "- Topshiriqlar bajarilishi",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-260",
+      "source": 2,
+      "line": 260,
+      "section": "2.4. O'quvchi 360° profili",
+      "requirement": "- Test urinishlari",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-261",
+      "source": 2,
+      "line": 261,
+      "section": "2.4. O'quvchi 360° profili",
+      "requirement": "- Qiyin mavzular",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-262",
+      "source": 2,
+      "line": 262,
+      "section": "2.4. O'quvchi 360° profili",
+      "requirement": "- Xatolar dinamikasi",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-263",
+      "source": 2,
+      "line": 263,
+      "section": "2.4. O'quvchi 360° profili",
+      "requirement": "- O'zlashtirish xaritasi",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-264",
+      "source": 2,
+      "line": 264,
+      "section": "2.4. O'quvchi 360° profili",
+      "requirement": "- Davomat",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-265",
+      "source": 2,
+      "line": 265,
+      "section": "2.4. O'quvchi 360° profili",
+      "requirement": "- Yordam rejalari",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-266",
+      "source": 2,
+      "line": 266,
+      "section": "2.4. O'quvchi 360° profili",
+      "requirement": "- Tegishli intizomiy qaydlar",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-267",
+      "source": 2,
+      "line": 267,
+      "section": "2.4. O'quvchi 360° profili",
+      "requirement": "- O'qituvchi tavsiyalari",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-273",
+      "source": 2,
+      "line": 273,
+      "section": "2.5. O'qituvchi uchun qo'shimcha imkoniyatlar",
+      "requirement": "- Ommaviy uy vazifasi biriktirish",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-274",
+      "source": 2,
+      "line": 274,
+      "section": "2.5. O'qituvchi uchun qo'shimcha imkoniyatlar",
+      "requirement": "- Vazifani boshqa sinfga nusxalash",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-275",
+      "source": 2,
+      "line": 275,
+      "section": "2.5. O'qituvchi uchun qo'shimcha imkoniyatlar",
+      "requirement": "- Topshiriq shablonlari",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-276",
+      "source": 2,
+      "line": 276,
+      "section": "2.5. O'qituvchi uchun qo'shimcha imkoniyatlar",
+      "requirement": "- Savollar bankidan tezkor test yaratish",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-277",
+      "source": 2,
+      "line": 277,
+      "section": "2.5. O'qituvchi uchun qo'shimcha imkoniyatlar",
+      "requirement": "- Natijalarni Excel/PDF eksport qilish",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-278",
+      "source": 2,
+      "line": 278,
+      "section": "2.5. O'qituvchi uchun qo'shimcha imkoniyatlar",
+      "requirement": "- Test natijalarini savollar kesimida tahlil qilish",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-279",
+      "source": 2,
+      "line": 279,
+      "section": "2.5. O'qituvchi uchun qo'shimcha imkoniyatlar",
+      "requirement": "- Individual yordam tavsiyalari",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-280",
+      "source": 2,
+      "line": 280,
+      "section": "2.5. O'qituvchi uchun qo'shimcha imkoniyatlar",
+      "requirement": "- Mavzular bo'yicha o'zlashtirish xaritasi",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-281",
+      "source": 2,
+      "line": 281,
+      "section": "2.5. O'qituvchi uchun qo'shimcha imkoniyatlar",
+      "requirement": "- Tekshirish navbati",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-282",
+      "source": 2,
+      "line": 282,
+      "section": "2.5. O'qituvchi uchun qo'shimcha imkoniyatlar",
+      "requirement": "- Qoralama saqlash",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-283",
+      "source": 2,
+      "line": 283,
+      "section": "2.5. O'qituvchi uchun qo'shimcha imkoniyatlar",
+      "requirement": "- Izohlar shabloni",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-284",
+      "source": 2,
+      "line": 284,
+      "section": "2.5. O'qituvchi uchun qo'shimcha imkoniyatlar",
+      "requirement": "- Muddati o'tgan ishlar ro'yxati",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-285",
+      "source": 2,
+      "line": 285,
+      "section": "2.5. O'qituvchi uchun qo'shimcha imkoniyatlar",
+      "requirement": "- Muhim voqealar bildirishnomalari",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-298",
+      "source": 2,
+      "line": 298,
+      "section": "3.1. Dashboard",
+      "requirement": "- Jami o'quvchilar",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-299",
+      "source": 2,
+      "line": 299,
+      "section": "3.1. Dashboard",
+      "requirement": "- Jami o'qituvchilar",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-300",
+      "source": 2,
+      "line": 300,
+      "section": "3.1. Dashboard",
+      "requirement": "- Sinflar",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-301",
+      "source": 2,
+      "line": 301,
+      "section": "3.1. Dashboard",
+      "requirement": "- Faol fanlar",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-302",
+      "source": 2,
+      "line": 302,
+      "section": "3.1. Dashboard",
+      "requirement": "- Rejalashtirilgan nazoratlar",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-303",
+      "source": 2,
+      "line": 303,
+      "section": "3.1. Dashboard",
+      "requirement": "- Tekshirilmagan yozma ishlar",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-304",
+      "source": 2,
+      "line": 304,
+      "section": "3.1. Dashboard",
+      "requirement": "- Davomat holati",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-305",
+      "source": 2,
+      "line": 305,
+      "section": "3.1. Dashboard",
+      "requirement": "- Ish rejasi yuklanmagan fanlar",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-306",
+      "source": 2,
+      "line": 306,
+      "section": "3.1. Dashboard",
+      "requirement": "- Mavzu testi yo'q mavzular",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-307",
+      "source": 2,
+      "line": 307,
+      "section": "3.1. Dashboard",
+      "requirement": "- Faol intizomiy holatlar",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-308",
+      "source": 2,
+      "line": 308,
+      "section": "3.1. Dashboard",
+      "requirement": "- Ko'rib chiqilayotgan murojaatlar",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-309",
+      "source": 2,
+      "line": 309,
+      "section": "3.1. Dashboard",
+      "requirement": "- Muhim tizim ogohlantirishlari",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-315",
+      "source": 2,
+      "line": 315,
+      "section": "3.2. To'liq boshqaruv imkoniyatlari",
+      "requirement": "- O'quvchi hisoblarini boshqarish",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-316",
+      "source": 2,
+      "line": 316,
+      "section": "3.2. To'liq boshqaruv imkoniyatlari",
+      "requirement": "- O'qituvchilarni boshqarish",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-317",
+      "source": 2,
+      "line": 317,
+      "section": "3.2. To'liq boshqaruv imkoniyatlari",
+      "requirement": "- Rollar va ruxsatlar",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-318",
+      "source": 2,
+      "line": 318,
+      "section": "3.2. To'liq boshqaruv imkoniyatlari",
+      "requirement": "- Sinf va guruhlar",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-319",
+      "source": 2,
+      "line": 319,
+      "section": "3.2. To'liq boshqaruv imkoniyatlari",
+      "requirement": "- Fanlar",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-320",
+      "source": 2,
+      "line": 320,
+      "section": "3.2. To'liq boshqaruv imkoniyatlari",
+      "requirement": "- O'quv yillari",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-321",
+      "source": 2,
+      "line": 321,
+      "section": "3.2. To'liq boshqaruv imkoniyatlari",
+      "requirement": "- Choraklar",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-322",
+      "source": 2,
+      "line": 322,
+      "section": "3.2. To'liq boshqaruv imkoniyatlari",
+      "requirement": "- Ish rejalari",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-323",
+      "source": 2,
+      "line": 323,
+      "section": "3.2. To'liq boshqaruv imkoniyatlari",
+      "requirement": "- Dars jadvali",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-324",
+      "source": 2,
+      "line": 324,
+      "section": "3.2. To'liq boshqaruv imkoniyatlari",
+      "requirement": "- Kontent markazi",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-325",
+      "source": 2,
+      "line": 325,
+      "section": "3.2. To'liq boshqaruv imkoniyatlari",
+      "requirement": "- Testlar va savollar banki",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-326",
+      "source": 2,
+      "line": 326,
+      "section": "3.2. To'liq boshqaruv imkoniyatlari",
+      "requirement": "- BSB/CHSB",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-327",
+      "source": 2,
+      "line": 327,
+      "section": "3.2. To'liq boshqaruv imkoniyatlari",
+      "requirement": "- Natijalar",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-328",
+      "source": 2,
+      "line": 328,
+      "section": "3.2. To'liq boshqaruv imkoniyatlari",
+      "requirement": "- Davomat",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-329",
+      "source": 2,
+      "line": 329,
+      "section": "3.2. To'liq boshqaruv imkoniyatlari",
+      "requirement": "- Topshiriqlar",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-330",
+      "source": 2,
+      "line": 330,
+      "section": "3.2. To'liq boshqaruv imkoniyatlari",
+      "requirement": "- Intizom va tarbiyaviy monitoring",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-331",
+      "source": 2,
+      "line": 331,
+      "section": "3.2. To'liq boshqaruv imkoniyatlari",
+      "requirement": "- Ota-onalar bilan aloqa",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-332",
+      "source": 2,
+      "line": 332,
+      "section": "3.2. To'liq boshqaruv imkoniyatlari",
+      "requirement": "- Hisobotlar",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-333",
+      "source": 2,
+      "line": 333,
+      "section": "3.2. To'liq boshqaruv imkoniyatlari",
+      "requirement": "- E'lonlar",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-334",
+      "source": 2,
+      "line": 334,
+      "section": "3.2. To'liq boshqaruv imkoniyatlari",
+      "requirement": "- Audit jurnali",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-335",
+      "source": 2,
+      "line": 335,
+      "section": "3.2. To'liq boshqaruv imkoniyatlari",
+      "requirement": "- Ma'lumot eksporti",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-336",
+      "source": 2,
+      "line": 336,
+      "section": "3.2. To'liq boshqaruv imkoniyatlari",
+      "requirement": "- Zaxira nusxalar",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-337",
+      "source": 2,
+      "line": 337,
+      "section": "3.2. To'liq boshqaruv imkoniyatlari",
+      "requirement": "- Tizim sozlamalari",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-344",
+      "source": 2,
+      "line": 344,
+      "section": "3.3. Kontent markazi",
+      "requirement": "- Excel",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-345",
+      "source": 2,
+      "line": 345,
+      "section": "3.3. Kontent markazi",
+      "requirement": "- CSV",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-346",
+      "source": 2,
+      "line": 346,
+      "section": "3.3. Kontent markazi",
+      "requirement": "- PDF",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-347",
+      "source": 2,
+      "line": 347,
+      "section": "3.3. Kontent markazi",
+      "requirement": "- DOCX",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-355",
+      "source": 2,
+      "line": 355,
+      "section": "3.4. Administrator uchun professional hisobotlar",
+      "requirement": "- Fanlar bo'yicha o'zlashtirish",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-356",
+      "source": 2,
+      "line": 356,
+      "section": "3.4. Administrator uchun professional hisobotlar",
+      "requirement": "- Sinflar bo'yicha o'zlashtirish",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-357",
+      "source": 2,
+      "line": 357,
+      "section": "3.4. Administrator uchun professional hisobotlar",
+      "requirement": "- O'qituvchilar yuklamasi",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-358",
+      "source": 2,
+      "line": 358,
+      "section": "3.4. Administrator uchun professional hisobotlar",
+      "requirement": "- Davomat tendensiyasi",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-359",
+      "source": 2,
+      "line": 359,
+      "section": "3.4. Administrator uchun professional hisobotlar",
+      "requirement": "- Bajarilmagan vazifalar",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-360",
+      "source": 2,
+      "line": 360,
+      "section": "3.4. Administrator uchun professional hisobotlar",
+      "requirement": "- Mavzular qamrovi",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-361",
+      "source": 2,
+      "line": 361,
+      "section": "3.4. Administrator uchun professional hisobotlar",
+      "requirement": "- Intizomiy hodisalar tendensiyasi",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-362",
+      "source": 2,
+      "line": 362,
+      "section": "3.4. Administrator uchun professional hisobotlar",
+      "requirement": "- Yordam rejalarining bajarilishi",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-363",
+      "source": 2,
+      "line": 363,
+      "section": "3.4. Administrator uchun professional hisobotlar",
+      "requirement": "- Testlardan foydalanish",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-364",
+      "source": 2,
+      "line": 364,
+      "section": "3.4. Administrator uchun professional hisobotlar",
+      "requirement": "- Kontent to'liqligi",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-365",
+      "source": 2,
+      "line": 365,
+      "section": "3.4. Administrator uchun professional hisobotlar",
+      "requirement": "- Tizimning texnik ishlash holati",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-379",
+      "source": 2,
+      "line": 379,
+      "section": "4.1. Bosh sahifa",
+      "requirement": "- Salomlashuv va sana",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-380",
+      "source": 2,
+      "line": 380,
+      "section": "4.1. Bosh sahifa",
+      "requirement": "- Bugungi darslar",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-381",
+      "source": 2,
+      "line": 381,
+      "section": "4.1. Bosh sahifa",
+      "requirement": "- Muddati yaqin vazifalar",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-382",
+      "source": 2,
+      "line": 382,
+      "section": "4.1. Bosh sahifa",
+      "requirement": "- Faol testlar",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-383",
+      "source": 2,
+      "line": 383,
+      "section": "4.1. Bosh sahifa",
+      "requirement": "- Oxirgi o'qilgan mavzu",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-384",
+      "source": 2,
+      "line": 384,
+      "section": "4.1. Bosh sahifa",
+      "requirement": "- \"Davom ettirish\"",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-385",
+      "source": 2,
+      "line": 385,
+      "section": "4.1. Bosh sahifa",
+      "requirement": "- Bugungi takrorlash",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-386",
+      "source": 2,
+      "line": 386,
+      "section": "4.1. Bosh sahifa",
+      "requirement": "- O'zlashtirish progressi",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-387",
+      "source": 2,
+      "line": 387,
+      "section": "4.1. Bosh sahifa",
+      "requirement": "- O'qituvchi e'lonlari",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-388",
+      "source": 2,
+      "line": 388,
+      "section": "4.1. Bosh sahifa",
+      "requirement": "- Muhim bildirishnomalar",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-392",
+      "source": 2,
+      "line": 392,
+      "section": "4.2. O'quvchi imkoniyatlari",
+      "requirement": "- Fanlar katalogi",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-393",
+      "source": 2,
+      "line": 393,
+      "section": "4.2. O'quvchi imkoniyatlari",
+      "requirement": "- Mavzular",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-394",
+      "source": 2,
+      "line": 394,
+      "section": "4.2. O'quvchi imkoniyatlari",
+      "requirement": "- Dars materiallari",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-395",
+      "source": 2,
+      "line": 395,
+      "section": "4.2. O'quvchi imkoniyatlari",
+      "requirement": "- Uy vazifalari",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-396",
+      "source": 2,
+      "line": 396,
+      "section": "4.2. O'quvchi imkoniyatlari",
+      "requirement": "- Mavzu testlari",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-397",
+      "source": 2,
+      "line": 397,
+      "section": "4.2. O'quvchi imkoniyatlari",
+      "requirement": "- Natijalar",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-398",
+      "source": 2,
+      "line": 398,
+      "section": "4.2. O'quvchi imkoniyatlari",
+      "requirement": "- Xatolar daftari",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-399",
+      "source": 2,
+      "line": 399,
+      "section": "4.2. O'quvchi imkoniyatlari",
+      "requirement": "- Spaced repetition",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-400",
+      "source": 2,
+      "line": 400,
+      "section": "4.2. O'quvchi imkoniyatlari",
+      "requirement": "- Fleshkartalar",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-401",
+      "source": 2,
+      "line": 401,
+      "section": "4.2. O'quvchi imkoniyatlari",
+      "requirement": "- Bilim xaritasi",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-402",
+      "source": 2,
+      "line": 402,
+      "section": "4.2. O'quvchi imkoniyatlari",
+      "requirement": "- O'quv o'yinlari",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-403",
+      "source": 2,
+      "line": 403,
+      "section": "4.2. O'quvchi imkoniyatlari",
+      "requirement": "- Shaxsiy maqsadlar",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-404",
+      "source": 2,
+      "line": 404,
+      "section": "4.2. O'quvchi imkoniyatlari",
+      "requirement": "- O'qituvchi izohlari",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-405",
+      "source": 2,
+      "line": 405,
+      "section": "4.2. O'quvchi imkoniyatlari",
+      "requirement": "- Dars jadvali",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-406",
+      "source": 2,
+      "line": 406,
+      "section": "4.2. O'quvchi imkoniyatlari",
+      "requirement": "- Davomat",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-407",
+      "source": 2,
+      "line": 407,
+      "section": "4.2. O'quvchi imkoniyatlari",
+      "requirement": "- O'ziga tegishli intizomiy qaydlar",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-408",
+      "source": 2,
+      "line": 408,
+      "section": "4.2. O'quvchi imkoniyatlari",
+      "requirement": "- Apellyatsiya",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-409",
+      "source": 2,
+      "line": 409,
+      "section": "4.2. O'quvchi imkoniyatlari",
+      "requirement": "- Shaxsiy profil",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-416",
+      "source": 2,
+      "line": 416,
+      "section": "4.3. Mavzu testlari",
+      "requirement": "- Bir to'g'ri javob",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-417",
+      "source": 2,
+      "line": 417,
+      "section": "4.3. Mavzu testlari",
+      "requirement": "- Bir nechta to'g'ri javob",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-418",
+      "source": 2,
+      "line": 418,
+      "section": "4.3. Mavzu testlari",
+      "requirement": "- Qisqa javob",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-419",
+      "source": 2,
+      "line": 419,
+      "section": "4.3. Mavzu testlari",
+      "requirement": "- Moslashtirish",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-420",
+      "source": 2,
+      "line": 420,
+      "section": "4.3. Mavzu testlari",
+      "requirement": "- Tartiblash",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-421",
+      "source": 2,
+      "line": 421,
+      "section": "4.3. Mavzu testlari",
+      "requirement": "- Bo'sh joy to'ldirish",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-422",
+      "source": 2,
+      "line": 422,
+      "section": "4.3. Mavzu testlari",
+      "requirement": "- Matematik ifoda",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-423",
+      "source": 2,
+      "line": 423,
+      "section": "4.3. Mavzu testlari",
+      "requirement": "- Rasmli savol",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-424",
+      "source": 2,
+      "line": 424,
+      "section": "4.3. Mavzu testlari",
+      "requirement": "- Ochiq yozma javob",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-436",
+      "source": 2,
+      "line": 436,
+      "section": "4.4. Foydali o'quv o'yinlari",
+      "requirement": "- Formula Match",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-437",
+      "source": 2,
+      "line": 437,
+      "section": "4.4. Foydali o'quv o'yinlari",
+      "requirement": "- Word Challenge",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-438",
+      "source": 2,
+      "line": 438,
+      "section": "4.4. Foydali o'quv o'yinlari",
+      "requirement": "- Timeline Challenge",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-439",
+      "source": 2,
+      "line": 439,
+      "section": "4.4. Foydali o'quv o'yinlari",
+      "requirement": "- Quick Math",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-440",
+      "source": 2,
+      "line": 440,
+      "section": "4.4. Foydali o'quv o'yinlari",
+      "requirement": "- Science Quiz",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-441",
+      "source": 2,
+      "line": 441,
+      "section": "4.4. Foydali o'quv o'yinlari",
+      "requirement": "- Memory Cards",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-442",
+      "source": 2,
+      "line": 442,
+      "section": "4.4. Foydali o'quv o'yinlari",
+      "requirement": "- Logic Challenge",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-443",
+      "source": 2,
+      "line": 443,
+      "section": "4.4. Foydali o'quv o'yinlari",
+      "requirement": "- Topic Battle",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-444",
+      "source": 2,
+      "line": 444,
+      "section": "4.4. Foydali o'quv o'yinlari",
+      "requirement": "- Class Quiz",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-445",
+      "source": 2,
+      "line": 445,
+      "section": "4.4. Foydali o'quv o'yinlari",
+      "requirement": "- Daily Revision Challenge",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-456",
+      "source": 2,
+      "line": 456,
+      "section": "4.5. Intizom va yordam bo'limi",
+      "requirement": "- Qayd etilgan hodisalar",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-457",
+      "source": 2,
+      "line": 457,
+      "section": "4.5. Intizom va yordam bo'limi",
+      "requirement": "- Tasdiqlangan ballar",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-458",
+      "source": 2,
+      "line": 458,
+      "section": "4.5. Intizom va yordam bo'limi",
+      "requirement": "- O'z izohlari",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-459",
+      "source": 2,
+      "line": 459,
+      "section": "4.5. Intizom va yordam bo'limi",
+      "requirement": "- Apellyatsiya holati",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-460",
+      "source": 2,
+      "line": 460,
+      "section": "4.5. Intizom va yordam bo'limi",
+      "requirement": "- O'qituvchi tavsiyalari",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-461",
+      "source": 2,
+      "line": 461,
+      "section": "4.5. Intizom va yordam bo'limi",
+      "requirement": "- Yordam rejasi",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-473",
+      "source": 2,
+      "line": 473,
+      "section": "5.1. Dizayn",
+      "requirement": "- Premium SaaS / EdTech uslubi",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-474",
+      "source": 2,
+      "line": 474,
+      "section": "5.1. Dizayn",
+      "requirement": "- Professional typography",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-475",
+      "source": 2,
+      "line": 475,
+      "section": "5.1. Dizayn",
+      "requirement": "- Izchil spacing",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-476",
+      "source": 2,
+      "line": 476,
+      "section": "5.1. Dizayn",
+      "requirement": "- Bir xil button va input komponentlari",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-477",
+      "source": 2,
+      "line": 477,
+      "section": "5.1. Dizayn",
+      "requirement": "- Modern cards",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-478",
+      "source": 2,
+      "line": 478,
+      "section": "5.1. Dizayn",
+      "requirement": "- Toza jadval dizayni",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-479",
+      "source": 2,
+      "line": 479,
+      "section": "5.1. Dizayn",
+      "requirement": "- Professional charts",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-480",
+      "source": 2,
+      "line": 480,
+      "section": "5.1. Dizayn",
+      "requirement": "- Minimalistik iconlar",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-481",
+      "source": 2,
+      "line": 481,
+      "section": "5.1. Dizayn",
+      "requirement": "- Skeleton loading",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-482",
+      "source": 2,
+      "line": 482,
+      "section": "5.1. Dizayn",
+      "requirement": "- Empty states",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-483",
+      "source": 2,
+      "line": 483,
+      "section": "5.1. Dizayn",
+      "requirement": "- Error states",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-484",
+      "source": 2,
+      "line": 484,
+      "section": "5.1. Dizayn",
+      "requirement": "- Success feedback",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-485",
+      "source": 2,
+      "line": 485,
+      "section": "5.1. Dizayn",
+      "requirement": "- Responsive modallar",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-486",
+      "source": 2,
+      "line": 486,
+      "section": "5.1. Dizayn",
+      "requirement": "- Dark mode",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-487",
+      "source": 2,
+      "line": 487,
+      "section": "5.1. Dizayn",
+      "requirement": "- Accessibility",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-488",
+      "source": 2,
+      "line": 488,
+      "section": "5.1. Dizayn",
+      "requirement": "- Klaviatura orqali boshqarish",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-494",
+      "source": 2,
+      "line": 494,
+      "section": "5.2. Navigatsiya",
+      "requirement": "- Profil va chiqish tugmasi yuqori o'ng tomonda.",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-495",
+      "source": 2,
+      "line": 495,
+      "section": "5.2. Navigatsiya",
+      "requirement": "- Chap sidebar ixcham va boshqariladigan bo'lsin.",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-496",
+      "source": 2,
+      "line": 496,
+      "section": "5.2. Navigatsiya",
+      "requirement": "- Kategoriyalar mantiqiy guruhlansin.",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-497",
+      "source": 2,
+      "line": 497,
+      "section": "5.2. Navigatsiya",
+      "requirement": "- Nested navigation ishlasin.",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-498",
+      "source": 2,
+      "line": 498,
+      "section": "5.2. Navigatsiya",
+      "requirement": "- Zarur joylarda accordion va tabs ishlat.",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-499",
+      "source": 2,
+      "line": 499,
+      "section": "5.2. Navigatsiya",
+      "requirement": "- Uzoq sahifalarda sticky header.",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-500",
+      "source": 2,
+      "line": 500,
+      "section": "5.2. Navigatsiya",
+      "requirement": "- Mobil qurilmalar uchun qulay navigation.",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-501",
+      "source": 2,
+      "line": 501,
+      "section": "5.2. Navigatsiya",
+      "requirement": "- Breadcrumbs.",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-502",
+      "source": 2,
+      "line": 502,
+      "section": "5.2. Navigatsiya",
+      "requirement": "- Global search.",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-503",
+      "source": 2,
+      "line": 503,
+      "section": "5.2. Navigatsiya",
+      "requirement": "- Har sahifada aniq asosiy harakat.",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-515",
+      "source": 2,
+      "line": 515,
+      "section": "6. GLOBAL DATABASE VA TEXNIK ARXITEKTURA",
+      "requirement": "- Users",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-516",
+      "source": 2,
+      "line": 516,
+      "section": "6. GLOBAL DATABASE VA TEXNIK ARXITEKTURA",
+      "requirement": "- Students",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-517",
+      "source": 2,
+      "line": 517,
+      "section": "6. GLOBAL DATABASE VA TEXNIK ARXITEKTURA",
+      "requirement": "- Teachers",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-518",
+      "source": 2,
+      "line": 518,
+      "section": "6. GLOBAL DATABASE VA TEXNIK ARXITEKTURA",
+      "requirement": "- Classes",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-519",
+      "source": 2,
+      "line": 519,
+      "section": "6. GLOBAL DATABASE VA TEXNIK ARXITEKTURA",
+      "requirement": "- Subjects",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-520",
+      "source": 2,
+      "line": 520,
+      "section": "6. GLOBAL DATABASE VA TEXNIK ARXITEKTURA",
+      "requirement": "- AcademicYears",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-521",
+      "source": 2,
+      "line": 521,
+      "section": "6. GLOBAL DATABASE VA TEXNIK ARXITEKTURA",
+      "requirement": "- Terms",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-522",
+      "source": 2,
+      "line": 522,
+      "section": "6. GLOBAL DATABASE VA TEXNIK ARXITEKTURA",
+      "requirement": "- Lessons",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-523",
+      "source": 2,
+      "line": 523,
+      "section": "6. GLOBAL DATABASE VA TEXNIK ARXITEKTURA",
+      "requirement": "- WorkPlans",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-524",
+      "source": 2,
+      "line": 524,
+      "section": "6. GLOBAL DATABASE VA TEXNIK ARXITEKTURA",
+      "requirement": "- Timetables",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-525",
+      "source": 2,
+      "line": 525,
+      "section": "6. GLOBAL DATABASE VA TEXNIK ARXITEKTURA",
+      "requirement": "- Assignments",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-526",
+      "source": 2,
+      "line": 526,
+      "section": "6. GLOBAL DATABASE VA TEXNIK ARXITEKTURA",
+      "requirement": "- Questions",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-527",
+      "source": 2,
+      "line": 527,
+      "section": "6. GLOBAL DATABASE VA TEXNIK ARXITEKTURA",
+      "requirement": "- TopicTests",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-528",
+      "source": 2,
+      "line": 528,
+      "section": "6. GLOBAL DATABASE VA TEXNIK ARXITEKTURA",
+      "requirement": "- TestAttempts",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-529",
+      "source": 2,
+      "line": 529,
+      "section": "6. GLOBAL DATABASE VA TEXNIK ARXITEKTURA",
+      "requirement": "- Answers",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-530",
+      "source": 2,
+      "line": 530,
+      "section": "6. GLOBAL DATABASE VA TEXNIK ARXITEKTURA",
+      "requirement": "- Attendance",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-531",
+      "source": 2,
+      "line": 531,
+      "section": "6. GLOBAL DATABASE VA TEXNIK ARXITEKTURA",
+      "requirement": "- LearningProgress",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-532",
+      "source": 2,
+      "line": 532,
+      "section": "6. GLOBAL DATABASE VA TEXNIK ARXITEKTURA",
+      "requirement": "- DisciplineCategories",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-533",
+      "source": 2,
+      "line": 533,
+      "section": "6. GLOBAL DATABASE VA TEXNIK ARXITEKTURA",
+      "requirement": "- DisciplineIncidents",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-534",
+      "source": 2,
+      "line": 534,
+      "section": "6. GLOBAL DATABASE VA TEXNIK ARXITEKTURA",
+      "requirement": "- DisciplineReviews",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-535",
+      "source": 2,
+      "line": 535,
+      "section": "6. GLOBAL DATABASE VA TEXNIK ARXITEKTURA",
+      "requirement": "- DisciplineAppeals",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-536",
+      "source": 2,
+      "line": 536,
+      "section": "6. GLOBAL DATABASE VA TEXNIK ARXITEKTURA",
+      "requirement": "- WarningLetters",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-537",
+      "source": 2,
+      "line": 537,
+      "section": "6. GLOBAL DATABASE VA TEXNIK ARXITEKTURA",
+      "requirement": "- SupportPlans",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-538",
+      "source": 2,
+      "line": 538,
+      "section": "6. GLOBAL DATABASE VA TEXNIK ARXITEKTURA",
+      "requirement": "- Notifications",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-539",
+      "source": 2,
+      "line": 539,
+      "section": "6. GLOBAL DATABASE VA TEXNIK ARXITEKTURA",
+      "requirement": "- AuditLogs",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-544",
+      "source": 2,
+      "line": 544,
+      "section": "6. GLOBAL DATABASE VA TEXNIK ARXITEKTURA",
+      "requirement": "- Authentication",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-545",
+      "source": 2,
+      "line": 545,
+      "section": "6. GLOBAL DATABASE VA TEXNIK ARXITEKTURA",
+      "requirement": "- Authorization",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-546",
+      "source": 2,
+      "line": 546,
+      "section": "6. GLOBAL DATABASE VA TEXNIK ARXITEKTURA",
+      "requirement": "- Role-based access",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-547",
+      "source": 2,
+      "line": 547,
+      "section": "6. GLOBAL DATABASE VA TEXNIK ARXITEKTURA",
+      "requirement": "- Input validation",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-548",
+      "source": 2,
+      "line": 548,
+      "section": "6. GLOBAL DATABASE VA TEXNIK ARXITEKTURA",
+      "requirement": "- Rate limiting",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-549",
+      "source": 2,
+      "line": 549,
+      "section": "6. GLOBAL DATABASE VA TEXNIK ARXITEKTURA",
+      "requirement": "- Idempotency",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-550",
+      "source": 2,
+      "line": 550,
+      "section": "6. GLOBAL DATABASE VA TEXNIK ARXITEKTURA",
+      "requirement": "- Consistent error responses",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-551",
+      "source": 2,
+      "line": 551,
+      "section": "6. GLOBAL DATABASE VA TEXNIK ARXITEKTURA",
+      "requirement": "- Audit logging",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-569",
+      "source": 2,
+      "line": 569,
+      "section": "7. TEZLIK VA BARQARORLIK",
+      "requirement": "- Sovuq start",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-570",
+      "source": 2,
+      "line": 570,
+      "section": "7. TEZLIK VA BARQARORLIK",
+      "requirement": "- Parallel yozishdagi 409 xatolari",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-571",
+      "source": 2,
+      "line": 571,
+      "section": "7. TEZLIK VA BARQARORLIK",
+      "requirement": "- Ba'zi eski lokal qoralamalar",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-572",
+      "source": 2,
+      "line": 572,
+      "section": "7. TEZLIK VA BARQARORLIK",
+      "requirement": "- Sekin ishlaydigan tugmalar",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-573",
+      "source": 2,
+      "line": 573,
+      "section": "7. TEZLIK VA BARQARORLIK",
+      "requirement": "- Global saqlanmaydigan ayrim ma'lumotlar",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-578",
+      "source": 2,
+      "line": 578,
+      "section": "7. TEZLIK VA BARQARORLIK",
+      "requirement": "- API response time",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-579",
+      "source": 2,
+      "line": 579,
+      "section": "7. TEZLIK VA BARQARORLIK",
+      "requirement": "- Firestore query performance",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-580",
+      "source": 2,
+      "line": 580,
+      "section": "7. TEZLIK VA BARQARORLIK",
+      "requirement": "- React re-render",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-581",
+      "source": 2,
+      "line": 581,
+      "section": "7. TEZLIK VA BARQARORLIK",
+      "requirement": "- Bundle size",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-582",
+      "source": 2,
+      "line": 582,
+      "section": "7. TEZLIK VA BARQARORLIK",
+      "requirement": "- Lazy loading",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-583",
+      "source": 2,
+      "line": 583,
+      "section": "7. TEZLIK VA BARQARORLIK",
+      "requirement": "- Caching",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-584",
+      "source": 2,
+      "line": 584,
+      "section": "7. TEZLIK VA BARQARORLIK",
+      "requirement": "- Duplicate requests",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-585",
+      "source": 2,
+      "line": 585,
+      "section": "7. TEZLIK VA BARQARORLIK",
+      "requirement": "- Concurrent updates",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-586",
+      "source": 2,
+      "line": 586,
+      "section": "7. TEZLIK VA BARQARORLIK",
+      "requirement": "- Serverless cold starts",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-587",
+      "source": 2,
+      "line": 587,
+      "section": "7. TEZLIK VA BARQARORLIK",
+      "requirement": "- Network latency",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-602",
+      "source": 2,
+      "line": 602,
+      "section": "8. BILDIRISHNOMALAR VA ISH JARAYONLARI",
+      "requirement": "- Yangi vazifa",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-603",
+      "source": 2,
+      "line": 603,
+      "section": "8. BILDIRISHNOMALAR VA ISH JARAYONLARI",
+      "requirement": "- Vazifa muddati",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-604",
+      "source": 2,
+      "line": 604,
+      "section": "8. BILDIRISHNOMALAR VA ISH JARAYONLARI",
+      "requirement": "- Nazorat boshlanishi",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-605",
+      "source": 2,
+      "line": 605,
+      "section": "8. BILDIRISHNOMALAR VA ISH JARAYONLARI",
+      "requirement": "- Yozma ish tekshirilishi",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-606",
+      "source": 2,
+      "line": 606,
+      "section": "8. BILDIRISHNOMALAR VA ISH JARAYONLARI",
+      "requirement": "- O'qituvchi izohi",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-607",
+      "source": 2,
+      "line": 607,
+      "section": "8. BILDIRISHNOMALAR VA ISH JARAYONLARI",
+      "requirement": "- Yangi e'lon",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-608",
+      "source": 2,
+      "line": 608,
+      "section": "8. BILDIRISHNOMALAR VA ISH JARAYONLARI",
+      "requirement": "- Admin tasdiqlashi",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-609",
+      "source": 2,
+      "line": 609,
+      "section": "8. BILDIRISHNOMALAR VA ISH JARAYONLARI",
+      "requirement": "- Intizomiy hodisa ko'rib chiqilishi",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-610",
+      "source": 2,
+      "line": 610,
+      "section": "8. BILDIRISHNOMALAR VA ISH JARAYONLARI",
+      "requirement": "- Apellyatsiya javobi",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-611",
+      "source": 2,
+      "line": 611,
+      "section": "8. BILDIRISHNOMALAR VA ISH JARAYONLARI",
+      "requirement": "- Yordam rejasi yangilanishi",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-623",
+      "source": 2,
+      "line": 623,
+      "section": "9. QO'SHIMCHA INTELLEKTUAL IMKONIYATLAR",
+      "requirement": "1. O'qituvchi uchun kunlik ishlar markazi.",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-624",
+      "source": 2,
+      "line": 624,
+      "section": "9. QO'SHIMCHA INTELLEKTUAL IMKONIYATLAR",
+      "requirement": "2. Sinf rahbari uchun alohida dashboard.",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-625",
+      "source": 2,
+      "line": 625,
+      "section": "9. QO'SHIMCHA INTELLEKTUAL IMKONIYATLAR",
+      "requirement": "3. Avtomatik haftalik o'quv hisobotlari.",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-626",
+      "source": 2,
+      "line": 626,
+      "section": "9. QO'SHIMCHA INTELLEKTUAL IMKONIYATLAR",
+      "requirement": "4. O'quvchi uchun shaxsiy takrorlash tavsiyalari.",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-627",
+      "source": 2,
+      "line": 627,
+      "section": "9. QO'SHIMCHA INTELLEKTUAL IMKONIYATLAR",
+      "requirement": "5. Mavzular bo'yicha bilim bo'shliqlarini aniqlash.",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-628",
+      "source": 2,
+      "line": 628,
+      "section": "9. QO'SHIMCHA INTELLEKTUAL IMKONIYATLAR",
+      "requirement": "6. O'qituvchi uchun savol sifati tahlili.",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-629",
+      "source": 2,
+      "line": 629,
+      "section": "9. QO'SHIMCHA INTELLEKTUAL IMKONIYATLAR",
+      "requirement": "7. Sinf bo'yicha kontent qamrovi.",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-630",
+      "source": 2,
+      "line": 630,
+      "section": "9. QO'SHIMCHA INTELLEKTUAL IMKONIYATLAR",
+      "requirement": "8. Yordam rejalarini kuzatish.",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-631",
+      "source": 2,
+      "line": 631,
+      "section": "9. QO'SHIMCHA INTELLEKTUAL IMKONIYATLAR",
+      "requirement": "9. Eksport qilinadigan maktab statistikasi.",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-632",
+      "source": 2,
+      "line": 632,
+      "section": "9. QO'SHIMCHA INTELLEKTUAL IMKONIYATLAR",
+      "requirement": "10. Tizim holati va xatolar monitoringi.",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-633",
+      "source": 2,
+      "line": 633,
+      "section": "9. QO'SHIMCHA INTELLEKTUAL IMKONIYATLAR",
+      "requirement": "11. Demo va staging muhitlari.",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-634",
+      "source": 2,
+      "line": 634,
+      "section": "9. QO'SHIMCHA INTELLEKTUAL IMKONIYATLAR",
+      "requirement": "12. Mobil PWA tajribasi.",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-635",
+      "source": 2,
+      "line": 635,
+      "section": "9. QO'SHIMCHA INTELLEKTUAL IMKONIYATLAR",
+      "requirement": "13. Internet uzilib qaytganda xavfsiz davom ettirish.",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-636",
+      "source": 2,
+      "line": 636,
+      "section": "9. QO'SHIMCHA INTELLEKTUAL IMKONIYATLAR",
+      "requirement": "14. Shablon asosidagi hujjatlar.",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-637",
+      "source": 2,
+      "line": 637,
+      "section": "9. QO'SHIMCHA INTELLEKTUAL IMKONIYATLAR",
+      "requirement": "15. Tizimdagi asosiy harakatlar audit tarixi.",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-652",
+      "source": 2,
+      "line": 652,
+      "section": "Phase A — Audit va arxitektura",
+      "requirement": "- Joriy repository holatini tekshir.",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-653",
+      "source": 2,
+      "line": 653,
+      "section": "Phase A — Audit va arxitektura",
+      "requirement": "- Mavjud modullarni aniqlagin.",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-654",
+      "source": 2,
+      "line": 654,
+      "section": "Phase A — Audit va arxitektura",
+      "requirement": "- Faqat yangi vazifalarga tegishli kodlarni chuqur o'rgan.",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-655",
+      "source": 2,
+      "line": 655,
+      "section": "Phase A — Audit va arxitektura",
+      "requirement": "- Eski hisobotlardan foydalan.",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-656",
+      "source": 2,
+      "line": 656,
+      "section": "Phase A — Audit va arxitektura",
+      "requirement": "- Bajarilgan ishlarni takrorlama.",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-657",
+      "source": 2,
+      "line": 657,
+      "section": "Phase A — Audit va arxitektura",
+      "requirement": "- Xavfli integratsiyalarni aniqlagin.",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-658",
+      "source": 2,
+      "line": 658,
+      "section": "Phase A — Audit va arxitektura",
+      "requirement": "- Ishlarni ustuvorlikka ajrat.",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-661",
+      "source": 2,
+      "line": 661,
+      "section": "Phase B — Intizom tizimi",
+      "requirement": "- Ma'lumot modeli",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-662",
+      "source": 2,
+      "line": 662,
+      "section": "Phase B — Intizom tizimi",
+      "requirement": "- API",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-663",
+      "source": 2,
+      "line": 663,
+      "section": "Phase B — Intizom tizimi",
+      "requirement": "- Tezkor qayd etish",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-664",
+      "source": 2,
+      "line": 664,
+      "section": "Phase B — Intizom tizimi",
+      "requirement": "- Admin tekshiruvi",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-665",
+      "source": 2,
+      "line": 665,
+      "section": "Phase B — Intizom tizimi",
+      "requirement": "- Ball hisoblash",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-666",
+      "source": 2,
+      "line": 666,
+      "section": "Phase B — Intizom tizimi",
+      "requirement": "- 30 ball chegarasi",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-667",
+      "source": 2,
+      "line": 667,
+      "section": "Phase B — Intizom tizimi",
+      "requirement": "- Ogohlantirish xatlari",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-668",
+      "source": 2,
+      "line": 668,
+      "section": "Phase B — Intizom tizimi",
+      "requirement": "- Apellyatsiya",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-669",
+      "source": 2,
+      "line": 669,
+      "section": "Phase B — Intizom tizimi",
+      "requirement": "- Audit",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-670",
+      "source": 2,
+      "line": 670,
+      "section": "Phase B — Intizom tizimi",
+      "requirement": "- Testlar",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-673",
+      "source": 2,
+      "line": 673,
+      "section": "Phase C — Teacher Workspace",
+      "requirement": "- Dashboard",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-674",
+      "source": 2,
+      "line": 674,
+      "section": "Phase C — Teacher Workspace",
+      "requirement": "- Tezkor amallar",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-675",
+      "source": 2,
+      "line": 675,
+      "section": "Phase C — Teacher Workspace",
+      "requirement": "- Davomat",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-676",
+      "source": 2,
+      "line": 676,
+      "section": "Phase C — Teacher Workspace",
+      "requirement": "- Topshiriqlar",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-677",
+      "source": 2,
+      "line": 677,
+      "section": "Phase C — Teacher Workspace",
+      "requirement": "- Natijalar",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-678",
+      "source": 2,
+      "line": 678,
+      "section": "Phase C — Teacher Workspace",
+      "requirement": "- Intizom moduli",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-679",
+      "source": 2,
+      "line": 679,
+      "section": "Phase C — Teacher Workspace",
+      "requirement": "- O'quvchi profili",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-680",
+      "source": 2,
+      "line": 680,
+      "section": "Phase C — Teacher Workspace",
+      "requirement": "- Hisobotlar",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-683",
+      "source": 2,
+      "line": 683,
+      "section": "Phase D — Admin Workspace",
+      "requirement": "- Dashboard",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-684",
+      "source": 2,
+      "line": 684,
+      "section": "Phase D — Admin Workspace",
+      "requirement": "- Barcha boshqaruv modullari",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-685",
+      "source": 2,
+      "line": 685,
+      "section": "Phase D — Admin Workspace",
+      "requirement": "- Kontent markazi",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-686",
+      "source": 2,
+      "line": 686,
+      "section": "Phase D — Admin Workspace",
+      "requirement": "- Intizom monitoringi",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-687",
+      "source": 2,
+      "line": 687,
+      "section": "Phase D — Admin Workspace",
+      "requirement": "- O'qituvchi boshqaruvi",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-688",
+      "source": 2,
+      "line": 688,
+      "section": "Phase D — Admin Workspace",
+      "requirement": "- Tahlillar",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-689",
+      "source": 2,
+      "line": 689,
+      "section": "Phase D — Admin Workspace",
+      "requirement": "- Hisobotlar",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-692",
+      "source": 2,
+      "line": 692,
+      "section": "Phase E — Student Experience",
+      "requirement": "- Dashboard",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-693",
+      "source": 2,
+      "line": 693,
+      "section": "Phase E — Student Experience",
+      "requirement": "- Fanlar",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-694",
+      "source": 2,
+      "line": 694,
+      "section": "Phase E — Student Experience",
+      "requirement": "- Testlar",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-695",
+      "source": 2,
+      "line": 695,
+      "section": "Phase E — Student Experience",
+      "requirement": "- Takrorlash",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-696",
+      "source": 2,
+      "line": 696,
+      "section": "Phase E — Student Experience",
+      "requirement": "- Xatolar daftari",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-697",
+      "source": 2,
+      "line": 697,
+      "section": "Phase E — Student Experience",
+      "requirement": "- Bilim xaritasi",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-698",
+      "source": 2,
+      "line": 698,
+      "section": "Phase E — Student Experience",
+      "requirement": "- O'quv o'yinlari",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-699",
+      "source": 2,
+      "line": 699,
+      "section": "Phase E — Student Experience",
+      "requirement": "- Shaxsiy progress",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-702",
+      "source": 2,
+      "line": 702,
+      "section": "Phase F — UX/UI va performance",
+      "requirement": "- Yagona dizayn tizimi",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-703",
+      "source": 2,
+      "line": 703,
+      "section": "Phase F — UX/UI va performance",
+      "requirement": "- Responsive",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-704",
+      "source": 2,
+      "line": 704,
+      "section": "Phase F — UX/UI va performance",
+      "requirement": "- Accessibility",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-705",
+      "source": 2,
+      "line": 705,
+      "section": "Phase F — UX/UI va performance",
+      "requirement": "- Performance optimization",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-706",
+      "source": 2,
+      "line": 706,
+      "section": "Phase F — UX/UI va performance",
+      "requirement": "- Error handling",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-709",
+      "source": 2,
+      "line": 709,
+      "section": "Phase G — QA va release",
+      "requirement": "- Typecheck",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-710",
+      "source": 2,
+      "line": 710,
+      "section": "Phase G — QA va release",
+      "requirement": "- Build",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-711",
+      "source": 2,
+      "line": 711,
+      "section": "Phase G — QA va release",
+      "requirement": "- Unit tests",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-712",
+      "source": 2,
+      "line": 712,
+      "section": "Phase G — QA va release",
+      "requirement": "- Integration tests",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-713",
+      "source": 2,
+      "line": 713,
+      "section": "Phase G — QA va release",
+      "requirement": "- Role/permission tests",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-714",
+      "source": 2,
+      "line": 714,
+      "section": "Phase G — QA va release",
+      "requirement": "- Playwright E2E",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-715",
+      "source": 2,
+      "line": 715,
+      "section": "Phase G — QA va release",
+      "requirement": "- Mobile checks",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-716",
+      "source": 2,
+      "line": 716,
+      "section": "Phase G — QA va release",
+      "requirement": "- Security checks",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-717",
+      "source": 2,
+      "line": 717,
+      "section": "Phase G — QA va release",
+      "requirement": "- Regression smoke tests",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-734",
+      "source": 2,
+      "line": 734,
+      "section": "11. DEMO MA'LUMOTLAR",
+      "requirement": "- Test sinflari",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-735",
+      "source": 2,
+      "line": 735,
+      "section": "11. DEMO MA'LUMOTLAR",
+      "requirement": "- Test o'qituvchilari",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-736",
+      "source": 2,
+      "line": 736,
+      "section": "11. DEMO MA'LUMOTLAR",
+      "requirement": "- Test o'quvchilari",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-737",
+      "source": 2,
+      "line": 737,
+      "section": "11. DEMO MA'LUMOTLAR",
+      "requirement": "- Fanlar",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-738",
+      "source": 2,
+      "line": 738,
+      "section": "11. DEMO MA'LUMOTLAR",
+      "requirement": "- Mavzular",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-739",
+      "source": 2,
+      "line": 739,
+      "section": "11. DEMO MA'LUMOTLAR",
+      "requirement": "- Kundalik vazifalar",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-740",
+      "source": 2,
+      "line": 740,
+      "section": "11. DEMO MA'LUMOTLAR",
+      "requirement": "- Mavzu testlari",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-741",
+      "source": 2,
+      "line": 741,
+      "section": "11. DEMO MA'LUMOTLAR",
+      "requirement": "- Davomat namunalari",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-742",
+      "source": 2,
+      "line": 742,
+      "section": "11. DEMO MA'LUMOTLAR",
+      "requirement": "- Intizomiy hodisa namunalari",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-743",
+      "source": 2,
+      "line": 743,
+      "section": "11. DEMO MA'LUMOTLAR",
+      "requirement": "- Ball chegarasiga yetgan sun'iy holat",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-744",
+      "source": 2,
+      "line": 744,
+      "section": "11. DEMO MA'LUMOTLAR",
+      "requirement": "- Ogohlantirish xati namunasi",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-745",
+      "source": 2,
+      "line": 745,
+      "section": "11. DEMO MA'LUMOTLAR",
+      "requirement": "- Apellyatsiya namunasi",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-759",
+      "source": 2,
+      "line": 759,
+      "section": "12. QABUL MEZONLARI",
+      "requirement": "1. O'qituvchi intizomiy holatni tez kiritishi kerak.",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-760",
+      "source": 2,
+      "line": 760,
+      "section": "12. QABUL MEZONLARI",
+      "requirement": "2. Qayd admin paneliga to'g'ri yetib borishi kerak.",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-761",
+      "source": 2,
+      "line": 761,
+      "section": "12. QABUL MEZONLARI",
+      "requirement": "3. Ball faqat tasdiqlangan hodisa uchun hisoblanishi kerak.",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-762",
+      "source": 2,
+      "line": 762,
+      "section": "12. QABUL MEZONLARI",
+      "requirement": "4. 30 ball ko'rib chiqish jarayonini boshlashi kerak.",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-763",
+      "source": 2,
+      "line": 763,
+      "section": "12. QABUL MEZONLARI",
+      "requirement": "5. O'quvchi izoh yoki apellyatsiya yubora olishi kerak.",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-764",
+      "source": 2,
+      "line": 764,
+      "section": "12. QABUL MEZONLARI",
+      "requirement": "6. Ogohlantirish hujjati yaratilishi kerak.",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-765",
+      "source": 2,
+      "line": 765,
+      "section": "12. QABUL MEZONLARI",
+      "requirement": "7. O'qituvchi faqat ruxsat berilgan ma'lumotlarni ko'rishi kerak.",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-766",
+      "source": 2,
+      "line": 766,
+      "section": "12. QABUL MEZONLARI",
+      "requirement": "8. O'quvchilar bir-birining shaxsiy qaydlarini ko'rmasligi kerak.",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-767",
+      "source": 2,
+      "line": 767,
+      "section": "12. QABUL MEZONLARI",
+      "requirement": "9. Uchala panel mobil va desktopda qulay ishlashi kerak.",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-768",
+      "source": 2,
+      "line": 768,
+      "section": "12. QABUL MEZONLARI",
+      "requirement": "10. Asosiy ma'lumotlar yangilashdan keyin yo'qolmasligi kerak.",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-769",
+      "source": 2,
+      "line": 769,
+      "section": "12. QABUL MEZONLARI",
+      "requirement": "11. Tugmalar takror bosilganda dublikat yozuv yaratmasligi kerak.",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-770",
+      "source": 2,
+      "line": 770,
+      "section": "12. QABUL MEZONLARI",
+      "requirement": "12. Import, test, davomat, baholash va natijalar regressiyaga uchramasligi kerak.",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-771",
+      "source": 2,
+      "line": 771,
+      "section": "12. QABUL MEZONLARI",
+      "requirement": "13. Mavjud production ma'lumotlari saqlanishi kerak.",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-772",
+      "source": 2,
+      "line": 772,
+      "section": "12. QABUL MEZONLARI",
+      "requirement": "14. Har bir yangi modulning avtomatlashtirilgan testlari bo'lishi kerak.",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-773",
+      "source": 2,
+      "line": 773,
+      "section": "12. QABUL MEZONLARI",
+      "requirement": "15. Preview muhitida muhim foydalanuvchi oqimlari real tekshirilishi kerak.",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-781",
+      "source": 2,
+      "line": 781,
+      "section": "13. AGENT LIMITINI TEJASH",
+      "requirement": "- Graphify ishlatma.",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-782",
+      "source": 2,
+      "line": 782,
+      "section": "13. AGENT LIMITINI TEJASH",
+      "requirement": "- Keraksiz katta repository xaritasi yaratma.",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-783",
+      "source": 2,
+      "line": 783,
+      "section": "13. AGENT LIMITINI TEJASH",
+      "requirement": "- `rg` orqali fayllarni maqsadli qidir.",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-784",
+      "source": 2,
+      "line": 784,
+      "section": "13. AGENT LIMITINI TEJASH",
+      "requirement": "- O'zgarmagan kodni qayta-qayta o'qima.",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-785",
+      "source": 2,
+      "line": 785,
+      "section": "13. AGENT LIMITINI TEJASH",
+      "requirement": "- Avvalgi ishonchli tekshiruv natijalaridan foydalan.",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-786",
+      "source": 2,
+      "line": 786,
+      "section": "13. AGENT LIMITINI TEJASH",
+      "requirement": "- Har bosqichda o'zgargan kodni tekshir.",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-787",
+      "source": 2,
+      "line": 787,
+      "section": "13. AGENT LIMITINI TEJASH",
+      "requirement": "- Integratsiya xavfi bo'lsa regression test qil.",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-788",
+      "source": 2,
+      "line": 788,
+      "section": "13. AGENT LIMITINI TEJASH",
+      "requirement": "- Keraksiz uzun tahlil yozma.",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-789",
+      "source": 2,
+      "line": 789,
+      "section": "13. AGENT LIMITINI TEJASH",
+      "requirement": "- Amaliy implementatsiyaga ustuvorlik ber.",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-790",
+      "source": 2,
+      "line": 790,
+      "section": "13. AGENT LIMITINI TEJASH",
+      "requirement": "- Murakkab vazifalarni kichik commitlarga ajrat.",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-791",
+      "source": 2,
+      "line": 791,
+      "section": "13. AGENT LIMITINI TEJASH",
+      "requirement": "- Vaqt yoki kontekst cheklovi bo'lsa, xavfsiz tugallangan holatda to'xta va keyingi qadamni aniq yoz.",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-800",
+      "source": 2,
+      "line": 800,
+      "section": "14. HISOBOT FORMATI",
+      "requirement": "- Yaratilgan imkoniyatlar",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-801",
+      "source": 2,
+      "line": 801,
+      "section": "14. HISOBOT FORMATI",
+      "requirement": "- O'zgargan asosiy fayllar",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-802",
+      "source": 2,
+      "line": 802,
+      "section": "14. HISOBOT FORMATI",
+      "requirement": "- Commitlar",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-805",
+      "source": 2,
+      "line": 805,
+      "section": "14. HISOBOT FORMATI",
+      "requirement": "- Testlar",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-806",
+      "source": 2,
+      "line": 806,
+      "section": "14. HISOBOT FORMATI",
+      "requirement": "- E2E oqimlar",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-807",
+      "source": 2,
+      "line": 807,
+      "section": "14. HISOBOT FORMATI",
+      "requirement": "- Natijalar",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-808",
+      "source": 2,
+      "line": 808,
+      "section": "14. HISOBOT FORMATI",
+      "requirement": "- Topilgan xatolar",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-811",
+      "source": 2,
+      "line": 811,
+      "section": "14. HISOBOT FORMATI",
+      "requirement": "- Admin screenshots",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-812",
+      "source": 2,
+      "line": 812,
+      "section": "14. HISOBOT FORMATI",
+      "requirement": "- Teacher screenshots",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-813",
+      "source": 2,
+      "line": 813,
+      "section": "14. HISOBOT FORMATI",
+      "requirement": "- Student screenshots",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-814",
+      "source": 2,
+      "line": 814,
+      "section": "14. HISOBOT FORMATI",
+      "requirement": "- Mobil ko'rinish",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-815",
+      "source": 2,
+      "line": 815,
+      "section": "14. HISOBOT FORMATI",
+      "requirement": "- Preview link",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-818",
+      "source": 2,
+      "line": 818,
+      "section": "14. HISOBOT FORMATI",
+      "requirement": "- Ruxsat tekshiruvlari",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-819",
+      "source": 2,
+      "line": 819,
+      "section": "14. HISOBOT FORMATI",
+      "requirement": "- Ma'lumot himoyasi",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-820",
+      "source": 2,
+      "line": 820,
+      "section": "14. HISOBOT FORMATI",
+      "requirement": "- Intizomiy jarayonni tasdiqlash holati",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-823",
+      "source": 2,
+      "line": 823,
+      "section": "14. HISOBOT FORMATI",
+      "requirement": "- Hali tugallanmagan ishlar",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-824",
+      "source": 2,
+      "line": 824,
+      "section": "14. HISOBOT FORMATI",
+      "requirement": "- Xavflar",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-825",
+      "source": 2,
+      "line": 825,
+      "section": "14. HISOBOT FORMATI",
+      "requirement": "- Cheklovlar",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-828",
+      "source": 2,
+      "line": 828,
+      "section": "14. HISOBOT FORMATI",
+      "requirement": "- Qaysi imkoniyatlar keyingi navbatda",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    },
+    {
+      "id": "D2-829",
+      "source": 2,
+      "line": 829,
+      "section": "14. HISOBOT FORMATI",
+      "requirement": "- Qaysi qarorlar mening tasdig'imni talab qiladi",
+      "status": "pending",
+      "implementation": [],
+      "verification": []
+    }
+  ]
+}

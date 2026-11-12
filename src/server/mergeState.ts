@@ -1,3 +1,4 @@
+import crypto from 'node:crypto';
 const same=(a:unknown,b:unknown)=>JSON.stringify(a)===JSON.stringify(b);
 export class MergeConflictError extends Error{}
 function atomic(base:any,local:any,remote:any):any{
@@ -13,7 +14,13 @@ export function mergeState(base:any,local:any,remote:any):any{
   if(same(b,l)){result[key]=r;continue;}if(same(b,r)){result[key]=l;continue;}
   const entityKey=(row:any)=>row&&typeof row==='object'&&(typeof row.id==='string'?row.id:typeof row.uid==='string'?row.uid:null);
   if([b,l,r].every(Array.isArray)&&[b,l,r].every(a=>a.every((v:any)=>entityKey(v))&&new Set(a.map(entityKey)).size===a.length)){
-   if(!['topicAnalysisFacts','topicAnalysisCohorts','mistakeRecords','spacedReviewQueue','spacedReviewSessions','spacedReviewAnswers','reviewDailyUsage','studentTopicProgress','topicWriteOperations','topicQuestionVersions','topicTestVersions','users','topicImportBatches','topicQuestions','topicTests','topicSessions','topicReviews','examSessions','lessonPracticeResponses','studentLastLessons','auditLogs','notifications'].includes(key))throw new MergeConflictError('Collection invariants require a retry');
+   if(key==='schoolAuditEvents'){
+    if(b.some((event:any)=>!same(event,l.find((v:any)=>v.id===event.id))||!same(event,r.find((v:any)=>v.id===event.id))))throw new MergeConflictError('Committed audit events are immutable');
+    const ids=new Set(b.map((v:any)=>v.id)),remoteIds=new Set(r.map((v:any)=>v.id)),merged=[...r];
+    for(const event of l.filter((v:any)=>!ids.has(v.id))){if(remoteIds.has(event.id)){if(!same(event,r.find((v:any)=>v.id===event.id)))throw new MergeConflictError('Audit event differs');continue;}const previous=merged.filter((v:any)=>v.schoolId===event.schoolId).at(-1)?.hash||'genesis';const {hash,...unsigned}={...event,previous};merged.push({...unsigned,hash:crypto.createHash('sha256').update(JSON.stringify(unsigned)).digest('hex')});}
+    result[key]=merged;continue;
+   }
+   if(!['disciplinePeriods','disciplinePolicies','disciplineTypes','disciplineRecords','disciplineTotals','disciplineCases','disciplineAppeals','warningLetters','disciplineCorrections','schoolAuditEvents','schoolOperations','attendanceSessions','attendanceRecords','studentAssignments','assignmentSubmissions','submissionRevisions','studentSupportPlans','learningMaterials','announcements','topicAnalysisFacts','topicAnalysisCohorts','mistakeRecords','spacedReviewQueue','spacedReviewSessions','spacedReviewAnswers','reviewDailyUsage','studentTopicProgress','topicWriteOperations','topicQuestionVersions','topicTestVersions','users','topicImportBatches','topicQuestions','topicTests','topicSessions','topicReviews','examSessions','lessonPracticeResponses','studentLastLessons','auditLogs','notifications'].includes(key))throw new MergeConflictError('Collection invariants require a retry');
    const maps=[b,l,r].map(a=>new Map(a.map((v:any)=>[entityKey(v),v])));
    const ids=new Set([...r.map(entityKey),...l.map(entityKey),...b.map(entityKey)]);
    result[key]=[...ids].map(id=>atomic(...maps.map(m=>m.get(id)) as [any,any,any])).filter(v=>v!==undefined);

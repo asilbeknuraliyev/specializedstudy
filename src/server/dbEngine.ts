@@ -87,6 +87,17 @@ import {
 } from '../utils/academicOsEngine';
 
 export interface PersistentDatabaseState {
+  disciplinePeriods?: any[];
+  disciplinePolicies?: import('./disciplineEngine').DisciplinePolicy[];
+  disciplineTypes?: import('./disciplineEngine').DisciplineType[];
+  disciplineRecords?: import('./disciplineEngine').DisciplineRecord[];
+  disciplineTotals?: import('./disciplineEngine').DisciplineTotal[];
+  disciplineCases?: import('./disciplineEngine').DisciplineCase[];
+  disciplineAppeals?: import('./disciplineEngine').DisciplineAppeal[];
+  warningLetters?: import('./disciplineEngine').WarningLetter[];
+  disciplineCorrections?: any[];
+  schoolAuditEvents?: any[];
+  schoolOperations?: any[];
   topicAnalysisFacts?: import('./topicAnalysisEngine').AnalysisFact[];
   topicAnalysisCohorts?: import('./topicAnalysisEngine').AnalysisCohort[];
   mistakeRecords?: import('./spacedReviewEngine').MistakeRecord[];

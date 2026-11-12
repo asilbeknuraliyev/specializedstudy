@@ -142,6 +142,7 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
         { to: '/admin/content', label: 'Kontent markazi', icon: FileSpreadsheet },
         {to:'/admin/accounts',label:'Hisoblar',icon:Users},
         { to: '/admin/classes', label: 'Sinflar', icon: Users },
+        {to:'/admin/discipline',label:'Intizom va yordam',icon:HeartHandshake},
         { to: '/admin/teachers', label: 'O‘qituvchilar', icon: Users },
         { to: '/admin/students', label: "O'quvchilar", icon: GraduationCap },
         { to: '/admin/timetable', label: 'Jadval', icon: Calendar },
@@ -163,12 +164,12 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
         { to: '/admin/support-plans', label: 'Yordam rejalari', icon: HeartHandshake },
         { to: '/admin/settings', label: 'Sozlamalar', icon: Settings },
       ]
-    : currentUser.role==='teacher'?[{to:'/teacher/dashboard',label:'Mening sinflarim',icon:Users,end:true},{to:'/teacher/topic-bank',label:'Mavzu testlari',icon:ClipboardCheck},{to:'/teacher/topic-review',label:'Yozma tekshiruv',icon:FileText},{to:'/teacher/demo',label:'DEMO tekshiruv',icon:ClipboardCheck}]:[
+    : currentUser.role==='teacher'?[{to:'/teacher/discipline',label:'Intizom va yordam',icon:HeartHandshake},{to:'/teacher/dashboard',label:'Bugungi ishlar',icon:Users,end:true},{to:'/teacher/topic-bank',label:'Mavzu testlari',icon:ClipboardCheck},{to:'/teacher/topic-review',label:'Yozma tekshiruv',icon:FileText},{to:'/teacher/workspace/attendance',label:'Davomat',icon:CalendarCheck},{to:'/teacher/workspace/assignments',label:'Vazifalar',icon:FileText},{to:'/teacher/workspace/materials',label:'Materiallar',icon:Library},{to:'/teacher/workspace/students',label:'O‘quvchi 360°',icon:Users},{to:'/teacher/workspace/support',label:'Yordam rejalari',icon:HeartHandshake}]:[
         {to:'/student/dashboard',label:'Bosh sahifa',icon:LayoutDashboard,end:true},
         {to:'/student/lessons',label:'Fanlar',icon:BookOpen},
         {to:'/student/timetable',label:'Jadval',icon:Calendar},
         {to:'/student/tasks',label:'Vazifalar',icon:ClipboardCheck},
-        {to:'/student/knowledge-map',label:'Ko‘proq',icon:UserIcon},
+        {to:'/student/me',label:'Men',icon:UserIcon},
       ];
   const studentMobileBottomItems=navItems;
 
@@ -176,7 +177,7 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
   const mobileDrawerItems = (isAdminAccount || currentUser.role==='teacher')
     ? navItems
     : [
-        ...navItems,
+        ...navItems,{to:'/student/discipline',label:'Intizom va yordam',icon:HeartHandshake},
       ];
 
   // Clean section title for header

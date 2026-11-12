@@ -8,6 +8,8 @@ const PrivacyPage = lazy(() => import('./pages/PublicPages').then(module => ({ d
 const TermsPage = lazy(() => import('./pages/PublicPages').then(module => ({ default: module.TermsPage })));
 const LoginPage = lazy(() => import('./pages/AuthPages').then(module => ({ default: module.LoginPage })));
 const RegisterPage = lazy(() => import('./pages/AuthPages').then(module => ({ default: module.RegisterPage })));
+const StudentMenu=lazy(()=>import('./components/StudentMenu').then(m=>({default:m.StudentMenu})));
+const DisciplinePage=lazy(()=>import('./components/DisciplinePage').then(m=>({default:m.DisciplinePage})));
 const TopicAnalysisCenter=lazy(()=>import('./components/TopicAnalysisCenter').then(m=>({default:m.TopicAnalysisCenter})));
 const StudentDashboardPage = lazy(() => import('./components/StudentHome').then(module => ({ default: module.StudentHome })));
 const StudentLessonsPage = lazy(() => import('./pages/StudentPages').then(module => ({ default: module.StudentLessonsPage })));
@@ -63,6 +65,7 @@ const ReviewSessionPage=lazy(()=>import('./components/SpacedReviewPages').then(m
 const HelpPage=lazy(()=>import('./components/HelpPages').then(m=>({default:m.HelpPage})));
 const MissingPage=lazy(()=>import('./components/HelpPages').then(m=>({default:m.MissingPage})));
 const TeachingPanel = lazy(() => import('./components/TeachingPanel').then(m=>({default:m.TeachingPanel})));
+const SchoolWorkspace=lazy(()=>import('./components/SchoolWorkspace').then(m=>({default:m.SchoolWorkspace})));
 // Navigation guard only. Every API endpoint must independently authorize requests.
 const ProtectedRoute: React.FC<{ allowedRole: 'admin' | 'student' | 'teacher'; children: React.ReactNode }> = ({ allowedRole, children }) => {
   const { currentUser, authReady, isPlatformOwner } = useLearnOS();
@@ -91,7 +94,7 @@ export default function App() {
           <Route path="/privacy" element={<PrivacyPage />} />
           <Route path="/terms" element={<TermsPage />} />
 
-          <Route path="/admin/learning-demo" element={<ProtectedRoute allowedRole="admin"><LearningDemoCenter/></ProtectedRoute>}/><Route path="/admin/topic-review" element={<ProtectedRoute allowedRole="admin"><TopicGradingCenter/></ProtectedRoute>}/><Route path="/teacher/topic-review" element={<ProtectedRoute allowedRole="teacher"><TopicGradingCenter/></ProtectedRoute>}/><Route path="/teacher/topic-bank" element={<ProtectedRoute allowedRole="teacher"><TopicBankCenter/></ProtectedRoute>}/><Route path="/admin/topic-bank" element={<ProtectedRoute allowedRole="admin"><TopicBankCenter/></ProtectedRoute>}/><Route path="/student/topic-tests" element={<ProtectedRoute allowedRole="student"><TopicTestsPage/></ProtectedRoute>}/><Route path="/student/topic-session/:id" element={<ProtectedRoute allowedRole="student"><TopicSessionPage/></ProtectedRoute>}/><Route path="/student/review" element={<ProtectedRoute allowedRole="student"><ReviewDashboard/></ProtectedRoute>}/><Route path="/student/mistakes" element={<ProtectedRoute allowedRole="student"><MistakeNotebook/></ProtectedRoute>}/><Route path="/student/topic-progress" element={<ProtectedRoute allowedRole="student"><TopicProgressMap/></ProtectedRoute>}/><Route path="/student/review-session/:id" element={<ProtectedRoute allowedRole="student"><ReviewSessionPage/></ProtectedRoute>}/><Route path="/teacher/topic-analysis" element={<ProtectedRoute allowedRole="teacher"><TopicAnalysisCenter/></ProtectedRoute>}/><Route path="/admin/topic-analysis" element={<ProtectedRoute allowedRole="admin"><TopicAnalysisCenter/></ProtectedRoute>}/>{/* Student Routes */}
+          <Route path="/admin/learning-demo" element={<ProtectedRoute allowedRole="admin"><LearningDemoCenter/></ProtectedRoute>}/><Route path="/admin/topic-review" element={<ProtectedRoute allowedRole="admin"><TopicGradingCenter/></ProtectedRoute>}/><Route path="/teacher/topic-review" element={<ProtectedRoute allowedRole="teacher"><TopicGradingCenter/></ProtectedRoute>}/><Route path="/teacher/topic-bank" element={<ProtectedRoute allowedRole="teacher"><TopicBankCenter/></ProtectedRoute>}/><Route path="/admin/topic-bank" element={<ProtectedRoute allowedRole="admin"><TopicBankCenter/></ProtectedRoute>}/><Route path="/student/topic-tests" element={<ProtectedRoute allowedRole="student"><TopicTestsPage/></ProtectedRoute>}/><Route path="/student/topic-session/:id" element={<ProtectedRoute allowedRole="student"><TopicSessionPage/></ProtectedRoute>}/><Route path="/student/review" element={<ProtectedRoute allowedRole="student"><ReviewDashboard/></ProtectedRoute>}/><Route path="/student/mistakes" element={<ProtectedRoute allowedRole="student"><MistakeNotebook/></ProtectedRoute>}/><Route path="/student/topic-progress" element={<ProtectedRoute allowedRole="student"><TopicProgressMap/></ProtectedRoute>}/><Route path="/student/review-session/:id" element={<ProtectedRoute allowedRole="student"><ReviewSessionPage/></ProtectedRoute>}/><Route path="/teacher/topic-analysis" element={<ProtectedRoute allowedRole="teacher"><TopicAnalysisCenter/></ProtectedRoute>}/><Route path="/admin/topic-analysis" element={<ProtectedRoute allowedRole="admin"><TopicAnalysisCenter/></ProtectedRoute>}/><Route path="/admin/discipline" element={<ProtectedRoute allowedRole="admin"><DisciplinePage/></ProtectedRoute>}/><Route path="/teacher/discipline" element={<ProtectedRoute allowedRole="teacher"><DisciplinePage/></ProtectedRoute>}/><Route path="/student/discipline" element={<ProtectedRoute allowedRole="student"><DisciplinePage/></ProtectedRoute>}/><Route path="/student/me" element={<ProtectedRoute allowedRole="student"><StudentMenu/></ProtectedRoute>}/>{/* Student Routes */}
           <Route path="/admin/demo" element={<ProtectedRoute allowedRole="admin"><DemoPanel/></ProtectedRoute>}/>
           <Route path="/teacher/demo" element={<ProtectedRoute allowedRole="teacher"><DemoPanel/></ProtectedRoute>}/>
           <Route path="/student/demo" element={<ProtectedRoute allowedRole="student"><DemoPanel/></ProtectedRoute>}/>
@@ -219,7 +222,9 @@ export default function App() {
           />
 
           {/* Legacy Teacher & Parent Routes Safely Redirected */}
-          <Route path="/teacher/*" element={<ProtectedRoute allowedRole="teacher"><TeachingPanel/></ProtectedRoute>} />
+          <Route path="/teacher/*" element={<ProtectedRoute allowedRole="teacher"><SchoolWorkspace/></ProtectedRoute>} />
+          <Route path="/admin/workspace/*" element={<ProtectedRoute allowedRole="admin"><SchoolWorkspace/></ProtectedRoute>} />
+          <Route path="/student/workspace/*" element={<ProtectedRoute allowedRole="student"><SchoolWorkspace/></ProtectedRoute>} />
           <Route path="/admin/teachers" element={<ProtectedRoute allowedRole="admin"><TeachingPanel admin/></ProtectedRoute>} />
           <Route path="/parent/*" element={<Navigate to="/login" replace />} />
 

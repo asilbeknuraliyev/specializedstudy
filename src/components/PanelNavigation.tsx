@@ -3,8 +3,8 @@ import {NavLink,useLocation,useNavigate} from 'react-router-dom';
 import {useLearnOS} from '../context/LearnOSContext';
 type Item={to:string;label:string;icon:React.ElementType;end?:boolean};
 export function PanelNavigation({items,grouped}:{items:Item[];grouped:boolean}){
- const groups=grouped?['Umumiy','O‘quv reja','Nazorat va testlar','Kundalik ish','Natijalar','Boshqaruv']:['Bo‘limlar'];
- const group=(i:Item)=>!grouped?'Bo‘limlar':/dashboard|content|demo/.test(i.to)?'Umumiy':/subjects|work-plans|lessons|curriculum/.test(i.to)?'O‘quv reja':/assessments|questions|import/.test(i.to)?'Nazorat va testlar':/results|reports|analytics/.test(i.to)?'Natijalar':/classes|teachers|students|settings/.test(i.to)?'Boshqaruv':'Kundalik ish';
+ const groups=grouped?['Umumiy','O‘quv reja','Nazorat va testlar','Kundalik ish','Intizom','Natijalar','Boshqaruv']:['Bo‘limlar'];
+ const group=(i:Item)=>!grouped?'Bo‘limlar':/discipline/.test(i.to)?'Intizom':/dashboard|content|demo/.test(i.to)?'Umumiy':/subjects|work-plans|lessons|curriculum/.test(i.to)?'O‘quv reja':/assessments|questions|import/.test(i.to)?'Nazorat va testlar':/results|reports|analytics/.test(i.to)?'Natijalar':/classes|teachers|students|settings/.test(i.to)?'Boshqaruv':'Kundalik ish';
  const location=useLocation();
  return <>{groups.map(g=>{const links=items.filter(i=>group(i)===g);if(!links.length)return null;const list=links.map(i=><NavLink key={i.to} to={i.to} end={i.end} className={({isActive})=>`flex min-h-11 items-center gap-3 rounded-xl px-3 text-sm font-medium ${isActive?'bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300':'text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800'}`}><i.icon size={18}/>{i.label}</NavLink>);return grouped?<details key={g} open={true} className="mb-2"><summary className="min-h-11 cursor-pointer content-center px-3 text-xs font-semibold text-slate-500">{g}{links.some(i=>location.pathname===i.to)&&<span className="ml-2 text-blue-600">●</span>}</summary>{list}</details>:<div key={g}>{list}</div>;})}</>;
 }

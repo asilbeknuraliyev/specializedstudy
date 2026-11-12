@@ -1,3 +1,5 @@
+import {registerDisciplineRoutes} from './src/server/disciplineRoutes';
+import {registerWorkspaceRoutes} from './src/server/workspaceRoutes';
 import {registerDemoRoutes} from './src/server/demoRoutes';
 import {scopeInstitutionResponse} from './src/server/institutionView';
 import {cookieToken,clearSessionCookie,localSessionResponse} from './src/server/sessionCookies';
@@ -516,6 +518,8 @@ async function startServer() {
   });
 
   app.use('/api',(req,res,next)=>{const c=authenticateRequest(req);if(c?.user.mustChangePassword&&!['/state','/account/password','/auth/logout','/auth/login','/auth/firebase-sync'].includes(req.path))return res.status(403).json({error:'Davom etish uchun parolni o‘zgartiring.',code:'PASSWORD_CHANGE_REQUIRED'});next();});
+  registerDisciplineRoutes(app,{authenticate:authenticateRequest,save:saveDbState});
+  registerWorkspaceRoutes(app,{authenticate:authenticateRequest,save:saveDbState});
   registerTopicRoutes(app,{authenticate:authenticateRequest,save:saveDbState});
   registerLearningDemoRoutes(app,{authenticate:authenticateRequest,save:saveDbState,hash:hashPassword,revoke:(uid:string)=>revokeAllUserSessions(uid)});
   registerAccountRoutes(app,{authenticate:authenticateRequest,save:saveDbState,hash:hashPassword,verify:verifyPassword,revoke:revokeAllUserSessions,issue:issueSessionToken});
@@ -1681,7 +1685,7 @@ async function startServer() {
 
     if(user.role==='teacher'){
       const scoped=teacherClasses(user,db);const ids=new Set(scoped.map(c=>c.id));
-      return res.json({user,institution,classes:scoped,users:db.users.filter(u=>u.institutionId===instId&&(u.uid===user.uid||(u.role==='student'&&ids.has(u.classId||'')))).map(({uid,displayName,role,classId,classCode,status,login,mustChangePassword})=>({uid,displayName,role,classId,classCode,status,login,mustChangePassword})),lessons:db.lessons.filter(l=>l.institutionId===instId&&[l.classId,...(l.classIds||[])].some(id=>ids.has(id))&&(l.subjectName===user.subject||db.demoLabs?.some(lab=>lab.teacherId===user.uid&&lab.institutionId===instId))).map(l=>({...l,schoolDeliveredAt:[l.classId,...(l.classIds||[])].filter(id=>ids.has(id)).every(id=>deliveredForClass(l,id))?(l.schoolDeliveredAt||l.updatedAt):undefined})),subjects:[],topics:[],workPlans:[],assessments:[],attempts:[],notifications:[]});
+      return res.json({user,institution,classes:scoped,users:db.users.filter(u=>u.institutionId===instId&&(u.uid===user.uid||(u.role==='student'&&ids.has(u.classId||'')))).map(({uid,displayName,role,classId,classCode,status,login,mustChangePassword})=>({uid,displayName,role,classId,classCode,status,login,mustChangePassword})),lessons:db.lessons.filter(l=>l.institutionId===instId&&[l.classId,...(l.classIds||[])].some(id=>ids.has(id))&&(l.subjectName===user.subject||db.demoLabs?.some(lab=>lab.teacherId===user.uid&&lab.institutionId===instId))).map(l=>({...l,schoolDeliveredAt:[l.classId,...(l.classIds||[])].filter(id=>ids.has(id)).every(id=>deliveredForClass(l,id))?(l.schoolDeliveredAt||l.updatedAt):undefined})),subjects:[],topics:[],workPlans:[],assessments:[],attempts:[],notifications:db.notifications.filter(n=>n.institutionId===instId&&n.recipientUid===user.uid)});
     }
     if (user.role === 'student') {
       const myClass = db.classes.find(
@@ -8502,6 +8506,7 @@ Savollar va javoblar: ${JSON.stringify(anonymizedAnswers)}
     const effectiveStudentId = user.role === 'student' ? user.uid : (studentId ? String(studentId) : undefined);
 
     let filtered = db.attendanceRecords.filter((r) => {
+      if(r.institutionId!==user.institutionId || user.role==='teacher'&&!user.assignedClassIds?.includes(r.classId))return false;
       if (effectiveStudentId && r.studentId !== effectiveStudentId) return false;
       if (classCode && classCode !== 'ALL' && r.classCode?.toLowerCase() !== String(classCode).toLowerCase()) return false;
       if (status && status !== 'ALL' && r.status !== status) return false;
@@ -8512,6 +8517,7 @@ Savollar va javoblar: ${JSON.stringify(anonymizedAnswers)}
 
     const stats = calculateAttendanceStats(filtered);
     const sessions = db.attendanceSessions.filter((s) => {
+      if(s.institutionId!==user.institutionId || user.role==='student'&&s.classId!==user.classId || user.role==='teacher'&&!user.assignedClassIds?.includes(s.classId))return false;
       if (classCode && classCode !== 'ALL' && s.classCode?.toLowerCase() !== String(classCode).toLowerCase()) return false;
       if (startDate && s.date < String(startDate)) return false;
       if (endDate && s.date > String(endDate)) return false;
@@ -8542,9 +8548,10 @@ Savollar va javoblar: ${JSON.stringify(anonymizedAnswers)}
 
     const normClass = String(classCode).toLowerCase() as OfficialClassCode;
     const normDate = String(date).slice(0, 10);
-    const inst = db.institutions[0];
+    const inst = db.institutions.find(i=>i.id===user.institutionId);
     const instId = inst?.id || 'inst-spec-study';
-    const cls = db.classes.find((c) => (c.code || c.name).toLowerCase() === normClass);
+    const cls = db.classes.find((c) => c.institutionId===user.institutionId&&(c.code || c.name).toLowerCase() === normClass);
+    if(!cls||!/^\d{4}-\d{2}-\d{2}$/.test(normDate)||!Number.isFinite(Date.parse(normDate))||records.length>100||new Set(records.map((r:any)=>r.studentId)).size!==records.length||records.some((r:any)=>!['PRESENT','ABSENT','LATE','EXCUSED_ABSENCE'].includes(r.status)||!db.users.some(u=>u.uid===r.studentId&&u.institutionId===user.institutionId&&u.classId===cls.id&&u.role==='student'&&u.status==='active')))return res.status(400).json({error:'Sinf, sana yoki o‘quvchilar ro‘yxati noto‘g‘ri.'});
     const classId = cls?.id || normClass;
 
     if (!Array.isArray(db.attendanceRecords)) db.attendanceRecords = [];
@@ -8570,7 +8577,7 @@ Savollar va javoblar: ${JSON.stringify(anonymizedAnswers)}
       else if (status === 'EXCUSED_ABSENCE') excusedCount++;
 
       const recordId = `att_${item.studentId}_${normDate}`;
-      const existingIdx = attRecords.findIndex((r) => r.id === recordId || (r.studentId === item.studentId && r.date === normDate));
+      const existingIdx = attRecords.findIndex((r) => r.institutionId===instId&&!('lessonNumber' in r)&&(r.id === recordId || (r.studentId === item.studentId && r.date === normDate)));
 
       const newRecord: AttendanceRecord = {
         id: recordId,
