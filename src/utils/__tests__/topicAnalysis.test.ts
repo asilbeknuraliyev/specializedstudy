@@ -3,6 +3,7 @@ import {calculateItems,firstAnalysisFacts,recordTopicAnalysis,cachedAnalysisItem
 import {registerTopicRoutes} from '../../server/topicRoutes';
 import {analysisExportRows,analysisPrintHtml,safeExportText} from '../topicAnalysisExport';
 import {mergeState,MergeConflictError} from '../../server/mergeState';
+import {AnalysisCache} from '../../server/analysisCache';
 const question=(i=0,extra:any={})=>({id:'q'+i,revision:1,institutionId:'school',schoolId:'school',lessonId:'l',status:'published',approval:{revision:1,by:'t',at:'2026-11-01'},kind:'single',prompt:'DEMO '+i,options:['right','wrong'],key:'right',points:1,explanation:'DEMO explanation',hints:[],...extra}) as any;
 function formulaFacts(n=10){return Array.from({length:n},(_,i)=>({id:'s'+i,schoolId:'school',classId:'a',studentId:'u'+i,testId:'t',testVersion:1,lessonId:'l',subject:'Math',title:'DEMO',submittedAt:'2026-11-10T05:00:00Z',autoCorrect:0,autoTotal:10,responses:[{questionId:'q0',revision:1,correct:[1,4,8,9].includes(i),answer:[1,4,8,9].includes(i)?'right':'wrong',assisted:i===1,restScore:i/10}]}));}
 test('hand calculation: n=10, p=40%, wrong=60%, ceil(27%)=3, upper 2/3 lower 1/3 difference 1/3',()=>{
@@ -62,3 +63,11 @@ test('Excel cells neutralize formulas and PDF HTML escapes untrusted names/promp
  const data:any={items:[],topics:[],students:[{displayName:'<img src=x onerror=alert(1)>',classCode:'8a2',submissions:1,state:'submitted',openMistakes:0}],filters:{from:'2026-11-01',to:'2026-11-12'},notice:'DEMO',method:'first'};
  const html=analysisPrintHtml(data);assert.ok(!html.includes('<img'));assert.ok(html.includes('&lt;img'));assert.equal(analysisExportRows(data)['O‘quvchilar'].length,2);
 });
+test('private report cache isolates values, expires and bounds entries/bytes; an oversized result is not retained',()=>{
+ let time=0;const cache=new AnalysisCache<any>(100,60,2,10,()=>time);cache.set('a',{n:1});cache.get('a').n=99;assert.equal(cache.get('a').n,1);cache.set('b',{n:2});cache.set('c',{n:3});assert.equal(cache.get('a'),undefined);cache.set('large',{value:'x'.repeat(100)});assert.equal(cache.get('large'),undefined);time=11;assert.equal(cache.get('b'),undefined);assert.equal(cache.get('c'),undefined);
+});
+test('cached report invalidates after written grading, roster changes and current mistake state changes',()=>withApi(async({db,call}:any)=>{
+ assert.equal((await call()).data.overview.pendingWritten,10);db.topicSessions[0].results[0].pending=false;db.topicSessions[0].revision++;assert.equal((await call()).data.overview.pendingWritten,9);
+ let students=(await call('?view=students')).data.rows;assert.equal(students.find((s:any)=>s.id==='u0').openMistakes,0);db.mistakeRecords=[{id:'m',schoolId:'school',studentId:'u0',lessonId:'l',state:'new'}];students=(await call('?view=students')).data.rows;assert.equal(students.find((s:any)=>s.id==='u0').openMistakes,1);
+ db.users.find((u:any)=>u.uid==='u11').classId='b';assert.equal((await call()).data.overview.unattempted,1);
+}));

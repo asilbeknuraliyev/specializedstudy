@@ -1,3 +1,4 @@
+import {AnalysisCache} from './analysisCache';
 import crypto from 'node:crypto';
 import type {PersistentDatabaseState} from './dbEngine';
 import {gradeQuestion,type BankQuestion,type TopicSession} from './topicEngine';
@@ -63,13 +64,13 @@ export function recordTopicAnalysis(db:PersistentDatabaseState,s:TopicSession,no
 }
 // Bounded cache for date-filtered first-attempt statistics. Grades and all-time
 // cohort summaries are persisted when submitting, not recalculated by GET.
-const filteredCache=new Map<string,{at:number;items:ItemAnalysis[]}>();
-export function cachedAnalysisItems(cohort:AnalysisCohort,facts:AnalysisFact[],questions:BankQuestion[],from:string,to:string){
+const filteredCache=new AnalysisCache<ItemAnalysis[]>(4*1024*1024,1024*1024,40);
+export function cachedAnalysisItems(cohort:AnalysisCohort,facts:AnalysisFact[],questions:BankQuestion[],from:string,to:string,salt=''){
  const allInRange=facts.every(f=>inAnalysisRange(f.submittedAt,from,to));
  if(allInRange)return cohort.items;
- const key=crypto.createHash('sha256').update(JSON.stringify([cohort.id,cohort.revision,from,to])).digest('hex'),old=filteredCache.get(key);
- if(old&&Date.now()-old.at<300000)return old.items;
+ const key=crypto.createHash('sha256').update(JSON.stringify([process.env.PERSISTENCE_NAMESPACE,salt,cohort.id,cohort.revision,from,to])).digest('hex'),old=filteredCache.get(key);
+ if(old)return old;
  const items=calculateItems(facts.filter(f=>inAnalysisRange(f.submittedAt,from,to)),questions,cohort.id);
- if(filteredCache.size>=40)filteredCache.delete(filteredCache.keys().next().value!);filteredCache.set(key,{at:Date.now(),items});return items;
+ filteredCache.set(key,items);return items;
 }
 export function inAnalysisRange(timestamp:string,from:string,to:string){const d=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Tashkent',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(timestamp));return d>=from&&d<=to;}
