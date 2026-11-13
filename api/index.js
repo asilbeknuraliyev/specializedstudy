@@ -8438,9 +8438,9 @@ function registerTopicRoutes(app2, deps) {
 }
 
 // src/server/canonicalOrigin.ts
-var CANONICAL_ORIGIN = "https://specializedstudy.vercel.app";
+var CANONICAL_ORIGIN = "https://specializedschool.vercel.app";
 var canonicalProduction = (req, res, next) => {
-  if (process.env.VERCEL_ENV === "production" && req.hostname !== "specializedstudy.vercel.app") return res.redirect(307, CANONICAL_ORIGIN + req.originalUrl);
+  if (process.env.VERCEL_ENV === "production" && req.hostname !== "specializedschool.vercel.app") return res.redirect(307, CANONICAL_ORIGIN + req.originalUrl);
   next();
 };
 

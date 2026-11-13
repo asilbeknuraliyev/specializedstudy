@@ -16,7 +16,7 @@ Release date: 2026-11-13. Requested primary address: https://specializedschool.v
 
 ## Verification and evidence
 
-TypeScript lint and production build passed. The complete final unit suite passed 132 tests; two native bundled-server/JWKS smoke tests passed. Meaningful tests cover scoped roles/classes/schools, duplicate writes, stale grading, discipline thresholds/appeals/audit, privacy allowlists and AI access, pilot consent/pairing, deletion/cohort recomputation, notification timing/cancellation, lesson pagination beyond 100 and safe DEMO cleanup.
+TypeScript lint and production build passed. The full unit suite passed 132 tests; the later targeted new-domain redirect test passed one additional test, and two native bundled-server/JWKS smoke tests passed. Meaningful tests cover scoped roles/classes/schools, duplicate writes, stale grading, discipline thresholds/appeals/audit, privacy allowlists and AI access, pilot consent/pairing, deletion/cohort recomputation, notification timing/cancellation, lesson pagination beyond 100 and safe DEMO cleanup.
 
 Isolated preview browser records and actual screenshots/downloads are in `outputs/enterprise` outside the repository: `browser.json`, `final-browser.json`, `pilot-browser.json`. They exercise native login and secure cookies, 375px/1440px screens, offline retry and double-click, actual two-page PDF BSB import with name/date/class headers excluded, student submission and human grading, hidden-key results, instrumented third-exit stop, flashcards, consent, pilot form/export and deletion dry-run/confirmation. API exit events are explicitly instrumented; they are not a claim that a headless browser prevents operating-system switching or another device.
 
@@ -37,5 +37,7 @@ The 558 extracted source lines remain in `requirements.json`, with group evidenc
 The production store was read-only backed up before release. Snapshot SHA-256: `85b77c3b87714811b48c70b3a8fd15fc7d9158dae3e7358351d8913a09957baf`. Sensitive backup stays ignored locally and is never committed. Existing production SESSION_SECRET and Firebase service account are preserved. No DEMO snapshot is promoted or copied.
 
 New production must be a fresh production-environment build, with `_specialized_runtime`; preview uses `_specialized_preview_enterprise`. A runtime guard rejects environment/namespace mismatch. Firebase authorizedDomains adds only `specializedschool.vercel.app`, preserving previous entries. New-domain Google sign-in uses Firebase's popup flow with its registered firebaseapp.com auth handler; it does not assume a newly registered OAuth redirect URI.
+
+The old domain redirects to the requested new primary domain at the Vercel edge. The server's canonical API origin uses the same new domain, with a targeted no-loop/path/query test. Reference: [Vercel conditional redirects](https://vercel.com/docs/project-configuration/vercel-json), [Firebase external-hosting popup guidance](https://firebase.google.com/docs/auth/web/redirect-best-practices).
 
 Rollback code target: `dpl_4ZWW8gTA3JwZPRaUGxFtdixDb42V` (previous production). Rollback changes serving code; it must not overwrite live school data with preview fixtures or an old snapshot. Deployment IDs, final anonymous checks and data-preservation result are recorded in the release evidence when the build is ready.
