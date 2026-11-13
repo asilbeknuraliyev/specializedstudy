@@ -8,4 +8,4 @@ Existing: native/Google login, secure cookie sessions, account bulk creation, co
 
 All new data uses schoolId/institutionId and the existing cloud persistence contract; lists paginate. Production data is backed up before release. DEMO stays in a separate preview namespace and is cleaned. Security tools: Strix exact plugin search returned no available plugin; no Strix scan will be claimed. Local/preview checks continue.
 
-Requirement-by-requirement status is in requirements.json. Pending entries are not described as complete.
+Final implementation and evidence are documented in RELEASE.md. The 558 source lines in requirements.json are reviewed in groups, with explicit adaptations and limitations; this is not 558 independent test claims. Latest user selected specializedschool.vercel.app and cancelled Strix. Final unit suite: 132 passed; bundled server: 2 passed. Real production snapshot is privately backed up. Policy approval remains a real school/admin action, separate from deployment.

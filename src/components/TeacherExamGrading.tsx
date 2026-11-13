@@ -1,4 +1,5 @@
 import {FeedbackTemplates} from './FeedbackTemplates';
+import {ExamAnswerContent} from './ExamAnswers';
 import {useUnsavedChanges} from '../utils/useUnsavedChanges';
 import React, { useEffect, useRef, useState } from "react";
 import { useExamApi } from "../utils/useExamApi";
@@ -57,9 +58,9 @@ export function TeacherExamGrading() {
             </p>
             <h3 className="my-3 font-bold">{a.studentName}</h3>
             <p className="whitespace-pre-wrap text-sm leading-7">{q.prompt}</p>
-            <p className="my-4 whitespace-pre-wrap rounded-xl bg-slate-50 p-4 text-sm dark:bg-slate-900">
-              {q.selectedAnswer || "Javob kiritilmagan"}
-            </p>
+            <div className="my-4 rounded-xl bg-slate-50 p-4 text-sm dark:bg-slate-900">
+              <ExamAnswerContent answer={q.selectedAnswer || ''}/>
+            </div>
             {q.rubricText && (
               <p className="mb-4 text-sm">Mezon: {q.rubricText}</p>
             )}
