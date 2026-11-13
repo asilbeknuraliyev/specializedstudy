@@ -1,3 +1,4 @@
+import {FeedbackTemplates} from './FeedbackTemplates';
 import {useUnsavedChanges} from '../utils/useUnsavedChanges';
 import React, { useEffect, useRef, useState } from "react";
 import { useExamApi } from "../utils/useExamApi";
@@ -162,6 +163,7 @@ export function TeacherExamGrading() {
                 onChange={(e) => setPoints(Number(e.target.value))}
               />
             </label>
+            <FeedbackTemplates rows={data.feedbackTemplates} onChoose={text => setFeedback(text)}/>
             <label className="block text-sm">
               Fikr va keyingi qadam
               <textarea

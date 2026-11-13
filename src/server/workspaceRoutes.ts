@@ -1,3 +1,5 @@
+import {feedbackTemplates} from './feedbackTemplates';
+import { deliveredNotification } from "../utils/notificationPolicy";
 import crypto from "node:crypto";
 import { z } from "zod";
 import type { Express } from "express";
@@ -62,14 +64,12 @@ export function registerWorkspaceRoutes(app: Express, deps: any) {
     return c;
   };
   const fail = (res: any, e: any) =>
-    res
-      .status(e instanceof SchoolError ? e.status : 500)
-      .json({
-        error:
-          e instanceof SchoolError
-            ? e.message
-            : "Amal bajarilmadi. Kiritilgan matnni saqlab, qayta urinib ko‘ring.",
-      });
+    res.status(e instanceof SchoolError ? e.status : 500).json({
+      error:
+        e instanceof SchoolError
+          ? e.message
+          : "Amal bajarilmadi. Kiritilgan matnni saqlab, qayta urinib ko‘ring.",
+    });
   const read = (fn: any) => (req: any, res: any) => {
     const c = context(req, res);
     if (c)
@@ -85,15 +85,13 @@ export function registerWorkspaceRoutes(app: Express, deps: any) {
       if (!c) return;
       const d = schema.safeParse(req.body);
       if (!d.success)
-        return res
-          .status(400)
-          .json({
-            error: "Maydonlarni tekshiring.",
-            fields: d.error.issues.map((i) => ({
-              field: i.path.join("."),
-              message: i.message,
-            })),
-          });
+        return res.status(400).json({
+          error: "Maydonlarni tekshiring.",
+          fields: d.error.issues.map((i) => ({
+            field: i.path.join("."),
+            message: i.message,
+          })),
+        });
       try {
         const sig = { path: req.path, body: d.data },
           prev = operation(c, d.data.operationId, kind, sig);
@@ -264,6 +262,14 @@ export function registerWorkspaceRoutes(app: Express, deps: any) {
           status: u.status,
           login: u.login,
         }));
+      const lessonFilter = z
+        .object({
+          lessonPage: z.coerce.number().int().min(0).max(10000).default(0),
+          lessonQ: z.string().max(100).default(""),
+        })
+        .safeParse(req.query);
+      if (!lessonFilter.success)
+        throw new SchoolError(400, "Dars qidiruvi yoki sahifasini tekshiring.");
       const lessons = c.db.lessons.filter(
         (l: any) =>
           scoped(c, l) &&
@@ -391,6 +397,7 @@ export function registerWorkspaceRoutes(app: Express, deps: any) {
         )
         .slice(0, 1000);
       res.json({
+        feedbackTemplates: feedbackTemplates(c.db, c.user),
         workPlans,
         progress,
         classes: classes.map((cl: any) => ({ id: cl.id, code: cl.code })),
@@ -406,7 +413,35 @@ export function registerWorkspaceRoutes(app: Express, deps: any) {
         todaySchedule: entries
           .filter((e: any) => e.weekdayIndex === weekday)
           .sort((a: any, b: any) => a.startTime.localeCompare(b.startTime)),
-        lessons: limit(lessons),
+        lessons: lessons
+          .filter(
+            (l: any) =>
+              !lessonFilter.data.lessonQ ||
+              `${l.title || l.topicTitle || ""} ${l.subjectName || l.subject || ""}`
+                .toLowerCase()
+                .includes(lessonFilter.data.lessonQ.toLowerCase()),
+          )
+          .sort(
+            (a: any, b: any) =>
+              (a.quarter || 0) - (b.quarter || 0) ||
+              (a.lessonNumber || a.orderIndex || 0) -
+                (b.lessonNumber || b.orderIndex || 0) ||
+              a.id.localeCompare(b.id),
+          )
+          .slice(
+            lessonFilter.data.lessonPage * 100,
+            lessonFilter.data.lessonPage * 100 + 100,
+          ),
+        lessonPagination: {
+          page: lessonFilter.data.lessonPage,
+          total: lessons.filter(
+            (l: any) =>
+              !lessonFilter.data.lessonQ ||
+              `${l.title || l.topicTitle || ""} ${l.subjectName || l.subject || ""}`
+                .toLowerCase()
+                .includes(lessonFilter.data.lessonQ.toLowerCase()),
+          ).length,
+        },
         assignments: limit(assignments),
         submissions: limit(submissions),
         attendance: limit(attendance),
@@ -679,20 +714,50 @@ export function registerWorkspaceRoutes(app: Express, deps: any) {
         if (old) Object.assign(old, row);
         else rows.push(row);
         schoolAudit(c, "Vazifa saqlandi", row.id, before, row);
+        const inbox = ensureRows(c.db, "notifications");
+        for (const n of inbox)
+          if (
+            n.institutionId === c.user.institutionId &&
+            n.reminderAssignmentId === row.id
+          )
+            n.cancelled = true;
         if (row.status === "published")
-          for (const s of c.db.users.filter(
+          for (const student of c.db.users.filter(
             (s: any) =>
               s.institutionId === c.user.institutionId &&
               s.role === "student" &&
+              s.status === "active" &&
               row.targetClassIds.includes(s.classId),
-          ))
+          )) {
             notify(
               c,
-              s.uid,
+              student.uid,
               "Yangi o‘quv vazifasi",
-              "/student/assignments",
+              "/student/workspace/assignments",
               row.id + ":" + row.revision,
             );
+            if (row.dueDate >= localDate(c.now))
+              inbox.push({
+                id: schoolKey(
+                  c.user.institutionId,
+                  student.uid,
+                  "due",
+                  row.id,
+                  row.revision,
+                ),
+                institutionId: c.user.institutionId,
+                recipientUid: student.uid,
+                title: "Vazifa muddati bugun",
+                message:
+                  "Vazifalaringiz bo‘limini ochib, topshirish holatini tekshiring.",
+                link: "/student/workspace/assignments",
+                deliverOn: row.dueDate,
+                reminderAssignmentId: row.id,
+                cancelled: false,
+                createdAt: c.now.toISOString(),
+                read: false,
+              });
+          }
         return row;
       },
     ),
@@ -1008,6 +1073,21 @@ export function registerWorkspaceRoutes(app: Express, deps: any) {
         if (old) Object.assign(old, row);
         else rows.push(row);
         schoolAudit(c, "Sinf e’loni saqlandi", row.id, before, row);
+        if (row.status === "published")
+          for (const student of c.db.users.filter(
+            (u: any) =>
+              u.institutionId === c.user.institutionId &&
+              u.role === "student" &&
+              u.status === "active" &&
+              row.targetClassCodes.includes(u.classCode),
+          ))
+            notify(
+              c,
+              student.uid,
+              "Sinfingiz uchun yangi e’lon",
+              "/student/workspace/announcements",
+              row.id + ":" + row.revision,
+            );
         return row;
       },
     ),
@@ -1028,7 +1108,89 @@ export function registerWorkspaceRoutes(app: Express, deps: any) {
           canReadDiscipline(c, r) &&
           r.status === "approved",
       );
+      const lessonIds = new Set(
+          c.db.lessons
+            .filter(
+              (l: any) =>
+                scoped(c, l) &&
+                [l.classId, ...(l.classIds || [])].includes(s.classId) &&
+                (schoolAdmin(c.user) ||
+                  [l.subject, l.subjectName].includes(c.user.subject)),
+            )
+            .map((l: any) => l.id),
+        ),
+        learningResults = [
+          ...(c.db.topicSessions || [])
+            .filter(
+              (r: any) =>
+                scoped(c, r) &&
+                r.studentId === s.uid &&
+                r.submittedAt &&
+                lessonIds.has(r.lessonId || r.questions?.[0]?.lessonId),
+            )
+            .map((r: any) => ({
+              id: r.id,
+              title: r.title || "Mavzu testi",
+              kind: "Mavzu mashqi",
+              submittedAt: r.submittedAt,
+              pending: r.pending,
+              scorePercent: r.pending
+                ? null
+                : r.maxScore
+                  ? Math.round(((r.score || 0) / r.maxScore) * 100)
+                  : null,
+            })),
+          ...(c.db.attempts || [])
+            .filter(
+              (r: any) =>
+                scoped(c, r) &&
+                r.studentId === s.uid &&
+                c.db.assessments.some(
+                  (a: any) =>
+                    a.id === r.assessmentId &&
+                    scoped(c, a) &&
+                    (schoolAdmin(c.user) || a.subject === c.user.subject),
+                ),
+            )
+            .map((r: any) => ({
+              id: r.id,
+              title: r.assessmentTitle,
+              kind: "Nazorat / baholash",
+              submittedAt: r.submittedAt,
+              pending: r.status === "pending_manual_review",
+              scorePercent:
+                r.status === "pending_manual_review" ? null : r.scorePercent,
+            })),
+        ]
+          .sort((a: any, b: any) => b.submittedAt.localeCompare(a.submittedAt))
+          .slice(0, 100);
+      const oldest = new Date(localDate(c.now) + "T12:00:00Z");
+      oldest.setUTCDate(oldest.getUTCDate() - 13);
+      const firstDay = oldest.toISOString().slice(0, 10),
+        today = localDate(c.now),
+        trend = new Map<
+          string,
+          { day: string; total: number; wrong: number }
+        >();
+      for (const r of c.db.spacedReviewAnswers || [])
+        if (
+          r.schoolId === c.user.institutionId &&
+          r.studentId === s.uid &&
+          lessonIds.has(r.lessonId) &&
+          r.day >= firstDay &&
+          r.day <= today &&
+          typeof r.correct === "boolean"
+        ) {
+          const day = trend.get(r.day) || { day: r.day, total: 0, wrong: 0 };
+          day.total++;
+          if (!r.correct) day.wrong++;
+          trend.set(r.day, day);
+        }
       res.json({
+        learningResults,
+        errorTrend: [...trend.values()].sort((a, b) =>
+          a.day.localeCompare(b.day),
+        ),
         discipline: {
           approved: discipline.length,
           points: discipline.reduce((n: number, r: any) => n + r.points, 0),
@@ -1068,27 +1230,38 @@ export function registerWorkspaceRoutes(app: Express, deps: any) {
                 c.db.lessons.some(
                   (l: any) =>
                     l.id === r.lessonId &&
+                    lessonIds.has(l.id) &&
+                    scoped(c, l) &&
                     [l.subject, l.subjectName].includes(c.user.subject),
                 )),
           )
-          .slice(-100),
+          .slice(-100)
+          .map((r: any) => ({
+            ...r,
+            lessonTitle: c.db.lessons.find(
+              (l: any) => l.id === r.lessonId && scoped(c, l),
+            )?.title,
+          })),
       });
     }),
   );
   app.get(
     "/api/workspace/notifications",
     read((c: SchoolContext, req: any, res: any) => {
+      const day = localDate(c.now);
       const page = Math.max(0, Math.min(10000, Number(req.query.page) || 0)),
         rows = (c.db.notifications || [])
           .filter(
             (n: any) =>
               n.institutionId === c.user.institutionId &&
-              n.recipientUid === c.user.uid,
+              n.recipientUid === c.user.uid &&
+              deliveredNotification(n, day),
           )
           .slice()
           .sort((a: any, b: any) => b.createdAt.localeCompare(a.createdAt));
       res.json({
         rows: rows.slice(page * 20, page * 20 + 20),
+        visibleIds: rows.map((n: any) => n.id),
         total: rows.length,
         unread: rows.filter((n: any) => !n.read).length,
         page,
@@ -1104,10 +1277,12 @@ export function registerWorkspaceRoutes(app: Express, deps: any) {
         all: z.boolean().default(false),
       }),
       (c: SchoolContext, d: any) => {
+        const day = localDate(c.now);
         const rows = (c.db.notifications || []).filter(
           (n: any) =>
             n.institutionId === c.user.institutionId &&
             n.recipientUid === c.user.uid &&
+            deliveredNotification(n, day) &&
             (d.all || n.id === d.id),
         );
         rows.forEach((n: any) => {

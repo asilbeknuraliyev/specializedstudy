@@ -1,3 +1,5 @@
+import {FeedbackTemplates} from './FeedbackTemplates';
+import { StudentLearningSummary } from "./StudentLearningSummary";
 import { SchoolReport } from "./SchoolReport";
 import React, { useEffect, useRef, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
@@ -73,6 +75,7 @@ export function SchoolWorkspace() {
     [form, setForm] = useState<any>(),
     [details, setDetails] = useState<any>(),
     [query, setQuery] = useState(""),
+    [lessonPage, setLessonPage] = useState(0),
     [date, setDate] = useState(
       new Date().toLocaleDateString("sv-SE", { timeZone: "Asia/Tashkent" }),
     ),
@@ -88,20 +91,32 @@ export function SchoolWorkspace() {
     ),
     working = useRef(false);
   const dirty = !!form || attendanceDirty;
+  const lessonQuery = ["plans", "lessons"].includes(module) ? query : "";
+  useEffect(() => setLessonPage(0), [classId, lessonQuery]);
   useEffect(() => {
     let live = true;
     setError("");
-    api("/api/workspace?classId=" + encodeURIComponent(classId))
-      .then((d) => {
-        if (live) setData(d);
-      })
-      .catch((e) => {
-        if (live) setError(e.message);
-      });
+    const timer = setTimeout(() => {
+      api(
+        "/api/workspace?" +
+          new URLSearchParams({
+            classId,
+            lessonQ: lessonQuery,
+            lessonPage: String(lessonPage),
+          }),
+      )
+        .then((d) => {
+          if (live) setData(d);
+        })
+        .catch((e) => {
+          if (live) setError(e.message);
+        });
+    }, 200);
     return () => {
+      clearTimeout(timer);
       live = false;
     };
-  }, [api, classId, version]);
+  }, [api, classId, version, lessonQuery, lessonPage]);
   useEffect(() => {
     const before = (e: BeforeUnloadEvent) => {
       if (dirty) {
@@ -621,11 +636,31 @@ export function SchoolWorkspace() {
               </button>
             </article>
           ))}
-          {data.truncated.lessons && (
-            <p className="text-sm text-slate-500">
-              Oxirgi 100 dars ko‘rsatilgan. Kerakli sinfni tanlang.
-            </p>
-          )}
+          <div className="mt-4 flex items-center justify-between gap-3">
+            <button
+              className="ss-secondary"
+              disabled={!lessonPage}
+              onClick={() => setLessonPage((p) => p - 1)}
+            >
+              Oldingi darslar
+            </button>
+            <span className="text-xs">
+              {lessonPage + 1}/
+              {Math.max(
+                1,
+                Math.ceil((data.lessonPagination?.total || 0) / 100),
+              )}
+            </span>
+            <button
+              className="ss-secondary"
+              disabled={
+                (lessonPage + 1) * 100 >= (data.lessonPagination?.total || 0)
+              }
+              onClick={() => setLessonPage((p) => p + 1)}
+            >
+              Keyingi darslar
+            </button>
+          </div>
         </Card>
       )}
       {["assignments", "templates"].includes(module) && (
@@ -1141,6 +1176,7 @@ export function SchoolWorkspace() {
               {s.assignmentTitle} · {s.status} · {s.score ?? "—"}/{s.maxScore}
             </p>
           ))}
+          <StudentLearningSummary details={details} />
           <h3 className="mt-5 font-semibold">Davomat</h3>
           {details.attendance.map((r: any) => (
             <p className="border-t py-2 text-sm" key={r.id}>
@@ -1178,6 +1214,7 @@ export function SchoolWorkspace() {
                 {error}
               </p>
             )}
+            {form.kind === "grading" && <FeedbackTemplates rows={data.feedbackTemplates} onChoose={text => setForm({...form, feedback: text})}/>}
             {Object.entries(form)
               .filter(
                 ([k]) =>

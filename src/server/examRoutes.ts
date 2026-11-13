@@ -1,3 +1,4 @@
+import {feedbackTemplates} from './feedbackTemplates';
 import { storeExamImage, readExamImage } from "./examMedia";
 import crypto from "node:crypto";
 import { z } from "zod";
@@ -140,6 +141,7 @@ export function registerExamRoutes(
     res.setHeader("Cache-Control", "no-store");
     res.json({
       assessments,
+      feedbackTemplates: feedbackTemplates(c.db, c.user),
       attempts: c.db.attempts
         .filter(
           (a) =>
@@ -785,6 +787,7 @@ export function registerExamRoutes(
       before,
       exam,
     );
+    if(action==='start'||action==='schedule')for(const student of (c.db.users||[]).filter(u=>u.institutionId===c.user.institutionId&&u.role==='student'&&u.status==='active'&&exam.assignedClassIds?.includes(u.classId!)))notifySchool({...c,now:new Date()},student.uid,action==='start'?'Nazorat ishi boshlandi':'Nazorat ishi rejalashtirildi','/student/assessments',exam.id+':'+(exam as any).editRevision);
     deps.save(c.env, c.db);
     deps.notify(c.env, c.user.institutionId, "EXAM_STATE_CHANGED");
     res.json({ assessment: exam });

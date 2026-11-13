@@ -1,3 +1,4 @@
+import {cleanupDemoExams} from './cleanupDemoExams';
 import {seedLearningDemoAnalysis} from './learningDemoAnalysis';
 import crypto from 'node:crypto';
 import type {Express} from 'express';
@@ -54,6 +55,7 @@ export function registerLearningDemoRoutes(app:Express,deps:any){
   const school=(r:any)=>(r.institutionId||r.schoolId)===c.user.institutionId;
   const assignmentIds=new Set((c.db.studentAssignments||[]).filter((r:any)=>school(r)&&users.has(r.createdByUid)).map((r:any)=>r.id));
   if((c.db.assignmentSubmissions||[]).some((r:any)=>assignmentIds.has(r.assignmentId)&&!users.has(r.studentId))||(c.db.pilotPrograms||[]).some((p:any)=>school(p)&&[...(p.groupA||[]),...(p.groupB||[])].some(id=>users.has(id))&&[...(p.groupA||[]),...(p.groupB||[])].some(id=>!users.has(id))))return res.status(409).json({error:'DEMO’ga tegishli yozuv tashqi profil bilan bog‘langan. Avval administrator alohida tekshirsin; tashqi ma’lumot o‘chirilmaydi.'});
+  if(!cleanupDemoExams(c.db,c.user.institutionId,users))return res.status(409).json({error:'DEMO nazorat ishida tashqi profil qatnashgan. Administrator alohida tekshirsin; ma’lumot o‘chirilmaydi.'});
   const recordIds=new Set((c.db.disciplineRecords||[]).filter((r:any)=>school(r)&&users.has(r.studentId)).map((r:any)=>r.id));
   for(const name of ['attendanceSessions','attendanceRecords','studentAssignments','assignmentSubmissions','submissionRevisions','studentSupportPlans','learningMaterials','announcements','reinforcementSessions','learningConsents','dataDeletionRequests','dataDeletionPreviews','disciplineRecords','disciplineTotals','disciplineCases','disciplineAppeals','warningLetters','disciplineCorrections','lessonPracticeResponses','studentLastLessons'])c.db[name]=(c.db[name]||[]).filter((r:any)=>!school(r)||!(users.has(r.studentId)||users.has(r.createdByUid)||users.has(r.uploadedByUid)||users.has(r.recordedByUid)||recordIds.has(r.recordId)||assignmentIds.has(r.assignmentId)));
   c.db.pilotPrograms=(c.db.pilotPrograms||[]).filter((p:any)=>!school(p)||![...(p.groupA||[]),...(p.groupB||[])].some(id=>users.has(id)));

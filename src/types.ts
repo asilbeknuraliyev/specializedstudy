@@ -827,6 +827,7 @@ export interface TopicBreakdownItem {
 }
 
 export interface AssessmentAttempt {
+  resultKeysHidden?: boolean;
   id: string;
   assessmentId: string;
   assignmentId?: string;
@@ -987,6 +988,9 @@ export interface LearningRecommendation {
 }
 
 export interface AppNotification {
+  deliverOn?:string;
+  cancelled?:boolean;
+  reminderAssignmentId?:string;
   id: string;
   institutionId: string;
   recipientUid: string;

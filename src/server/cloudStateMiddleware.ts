@@ -1,3 +1,4 @@
+import {runtimeMetrics} from './runtimeMetrics';
 import {sessionBody} from './sessionCookies';
 import type { RequestHandler } from 'express';
 import { requestDatabase } from './requestDatabase';
@@ -24,7 +25,7 @@ return async (req,res,next) => {
          for(const action of context.afterCommit)action();
          res.setHeader('Server-Timing',`state;dur=${readMs.toFixed(1)}, commit;dur=${(performance.now()-commitBegan).toFixed(1)}`);
          json(sessionBody(res,body));
-       } catch(error) {
+       } catch(error) {runtimeMetrics.failure(error instanceof StateConflictError?'conflict':'write_failed');
          res.status(error instanceof StateConflictError?409:503);
          json({error:error instanceof StateConflictError?'Ma’lumot yangilangan. Sahifani yangilab, qayta urinib ko‘ring.':'Ma’lumot saqlanmadi. Keyinroq qayta urinib ko‘ring.'});
        }
@@ -32,7 +33,7 @@ return async (req,res,next) => {
      return res;
    }) as typeof res.json;
    requestDatabase.run(context,next);
- } catch {
+ } catch {runtimeMetrics.failure('read_failed');
    res.status(503).json({error:'Ma’lumotlar bazasi hozircha tayyor emas. Administratorga murojaat qiling.'});
  }
 };

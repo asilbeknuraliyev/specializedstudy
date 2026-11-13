@@ -1,3 +1,4 @@
+import {RuntimeStatus} from './RuntimeStatus';
 import {useUnsavedChanges} from '../utils/useUnsavedChanges';
 import {ContentCoverage} from './ContentCoverage';
 import React, { useEffect, useRef, useState } from "react";
@@ -416,6 +417,7 @@ export function SchoolControlCenter() {
       {view === "Tizim holati" && (
         <Card>
           <h2 className="font-bold">Joriy server muhiti</h2>
+          <RuntimeStatus value={data.runtime}/>
           {Object.entries(data.status).map(([k, v]) => (
             <p className="mt-4 break-all text-sm" key={k}>
               <strong>{k}: </strong>

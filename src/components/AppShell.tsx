@@ -441,6 +441,7 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
             currentUser.role==='student' && !isActiveTestRunner ? 'pb-24 lg:pb-6' : 'pb-8 lg:pb-6'
           }`}
         >
+          {previewEnabled&&<p className="mb-4 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-xs leading-5 text-amber-950">PREVIEW · sinov muhiti. Bu yerdagi namoyish ma’lumotlarini rasmiy maktab natijasi sifatida ishlatmang.</p>}
           <Suspense fallback={<div role="status" className="ss-surface p-6 animate-pulse">Sahifa yuklanmoqda…</div>}>{children}</Suspense>
         </main>
 

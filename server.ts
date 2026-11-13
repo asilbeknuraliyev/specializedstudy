@@ -1,3 +1,6 @@
+import {deliveredNotification} from './src/utils/notificationPolicy';
+import {schoolDay} from './src/server/spacedReviewEngine';
+import {registerAiAccessGuard} from './src/server/aiAccessGuard';
 import {registerDisciplineRoutes} from './src/server/disciplineRoutes';
 import {registerWorkspaceRoutes} from './src/server/workspaceRoutes';
 import {registerReinforcementRoutes} from './src/server/reinforcementRoutes';
@@ -14,7 +17,7 @@ import {registerTeachingRoutes,teacherClasses,deliveredForClass} from './src/ser
 import { registerExamRoutes } from './src/server/examRoutes';
 import { registerContentRoutes } from './src/server/contentRoutes';
 import { registerStudentHomeRoutes } from './src/server/studentHomeRoutes';
-import { canTakeExam, examDeadline, sanitizeExamQuestion } from './src/utils/examPolicy';
+import { canTakeExam, examDeadline, sanitizeExamQuestion,publicStudentAttempt } from './src/utils/examPolicy';
 import { cloudStateMiddleware } from './src/server/cloudStateMiddleware';
 import { requestDatabase } from './src/server/requestDatabase';
 import 'dotenv/config';
@@ -520,6 +523,7 @@ async function startServer() {
   });
 
   app.use('/api',(req,res,next)=>{const c=authenticateRequest(req);if(c?.user.mustChangePassword&&!['/state','/account/password','/auth/logout','/auth/login','/auth/firebase-sync'].includes(req.path))return res.status(403).json({error:'Davom etish uchun parolni o‘zgartiring.',code:'PASSWORD_CHANGE_REQUIRED'});next();});
+  registerAiAccessGuard(app,{authenticate:authenticateRequest});
   registerDisciplineRoutes(app,{authenticate:authenticateRequest,save:saveDbState});
   registerWorkspaceRoutes(app,{authenticate:authenticateRequest,save:saveDbState});
   registerReinforcementRoutes(app,{authenticate:authenticateRequest,save:saveDbState});
@@ -1616,8 +1620,9 @@ async function startServer() {
     const instSubjects = db.subjects.filter(
       (s) => s.institutionId === 'global' || s.institutionId === instId
     );
+    const notificationDay=schoolDay(new Date());
     const myNotifications = db.notifications.filter(
-      (n) => n.institutionId === instId && n.recipientUid === user.uid
+      (n) => n.institutionId === instId && n.recipientUid === user.uid&&deliveredNotification(n,notificationDay)
     );
 
     const isOwner = isVerifiedPlatformOwner(user, CONFIGURED_OWNER_EMAIL);
@@ -1651,9 +1656,7 @@ async function startServer() {
         masteryRecords: db.masteryRecords,
         learningPaths: db.learningPaths,
         teacherNotes: db.teacherNotes,
-        notifications: db.notifications.filter(
-          (n) => n.recipientUid === user.uid || n.institutionId === instId
-        ),
+        notifications: myNotifications,
         auditLogs: db.auditLogs,
         studentGamificationProfiles: db.studentGamificationProfiles || [],
         learningCheckins: db.learningCheckins || [],
@@ -1690,7 +1693,7 @@ async function startServer() {
 
     if(user.role==='teacher'){
       const scoped=teacherClasses(user,db);const ids=new Set(scoped.map(c=>c.id));
-      return res.json({user,institution,classes:scoped,users:db.users.filter(u=>u.institutionId===instId&&(u.uid===user.uid||(u.role==='student'&&ids.has(u.classId||'')))).map(({uid,displayName,role,classId,classCode,status,login,mustChangePassword})=>({uid,displayName,role,classId,classCode,status,login,mustChangePassword})),lessons:db.lessons.filter(l=>l.institutionId===instId&&[l.classId,...(l.classIds||[])].some(id=>ids.has(id))&&(l.subjectName===user.subject||db.demoLabs?.some(lab=>lab.teacherId===user.uid&&lab.institutionId===instId))).map(l=>({...l,schoolDeliveredAt:[l.classId,...(l.classIds||[])].filter(id=>ids.has(id)).every(id=>deliveredForClass(l,id))?(l.schoolDeliveredAt||l.updatedAt):undefined})),subjects:[],topics:[],workPlans:[],assessments:[],attempts:[],notifications:db.notifications.filter(n=>n.institutionId===instId&&n.recipientUid===user.uid)});
+      return res.json({user,institution,classes:scoped,users:db.users.filter(u=>u.institutionId===instId&&(u.uid===user.uid||(u.role==='student'&&ids.has(u.classId||'')))).map(({uid,displayName,role,classId,classCode,status,login,mustChangePassword})=>({uid,displayName,role,classId,classCode,status,login,mustChangePassword})),lessons:db.lessons.filter(l=>l.institutionId===instId&&[l.classId,...(l.classIds||[])].some(id=>ids.has(id))&&(l.subjectName===user.subject||db.demoLabs?.some(lab=>lab.teacherId===user.uid&&lab.institutionId===instId))).map(l=>({...l,schoolDeliveredAt:[l.classId,...(l.classIds||[])].filter(id=>ids.has(id)).every(id=>deliveredForClass(l,id))?(l.schoolDeliveredAt||l.updatedAt):undefined})),subjects:[],topics:[],workPlans:[],assessments:[],attempts:[],notifications:myNotifications});
     }
     if (user.role === 'student') {
       const myClass = db.classes.find(
@@ -1847,10 +1850,10 @@ async function startServer() {
         questionMedia: (db.questionMedia || []).filter((m) => m.institutionId === instId),
         assessments: sanitizedAssessments,
         assignments: myAssignments,
-        attempts: db.attempts.filter((a) => a.studentId === user.uid),
+        attempts: db.attempts.filter((a) => a.institutionId===user.institutionId&&a.studentId === user.uid).map(a=>publicStudentAttempt(a,db.assessments)),
         gradingRecords: (db.gradingRecords || []).filter((g) =>
-          db.attempts.some((att) => att.id === g.attemptId && att.studentId === user.uid)
-        ),
+          db.attempts.some((att) => att.institutionId===user.institutionId&&att.id === g.attemptId && att.studentId === user.uid)
+        ).map(({aiSuggestedPoints,aiSuggestedRationale,aiSuggestedFeedback,...safe})=>safe),
         importBatches: [],
         masteryRecords: db.masteryRecords.filter((m) => m.studentId === user.uid),
         learningPaths: db.learningPaths.filter((lp) => lp.studentId === user.uid),
@@ -1935,7 +1938,7 @@ async function startServer() {
       assignments: [],
       attempts: db.attempts.filter(
         (a) => a.institutionId === instId && linkedIds.has(a.studentId)
-      ),
+      ).map(a=>publicStudentAttempt(a,db.assessments)),
       masteryRecords: db.masteryRecords.filter(
         (m) => m.institutionId === instId && linkedIds.has(m.studentId)
       ),
@@ -1978,7 +1981,7 @@ async function startServer() {
 
     return res.json({
       student: targetStudent,
-      attempts: db.attempts.filter((a) => a.studentId === targetStudent.uid),
+      attempts: db.attempts.filter((a) => a.institutionId===user.institutionId&&a.studentId === targetStudent.uid).map(a=>['student','parent'].includes(user.role)?publicStudentAttempt(a,db.assessments):a),
       masteryRecords: db.masteryRecords.filter((m) => m.studentId === targetStudent.uid),
     });
   });
@@ -6945,7 +6948,7 @@ async function startServer() {
     const examSession = assessment.examKind ? db.examSessions?.find(s => s.assessmentId === assessment.id && s.studentId === user.uid) : undefined;
     if (assessment.examKind) {
       if (!canTakeExam(user,assessment) || !examSession) return res.status(403).json({error:'Nazorat ishini avval boshlang.'});
-      if (examSession.submittedAttemptId) return res.json({attempt:db.attempts.find(a=>a.id===examSession.submittedAttemptId)});
+      if (examSession.submittedAttemptId) return res.json({attempt:publicStudentAttempt(db.attempts.find(a=>a.id===examSession.submittedAttemptId&&a.institutionId===user.institutionId),db.assessments)});
       if (assessment.examState==='paused'&&!examSession.stoppedAt) return res.status(409).json({error:'Nazorat vaqtincha to‘xtatilgan.'});
       if (examSession.stoppedAt || Date.now()>examDeadline(assessment,examSession) || assessment.examState==='closed') submittedMap=examSession.answers;
       else if (!submittedMap || typeof submittedMap!=='object' || Array.isArray(submittedMap) || Object.values(submittedMap).some(v=>typeof v!=='string'||v.length>250000) || Object.keys(submittedMap).some(id=>!assessment.questionIds.includes(id)) || Buffer.byteLength(JSON.stringify(submittedMap))>1800000) return res.status(400).json({error:'Javoblar noto‘g‘ri.'});
@@ -6986,7 +6989,7 @@ async function startServer() {
     );
     if (recentAttempt) {
       return res.json({
-        attempt: recentAttempt,
+        attempt: publicStudentAttempt(recentAttempt,db.assessments),
         masteryRecords: db.masteryRecords.filter((r) => r.studentId === user.uid),
         learningPaths: db.learningPaths.filter((lp) => lp.studentId === user.uid),
       });
@@ -7155,7 +7158,7 @@ async function startServer() {
     broadcastInstitutionUpdate(env, user.institutionId, 'ATTEMPT_SUBMITTED');
 
     return res.json({
-      attempt: newAttempt,
+      attempt: publicStudentAttempt(newAttempt,db.assessments),
       masteryRecords: updatedStudentMastery,
       learningPaths: updatedStudentPaths,
       gamification: assessGamificationResult,
@@ -8831,7 +8834,7 @@ Savollar va javoblar: ${JSON.stringify(anonymizedAnswers)}
       submissions: studentSubmissions,
       alerts: user.role === 'student' ? [] : activeAlerts, // Administrative alerts are private to Admin
       supportPlans: user.role === 'student' ? [] : studentSupportPlans, // Private to Admin
-      attempts: (db.attempts || []).filter((a) => a.studentId === targetStudentId),
+      attempts: (db.attempts || []).filter((a) => a.institutionId===user.institutionId&&a.studentId === targetStudentId).map(a=>['student','parent'].includes(user.role)?publicStudentAttempt(a,db.assessments):a),
     });
   });
 

@@ -13,7 +13,6 @@ import {
 import {auth,createGoogleAuthProvider} from '../firebase';
 import {
   mapFirebaseAuthError,
-  isMobileOrTouchRedirectPreferred,
   SanitizedFirebaseAuthError,
 } from '../utils/firebaseAuthErrors';
 import {
@@ -1381,7 +1380,7 @@ export const LearnOSProvider: React.FC<{ children: React.ReactNode }> = ({ child
   useEffect(() => {
     if(!currentUser||currentUser.mustChangePassword)return;
     let active=true,inFlight=false;
-    const poll=async()=>{if(inFlight||document.visibilityState==='hidden')return;inFlight=true;try{const response=await apiFetch('/api/workspace/notifications?page=0');if(response.ok){const data=await response.json();if(active)setNotifications(prev=>{const byId=new Map(prev.filter(n=>n.institutionId===currentUser.institutionId&&n.recipientUid===currentUser.uid).map(n=>[n.id,n]));for(const n of data.rows)byId.set(n.id,n);return [...byId.values()];});}}catch{/* Keep the last known inbox while offline. */}finally{inFlight=false;}};
+    const poll=async()=>{if(inFlight||document.visibilityState==='hidden')return;inFlight=true;try{const response=await apiFetch('/api/workspace/notifications?page=0');if(response.ok){const data=await response.json();if(active)setNotifications(prev=>{const byId=new Map(prev.filter(n=>n.institutionId===currentUser.institutionId&&n.recipientUid===currentUser.uid&&(!Array.isArray(data.visibleIds)||data.visibleIds.includes(n.id))).map(n=>[n.id,n]));for(const n of data.rows)byId.set(n.id,n);return [...byId.values()];});}}catch{/* Keep the last known inbox while offline. */}finally{inFlight=false;}};
     void poll();const timer=setInterval(()=>void poll(),60000),visible=()=>void poll();document.addEventListener('visibilitychange',visible);
     return()=>{active=false;clearInterval(timer);document.removeEventListener('visibilitychange',visible);};
   },[currentUser?.uid,currentUser?.institutionId,currentUser?.mustChangePassword,apiFetch]);
@@ -1510,14 +1509,10 @@ export const LearnOSProvider: React.FC<{ children: React.ReactNode }> = ({ child
       const forceRedirect =
         (typeof inviteOrOptions === 'object' && inviteOrOptions?.forceRedirect === true) ||
         options?.forceRedirect === true;
-      const preferPopup =
-        (typeof inviteOrOptions === 'object' && inviteOrOptions?.preferPopup === true) ||
-        options?.preferPopup === true;
-
       try {
         const provider = createGoogleAuthProvider();
-        const useRedirect =
-          forceRedirect || (!preferPopup && isMobileOrTouchRedirectPreferred() && forceRedirect);
+        // External hosting uses Firebase's popup flow to avoid cross-site redirect storage.
+        const useRedirect = window.location.hostname !== 'specializedschool.vercel.app' && forceRedirect;
 
         if (useRedirect) {
           if (inviteToken) {

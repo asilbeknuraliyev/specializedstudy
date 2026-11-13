@@ -1,3 +1,9 @@
+import { runtimeMetrics } from "./runtimeMetrics";
+import {
+  analysisQuestion,
+  calculateItems,
+  firstAnalysisFacts,
+} from "./topicAnalysisEngine";
 import crypto from "node:crypto";
 import { z } from "zod";
 import type { Express } from "express";
@@ -136,14 +142,12 @@ export function registerSchoolAdminRoutes(app: Express, deps: any) {
     return c;
   };
   const fail = (res: any, e: any) =>
-    res
-      .status(e instanceof SchoolError ? e.status : 500)
-      .json({
-        error:
-          e instanceof SchoolError
-            ? e.message
-            : "Boshqaruv amali bajarilmadi. Qayta urinib ko‘ring.",
-      });
+    res.status(e instanceof SchoolError ? e.status : 500).json({
+      error:
+        e instanceof SchoolError
+          ? e.message
+          : "Boshqaruv amali bajarilmadi. Qayta urinib ko‘ring.",
+    });
   const read =
     (fn: any, admin = true) =>
     (req: any, res: any) => {
@@ -162,15 +166,13 @@ export function registerSchoolAdminRoutes(app: Express, deps: any) {
       if (!c) return;
       const parsed = schema.safeParse(req.body);
       if (!parsed.success)
-        return res
-          .status(400)
-          .json({
-            error: "Maydonlarni tekshiring.",
-            fields: parsed.error.issues.map((i: any) => ({
-              field: i.path.join("."),
-              message: i.message,
-            })),
-          });
+        return res.status(400).json({
+          error: "Maydonlarni tekshiring.",
+          fields: parsed.error.issues.map((i: any) => ({
+            field: i.path.join("."),
+            message: i.message,
+          })),
+        });
       try {
         const d = parsed.data,
           sig = { path: req.path, body: d },
@@ -215,10 +217,79 @@ export function registerSchoolAdminRoutes(app: Express, deps: any) {
       });
     }),
   );
-  app.get('/api/school-admin/coverage',read((c:SchoolContext,req:any,res:any)=>{
-    const f=z.object({classId:z.string().max(200).default(''),subject:z.string().max(100).default(''),q:z.string().max(100).default(''),page:z.coerce.number().int().min(0).max(10000).default(0)}).safeParse(req.query);if(!f.success)throw new SchoolError(400,'Filtrlarni tekshiring.');const classes=c.db.classes.filter((cl:any)=>cl.institutionId===c.user.institutionId&&(!f.data.classId||cl.id===f.data.classId));if(f.data.classId&&!classes.length)throw new SchoolError(403,'Sinfga ruxsat yo‘q.');
-    const plans=new Set((c.db.workPlans||[]).filter((p:any)=>school(c,p)&&p.status!=='archived').map((p:any)=>p.id)),tests=new Map<string,any[]>();for(const t of c.db.topicTests||[])if(school(c,t)&&t.status==='published')tests.set(t.lessonId,[...(tests.get(t.lessonId)||[]),t]);const lessons=c.db.lessons.filter((l:any)=>school(c,l)&&l.status==='published'&&(!f.data.subject||[l.subject,l.subjectName].includes(f.data.subject))&&(!f.data.q||(l.title||l.topicTitle||'').toLowerCase().includes(f.data.q.toLowerCase()))),rows=lessons.flatMap((l:any)=>classes.filter((cl:any)=>[l.classId,...(l.classIds||[])].includes(cl.id)).map((cl:any)=>({id:schoolKey(l.id,cl.id),lessonId:l.id,title:l.title||l.topicTitle,subject:l.subjectName||l.subject,classId:cl.id,classCode:cl.code,quarter:l.quarter,planMissing:!l.workPlanId||!plans.has(l.workPlanId),testMissing:!(tests.get(l.id)||[]).some(t=>!t.classIds||t.classIds.includes(cl.id))}))).filter((r:any)=>r.planMissing||r.testMissing);res.json({rows:rows.slice(f.data.page*20,f.data.page*20+20),total:rows.length,page:f.data.page,classes:c.db.classes.filter((cl:any)=>cl.institutionId===c.user.institutionId).map((cl:any)=>({id:cl.id,code:cl.code})),subjects:[...new Set(lessons.map((l:any)=>l.subjectName||l.subject))].sort()});
-  }));
+  app.get(
+    "/api/school-admin/coverage",
+    read((c: SchoolContext, req: any, res: any) => {
+      const f = z
+        .object({
+          classId: z.string().max(200).default(""),
+          subject: z.string().max(100).default(""),
+          q: z.string().max(100).default(""),
+          page: z.coerce.number().int().min(0).max(10000).default(0),
+        })
+        .safeParse(req.query);
+      if (!f.success) throw new SchoolError(400, "Filtrlarni tekshiring.");
+      const classes = c.db.classes.filter(
+        (cl: any) =>
+          cl.institutionId === c.user.institutionId &&
+          (!f.data.classId || cl.id === f.data.classId),
+      );
+      if (f.data.classId && !classes.length)
+        throw new SchoolError(403, "Sinfga ruxsat yo‘q.");
+      const plans = new Set(
+          (c.db.workPlans || [])
+            .filter((p: any) => school(c, p) && p.status !== "archived")
+            .map((p: any) => p.id),
+        ),
+        tests = new Map<string, any[]>();
+      for (const t of c.db.topicTests || [])
+        if (school(c, t) && t.status === "published")
+          tests.set(t.lessonId, [...(tests.get(t.lessonId) || []), t]);
+      const lessons = c.db.lessons.filter(
+          (l: any) =>
+            school(c, l) &&
+            l.status === "published" &&
+            (!f.data.subject ||
+              [l.subject, l.subjectName].includes(f.data.subject)) &&
+            (!f.data.q ||
+              (l.title || l.topicTitle || "")
+                .toLowerCase()
+                .includes(f.data.q.toLowerCase())),
+        ),
+        rows = lessons
+          .flatMap((l: any) =>
+            classes
+              .filter((cl: any) =>
+                [l.classId, ...(l.classIds || [])].includes(cl.id),
+              )
+              .map((cl: any) => ({
+                id: schoolKey(l.id, cl.id),
+                lessonId: l.id,
+                title: l.title || l.topicTitle,
+                subject: l.subjectName || l.subject,
+                classId: cl.id,
+                classCode: cl.code,
+                quarter: l.quarter,
+                planMissing: !l.workPlanId || !plans.has(l.workPlanId),
+                testMissing: !(tests.get(l.id) || []).some(
+                  (t) => !t.classIds || t.classIds.includes(cl.id),
+                ),
+              })),
+          )
+          .filter((r: any) => r.planMissing || r.testMissing);
+      res.json({
+        rows: rows.slice(f.data.page * 20, f.data.page * 20 + 20),
+        total: rows.length,
+        page: f.data.page,
+        classes: c.db.classes
+          .filter((cl: any) => cl.institutionId === c.user.institutionId)
+          .map((cl: any) => ({ id: cl.id, code: cl.code })),
+        subjects: [
+          ...new Set(lessons.map((l: any) => l.subjectName || l.subject)),
+        ].sort(),
+      });
+    }),
+  );
   app.post(
     "/api/school-admin/accounts/:id",
     write(
@@ -324,9 +395,12 @@ export function registerSchoolAdminRoutes(app: Express, deps: any) {
           teachers: count("users", (u) => u.role === "teacher"),
           classes: count("classes"),
           lessons: count("lessons"),
-          pendingGrading: count("assignmentSubmissions", (s) =>
-            ["Topshirildi", "Tekshirilmoqda"].includes(s.status),
-          )+count('topicSessions',s=>!!s.submittedAt&&s.pending)+count('attempts',a=>a.status==='pending_manual_review'),
+          pendingGrading:
+            count("assignmentSubmissions", (s) =>
+              ["Topshirildi", "Tekshirilmoqda"].includes(s.status),
+            ) +
+            count("topicSessions", (s) => !!s.submittedAt && s.pending) +
+            count("attempts", (a) => a.status === "pending_manual_review"),
           pendingDiscipline: count("disciplineRecords", (r) =>
             ["submitted", "review"].includes(r.status),
           ),
@@ -363,6 +437,7 @@ export function registerSchoolAdminRoutes(app: Express, deps: any) {
           automaticDiscipline: false,
           automaticDeletion: false,
         },
+        runtime: runtimeMetrics.snapshot(),
         retention: policy,
         pilots: (c.db.pilotPrograms || [])
           .filter((p: any) => school(c, p))
@@ -458,6 +533,39 @@ export function registerSchoolAdminRoutes(app: Express, deps: any) {
           )
         )
           throw new SchoolError(400, "Tasdiqlangan test versiyasini tanlang.");
+        if (!d.id || d.status === "active") {
+          const version = c.db.topicTestVersions.find(
+              (t: any) =>
+                t.schoolId === c.user.institutionId &&
+                t.testId === d.testId &&
+                t.version === d.testVersion,
+            ),
+            lesson = c.db.lessons.find(
+              (l: any) => l.id === version?.test.lessonId && school(c, l),
+            );
+          if (
+            !lesson ||
+            lesson.status !== "published" ||
+            version.test.status !== "published" ||
+            ids.some((id) => {
+              const student = c.db.users.find(
+                (u: any) =>
+                  u.uid === id && u.institutionId === c.user.institutionId,
+              );
+              return (
+                ![lesson.classId, ...(lesson.classIds || [])].includes(
+                  student.classId,
+                ) ||
+                (version.test.classIds &&
+                  !version.test.classIds.includes(student.classId))
+              );
+            })
+          )
+            throw new SchoolError(
+              400,
+              "Pilot qatnashchilari nashr qilingan test biriktirilgan sinflardan bo‘lsin.",
+            );
+        }
         if (
           d.status === "active" &&
           (!d.schoolPermissionAcknowledged ||
@@ -735,10 +843,50 @@ export function registerSchoolAdminRoutes(app: Express, deps: any) {
           );
           for (const key of keys)
             c.db[key] = (c.db[key] || []).filter((v: any) => !matches(v));
-          c.db.topicAnalysisCohorts = (c.db.topicAnalysisCohorts || []).filter(
-            (v: any) =>
-              !school(c, v) ||
-              !affected.has([v.classId, v.testId, v.testVersion].join(":")),
+          c.db.topicAnalysisCohorts = (c.db.topicAnalysisCohorts || []).flatMap(
+            (v: any) => {
+              if (
+                !school(c, v) ||
+                !affected.has([v.classId, v.testId, v.testVersion].join(":"))
+              )
+                return [v];
+              const facts = (c.db.topicAnalysisFacts || []).filter(
+                (f: any) =>
+                  school(c, f) &&
+                  f.classId === v.classId &&
+                  f.testId === v.testId &&
+                  f.testVersion === v.testVersion &&
+                  f.autoTotal > 0 &&
+                  Array.isArray(f.responses),
+              );
+              if (!facts.length) return [];
+              const first = firstAnalysisFacts(facts),
+                questions = new Map<string, any>();
+              for (const f of facts)
+                for (const response of f.responses) {
+                  const q = analysisQuestion(
+                    c.db,
+                    c.user.institutionId,
+                    response.questionId,
+                    response.revision,
+                  );
+                  if (q) questions.set(q.id + ":" + q.revision, q);
+                }
+              return [
+                {
+                  ...v,
+                  items: calculateItems(facts, [...questions.values()], v.id),
+                  observations: first.length,
+                  meanCorrect:
+                    first.reduce(
+                      (sum, f) => sum + f.autoCorrect / f.autoTotal,
+                      0,
+                    ) / first.length,
+                  revision: v.revision + 1,
+                  updatedAt: c.now.toISOString(),
+                },
+              ];
+            },
           );
           r.status = "completed";
         } else r.status = "rejected";
