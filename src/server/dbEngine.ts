@@ -87,6 +87,12 @@ import {
 } from '../utils/academicOsEngine';
 
 export interface PersistentDatabaseState {
+  reinforcementSessions?: any[];
+  pilotPrograms?: any[];
+  learningConsents?: any[];
+  dataDeletionRequests?: any[];
+  dataDeletionPreviews?: any[];
+  schoolRetentionPolicies?: any[];
   disciplinePeriods?: any[];
   disciplinePolicies?: import('./disciplineEngine').DisciplinePolicy[];
   disciplineTypes?: import('./disciplineEngine').DisciplineType[];

@@ -51,6 +51,15 @@ export function registerLearningDemoRoutes(app:Express,deps:any){
  app.delete('/api/learning-demo',(req,res)=>{
   const c=access(req,res);if(!c)return;const d=own(c);if(!d)return res.json({deleted:true});
   const users=new Set(d.userIds),lessons=new Set(d.lessonIds),questions=new Set(c.db.topicQuestions.filter((q:any)=>lessons.has(q.lessonId)).map((q:any)=>q.id)),tests=new Set(c.db.topicTests.filter((t:any)=>lessons.has(t.lessonId)).map((t:any)=>t.id));
+  const school=(r:any)=>(r.institutionId||r.schoolId)===c.user.institutionId;
+  const assignmentIds=new Set((c.db.studentAssignments||[]).filter((r:any)=>school(r)&&users.has(r.createdByUid)).map((r:any)=>r.id));
+  if((c.db.assignmentSubmissions||[]).some((r:any)=>assignmentIds.has(r.assignmentId)&&!users.has(r.studentId))||(c.db.pilotPrograms||[]).some((p:any)=>school(p)&&[...(p.groupA||[]),...(p.groupB||[])].some(id=>users.has(id))&&[...(p.groupA||[]),...(p.groupB||[])].some(id=>!users.has(id))))return res.status(409).json({error:'DEMO’ga tegishli yozuv tashqi profil bilan bog‘langan. Avval administrator alohida tekshirsin; tashqi ma’lumot o‘chirilmaydi.'});
+  const recordIds=new Set((c.db.disciplineRecords||[]).filter((r:any)=>school(r)&&users.has(r.studentId)).map((r:any)=>r.id));
+  for(const name of ['attendanceSessions','attendanceRecords','studentAssignments','assignmentSubmissions','submissionRevisions','studentSupportPlans','learningMaterials','announcements','reinforcementSessions','learningConsents','dataDeletionRequests','dataDeletionPreviews','disciplineRecords','disciplineTotals','disciplineCases','disciplineAppeals','warningLetters','disciplineCorrections','lessonPracticeResponses','studentLastLessons'])c.db[name]=(c.db[name]||[]).filter((r:any)=>!school(r)||!(users.has(r.studentId)||users.has(r.createdByUid)||users.has(r.uploadedByUid)||users.has(r.recordedByUid)||recordIds.has(r.recordId)||assignmentIds.has(r.assignmentId)));
+  c.db.pilotPrograms=(c.db.pilotPrograms||[]).filter((p:any)=>!school(p)||![...(p.groupA||[]),...(p.groupB||[])].some(id=>users.has(id)));
+  c.db.notifications=(c.db.notifications||[]).filter((n:any)=>!school(n)||!users.has(n.recipientUid));
+  c.db.schoolOperations=(c.db.schoolOperations||[]).filter((o:any)=>!school(o)||!users.has(o.actorId));
+  // The immutable audit remains as evidence of creation and cleanup; it is never rewritten.
   c.db.users=c.db.users.filter((u:any)=>!users.has(u.uid));for(const uid of d.userIds){delete c.db.passwordHashes[uid];if(c.db.revokedBeforeByUser)delete c.db.revokedBeforeByUser[uid];}
   c.db.lessons=c.db.lessons.filter((l:any)=>!lessons.has(l.id));c.db.topicQuestions=c.db.topicQuestions.filter((q:any)=>!lessons.has(q.lessonId));c.db.topicTests=c.db.topicTests.filter((t:any)=>!lessons.has(t.lessonId));
   c.db.topicQuestionVersions=c.db.topicQuestionVersions.filter((v:any)=>!questions.has(v.questionId)&&!lessons.has(v.question.lessonId));c.db.topicTestVersions=c.db.topicTestVersions.filter((v:any)=>!tests.has(v.testId));

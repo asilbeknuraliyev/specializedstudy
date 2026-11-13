@@ -1,86 +1,949 @@
-import crypto from 'node:crypto';
-import {z} from 'zod';
-import {SchoolError,schoolAdmin,schoolClasses,schoolStudent,schoolKey,digest,ensureRows,schoolAudit,notifySchool,localDate,validDate,checkRevision,type SchoolContext} from './enterpriseCore';
+import crypto from "node:crypto";
+import { z } from "zod";
+import {
+  SchoolError,
+  schoolAdmin,
+  schoolClasses,
+  schoolStudent,
+  schoolKey,
+  digest,
+  ensureRows,
+  schoolAudit,
+  notifySchool,
+  localDate,
+  validDate,
+  checkRevision,
+  type SchoolContext,
+} from "./enterpriseCore";
 
-export type DisciplineType={id:string;schoolId:string;name:string;description:string;points:number;category:string;quick:boolean;commentRequired:boolean;careOnly:boolean;active:boolean;order:number;revision:number};
-export type DisciplinePolicy={id:string;schoolId:string;revision:number;approved:boolean;approvedBy?:string;approvedAt?:string;reason:string;limit:number;editMinutes:number;positiveEnabled:boolean;periodMode:'quarter'|'semester'|'year';periods:Array<{id:string;name:string;start:string;end:string}>;stages:Array<{points:number;name:string;template:string;responsible:'homeroom'|'admin'|'deputy'|'director'}>;homeroom:Record<string,string>;deputies:string[];directors:string[]};
-export type DisciplineRecord={id:string;schoolId:string;studentId:string;classId:string;teacherId:string;teacherName:string;subject:string;lessonId?:string;typeId:string;typeName:string;typeRevision:number;points:number;kind:'incident'|'support'|'reminder'|'positive'|'adjustment';reason:string;evidence?:string;evidenceText?:string;happenedAt:string;periodId:string;status:'draft'|'submitted'|'review'|'approved'|'cancelled';createdAt:string;updatedAt:string;editWindowUntil:string;revision:number;confirmedBy?:string;confirmedAt?:string;cancelReason?:string};
-export type DisciplineTotal={id:string;schoolId:string;studentId:string;periodId:string;points:number;positive:number;approved:number;revision:number};
-export type DisciplineCase={id:string;schoolId:string;studentId:string;classId:string;periodId:string;stage:number;stageName:string;responsible:string;status:'open'|'review'|'closed';createdAt:string;revision:number;decision?:string;reason?:string;decidedBy?:string;decidedAt?:string;meetingAt?:string;parentContactStatus?:string};
-export type DisciplineAppeal={id:string;schoolId:string;recordId:string;studentId:string;reason:string;status:'pending'|'accepted'|'rejected';createdAt:string;revision:number;decisionReason?:string;decidedBy?:string;decidedAt?:string};
-export type WarningLetter={id:string;schoolId:string;studentId:string;classId:string;periodId:string;caseId:string;number:string;body:string;status:'draft'|'approved'|'issued';sourceRevision:number;revision:number;createdAt:string;approvedBy?:string;approvedAt?:string;issuedAt?:string};
+export type DisciplineType = {
+  id: string;
+  schoolId: string;
+  name: string;
+  description: string;
+  points: number;
+  category: string;
+  quick: boolean;
+  commentRequired: boolean;
+  careOnly: boolean;
+  active: boolean;
+  order: number;
+  revision: number;
+};
+export type DisciplinePolicy = {
+  id: string;
+  schoolId: string;
+  revision: number;
+  approved: boolean;
+  approvedBy?: string;
+  approvedAt?: string;
+  reason: string;
+  limit: number;
+  editMinutes: number;
+  positiveEnabled: boolean;
+  periodMode: "quarter" | "semester" | "year";
+  periods: Array<{ id: string; name: string; start: string; end: string }>;
+  stages: Array<{
+    points: number;
+    name: string;
+    template: string;
+    responsible: "homeroom" | "admin" | "deputy" | "director";
+  }>;
+  homeroom: Record<string, string>;
+  deputies: string[];
+  directors: string[];
+};
+export type DisciplineRecord = {
+  id: string;
+  schoolId: string;
+  studentId: string;
+  classId: string;
+  teacherId: string;
+  teacherName: string;
+  subject: string;
+  lessonId?: string;
+  typeId: string;
+  typeName: string;
+  typeRevision: number;
+  points: number;
+  kind: "incident" | "support" | "reminder" | "positive" | "adjustment";
+  reason: string;
+  evidence?: string;
+  evidenceText?: string;
+  happenedAt: string;
+  periodId: string;
+  status: "draft" | "submitted" | "review" | "approved" | "cancelled";
+  createdAt: string;
+  updatedAt: string;
+  editWindowUntil: string;
+  revision: number;
+  confirmedBy?: string;
+  confirmedAt?: string;
+  cancelReason?: string;
+};
+export type DisciplineTotal = {
+  id: string;
+  schoolId: string;
+  studentId: string;
+  periodId: string;
+  points: number;
+  positive: number;
+  approved: number;
+  revision: number;
+};
+export type DisciplineCase = {
+  id: string;
+  schoolId: string;
+  studentId: string;
+  classId: string;
+  periodId: string;
+  stage: number;
+  stageName: string;
+  responsible: string;
+  status: "open" | "review" | "closed";
+  createdAt: string;
+  revision: number;
+  decision?: string;
+  reason?: string;
+  decidedBy?: string;
+  decidedAt?: string;
+  meetingAt?: string;
+  parentContactStatus?: string;
+};
+export type DisciplineAppeal = {
+  id: string;
+  schoolId: string;
+  recordId: string;
+  studentId: string;
+  reason: string;
+  status: "pending" | "accepted" | "rejected";
+  createdAt: string;
+  revision: number;
+  decisionReason?: string;
+  decidedBy?: string;
+  decidedAt?: string;
+};
+export type WarningLetter = {
+  id: string;
+  schoolId: string;
+  studentId: string;
+  classId: string;
+  periodId: string;
+  caseId: string;
+  number: string;
+  body: string;
+  status: "draft" | "approved" | "issued";
+  sourceRevision: number;
+  revision: number;
+  createdAt: string;
+  approvedBy?: string;
+  approvedAt?: string;
+  issuedAt?: string;
+};
 
-const defaults=[['late','Darsga kechikish',false],['homework','Uy vazifasi bajarilmagan',true],['prepared','Dars jihozlari yoki tayyorgarlik yetishmagan',true],['disruption','Dars jarayoniga xalaqit berish',false],['instruction','Tasdiqlangan ko‘rsatmaga rioya qilmaslik',false],['respect','Hurmatsiz muomala holati',false],['device','Qurilmadan ruxsatsiz foydalanish',false],['absence','Sababsiz dars qoldirish',false],['property','Maktab mulkiga ehtiyotsiz munosabat',false],['uniform','Tasdiqlangan ichki tartibga rioya qilmaslik',false],['other','Boshqa kuzatilgan holat',false]] as const;
-export function disciplineTypes(c:SchoolContext):DisciplineType[]{return (c.db.disciplineTypes||[]).filter((t:any)=>t.schoolId===c.user.institutionId);}
-export function defaultDisciplineTypes(c:SchoolContext):DisciplineType[]{return defaults.map(([id,name,careOnly],i)=>({id:schoolKey(c.user.institutionId,id),schoolId:c.user.institutionId,name,description:'Maktab qoidasi va pedagogik holatni hisobga olib qayd eting.',points:1,category:careOnly?'pedagogik yordam':'kuzatilgan holat',quick:i<6,commentRequired:id==='other',careOnly,active:true,order:i,revision:1}));}
-export function disciplinePolicy(c:SchoolContext):DisciplinePolicy{
- const existing=(c.db.disciplinePolicies||[]).find((p:any)=>p.schoolId===c.user.institutionId);if(existing)return existing;
- const year=Number(String(c.db.institutions.find((i:any)=>i.id===c.user.institutionId)?.academicYear||localDate(c.now)).slice(0,4));
- return{id:c.user.institutionId,schoolId:c.user.institutionId,revision:0,approved:false,reason:'Tasdiqlanmagan namuna. Maktab sanalari va siyosatini vakolatli xodim tasdiqlashi kerak.',limit:30,editMinutes:15,positiveEnabled:true,periodMode:'quarter',periods:[{id:`${year}-q1`,name:'1-chorak (namuna)',start:`${year}-09-01`,end:`${year}-10-31`},{id:`${year}-q2`,name:'2-chorak (namuna)',start:`${year}-11-01`,end:`${year}-12-31`},{id:`${year}-q3`,name:'3-chorak (namuna)',start:`${year+1}-01-01`,end:`${year+1}-03-31`},{id:`${year}-q4`,name:'4-chorak (namuna)',start:`${year+1}-04-01`,end:`${year+1}-08-31`}],stages:[{points:10,name:'Pedagogik suhbat',template:'Holatni birgalikda ko‘rib chiqish va yordamni rejalashtirish tavsiya etiladi.',responsible:'homeroom'},{points:20,name:'Ko‘rib chiqish taklifi',template:'Sinf rahbari va ma’muriyat yordam choralarini ko‘rib chiqsin.',responsible:'deputy'},{points:30,name:'Rasmiy ko‘rib chiqish',template:'Vakolatli xodim hodisalar va o‘quvchi izohini ko‘rib, asoslangan qaror qabul qilsin.',responsible:'admin'}],homeroom:{},deputies:[],directors:[]};
+const defaults = [
+  ["late", "Darsga kechikish", false],
+  ["homework", "Uy vazifasi bajarilmagan", true],
+  ["prepared", "Dars jihozlari yoki tayyorgarlik yetishmagan", true],
+  ["disruption", "Dars jarayoniga xalaqit berish", false],
+  ["instruction", "Tasdiqlangan ko‘rsatmaga rioya qilmaslik", false],
+  ["respect", "Hurmatsiz muomala holati", false],
+  ["device", "Qurilmadan ruxsatsiz foydalanish", false],
+  ["absence", "Sababsiz dars qoldirish", false],
+  ["property", "Maktab mulkiga ehtiyotsiz munosabat", false],
+  ["uniform", "Tasdiqlangan ichki tartibga rioya qilmaslik", false],
+  ["other", "Boshqa kuzatilgan holat", false],
+] as const;
+export function disciplineTypes(c: SchoolContext): DisciplineType[] {
+  return (c.db.disciplineTypes || []).filter(
+    (t: any) => t.schoolId === c.user.institutionId,
+  );
 }
-export const policySchema=z.object({revision:z.number().int().min(0),approved:z.boolean(),schoolApprovalAcknowledged:z.boolean().default(false),reason:z.string().trim().min(5).max(2000),limit:z.number().int().min(1).max(1000),editMinutes:z.number().int().min(1).max(60),positiveEnabled:z.boolean(),periodMode:z.enum(['quarter','semester','year']),periods:z.array(z.object({id:z.string().min(1).max(80),name:z.string().trim().min(2).max(100),start:z.string().refine(validDate),end:z.string().refine(validDate)})).min(1).max(16),stages:z.array(z.object({points:z.number().int().min(1).max(1000),name:z.string().trim().min(2).max(100),template:z.string().trim().min(5).max(2000),responsible:z.enum(['homeroom','admin','deputy','director'])})).min(1).max(10),homeroom:z.record(z.string(),z.string()).default({}),deputies:z.array(z.string()).max(10).default([]),directors:z.array(z.string()).max(10).default([])});
-export const typeSchema=z.object({id:z.string().optional(),revision:z.number().int().min(0).default(0),name:z.string().trim().min(3).max(120),description:z.string().max(1000).default(''),points:z.number().int().min(1).max(100).default(1),category:z.string().trim().max(100).default('kuzatilgan holat'),quick:z.boolean().default(false),commentRequired:z.boolean().default(false),careOnly:z.boolean().default(false),active:z.boolean().default(true),order:z.number().int().min(0).max(1000).default(0)});
-export const recordSchema=z.object({studentIds:z.array(z.string()).min(1).max(30),typeId:z.string(),kind:z.enum(['incident','support','reminder','positive']).default('incident'),reason:z.string().trim().max(3000).default(''),subject:z.string().trim().max(120),lessonId:z.string().max(200).optional(),happenedAt:z.iso.datetime({offset:true}),evidenceText:z.string().max(2000).optional(),evidence:z.string().max(700000).regex(/^data:image\/(png|jpeg);base64,[A-Za-z0-9+/=]+$/).optional(),draft:z.boolean().default(false)});
-export function currentDisciplinePeriod(c:SchoolContext,at=c.now.toISOString()){
- const day=localDate(new Date(at)),policy=disciplinePolicy(c),period=policy.periods.find(p=>p.start<=day&&p.end>=day);if(!period)throw new SchoolError(422,'Bu sana uchun davr sozlanmagan. Administratorga murojaat qiling.');return period;
+export function defaultDisciplineTypes(c: SchoolContext): DisciplineType[] {
+  return defaults.map(([id, name, careOnly], i) => ({
+    id: schoolKey(c.user.institutionId, id),
+    schoolId: c.user.institutionId,
+    name,
+    description: "Maktab qoidasi va pedagogik holatni hisobga olib qayd eting.",
+    points: 1,
+    category: careOnly ? "pedagogik yordam" : "kuzatilgan holat",
+    quick: i < 6,
+    commentRequired: id === "other",
+    careOnly,
+    active: true,
+    order: i,
+    revision: 1,
+  }));
 }
-export function disciplineLeader(c:SchoolContext,classId:string){return disciplinePolicy(c).homeroom[classId]===c.user.uid;}
-export function canReviewDiscipline(c:SchoolContext,classId:string){return schoolAdmin(c.user)||c.user.role==='teacher'&&disciplineLeader(c,classId);}
-export function canReadDiscipline(c:SchoolContext,r:{schoolId:string;studentId:string;classId:string;teacherId?:string;subject?:string;periodId?:string}){
- if(r.schoolId!==c.user.institutionId)return false;if(schoolAdmin(c.user))return true;if(c.user.role==='student')return r.studentId===c.user.uid;
- if(c.user.role!=='teacher')return false;const p=disciplinePolicy(c);
- if(disciplineLeader(c,r.classId))return true;
- if(schoolClasses(c).some((cl:any)=>cl.id===r.classId)&&(r.teacherId===c.user.uid||r.subject===c.user.subject))return true;
- return (p.deputies.includes(c.user.uid)||p.directors.includes(c.user.uid))&&(c.db.disciplineCases||[]).some((k:DisciplineCase)=>k.schoolId===r.schoolId&&k.studentId===r.studentId&&k.periodId===r.periodId&&((k.responsible==='deputy'&&p.deputies.includes(c.user.uid))||(k.responsible==='director'&&p.directors.includes(c.user.uid))));
+export function disciplinePolicy(c: SchoolContext): DisciplinePolicy {
+  const existing = (c.db.disciplinePolicies || []).find(
+    (p: any) => p.schoolId === c.user.institutionId,
+  );
+  if (existing) return existing;
+  const year = Number(
+    String(
+      c.db.institutions.find((i: any) => i.id === c.user.institutionId)
+        ?.academicYear || localDate(c.now),
+    ).slice(0, 4),
+  );
+  return {
+    id: c.user.institutionId,
+    schoolId: c.user.institutionId,
+    revision: 0,
+    approved: false,
+    reason:
+      "Tasdiqlanmagan namuna. Maktab sanalari va siyosatini vakolatli xodim tasdiqlashi kerak.",
+    limit: 30,
+    editMinutes: 15,
+    positiveEnabled: true,
+    periodMode: "quarter",
+    periods: [
+      {
+        id: `${year}-q1`,
+        name: "1-chorak (namuna)",
+        start: `${year}-09-01`,
+        end: `${year}-10-31`,
+      },
+      {
+        id: `${year}-q2`,
+        name: "2-chorak (namuna)",
+        start: `${year}-11-01`,
+        end: `${year}-12-31`,
+      },
+      {
+        id: `${year}-q3`,
+        name: "3-chorak (namuna)",
+        start: `${year + 1}-01-01`,
+        end: `${year + 1}-03-31`,
+      },
+      {
+        id: `${year}-q4`,
+        name: "4-chorak (namuna)",
+        start: `${year + 1}-04-01`,
+        end: `${year + 1}-08-31`,
+      },
+    ],
+    stages: [
+      {
+        points: 10,
+        name: "Pedagogik suhbat",
+        template:
+          "Holatni birgalikda ko‘rib chiqish va yordamni rejalashtirish tavsiya etiladi.",
+        responsible: "homeroom",
+      },
+      {
+        points: 20,
+        name: "Ko‘rib chiqish taklifi",
+        template:
+          "Sinf rahbari va ma’muriyat yordam choralarini ko‘rib chiqsin.",
+        responsible: "deputy",
+      },
+      {
+        points: 30,
+        name: "Rasmiy ko‘rib chiqish",
+        template:
+          "Vakolatli xodim hodisalar va o‘quvchi izohini ko‘rib, asoslangan qaror qabul qilsin.",
+        responsible: "admin",
+      },
+    ],
+    homeroom: {},
+    deputies: [],
+    directors: [],
+  };
 }
-export function configureDiscipline(c:SchoolContext,input:z.infer<typeof policySchema>){
- if(!schoolAdmin(c.user))throw new SchoolError(403,'Faqat administrator.');const old=disciplinePolicy(c);checkRevision(old.revision,input.revision);
- if(input.approved&&!input.schoolApprovalAcknowledged)throw new SchoolError(400,'Maktabning vakolatli tasdig‘ini alohida belgilang.');
- const periods=[...input.periods].sort((a,b)=>a.start.localeCompare(b.start));if(new Set(periods.map(p=>p.id)).size!==periods.length||periods.some((p,i)=>p.start>p.end||i>0&&periods[i-1].end>=p.start))throw new SchoolError(400,'Davrlar takrorlanmasin, boshlanish/tugash to‘g‘ri va ustma-ust bo‘lmasin.');
- if(input.periods.length!==({quarter:4,semester:2,year:1}[input.periodMode]))throw new SchoolError(400,'Chorak uchun 4, yarim yil uchun 2, o‘quv yili uchun 1 davr kiriting.');
- const stages=[...input.stages].sort((a,b)=>a.points-b.points);if(new Set(stages.map(s=>s.points)).size!==stages.length||stages.at(-1)?.points!==input.limit)throw new SchoolError(400,'Oxirgi bosqich chegaraga teng, bosqichlar esa noyob bo‘lsin.');
- for(const [classId,uid]of Object.entries(input.homeroom))if(!c.db.classes.some((cl:any)=>cl.id===classId&&cl.institutionId===c.user.institutionId)||!c.db.users.some((u:any)=>u.uid===uid&&u.role==='teacher'&&u.status==='active'&&u.institutionId===c.user.institutionId&&u.assignedClassIds?.includes(classId)))throw new SchoolError(400,'Sinf rahbari shu maktab va sinfga biriktirilgan ustoz bo‘lsin.');
- for(const uid of [...input.deputies,...input.directors])if(!c.db.users.some((u:any)=>u.uid===uid&&['teacher','admin','platform_owner'].includes(u.role)&&u.status==='active'&&u.institutionId===c.user.institutionId))throw new SchoolError(400,'Mas’ul xodim maktabning faol hisobidan tanlansin.');
- const {schoolApprovalAcknowledged,...values}=input;const next:DisciplinePolicy={...values,periods,stages,id:old.id,schoolId:old.schoolId,revision:old.revision+1,approvedBy:input.approved?c.user.uid:undefined,approvedAt:input.approved?c.now.toISOString():undefined};const rows=ensureRows(c.db,'disciplinePolicies'),at=rows.findIndex((p:any)=>p.id===old.id);if(at<0)rows.push(next);else rows[at]=next;
- const archive=ensureRows(c.db,'disciplinePeriods');for(const p of archive.filter((p:any)=>p.schoolId===c.user.institutionId))p.archived=!periods.some(v=>v.id===p.periodId);for(const p of periods){const id=schoolKey(c.user.institutionId,p.id),item={...p,id,periodId:p.id,schoolId:c.user.institutionId,mode:input.periodMode,archived:false};const at=archive.findIndex((v:any)=>v.id===id);if(at<0)archive.push(item);else archive[at]=item;}
- if(!disciplineTypes(c).length)ensureRows(c.db,'disciplineTypes').push(...defaultDisciplineTypes(c));schoolAudit(c,'Intizom siyosati saqlandi',next.id,old,next);return next;
+export const policySchema = z.object({
+  revision: z.number().int().min(0),
+  approved: z.boolean(),
+  schoolApprovalAcknowledged: z.boolean().default(false),
+  reason: z.string().trim().min(5).max(2000),
+  limit: z.number().int().min(1).max(1000),
+  editMinutes: z.number().int().min(1).max(60),
+  positiveEnabled: z.boolean(),
+  periodMode: z.enum(["quarter", "semester", "year"]),
+  periods: z
+    .array(
+      z.object({
+        id: z.string().min(1).max(80),
+        name: z.string().trim().min(2).max(100),
+        start: z.string().refine(validDate),
+        end: z.string().refine(validDate),
+      }),
+    )
+    .min(1)
+    .max(16),
+  stages: z
+    .array(
+      z.object({
+        points: z.number().int().min(1).max(1000),
+        name: z.string().trim().min(2).max(100),
+        template: z.string().trim().min(5).max(2000),
+        responsible: z.enum(["homeroom", "admin", "deputy", "director"]),
+      }),
+    )
+    .min(1)
+    .max(10),
+  homeroom: z.record(z.string(), z.string()).default({}),
+  deputies: z.array(z.string()).max(10).default([]),
+  directors: z.array(z.string()).max(10).default([]),
+});
+export const typeSchema = z.object({
+  id: z.string().optional(),
+  revision: z.number().int().min(0).default(0),
+  name: z.string().trim().min(3).max(120),
+  description: z.string().max(1000).default(""),
+  points: z.number().int().min(1).max(100).default(1),
+  category: z.string().trim().max(100).default("kuzatilgan holat"),
+  quick: z.boolean().default(false),
+  commentRequired: z.boolean().default(false),
+  careOnly: z.boolean().default(false),
+  active: z.boolean().default(true),
+  order: z.number().int().min(0).max(1000).default(0),
+});
+export const recordSchema = z.object({
+  studentIds: z.array(z.string()).min(1).max(30),
+  typeId: z.string(),
+  kind: z
+    .enum(["incident", "support", "reminder", "positive"])
+    .default("incident"),
+  reason: z.string().trim().max(3000).default(""),
+  subject: z.string().trim().max(120),
+  lessonId: z.string().max(200).optional(),
+  happenedAt: z.iso.datetime({ offset: true }),
+  evidenceText: z.string().max(2000).optional(),
+  evidence: z
+    .string()
+    .max(700000)
+    .regex(/^data:image\/(png|jpeg);base64,[A-Za-z0-9+/=]+$/)
+    .optional(),
+  draft: z.boolean().default(false),
+});
+export function currentDisciplinePeriod(
+  c: SchoolContext,
+  at = c.now.toISOString(),
+) {
+  const day = localDate(new Date(at)),
+    policy = disciplinePolicy(c),
+    period = policy.periods.find((p) => p.start <= day && p.end >= day);
+  if (!period)
+    throw new SchoolError(
+      422,
+      "Bu sana uchun davr sozlanmagan. Administratorga murojaat qiling.",
+    );
+  return period;
 }
-export function saveDisciplineType(c:SchoolContext,input:z.infer<typeof typeSchema>){if(!schoolAdmin(c.user))throw new SchoolError(403,'Faqat administrator.');const rows=ensureRows(c.db,'disciplineTypes');if(!disciplineTypes(c).length)rows.push(...defaultDisciplineTypes(c));const old=input.id&&rows.find((t:DisciplineType)=>t.id===input.id&&t.schoolId===c.user.institutionId);if(input.id&&!old)throw new SchoolError(404,'Tur topilmadi.');if(old)checkRevision(old.revision,input.revision);const next={...input,id:old?old.id:crypto.randomUUID(),schoolId:c.user.institutionId,revision:(old?old.revision:0)+1};if(old)rows[rows.indexOf(old)]=next;else rows.push(next);schoolAudit(c,'Hodisa turi yangilandi',next.id,old,next);return next;}
-const contribution=(r:DisciplineRecord)=>r.status==='approved'&&r.kind!=='positive'?(r.kind==='incident'||r.kind==='adjustment'?r.points:0):0;
-export function disciplineTotal(c:SchoolContext,studentId:string,periodId:string):DisciplineTotal{return(c.db.disciplineTotals||[]).find((t:DisciplineTotal)=>t.id===schoolKey(c.user.institutionId,studentId,periodId))||{id:schoolKey(c.user.institutionId,studentId,periodId),schoolId:c.user.institutionId,studentId,periodId,points:0,positive:0,approved:0,revision:0};}
-function updateTotal(c:SchoolContext,old:DisciplineRecord|undefined,r:DisciplineRecord){
- const previous=disciplineTotal(c,r.studentId,r.periodId),total={...previous,points:Math.max(0,previous.points+contribution(r)-(old?contribution(old):0)),positive:previous.positive+Number(r.status==='approved'&&r.kind==='positive')-Number(old?.status==='approved'&&old.kind==='positive'),approved:previous.approved+Number(r.status==='approved')-Number(old?.status==='approved'),revision:previous.revision+1};if(total.points<0)throw new SchoolError(409,'Ball kamaytirish joriy jami balldan oshmasin.');
- const rows=ensureRows(c.db,'disciplineTotals'),at=rows.findIndex((t:any)=>t.id===total.id);if(at<0)rows.push(total);else rows[at]=total;
- const policy=disciplinePolicy(c);if(policy.approved)for(const stage of policy.stages.filter(s=>s.points<=total.points)){
-  const id=schoolKey(c.user.institutionId,r.studentId,r.periodId,stage.points),cases=ensureRows(c.db,'disciplineCases');if(cases.some((k:any)=>k.id===id))continue;
-  const k:DisciplineCase={id,schoolId:r.schoolId,studentId:r.studentId,classId:r.classId,periodId:r.periodId,stage:stage.points,stageName:stage.name,responsible:stage.responsible,status:'open',createdAt:c.now.toISOString(),revision:1};cases.push(k);
-  const people=c.db.users.filter((u:any)=>u.institutionId===r.schoolId&&schoolAdmin(u)),leader=policy.homeroom[r.classId];for(const uid of new Set([...people.map((u:any)=>u.uid),...(leader?[leader]:[]),...(stage.responsible==='deputy'?policy.deputies:[]),...(stage.responsible==='director'?policy.directors:[])]))notifySchool(c,String(uid),'Ko‘rib chiqish talab qiladigan yangi ish',(c.db.users.find((u:any)=>u.uid===uid)?.role==='teacher'?'/teacher/discipline?view=cases':'/admin/discipline?view=cases'),id);
-  schoolAudit(c,'Inson ko‘rib chiqishi uchun ish ochildi',id,null,{studentId:r.studentId,periodId:r.periodId,stage:stage.points});if(stage.points===policy.limit)generateWarningLetter(c,k,total);
- }
- return total;
+export function disciplineLeader(c: SchoolContext, classId: string) {
+  return disciplinePolicy(c).homeroom[classId] === c.user.uid;
 }
-export function createDisciplineRecords(c:SchoolContext,input:z.infer<typeof recordSchema>){
- if(!schoolAdmin(c.user)&&c.user.role!=='teacher')throw new SchoolError(403,'Qayd kiritishga ruxsat yo‘q.');const types=disciplineTypes(c).length?disciplineTypes(c):defaultDisciplineTypes(c),type=types.find(t=>t.id===input.typeId&&t.active);if(!type)throw new SchoolError(400,'Faol hodisa turini tanlang.');
- if(type.commentRequired&&input.reason.length<5)throw new SchoolError(400,'Bu tur uchun aniq izoh majburiy.');const policy=disciplinePolicy(c);if(input.kind==='positive'&&!policy.positiveEnabled)throw new SchoolError(400,'Ijobiy qaydlar o‘chirilgan.');
- if(c.user.role==='teacher'&&input.subject!==c.user.subject)throw new SchoolError(403,'Faqat o‘z faningiz bo‘yicha qayd kiriting.');if(new Date(input.happenedAt).getTime()>c.now.getTime()+60000)throw new SchoolError(400,'Kelajak vaqtiga hodisa yozilmaydi.');const period=currentDisciplinePeriod(c,input.happenedAt),students=[...new Set(input.studentIds)].map(id=>schoolStudent(c,id));
- if(input.lessonId){const l=c.db.lessons.find((l:any)=>l.id===input.lessonId&&l.institutionId===c.user.institutionId&&[l.subjectName,l.subject].includes(input.subject));if(!l||students.some(s=>![l.classId,...(l.classIds||[])].includes(s.classId)))throw new SchoolError(403,'Dars, fan va sinf mos emas.');}
- const recent=(c.db.disciplineRecords||[]).filter((r:DisciplineRecord)=>r.schoolId===c.user.institutionId&&r.teacherId===c.user.uid&&r.typeId===type.id&&r.kind===input.kind&&r.status!=='cancelled'&&c.now.getTime()-Date.parse(r.createdAt)<5000);if(students.some(s=>recent.some((r:DisciplineRecord)=>r.studentId===s.uid)))throw new SchoolError(409,'Bir xil qayd hozirgina saqlandi. Dublikat o‘rniga tarixni tekshiring.');
- const created=students.map(s=>{const r:DisciplineRecord={id:crypto.randomUUID(),schoolId:c.user.institutionId,studentId:s.uid,classId:s.classId,teacherId:c.user.uid,teacherName:c.user.displayName,subject:input.subject,lessonId:input.lessonId,typeId:type.id,typeName:type.name,typeRevision:type.revision,points:input.kind==='incident'&&!type.careOnly?type.points:0,kind:type.careOnly&&input.kind==='incident'?'support':input.kind,reason:input.reason,evidence:input.evidence,evidenceText:input.evidenceText,happenedAt:input.happenedAt,periodId:period.id,status:input.draft?'draft':'submitted',createdAt:c.now.toISOString(),updatedAt:c.now.toISOString(),editWindowUntil:new Date(c.now.getTime()+policy.editMinutes*60000).toISOString(),revision:1};ensureRows(c.db,'disciplineRecords').push(r);schoolAudit(c,'Hodisa qayd etildi (hali tasdiqlanmagan)',r.id,null,r);return r;});return created;
+export function canReviewDiscipline(c: SchoolContext, classId: string) {
+  return (
+    schoolAdmin(c.user) ||
+    (c.user.role === "teacher" && disciplineLeader(c, classId))
+  );
 }
-export function changeDisciplineRecord(c:SchoolContext,id:string,input:{revision:number;action:'approve'|'review'|'cancel'|'edit'|'submit'|'request_correction';reason:string;typeId?:string;evidenceText?:string;evidence?:string}){
- const r=(c.db.disciplineRecords||[]).find((v:DisciplineRecord)=>v.id===id&&canReadDiscipline(c,v));if(!r)throw new SchoolError(403,'Bu qaydga ruxsat yo‘q.');checkRevision(r.revision,input.revision);if(input.reason.trim().length<3)throw new SchoolError(400,'Asoslangan sabab yozing.');const reviewer=canReviewDiscipline(c,r.classId),owner=r.teacherId===c.user.uid&&(r.status==='draft'||c.now.getTime()<=Date.parse(r.editWindowUntil));
- if(input.action==='request_correction'){if(c.user.role!=='teacher'||r.teacherId!==c.user.uid)throw new SchoolError(403,'Faqat o‘z qaydingiz uchun so‘rov.');const row={id:crypto.randomUUID(),schoolId:r.schoolId,recordId:r.id,actorId:c.user.uid,reason:input.reason,status:'pending',createdAt:c.now.toISOString()};ensureRows(c.db,'disciplineCorrections').push(row);schoolAudit(c,'Qaydga tuzatish so‘raldi',r.id,null,row);return r;}
- if(!reviewer&&!(owner&&['cancel','edit','submit'].includes(input.action)))throw new SchoolError(403,'Tahrirlash oynasi tugagan yoki tasdiqlashga vakolatingiz yo‘q. Tuzatish so‘rovi yuboring.');if(r.status==='cancelled')throw new SchoolError(409,'Bekor qilingan qayd qayta faollashtirilmaydi.');const old=structuredClone(r);
- if(input.action==='approve'){if(!disciplinePolicy(c).approved&&r.points>0)throw new SchoolError(409,'Avval maktabning intizom siyosati tasdiqlansin.');r.status='approved';r.confirmedBy=c.user.uid;r.confirmedAt=c.now.toISOString();}
- if(input.action==='review')r.status='review';
- if(input.action==='submit'){if(r.status!=='draft')throw new SchoolError(409,'Faqat qoralama yuboriladi.');r.status='submitted';r.editWindowUntil=new Date(c.now.getTime()+disciplinePolicy(c).editMinutes*60000).toISOString();}
- if(input.action==='cancel'){r.status='cancelled';r.cancelReason=input.reason;}
- if(input.action==='edit'){r.reason=input.reason;if(input.typeId){const t=disciplineTypes(c).find(t=>t.id===input.typeId&&t.active);if(!t)throw new SchoolError(400,'Faol tur tanlang.');r.typeId=t.id;r.typeName=t.name;r.typeRevision=t.revision;r.points=r.kind==='incident'&&!t.careOnly?t.points:0;if(t.careOnly&&r.kind==='incident')r.kind='support';}if(input.evidenceText!==undefined)r.evidenceText=input.evidenceText;if(input.evidence!==undefined)r.evidence=input.evidence;r.status=old.status==='draft'?'draft':'submitted';r.confirmedBy=undefined;r.confirmedAt=undefined;}
- r.revision++;r.updatedAt=c.now.toISOString();updateTotal(c,old,r);schoolAudit(c,'Hodisa holati o‘zgartirildi',r.id,old,{...r,decisionReason:input.reason});notifySchool(c,r.studentId,'Shaxsiy qaydingiz yangilandi','/student/discipline',r.id+':'+r.revision);return r;
+export function canReadDiscipline(
+  c: SchoolContext,
+  r: {
+    schoolId: string;
+    studentId: string;
+    classId: string;
+    teacherId?: string;
+    subject?: string;
+    periodId?: string;
+  },
+) {
+  if (r.schoolId !== c.user.institutionId) return false;
+  if (schoolAdmin(c.user)) return true;
+  if (c.user.role === "student") return r.studentId === c.user.uid;
+  if (c.user.role !== "teacher") return false;
+  const p = disciplinePolicy(c);
+  if (disciplineLeader(c, r.classId)) return true;
+  if (
+    schoolClasses(c).some((cl: any) => cl.id === r.classId) &&
+    (r.teacherId === c.user.uid || r.subject === c.user.subject)
+  )
+    return true;
+  return (
+    (p.deputies.includes(c.user.uid) || p.directors.includes(c.user.uid)) &&
+    (c.db.disciplineCases || []).some(
+      (k: DisciplineCase) =>
+        k.schoolId === r.schoolId &&
+        k.studentId === r.studentId &&
+        k.periodId === r.periodId &&
+        ((k.responsible === "deputy" && p.deputies.includes(c.user.uid)) ||
+          (k.responsible === "director" && p.directors.includes(c.user.uid))),
+    )
+  );
 }
-export function appealDiscipline(c:SchoolContext,recordId:string,reason:string){const r=(c.db.disciplineRecords||[]).find((v:DisciplineRecord)=>v.id===recordId&&v.schoolId===c.user.institutionId&&v.studentId===c.user.uid);if(c.user.role!=='student'||!r||r.status==='draft'||r.status==='cancelled')throw new SchoolError(403,'Bu qaydga e’tiroz yuborib bo‘lmaydi.');if((c.db.disciplineAppeals||[]).some((a:DisciplineAppeal)=>a.recordId===recordId&&a.status==='pending'))throw new SchoolError(409,'Bu qayd bo‘yicha e’tiroz ko‘rilmoqda.');const a:DisciplineAppeal={id:crypto.randomUUID(),schoolId:r.schoolId,recordId,studentId:r.studentId,reason,status:'pending',createdAt:c.now.toISOString(),revision:1};ensureRows(c.db,'disciplineAppeals').push(a);schoolAudit(c,'O‘quvchi e’tirozi qabul qilindi',r.id,null,a);return a;}
-export function decideDisciplineAppeal(c:SchoolContext,id:string,input:{revision:number;accepted:boolean;reason:string}){const a=(c.db.disciplineAppeals||[]).find((a:DisciplineAppeal)=>a.id===id&&a.schoolId===c.user.institutionId),r=a&&(c.db.disciplineRecords||[]).find((r:DisciplineRecord)=>r.id===a.recordId);if(!a||!r||!canReviewDiscipline(c,r.classId))throw new SchoolError(403,'E’tirozni ko‘rib chiqishga ruxsat yo‘q.');checkRevision(a.revision,input.revision);if(a.status!=='pending')throw new SchoolError(409,'E’tiroz avval ko‘rib chiqilgan.');const old=structuredClone(a);if(input.accepted&&r.status!=='cancelled')changeDisciplineRecord(c,r.id,{revision:r.revision,action:'cancel',reason:input.reason});a.status=input.accepted?'accepted':'rejected';a.decisionReason=input.reason;a.decidedBy=c.user.uid;a.decidedAt=c.now.toISOString();a.revision++;schoolAudit(c,'E’tiroz bo‘yicha asoslangan qaror',a.id,old,a);notifySchool(c,a.studentId,'E’tirozingiz bo‘yicha javob tayyor','/student/discipline',a.id+':decision');return a;}
-export function generateWarningLetter(c:SchoolContext,k:DisciplineCase,total=disciplineTotal(c,k.studentId,k.periodId)){
- const student=c.db.users.find((u:any)=>u.uid===k.studentId&&u.institutionId===k.schoolId),inst=c.db.institutions.find((i:any)=>i.id===k.schoolId),records=(c.db.disciplineRecords||[]).filter((r:DisciplineRecord)=>r.studentId===k.studentId&&r.schoolId===k.schoolId&&r.periodId===k.periodId&&r.status==='approved');const existing=(c.db.warningLetters||[]).find((l:WarningLetter)=>l.caseId===k.id);if(existing&&existing.status!=='draft')return existing;
- const letter:WarningLetter={id:existing?.id||crypto.randomUUID(),schoolId:k.schoolId,studentId:k.studentId,classId:k.classId,periodId:k.periodId,caseId:k.id,number:existing?.number||`INT-${localDate(c.now)}-${crypto.randomBytes(3).toString('hex').toUpperCase()}`,body:`${inst?.officialName||inst?.name}\nHOLATLARNI KO‘RIB CHIQISH HUJJATI\nSana: ${localDate(c.now)}\nO‘quvchi: ${student?.displayName}\nSinf: ${student?.classCode?.toUpperCase()}\nDavr: ${k.periodId}\nTasdiqlangan ball: ${total.points}\n\nKo‘rib chiqiladigan holatlar:\n${records.map((r:DisciplineRecord)=>`${localDate(new Date(r.happenedAt))}: ${r.typeName}; ${r.points} ball. ${r.reason}`).join('\n')}\n\nSuhbat/profilaktik ishlar: [vakolatli xodim to‘ldiradi]\nMas’ul shaxs: [to‘ldiriladi]\nO‘quvchi izohi: [ko‘rib chiqiladi]\nOta-ona bilan aloqa holati: [to‘ldiriladi]\nKeyingi yordam qadamlari: [to‘ldiriladi]\nTasdiqlash: [vakolatli xodim]\n\nBu hujjat loyihasi avtomatik jazo, chetlatish yoki imtihonga taqiq hisoblanmaydi.`,status:'draft',sourceRevision:total.revision,revision:(existing?.revision||0)+1,createdAt:existing?.createdAt||c.now.toISOString()};const rows=ensureRows(c.db,'warningLetters');if(existing)rows[rows.indexOf(existing)]=letter;else rows.push(letter);return letter;
+export function configureDiscipline(
+  c: SchoolContext,
+  input: z.infer<typeof policySchema>,
+) {
+  if (!schoolAdmin(c.user)) throw new SchoolError(403, "Faqat administrator.");
+  const old = disciplinePolicy(c);
+  checkRevision(old.revision, input.revision);
+  if (input.approved && !input.schoolApprovalAcknowledged)
+    throw new SchoolError(
+      400,
+      "Maktabning vakolatli tasdig‘ini alohida belgilang.",
+    );
+  const periods = [...input.periods].sort((a, b) =>
+    a.start.localeCompare(b.start),
+  );
+  if (
+    new Set(periods.map((p) => p.id)).size !== periods.length ||
+    periods.some(
+      (p, i) => p.start > p.end || (i > 0 && periods[i - 1].end >= p.start),
+    )
+  )
+    throw new SchoolError(
+      400,
+      "Davrlar takrorlanmasin, boshlanish/tugash to‘g‘ri va ustma-ust bo‘lmasin.",
+    );
+  if (
+    input.periods.length !==
+    { quarter: 4, semester: 2, year: 1 }[input.periodMode]
+  )
+    throw new SchoolError(
+      400,
+      "Chorak uchun 4, yarim yil uchun 2, o‘quv yili uchun 1 davr kiriting.",
+    );
+  const stages = [...input.stages].sort((a, b) => a.points - b.points);
+  if (
+    new Set(stages.map((s) => s.points)).size !== stages.length ||
+    stages.at(-1)?.points !== input.limit
+  )
+    throw new SchoolError(
+      400,
+      "Oxirgi bosqich chegaraga teng, bosqichlar esa noyob bo‘lsin.",
+    );
+  for (const [classId, uid] of Object.entries(input.homeroom))
+    if (
+      !c.db.classes.some(
+        (cl: any) =>
+          cl.id === classId && cl.institutionId === c.user.institutionId,
+      ) ||
+      !c.db.users.some(
+        (u: any) =>
+          u.uid === uid &&
+          u.role === "teacher" &&
+          u.status === "active" &&
+          u.institutionId === c.user.institutionId &&
+          u.assignedClassIds?.includes(classId),
+      )
+    )
+      throw new SchoolError(
+        400,
+        "Sinf rahbari shu maktab va sinfga biriktirilgan ustoz bo‘lsin.",
+      );
+  for (const uid of [...input.deputies, ...input.directors])
+    if (
+      !c.db.users.some(
+        (u: any) =>
+          u.uid === uid &&
+          ["teacher", "admin", "platform_owner"].includes(u.role) &&
+          u.status === "active" &&
+          u.institutionId === c.user.institutionId,
+      )
+    )
+      throw new SchoolError(
+        400,
+        "Mas’ul xodim maktabning faol hisobidan tanlansin.",
+      );
+  const { schoolApprovalAcknowledged, ...values } = input;
+  const next: DisciplinePolicy = {
+    ...values,
+    periods,
+    stages,
+    id: old.id,
+    schoolId: old.schoolId,
+    revision: old.revision + 1,
+    approvedBy: input.approved ? c.user.uid : undefined,
+    approvedAt: input.approved ? c.now.toISOString() : undefined,
+  };
+  const rows = ensureRows(c.db, "disciplinePolicies"),
+    at = rows.findIndex((p: any) => p.id === old.id);
+  if (at < 0) rows.push(next);
+  else rows[at] = next;
+  const archive = ensureRows(c.db, "disciplinePeriods");
+  for (const p of archive.filter(
+    (p: any) => p.schoolId === c.user.institutionId,
+  ))
+    p.archived = !periods.some((v) => v.id === p.periodId);
+  for (const p of periods) {
+    const id = schoolKey(c.user.institutionId, p.id),
+      item = {
+        ...p,
+        id,
+        periodId: p.id,
+        schoolId: c.user.institutionId,
+        mode: input.periodMode,
+        archived: false,
+      };
+    const at = archive.findIndex((v: any) => v.id === id);
+    if (at < 0) archive.push(item);
+    else archive[at] = item;
+  }
+  if (!disciplineTypes(c).length)
+    ensureRows(c.db, "disciplineTypes").push(...defaultDisciplineTypes(c));
+  schoolAudit(c, "Intizom siyosati saqlandi", next.id, old, next);
+  return next;
+}
+export function saveDisciplineType(
+  c: SchoolContext,
+  input: z.infer<typeof typeSchema>,
+) {
+  if (!schoolAdmin(c.user)) throw new SchoolError(403, "Faqat administrator.");
+  const rows = ensureRows(c.db, "disciplineTypes");
+  if (!disciplineTypes(c).length) rows.push(...defaultDisciplineTypes(c));
+  const old =
+    input.id &&
+    rows.find(
+      (t: DisciplineType) =>
+        t.id === input.id && t.schoolId === c.user.institutionId,
+    );
+  if (input.id && !old) throw new SchoolError(404, "Tur topilmadi.");
+  if (old) checkRevision(old.revision, input.revision);
+  const next = {
+    ...input,
+    id: old ? old.id : crypto.randomUUID(),
+    schoolId: c.user.institutionId,
+    revision: (old ? old.revision : 0) + 1,
+  };
+  if (old) rows[rows.indexOf(old)] = next;
+  else rows.push(next);
+  schoolAudit(c, "Hodisa turi yangilandi", next.id, old, next);
+  return next;
+}
+const contribution = (r: DisciplineRecord) =>
+  r.status === "approved" && r.kind !== "positive"
+    ? r.kind === "incident" || r.kind === "adjustment"
+      ? r.points
+      : 0
+    : 0;
+export function disciplineTotal(
+  c: SchoolContext,
+  studentId: string,
+  periodId: string,
+): DisciplineTotal {
+  return (
+    (c.db.disciplineTotals || []).find(
+      (t: DisciplineTotal) =>
+        t.id === schoolKey(c.user.institutionId, studentId, periodId),
+    ) || {
+      id: schoolKey(c.user.institutionId, studentId, periodId),
+      schoolId: c.user.institutionId,
+      studentId,
+      periodId,
+      points: 0,
+      positive: 0,
+      approved: 0,
+      revision: 0,
+    }
+  );
+}
+function updateTotal(
+  c: SchoolContext,
+  old: DisciplineRecord | undefined,
+  r: DisciplineRecord,
+) {
+  const previous = disciplineTotal(c, r.studentId, r.periodId),
+    total = {
+      ...previous,
+      points: Math.max(
+        0,
+        previous.points + contribution(r) - (old ? contribution(old) : 0),
+      ),
+      positive:
+        previous.positive +
+        Number(r.status === "approved" && r.kind === "positive") -
+        Number(old?.status === "approved" && old.kind === "positive"),
+      approved:
+        previous.approved +
+        Number(r.status === "approved") -
+        Number(old?.status === "approved"),
+      revision: previous.revision + 1,
+    };
+  if (total.points < 0)
+    throw new SchoolError(409, "Ball kamaytirish joriy jami balldan oshmasin.");
+  const rows = ensureRows(c.db, "disciplineTotals"),
+    at = rows.findIndex((t: any) => t.id === total.id);
+  if (at < 0) rows.push(total);
+  else rows[at] = total;
+  const policy = disciplinePolicy(c);
+  if (policy.approved)
+    for (const stage of policy.stages.filter((s) => s.points <= total.points)) {
+      const id = schoolKey(
+          c.user.institutionId,
+          r.studentId,
+          r.periodId,
+          stage.points,
+        ),
+        cases = ensureRows(c.db, "disciplineCases");
+      if (cases.some((k: any) => k.id === id)) continue;
+      const k: DisciplineCase = {
+        id,
+        schoolId: r.schoolId,
+        studentId: r.studentId,
+        classId: r.classId,
+        periodId: r.periodId,
+        stage: stage.points,
+        stageName: stage.name,
+        responsible: stage.responsible,
+        status: "open",
+        createdAt: c.now.toISOString(),
+        revision: 1,
+      };
+      cases.push(k);
+      const people = c.db.users.filter(
+          (u: any) => u.institutionId === r.schoolId && schoolAdmin(u),
+        ),
+        leader = policy.homeroom[r.classId];
+      for (const uid of new Set([
+        ...people.map((u: any) => u.uid),
+        ...(leader ? [leader] : []),
+        ...(stage.responsible === "deputy" ? policy.deputies : []),
+        ...(stage.responsible === "director" ? policy.directors : []),
+      ]))
+        notifySchool(
+          c,
+          String(uid),
+          "Ko‘rib chiqish talab qiladigan yangi ish",
+          c.db.users.find((u: any) => u.uid === uid)?.role === "teacher"
+            ? "/teacher/discipline?view=cases"
+            : "/admin/discipline?view=cases",
+          id,
+        );
+      schoolAudit(c, "Inson ko‘rib chiqishi uchun ish ochildi", id, null, {
+        studentId: r.studentId,
+        periodId: r.periodId,
+        stage: stage.points,
+      });
+      if (stage.points === policy.limit) generateWarningLetter(c, k, total);
+    }
+  return total;
+}
+export function createDisciplineRecords(
+  c: SchoolContext,
+  input: z.infer<typeof recordSchema>,
+) {
+  if (!schoolAdmin(c.user) && c.user.role !== "teacher")
+    throw new SchoolError(403, "Qayd kiritishga ruxsat yo‘q.");
+  const types = disciplineTypes(c).length
+      ? disciplineTypes(c)
+      : defaultDisciplineTypes(c),
+    type = types.find((t) => t.id === input.typeId && t.active);
+  if (!type) throw new SchoolError(400, "Faol hodisa turini tanlang.");
+  if (type.commentRequired && input.reason.length < 5)
+    throw new SchoolError(400, "Bu tur uchun aniq izoh majburiy.");
+  const policy = disciplinePolicy(c);
+  if (input.kind === "positive" && !policy.positiveEnabled)
+    throw new SchoolError(400, "Ijobiy qaydlar o‘chirilgan.");
+  if (c.user.role === "teacher" && input.subject !== c.user.subject)
+    throw new SchoolError(403, "Faqat o‘z faningiz bo‘yicha qayd kiriting.");
+  if (new Date(input.happenedAt).getTime() > c.now.getTime() + 60000)
+    throw new SchoolError(400, "Kelajak vaqtiga hodisa yozilmaydi.");
+  const period = currentDisciplinePeriod(c, input.happenedAt),
+    students = [...new Set(input.studentIds)].map((id) => schoolStudent(c, id));
+  if (input.lessonId) {
+    const l = c.db.lessons.find(
+      (l: any) =>
+        l.id === input.lessonId &&
+        l.institutionId === c.user.institutionId &&
+        [l.subjectName, l.subject].includes(input.subject),
+    );
+    if (
+      !l ||
+      students.some(
+        (s) => ![l.classId, ...(l.classIds || [])].includes(s.classId),
+      )
+    )
+      throw new SchoolError(403, "Dars, fan va sinf mos emas.");
+  }
+  const recent = (c.db.disciplineRecords || []).filter(
+    (r: DisciplineRecord) =>
+      r.schoolId === c.user.institutionId &&
+      r.teacherId === c.user.uid &&
+      r.typeId === type.id &&
+      r.kind === input.kind &&
+      r.status !== "cancelled" &&
+      c.now.getTime() - Date.parse(r.createdAt) < 5000,
+  );
+  if (
+    students.some((s) =>
+      recent.some((r: DisciplineRecord) => r.studentId === s.uid),
+    )
+  )
+    throw new SchoolError(
+      409,
+      "Bir xil qayd hozirgina saqlandi. Dublikat o‘rniga tarixni tekshiring.",
+    );
+  const created = students.map((s) => {
+    const r: DisciplineRecord = {
+      id: crypto.randomUUID(),
+      schoolId: c.user.institutionId,
+      studentId: s.uid,
+      classId: s.classId,
+      teacherId: c.user.uid,
+      teacherName: c.user.displayName,
+      subject: input.subject,
+      lessonId: input.lessonId,
+      typeId: type.id,
+      typeName: type.name,
+      typeRevision: type.revision,
+      points: input.kind === "incident" && !type.careOnly ? type.points : 0,
+      kind: type.careOnly && input.kind === "incident" ? "support" : input.kind,
+      reason: input.reason,
+      evidence: input.evidence,
+      evidenceText: input.evidenceText,
+      happenedAt: input.happenedAt,
+      periodId: period.id,
+      status: input.draft ? "draft" : "submitted",
+      createdAt: c.now.toISOString(),
+      updatedAt: c.now.toISOString(),
+      editWindowUntil: new Date(
+        c.now.getTime() + policy.editMinutes * 60000,
+      ).toISOString(),
+      revision: 1,
+    };
+    ensureRows(c.db, "disciplineRecords").push(r);
+    schoolAudit(c, "Hodisa qayd etildi (hali tasdiqlanmagan)", r.id, null, r);
+    return r;
+  });
+  return created;
+}
+export function changeDisciplineRecord(
+  c: SchoolContext,
+  id: string,
+  input: {
+    revision: number;
+    action:
+      | "approve"
+      | "review"
+      | "cancel"
+      | "edit"
+      | "submit"
+      | "request_correction";
+    reason: string;
+    typeId?: string;
+    evidenceText?: string;
+    evidence?: string;
+  },
+) {
+  const r = (c.db.disciplineRecords || []).find(
+    (v: DisciplineRecord) => v.id === id && canReadDiscipline(c, v),
+  );
+  if (!r) throw new SchoolError(403, "Bu qaydga ruxsat yo‘q.");
+  checkRevision(r.revision, input.revision);
+  if (input.reason.trim().length < 3)
+    throw new SchoolError(400, "Asoslangan sabab yozing.");
+  const reviewer = canReviewDiscipline(c, r.classId),
+    owner =
+      r.teacherId === c.user.uid &&
+      (r.status === "draft" ||
+        c.now.getTime() <= Date.parse(r.editWindowUntil));
+  if (input.action === "request_correction") {
+    if (c.user.role !== "teacher" || r.teacherId !== c.user.uid)
+      throw new SchoolError(403, "Faqat o‘z qaydingiz uchun so‘rov.");
+    const row = {
+      id: crypto.randomUUID(),
+      schoolId: r.schoolId,
+      recordId: r.id,
+      actorId: c.user.uid,
+      reason: input.reason,
+      status: "pending",
+      createdAt: c.now.toISOString(),
+    };
+    ensureRows(c.db, "disciplineCorrections").push(row);
+    schoolAudit(c, "Qaydga tuzatish so‘raldi", r.id, null, row);
+    return r;
+  }
+  if (
+    !reviewer &&
+    !(owner && ["cancel", "edit", "submit"].includes(input.action))
+  )
+    throw new SchoolError(
+      403,
+      "Tahrirlash oynasi tugagan yoki tasdiqlashga vakolatingiz yo‘q. Tuzatish so‘rovi yuboring.",
+    );
+  if (r.status === "cancelled")
+    throw new SchoolError(409, "Bekor qilingan qayd qayta faollashtirilmaydi.");
+  const old = structuredClone(r);
+  if (input.action === "approve") {
+    if (!disciplinePolicy(c).approved && r.points > 0)
+      throw new SchoolError(
+        409,
+        "Avval maktabning intizom siyosati tasdiqlansin.",
+      );
+    r.status = "approved";
+    r.confirmedBy = c.user.uid;
+    r.confirmedAt = c.now.toISOString();
+  }
+  if (input.action === "review") r.status = "review";
+  if (input.action === "submit") {
+    if (r.status !== "draft")
+      throw new SchoolError(409, "Faqat qoralama yuboriladi.");
+    r.status = "submitted";
+    r.editWindowUntil = new Date(
+      c.now.getTime() + disciplinePolicy(c).editMinutes * 60000,
+    ).toISOString();
+  }
+  if (input.action === "cancel") {
+    r.status = "cancelled";
+    r.cancelReason = input.reason;
+  }
+  if (input.action === "edit") {
+    r.reason = input.reason;
+    if (input.typeId) {
+      const t = disciplineTypes(c).find(
+        (t) => t.id === input.typeId && t.active,
+      );
+      if (!t) throw new SchoolError(400, "Faol tur tanlang.");
+      r.typeId = t.id;
+      r.typeName = t.name;
+      r.typeRevision = t.revision;
+      r.points = r.kind === "incident" && !t.careOnly ? t.points : 0;
+      if (t.careOnly && r.kind === "incident") r.kind = "support";
+    }
+    if (input.evidenceText !== undefined) r.evidenceText = input.evidenceText;
+    if (input.evidence !== undefined) r.evidence = input.evidence;
+    r.status = old.status === "draft" ? "draft" : "submitted";
+    r.confirmedBy = undefined;
+    r.confirmedAt = undefined;
+  }
+  r.revision++;
+  r.updatedAt = c.now.toISOString();
+  updateTotal(c, old, r);
+  schoolAudit(c, "Hodisa holati o‘zgartirildi", r.id, old, {
+    ...r,
+    decisionReason: input.reason,
+  });
+  notifySchool(
+    c,
+    r.studentId,
+    "Shaxsiy qaydingiz yangilandi",
+    "/student/discipline",
+    r.id + ":" + r.revision,
+  );
+  return r;
+}
+export function appealDiscipline(
+  c: SchoolContext,
+  recordId: string,
+  reason: string,
+) {
+  const r = (c.db.disciplineRecords || []).find(
+    (v: DisciplineRecord) =>
+      v.id === recordId &&
+      v.schoolId === c.user.institutionId &&
+      v.studentId === c.user.uid,
+  );
+  if (
+    c.user.role !== "student" ||
+    !r ||
+    r.status === "draft" ||
+    r.status === "cancelled"
+  )
+    throw new SchoolError(403, "Bu qaydga e’tiroz yuborib bo‘lmaydi.");
+  if (
+    (c.db.disciplineAppeals || []).some(
+      (a: DisciplineAppeal) =>
+        a.recordId === recordId && a.status === "pending",
+    )
+  )
+    throw new SchoolError(409, "Bu qayd bo‘yicha e’tiroz ko‘rilmoqda.");
+  const a: DisciplineAppeal = {
+    id: crypto.randomUUID(),
+    schoolId: r.schoolId,
+    recordId,
+    studentId: r.studentId,
+    reason,
+    status: "pending",
+    createdAt: c.now.toISOString(),
+    revision: 1,
+  };
+  ensureRows(c.db, "disciplineAppeals").push(a);
+  schoolAudit(c, "O‘quvchi e’tirozi qabul qilindi", r.id, null, a);
+  return a;
+}
+export function decideDisciplineAppeal(
+  c: SchoolContext,
+  id: string,
+  input: { revision: number; accepted: boolean; reason: string },
+) {
+  const a = (c.db.disciplineAppeals || []).find(
+      (a: DisciplineAppeal) =>
+        a.id === id && a.schoolId === c.user.institutionId,
+    ),
+    r =
+      a &&
+      (c.db.disciplineRecords || []).find(
+        (r: DisciplineRecord) => r.id === a.recordId,
+      );
+  if (!a || !r || !canReviewDiscipline(c, r.classId))
+    throw new SchoolError(403, "E’tirozni ko‘rib chiqishga ruxsat yo‘q.");
+  checkRevision(a.revision, input.revision);
+  if (a.status !== "pending")
+    throw new SchoolError(409, "E’tiroz avval ko‘rib chiqilgan.");
+  const old = structuredClone(a);
+  if (input.accepted && r.status !== "cancelled")
+    changeDisciplineRecord(c, r.id, {
+      revision: r.revision,
+      action: "cancel",
+      reason: input.reason,
+    });
+  a.status = input.accepted ? "accepted" : "rejected";
+  a.decisionReason = input.reason;
+  a.decidedBy = c.user.uid;
+  a.decidedAt = c.now.toISOString();
+  a.revision++;
+  schoolAudit(c, "E’tiroz bo‘yicha asoslangan qaror", a.id, old, a);
+  notifySchool(
+    c,
+    a.studentId,
+    "E’tirozingiz bo‘yicha javob tayyor",
+    "/student/discipline",
+    a.id + ":decision",
+  );
+  return a;
+}
+export function generateWarningLetter(
+  c: SchoolContext,
+  k: DisciplineCase,
+  total = disciplineTotal(c, k.studentId, k.periodId),
+) {
+  const student = c.db.users.find(
+      (u: any) => u.uid === k.studentId && u.institutionId === k.schoolId,
+    ),
+    inst = c.db.institutions.find((i: any) => i.id === k.schoolId),
+    records = (c.db.disciplineRecords || []).filter(
+      (r: DisciplineRecord) =>
+        r.studentId === k.studentId &&
+        r.schoolId === k.schoolId &&
+        r.periodId === k.periodId &&
+        r.status === "approved",
+    );
+  const existing = (c.db.warningLetters || []).find(
+    (l: WarningLetter) => l.caseId === k.id,
+  );
+  if (existing && existing.status !== "draft") return existing;
+  const letter: WarningLetter = {
+    id: existing?.id || crypto.randomUUID(),
+    schoolId: k.schoolId,
+    studentId: k.studentId,
+    classId: k.classId,
+    periodId: k.periodId,
+    caseId: k.id,
+    number:
+      existing?.number ||
+      `INT-${localDate(c.now)}-${crypto.randomBytes(3).toString("hex").toUpperCase()}`,
+    body: `${inst?.officialName || inst?.name}\nHOLATLARNI KO‘RIB CHIQISH HUJJATI\nSana: ${localDate(c.now)}\nO‘quvchi: ${student?.displayName}\nSinf: ${student?.classCode?.toUpperCase()}\nDavr: ${k.periodId}\nTasdiqlangan ball: ${total.points}\n\nKo‘rib chiqiladigan holatlar:\n${records.map((r: DisciplineRecord) => `${localDate(new Date(r.happenedAt))}: ${r.typeName}; ${r.points} ball. ${r.reason}`).join("\n")}\n\nSuhbat/profilaktik ishlar: [vakolatli xodim to‘ldiradi]\nMas’ul shaxs: [to‘ldiriladi]\nO‘quvchi izohi: [ko‘rib chiqiladi]\nOta-ona bilan aloqa holati: [to‘ldiriladi]\nKeyingi yordam qadamlari: [to‘ldiriladi]\nTasdiqlash: [vakolatli xodim]\n\nBu hujjat loyihasi avtomatik jazo, chetlatish yoki imtihonga taqiq hisoblanmaydi.`,
+    status: "draft",
+    sourceRevision: total.revision,
+    revision: (existing?.revision || 0) + 1,
+    createdAt: existing?.createdAt || c.now.toISOString(),
+  };
+  const rows = ensureRows(c.db, "warningLetters");
+  if (existing) rows[rows.indexOf(existing)] = letter;
+  else rows.push(letter);
+  return letter;
 }

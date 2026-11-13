@@ -1,5 +1,7 @@
 import {registerDisciplineRoutes} from './src/server/disciplineRoutes';
 import {registerWorkspaceRoutes} from './src/server/workspaceRoutes';
+import {registerReinforcementRoutes} from './src/server/reinforcementRoutes';
+import {registerSchoolAdminRoutes} from './src/server/schoolAdminRoutes';
 import {registerDemoRoutes} from './src/server/demoRoutes';
 import {scopeInstitutionResponse} from './src/server/institutionView';
 import {cookieToken,clearSessionCookie,localSessionResponse} from './src/server/sessionCookies';
@@ -520,6 +522,9 @@ async function startServer() {
   app.use('/api',(req,res,next)=>{const c=authenticateRequest(req);if(c?.user.mustChangePassword&&!['/state','/account/password','/auth/logout','/auth/login','/auth/firebase-sync'].includes(req.path))return res.status(403).json({error:'Davom etish uchun parolni o‘zgartiring.',code:'PASSWORD_CHANGE_REQUIRED'});next();});
   registerDisciplineRoutes(app,{authenticate:authenticateRequest,save:saveDbState});
   registerWorkspaceRoutes(app,{authenticate:authenticateRequest,save:saveDbState});
+  registerReinforcementRoutes(app,{authenticate:authenticateRequest,save:saveDbState});
+  registerSchoolAdminRoutes(app,{authenticate:authenticateRequest,save:saveDbState,revoke:revokeAllUserSessions});
+  registerExamRoutes(app, {authenticate: authenticateRequest, save: saveDbState, notify: broadcastInstitutionUpdate});
   registerTopicRoutes(app,{authenticate:authenticateRequest,save:saveDbState});
   registerLearningDemoRoutes(app,{authenticate:authenticateRequest,save:saveDbState,hash:hashPassword,revoke:(uid:string)=>revokeAllUserSessions(uid)});
   registerAccountRoutes(app,{authenticate:authenticateRequest,save:saveDbState,hash:hashPassword,verify:verifyPassword,revoke:revokeAllUserSessions,issue:issueSessionToken});
@@ -528,7 +533,7 @@ async function startServer() {
   registerContentRoutes(app,{authenticate:authenticateRequest,save:saveDbState});
   registerStudentHomeRoutes(app,{authenticate:authenticateRequest,save:saveDbState});
   app.use('/api',(req,res,next)=>{const c=authenticateRequest(req);if(c?.user.role==='teacher'&&!['/state','/auth/logout','/search'].includes(req.path)&&!req.path.startsWith('/teaching/'))return res.status(403).json({error:'O‘qituvchi uchun bu amalga ruxsat yo‘q.'});next();});
-  registerExamRoutes(app, {authenticate: authenticateRequest, save: saveDbState, notify: broadcastInstitutionUpdate});
+
 
   function enforceRateLimit(
     req: Request,

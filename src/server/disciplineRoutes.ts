@@ -1,66 +1,860 @@
-import crypto from 'node:crypto';
-import type {Express} from 'express';
-import {z} from 'zod';
-import {SchoolError,schoolAdmin,schoolClasses,schoolKey,ensureRows,schoolAudit,operation,remember,pageRows,checkRevision,notifySchool,localDate,type SchoolContext} from './enterpriseCore';
-import {disciplinePolicy,disciplineTypes,defaultDisciplineTypes,currentDisciplinePeriod,disciplineTotal,disciplineLeader,canReadDiscipline,canReviewDiscipline,configureDiscipline,saveDisciplineType,createDisciplineRecords,changeDisciplineRecord,appealDiscipline,decideDisciplineAppeal,generateWarningLetter,policySchema,typeSchema,recordSchema,type DisciplineRecord,type DisciplineCase,type WarningLetter} from './disciplineEngine';
-const common=z.object({operationId:z.uuid()});
-const reason=z.string().trim().min(3).max(4000);
-const evidence=z.string().max(700000).regex(/^data:image\/(png|jpeg);base64,[A-Za-z0-9+/=]+$/).optional();
-export function registerDisciplineRoutes(app:Express,deps:any){
- const rate=new Map<string,{at:number;count:number}>();
- const access=(req:any,res:any,write=false):SchoolContext|undefined=>{const a=deps.authenticate(req);if(!a||a.user.status!=='active'){res.status(401).json({error:'Hisobga kiring.'});return;}if(!['student','teacher','admin','platform_owner'].includes(a.user.role)){res.status(403).json({error:'Ruxsat yo‘q.'});return;}const c={...a,now:deps.now?new Date(deps.now()):new Date()};if(write){const key=schoolKey(a.user.institutionId,a.user.uid),old=rate.get(key),fresh=!old||c.now.getTime()-old.at>60000,r=fresh?{at:c.now.getTime(),count:1}:{...old,count:old.count+1};if(rate.size>2000)rate.delete(rate.keys().next().value!);rate.set(key,r);if(r.count>60){res.setHeader('Retry-After','60');res.status(429).json({error:'Bir daqiqada juda ko‘p amal. Bir oz kuting.'});return;}}return c;};
- const fail=(res:any,e:any)=>res.status(e instanceof SchoolError?e.status:500).json({error:e instanceof SchoolError?e.message:'Saqlash bajarilmadi. Yozganlaringizni saqlab, qayta urinib ko‘ring.'});
- const read=(fn:(c:SchoolContext,req:any,res:any)=>unknown)=>(req:any,res:any)=>{const c=access(req,res);if(!c)return;try{res.setHeader('Cache-Control','no-store');return fn(c,req,res);}catch(e){return fail(res,e);}};
- const mutate=(kind:string,schema:z.ZodType<any>,fn:(c:SchoolContext,d:any,req:any)=>any)=>(req:any,res:any)=>{const c=access(req,res,true);if(!c)return;const parsed=schema.safeParse(req.body);if(!parsed.success)return res.status(400).json({error:'Maydonlarni tekshiring.',fields:parsed.error.issues.map(i=>({field:i.path.join('.'),message:i.message}))});const data=parsed.data;try{const signature={path:req.path,body:data},previous=operation(c,data.operationId,kind,signature);if(previous)return res.json({duplicate:true,refs:previous.refs});const result=fn(c,data,req);remember(c,data.operationId,kind,signature,Array.isArray(result)?result.map(v=>v.id):result?.id?[result.id]:[]);deps.save(c.env,c.db);res.setHeader('Cache-Control','no-store');res.json({result});}catch(e){return fail(res,e);}};
- const record=(c:SchoolContext,id:string)=>(c.db.disciplineRecords||[]).find((r:DisciplineRecord)=>r.id===id&&canReadDiscipline(c,r)&&!(c.user.role==='student'&&r.status==='draft'));
- const caseAllowed=(c:SchoolContext,k:DisciplineCase)=>canReadDiscipline(c,{...k,subject:c.user.subject})&&(schoolAdmin(c.user)||canReviewDiscipline(c,k.classId)||disciplinePolicy(c).deputies.includes(c.user.uid)&&k.responsible==='deputy'||disciplinePolicy(c).directors.includes(c.user.uid)&&k.responsible==='director');
- app.get('/api/discipline',read((c,req,res)=>{
-  const q=z.object({page:z.coerce.number().int().min(0).max(10000).default(0),classId:z.string().max(200).default(''),studentId:z.string().max(200).default(''),teacherId:z.string().max(200).default(''),typeId:z.string().max(200).default(''),status:z.string().max(30).default(''),period:z.string().max(100).default(''),from:z.string().max(10).default(''),to:z.string().max(10).default(''),q:z.string().max(100).default(''),minPoints:z.coerce.number().min(-1000).max(1000).default(-1000),maxPoints:z.coerce.number().min(0).max(1000).default(1000),view:z.enum(['records','appeals','cases','letters','corrections','audit']).default('records')}).safeParse(req.query);if(!q.success)throw new SchoolError(400,'Filtrlarni tekshiring.');
-  const f=q.data,admin=schoolAdmin(c.user),policy=disciplinePolicy(c),classes=schoolClasses(c);if(f.classId&&!classes.some((cl:any)=>cl.id===f.classId))throw new SchoolError(403,'Bu sinfga ruxsat yo‘q.');if(c.user.role==='student'&&f.studentId&&f.studentId!==c.user.uid)throw new SchoolError(403,'Faqat o‘z holatingiz.');
-  const students=c.db.users.filter((u:any)=>u.institutionId===c.user.institutionId&&u.role==='student'&&(admin||c.user.role==='student'&&u.uid===c.user.uid||c.user.role==='teacher'&&classes.some((cl:any)=>cl.id===u.classId))).map((u:any)=>({id:u.uid,name:u.displayName,login:u.login,classId:u.classId,classCode:u.classCode})),names=new Map(students.map((u:any)=>[u.id,u]));
-  const all=(c.db.disciplineRecords||[]).filter((r:DisciplineRecord)=>canReadDiscipline(c,r)&&!(c.user.role==='student'&&r.status==='draft'));
-  const records=all.filter((r:DisciplineRecord)=>(!f.classId||r.classId===f.classId)&&(!f.studentId||r.studentId===f.studentId)&&(!f.teacherId||r.teacherId===f.teacherId)&&(!f.typeId||r.typeId===f.typeId)&&(f.view!=='records'||!f.status||r.status===f.status)&&(!f.period||r.periodId===f.period)&&(!f.from||localDate(new Date(r.happenedAt))>=f.from)&&(!f.to||localDate(new Date(r.happenedAt))<=f.to)&&r.points>=f.minPoints&&r.points<=f.maxPoints&&(!f.q||`${(names.get(r.studentId) as any)?.name||''} ${r.typeName} ${r.reason}`.toLowerCase().includes(f.q.toLowerCase()))).sort((a:DisciplineRecord,b:DisciplineRecord)=>b.createdAt.localeCompare(a.createdAt));
-  const ids=new Set(records.map((r:DisciplineRecord)=>r.id)),appeals=(c.db.disciplineAppeals||[]).filter((a:any)=>a.schoolId===c.user.institutionId&&ids.has(a.recordId));
-  const cases=(c.db.disciplineCases||[]).filter((k:DisciplineCase)=>k.schoolId===c.user.institutionId&&(c.user.role==='student'?k.studentId===c.user.uid:caseAllowed(c,k))&&(!f.classId||k.classId===f.classId)&&(!f.studentId||k.studentId===f.studentId)&&(!f.period||k.periodId===f.period));
-  const letters=(c.db.warningLetters||[]).filter((l:WarningLetter)=>l.schoolId===c.user.institutionId&&(c.user.role==='student'?l.studentId===c.user.uid&&l.status==='issued':cases.some((k:DisciplineCase)=>k.id===l.caseId))&&(!f.studentId||l.studentId===f.studentId)&&(!f.period||l.periodId===f.period));
-  const corrections=(c.db.disciplineCorrections||[]).filter((r:any)=>r.schoolId===c.user.institutionId&&ids.has(r.recordId)&&(admin||r.actorId===c.user.uid));
-  const audits=f.view==='audit'?(admin?(c.db.schoolAuditEvents||[]).filter((a:any)=>a.schoolId===c.user.institutionId&&(!f.q||`${a.action} ${a.actorName}`.toLowerCase().includes(f.q.toLowerCase()))).slice().reverse():[]):[];if(f.view==='audit'&&!admin)throw new SchoolError(403,'Audit faqat administrator uchun.');
-  const period=f.period||policy.periods.find(p=>localDate(c.now)>=p.start&&localDate(c.now)<=p.end)?.id||'',totals=(c.db.disciplineTotals||[]).filter((t:any)=>t.schoolId===c.user.institutionId&&t.periodId===period&&students.some((u:any)=>u.id===t.studentId&&(admin||c.user.role==='student'||disciplineLeader(c,u.classId))));
-  const selected={records,appeals,cases,letters,corrections,audit:audits}[f.view].filter((r:any)=>(!f.status||r.status===f.status)&&(!f.from||localDate(new Date(r.happenedAt||r.createdAt||r.at))>=f.from)&&(!f.to||localDate(new Date(r.happenedAt||r.createdAt||r.at))<=f.to)&&(!f.q||`${(names.get(r.studentId) as any)?.name||''} ${r.typeName||''} ${r.reason||''} ${r.stageName||''} ${r.action||''} ${r.actorName||''}`.toLowerCase().includes(f.q.toLowerCase())));const dto=(r:any)=>({...r,permissions:{canReview:canReviewDiscipline(c,r.classId),canEdit:canReviewDiscipline(c,r.classId)||r.teacherId===c.user.uid&&(r.status==='draft'||c.now.getTime()<=Date.parse(r.editWindowUntil||'')),own:r.teacherId===c.user.uid},studentName:(names.get(r.studentId) as any)?.name||'O‘quvchi',studentClass:(names.get(r.studentId) as any)?.classCode});
-  res.json({...pageRows(selected.map(dto),f.page),view:f.view,policy:admin?policy:{approved:policy.approved,limit:policy.limit,positiveEnabled:policy.positiveEnabled,editMinutes:policy.editMinutes,periods:policy.periods,stages:policy.stages.map(({points,name})=>({points,name}))},periodArchive:(c.db.disciplinePeriods||[]).filter((p:any)=>p.schoolId===c.user.institutionId),teachers:admin?c.db.users.filter((u:any)=>u.institutionId===c.user.institutionId&&['teacher','admin','platform_owner'].includes(u.role)).map((u:any)=>({id:u.uid,name:u.displayName,subject:u.subject,classIds:u.assignedClassIds||[]})):[],subject:c.user.subject||'',lessons:c.user.role==='student'?[]:c.db.lessons.filter((l:any)=>l.institutionId===c.user.institutionId&&(admin||[l.subjectName,l.subject].includes(c.user.subject))&&[l.classId,...(l.classIds||[])].some((id:string)=>classes.some((cl:any)=>cl.id===id))&&(!f.classId||[l.classId,...(l.classIds||[])].includes(f.classId))).slice(0,1000).map((l:any)=>({id:l.id,title:l.topicTitle||l.title,subject:l.subjectName||l.subject,classIds:[l.classId,...(l.classIds||[])]})),types:(disciplineTypes(c).length?disciplineTypes(c):defaultDisciplineTypes(c)).sort((a,b)=>a.order-b.order),students,classes:classes.map((cl:any)=>({id:cl.id,code:cl.code})),totals,permissions:{admin,canRecord:admin||c.user.role==='teacher',canReview:admin||classes.some((cl:any)=>canReviewDiscipline(c,cl.id))},summary:{records:records.length,approved:records.filter((r:DisciplineRecord)=>r.status==='approved').length,pending:records.filter((r:DisciplineRecord)=>['submitted','review'].includes(r.status)).length,appeals:appeals.filter((a:any)=>a.status==='pending').length,cases:cases.filter((k:DisciplineCase)=>k.status!=='closed').length,byType:[...new Set(records.map((r:DisciplineRecord)=>r.typeName))].map(type=>({type,count:records.filter((r:DisciplineRecord)=>r.typeName===type).length})),byTeacher:admin?[...new Set(records.map((r:DisciplineRecord)=>r.teacherId))].map(id=>({id,name:records.find((r:DisciplineRecord)=>r.teacherId===id)?.teacherName,count:records.filter((r:DisciplineRecord)=>r.teacherId===id).length})):[],byClass:classes.map((cl:any)=>({classId:cl.id,classCode:cl.code,count:records.filter((r:DisciplineRecord)=>r.classId===cl.id).length})),nearThreshold:admin?totals.filter((t:any)=>t.points>=policy.stages[0].points).map(dto):[]},notice:'Faqat tasdiqlangan holat ballga kiradi. Chegara avtomatik jazo emas — vakolatli inson ko‘rib chiqishi kerak.'});
- }));
- app.put('/api/discipline/policy',mutate('discipline-policy',policySchema.extend({operationId:z.uuid()}),(c,d)=>configureDiscipline(c,d)));
- app.post('/api/discipline/types',mutate('discipline-type',typeSchema.extend({operationId:z.uuid()}),(c,d)=>saveDisciplineType(c,d)));
- app.post('/api/discipline/records',mutate('discipline-create',recordSchema.extend({operationId:z.uuid()}),(c,d)=>createDisciplineRecords(c,d)));
- app.patch('/api/discipline/records/:id',mutate('discipline-change',common.extend({revision:z.number().int(),action:z.enum(['approve','review','cancel','edit','submit','request_correction']),reason,typeId:z.string().optional(),evidenceText:z.string().max(2000).optional(),evidence}),(c,d,req)=>changeDisciplineRecord(c,String(req.params.id),d)));
- app.post('/api/discipline/records/:id/appeals',mutate('discipline-appeal',common.extend({reason}),(c,d,req)=>appealDiscipline(c,String(req.params.id),d.reason)));
- app.patch('/api/discipline/appeals/:id',mutate('discipline-appeal-decision',common.extend({revision:z.number().int(),accepted:z.boolean(),reason}),(c,d,req)=>decideDisciplineAppeal(c,String(req.params.id),d)));
- app.post('/api/discipline/cases/:id/decision',mutate('discipline-case',common.extend({revision:z.number().int(),decision:z.enum(['conversation','letter','referred','no_action','reduce_points']),reason,reduceBy:z.number().int().positive().max(1000).optional(),meetingAt:z.iso.datetime({offset:true}).optional(),parentContactStatus:z.string().max(200).optional()}),(c,d,req)=>{
-  const k=(c.db.disciplineCases||[]).find((k:DisciplineCase)=>k.id===req.params.id&&k.schoolId===c.user.institutionId);if(!k||!caseAllowed(c,k))throw new SchoolError(403,'Bu ish bo‘yicha qarorga ruxsat yo‘q.');checkRevision(k.revision,d.revision);const old=structuredClone(k);
-  if(d.decision==='reduce_points'){
-   if(!schoolAdmin(c.user)||!d.reduceBy)throw new SchoolError(403,'Ballni kamaytirish faqat admin va aniq sabab bilan.');const total=disciplineTotal(c,k.studentId,k.periodId);if(d.reduceBy>total.points)throw new SchoolError(400,'Kamaytirish joriy balldan oshmasin.');
-   const adjustment:DisciplineRecord={id:crypto.randomUUID(),schoolId:k.schoolId,studentId:k.studentId,classId:k.classId,teacherId:c.user.uid,teacherName:c.user.displayName,subject:'Ma’muriy qaror',typeId:'adjustment',typeName:'Asoslangan ball tuzatishi',typeRevision:1,points:-d.reduceBy,kind:'adjustment',reason:d.reason,happenedAt:c.now.toISOString(),periodId:k.periodId,status:'submitted',createdAt:c.now.toISOString(),updatedAt:c.now.toISOString(),editWindowUntil:c.now.toISOString(),revision:1};ensureRows(c.db,'disciplineRecords').push(adjustment);changeDisciplineRecord(c,adjustment.id,{revision:1,action:'approve',reason:d.reason});
-  }
-  k.status='closed';k.decision=d.decision;k.reason=d.reason;k.decidedBy=c.user.uid;k.decidedAt=c.now.toISOString();k.meetingAt=d.meetingAt;k.parentContactStatus=d.parentContactStatus;k.revision++;schoolAudit(c,'Inson qarori saqlandi',k.id,old,k);return k;
- }));
- app.post('/api/discipline/cases/:id/letter',mutate('discipline-letter-create',common,(c,_d,req)=>{const k=(c.db.disciplineCases||[]).find((k:DisciplineCase)=>k.id===req.params.id&&k.schoolId===c.user.institutionId);if(!k||!caseAllowed(c,k))throw new SchoolError(403,'Hujjatga ruxsat yo‘q.');const l=generateWarningLetter(c,k);schoolAudit(c,'Hujjat qoralamasi tayyorlandi',l.id,null,{caseId:k.id});return l;}));
- app.patch('/api/discipline/letters/:id',mutate('discipline-letter-change',common.extend({revision:z.number().int(),action:z.enum(['save','approve','issue']),body:z.string().trim().min(30).max(15000).optional(),reason}),(c,d,req)=>{
-  if(!schoolAdmin(c.user))throw new SchoolError(403,'Hujjatni faqat vakolatli administrator rasmiylashtiradi.');const l=(c.db.warningLetters||[]).find((l:WarningLetter)=>l.id===req.params.id&&l.schoolId===c.user.institutionId);if(!l)throw new SchoolError(404,'Hujjat topilmadi.');checkRevision(l.revision,d.revision);if(l.status==='issued')throw new SchoolError(409,'Berilgan hujjat o‘zgartirilmaydi. Yangi izoh/qaror kiriting.');const old=structuredClone(l),total=disciplineTotal(c,l.studentId,l.periodId);
-  if(d.action==='save'){if(l.status!=='draft'||!d.body)throw new SchoolError(400,'Faqat qoralama matni tahrirlanadi.');l.body=d.body;l.sourceRevision=total.revision;}
-  if(d.action==='approve'){if(l.status!=='draft'||l.sourceRevision!==total.revision)throw new SchoolError(409,'Holat o‘zgargan. Qoralamani yangilang va qayta ko‘rib chiqing.');if(/\[(?:vakolatli|to‘ldir|to'ldir|ko‘rib)[^\]]*\]/.test(l.body))throw new SchoolError(400,'Shablondagi to‘ldirilmagan maydonlarni yakunlang.');l.status='approved';l.approvedBy=c.user.uid;l.approvedAt=c.now.toISOString();}
-  if(d.action==='issue'){if(l.status!=='approved'||l.sourceRevision!==total.revision)throw new SchoolError(409,'Hujjat tasdiqlangan va joriy holatga mos bo‘lsin.');l.status='issued';l.issuedAt=c.now.toISOString();notifySchool(c,l.studentId,'Shaxsiy rasmiy xabar tayyor','/student/discipline',l.id+':issued');}
-  l.revision++;schoolAudit(c,'Hujjat bosqichi o‘zgardi',l.id,old,{...l,reason:d.reason});return l;
- }));
- app.post('/api/discipline/export',mutate('discipline-export',common.extend({kind:z.enum(['records','letters','cases']),classId:z.string().optional(),studentId:z.string().optional(),period:z.string().optional(),typeId:z.string().optional(),teacherId:z.string().optional(),status:z.string().optional(),from:z.string().optional(),to:z.string().optional(),q:z.string().max(100).optional(),minPoints:z.number().min(-1000).max(1000).optional(),maxPoints:z.number().min(0).max(1000).optional()}),(c,d)=>{if(!schoolAdmin(c.user))throw new SchoolError(403,'Intizom eksporti faqat administrator uchun.');const rows=(d.kind==='records'?c.db.disciplineRecords:d.kind==='letters'?c.db.warningLetters:c.db.disciplineCases)||[];const selected=rows.filter((r:any)=>r.schoolId===c.user.institutionId&&(!d.classId||r.classId===d.classId)&&(!d.studentId||r.studentId===d.studentId)&&(!d.period||r.periodId===d.period)&&(!d.typeId||r.typeId===d.typeId)&&(!d.teacherId||r.teacherId===d.teacherId)&&(!d.status||r.status===d.status)&&(!d.from||localDate(new Date(r.happenedAt||r.createdAt))>=d.from)&&(!d.to||localDate(new Date(r.happenedAt||r.createdAt))<=d.to)&&(d.minPoints===undefined||(r.points??0)>=d.minPoints)&&(d.maxPoints===undefined||(r.points??0)<=d.maxPoints)&&(!d.q||`${c.db.users.find((u:any)=>u.uid===r.studentId&&u.institutionId===c.user.institutionId)?.displayName||''} ${r.typeName||''} ${r.reason||''} ${r.stageName||''}`.toLowerCase().includes(d.q.toLowerCase())));if(selected.length>1000)throw new SchoolError(413,'Eksportni sinf yoki davr bilan toraytiring.');schoolAudit(c,'Intizom eksporti olindi',d.kind,null,{count:selected.length,classId:d.classId,period:d.period});return{id:'export',rows:selected,students:c.db.users.filter((u:any)=>selected.some((r:any)=>r.studentId===u.uid)).map((u:any)=>({id:u.uid,name:u.displayName,classCode:u.classCode})),school:c.db.institutions.find((i:any)=>i.id===c.user.institutionId)?.name};}));
- app.get('/api/discipline/records/:id/history',read((c,req,res)=>{const r=record(c,String(req.params.id));if(!r)throw new SchoolError(403,'Qaydga ruxsat yo‘q.');const history=(c.db.schoolAuditEvents||[]).filter((a:any)=>a.schoolId===r.schoolId&&a.entityId===r.id).map((a:any)=>c.user.role==='student'?{id:a.id,action:a.action,at:a.at,actorName:a.actorName}:a);res.json({history,record:r});}));
- app.get('/api/discipline/entity/:kind/:id',read((c,req,res)=>{
-  const id=String(req.params.id),kind=String(req.params.kind);let row:any;
-  if(kind==='record')row=record(c,id);
-  if(kind==='appeal')row=(c.db.disciplineAppeals||[]).find((a:any)=>a.id===id&&a.schoolId===c.user.institutionId&&record(c,a.recordId));
-  if(kind==='case')row=(c.db.disciplineCases||[]).find((k:DisciplineCase)=>k.id===id&&k.schoolId===c.user.institutionId&&(c.user.role==='student'?k.studentId===c.user.uid:caseAllowed(c,k)));
-  if(kind==='letter')row=(c.db.warningLetters||[]).find((l:WarningLetter)=>l.id===id&&l.schoolId===c.user.institutionId&&(c.user.role==='student'?l.studentId===c.user.uid&&l.status==='issued':(c.db.disciplineCases||[]).some((k:DisciplineCase)=>k.id===l.caseId&&caseAllowed(c,k))));
-  if(kind==='correction')row=(c.db.disciplineCorrections||[]).find((r:any)=>r.id===id&&r.schoolId===c.user.institutionId&&(schoolAdmin(c.user)||r.actorId===c.user.uid));
-  if(!row)throw new SchoolError(403,'Bu yozuvga ruxsat yo‘q.');res.json({row});
- }));
- app.post('/api/discipline/corrections/:id/resolve',mutate('discipline-correction',common.extend({reason}),(c,d,req)=>{if(!schoolAdmin(c.user))throw new SchoolError(403,'Faqat administrator.');const r=(c.db.disciplineCorrections||[]).find((r:any)=>r.id===req.params.id&&r.schoolId===c.user.institutionId);if(!r)throw new SchoolError(404,'So‘rov topilmadi.');const old=structuredClone(r);r.status='resolved';r.decisionReason=d.reason;r.resolvedBy=c.user.uid;r.resolvedAt=c.now.toISOString();schoolAudit(c,'Tuzatish so‘rovi ko‘rib chiqildi',r.recordId,old,r);return r;}));
+import crypto from "node:crypto";
+import type { Express } from "express";
+import { z } from "zod";
+import {
+  SchoolError,
+  schoolAdmin,
+  schoolClasses,
+  schoolKey,
+  ensureRows,
+  schoolAudit,
+  operation,
+  remember,
+  pageRows,
+  checkRevision,
+  notifySchool,
+  localDate,
+  type SchoolContext,
+} from "./enterpriseCore";
+import {
+  disciplinePolicy,
+  disciplineTypes,
+  defaultDisciplineTypes,
+  currentDisciplinePeriod,
+  disciplineTotal,
+  disciplineLeader,
+  canReadDiscipline,
+  canReviewDiscipline,
+  configureDiscipline,
+  saveDisciplineType,
+  createDisciplineRecords,
+  changeDisciplineRecord,
+  appealDiscipline,
+  decideDisciplineAppeal,
+  generateWarningLetter,
+  policySchema,
+  typeSchema,
+  recordSchema,
+  type DisciplineRecord,
+  type DisciplineCase,
+  type WarningLetter,
+} from "./disciplineEngine";
+const common = z.object({ operationId: z.uuid() });
+const reason = z.string().trim().min(3).max(4000);
+const evidence = z
+  .string()
+  .max(700000)
+  .regex(/^data:image\/(png|jpeg);base64,[A-Za-z0-9+/=]+$/)
+  .optional();
+export function registerDisciplineRoutes(app: Express, deps: any) {
+  const rate = new Map<string, { at: number; count: number }>();
+  const access = (
+    req: any,
+    res: any,
+    write = false,
+  ): SchoolContext | undefined => {
+    const a = deps.authenticate(req);
+    if (!a || a.user.status !== "active") {
+      res.status(401).json({ error: "Hisobga kiring." });
+      return;
+    }
+    if (
+      !["student", "teacher", "admin", "platform_owner"].includes(a.user.role)
+    ) {
+      res.status(403).json({ error: "Ruxsat yo‘q." });
+      return;
+    }
+    const c = { ...a, now: deps.now ? new Date(deps.now()) : new Date() };
+    if (write) {
+      const key = schoolKey(a.user.institutionId, a.user.uid),
+        old = rate.get(key),
+        fresh = !old || c.now.getTime() - old.at > 60000,
+        r = fresh
+          ? { at: c.now.getTime(), count: 1 }
+          : { ...old, count: old.count + 1 };
+      if (rate.size > 2000) rate.delete(rate.keys().next().value!);
+      rate.set(key, r);
+      if (r.count > 60) {
+        res.setHeader("Retry-After", "60");
+        res
+          .status(429)
+          .json({ error: "Bir daqiqada juda ko‘p amal. Bir oz kuting." });
+        return;
+      }
+    }
+    return c;
+  };
+  const fail = (res: any, e: any) =>
+    res
+      .status(e instanceof SchoolError ? e.status : 500)
+      .json({
+        error:
+          e instanceof SchoolError
+            ? e.message
+            : "Saqlash bajarilmadi. Yozganlaringizni saqlab, qayta urinib ko‘ring.",
+      });
+  const read =
+    (fn: (c: SchoolContext, req: any, res: any) => unknown) =>
+    (req: any, res: any) => {
+      const c = access(req, res);
+      if (!c) return;
+      try {
+        res.setHeader("Cache-Control", "no-store");
+        return fn(c, req, res);
+      } catch (e) {
+        return fail(res, e);
+      }
+    };
+  const mutate =
+    (
+      kind: string,
+      schema: z.ZodType<any>,
+      fn: (c: SchoolContext, d: any, req: any) => any,
+    ) =>
+    (req: any, res: any) => {
+      const c = access(req, res, true);
+      if (!c) return;
+      const parsed = schema.safeParse(req.body);
+      if (!parsed.success)
+        return res
+          .status(400)
+          .json({
+            error: "Maydonlarni tekshiring.",
+            fields: parsed.error.issues.map((i) => ({
+              field: i.path.join("."),
+              message: i.message,
+            })),
+          });
+      const data = parsed.data;
+      try {
+        const signature = { path: req.path, body: data },
+          previous = operation(c, data.operationId, kind, signature);
+        if (previous) return res.json({ duplicate: true, refs: previous.refs });
+        const result = fn(c, data, req);
+        remember(
+          c,
+          data.operationId,
+          kind,
+          signature,
+          Array.isArray(result)
+            ? result.map((v) => v.id)
+            : result?.id
+              ? [result.id]
+              : [],
+        );
+        deps.save(c.env, c.db);
+        res.setHeader("Cache-Control", "no-store");
+        res.json({ result });
+      } catch (e) {
+        return fail(res, e);
+      }
+    };
+  const record = (c: SchoolContext, id: string) =>
+    (c.db.disciplineRecords || []).find(
+      (r: DisciplineRecord) =>
+        r.id === id &&
+        canReadDiscipline(c, r) &&
+        !(c.user.role === "student" && r.status === "draft"),
+    );
+  const caseAllowed = (c: SchoolContext, k: DisciplineCase) =>
+    canReadDiscipline(c, { ...k, subject: c.user.subject }) &&
+    (schoolAdmin(c.user) ||
+      canReviewDiscipline(c, k.classId) ||
+      (disciplinePolicy(c).deputies.includes(c.user.uid) &&
+        k.responsible === "deputy") ||
+      (disciplinePolicy(c).directors.includes(c.user.uid) &&
+        k.responsible === "director"));
+  app.get(
+    "/api/discipline",
+    read((c, req, res) => {
+      const q = z
+        .object({
+          page: z.coerce.number().int().min(0).max(10000).default(0),
+          classId: z.string().max(200).default(""),
+          studentId: z.string().max(200).default(""),
+          teacherId: z.string().max(200).default(""),
+          typeId: z.string().max(200).default(""),
+          status: z.string().max(30).default(""),
+          period: z.string().max(100).default(""),
+          from: z.string().max(10).default(""),
+          to: z.string().max(10).default(""),
+          q: z.string().max(100).default(""),
+          minPoints: z.coerce.number().min(-1000).max(1000).default(-1000),
+          maxPoints: z.coerce.number().min(0).max(1000).default(1000),
+          view: z
+            .enum([
+              "records",
+              "appeals",
+              "cases",
+              "letters",
+              "corrections",
+              "audit",
+            ])
+            .default("records"),
+        })
+        .safeParse(req.query);
+      if (!q.success) throw new SchoolError(400, "Filtrlarni tekshiring.");
+      const f = q.data,
+        admin = schoolAdmin(c.user),
+        policy = disciplinePolicy(c),
+        classes = schoolClasses(c);
+      if (f.classId && !classes.some((cl: any) => cl.id === f.classId))
+        throw new SchoolError(403, "Bu sinfga ruxsat yo‘q.");
+      if (
+        c.user.role === "student" &&
+        f.studentId &&
+        f.studentId !== c.user.uid
+      )
+        throw new SchoolError(403, "Faqat o‘z holatingiz.");
+      const students = c.db.users
+          .filter(
+            (u: any) =>
+              u.institutionId === c.user.institutionId &&
+              u.role === "student" &&
+              (admin ||
+                (c.user.role === "student" && u.uid === c.user.uid) ||
+                (c.user.role === "teacher" &&
+                  classes.some((cl: any) => cl.id === u.classId))),
+          )
+          .map((u: any) => ({
+            id: u.uid,
+            name: u.displayName,
+            login: u.login,
+            classId: u.classId,
+            classCode: u.classCode,
+          })),
+        names = new Map(students.map((u: any) => [u.id, u]));
+      const all = (c.db.disciplineRecords || []).filter(
+        (r: DisciplineRecord) =>
+          canReadDiscipline(c, r) &&
+          !(c.user.role === "student" && r.status === "draft"),
+      );
+      const records = all
+        .filter(
+          (r: DisciplineRecord) =>
+            (!f.classId || r.classId === f.classId) &&
+            (!f.studentId || r.studentId === f.studentId) &&
+            (!f.teacherId || r.teacherId === f.teacherId) &&
+            (!f.typeId || r.typeId === f.typeId) &&
+            (f.view !== "records" || !f.status || r.status === f.status) &&
+            (!f.period || r.periodId === f.period) &&
+            (!f.from || localDate(new Date(r.happenedAt)) >= f.from) &&
+            (!f.to || localDate(new Date(r.happenedAt)) <= f.to) &&
+            r.points >= f.minPoints &&
+            r.points <= f.maxPoints &&
+            (!f.q ||
+              `${(names.get(r.studentId) as any)?.name || ""} ${r.typeName} ${r.reason}`
+                .toLowerCase()
+                .includes(f.q.toLowerCase())),
+        )
+        .sort((a: DisciplineRecord, b: DisciplineRecord) =>
+          b.createdAt.localeCompare(a.createdAt),
+        );
+      const ids = new Set(records.map((r: DisciplineRecord) => r.id)),
+        appeals = (c.db.disciplineAppeals || []).filter(
+          (a: any) =>
+            a.schoolId === c.user.institutionId && ids.has(a.recordId),
+        );
+      const cases = (c.db.disciplineCases || []).filter(
+        (k: DisciplineCase) =>
+          k.schoolId === c.user.institutionId &&
+          (c.user.role === "student"
+            ? k.studentId === c.user.uid
+            : caseAllowed(c, k)) &&
+          (!f.classId || k.classId === f.classId) &&
+          (!f.studentId || k.studentId === f.studentId) &&
+          (!f.period || k.periodId === f.period),
+      );
+      const letters = (c.db.warningLetters || []).filter(
+        (l: WarningLetter) =>
+          l.schoolId === c.user.institutionId &&
+          (c.user.role === "student"
+            ? l.studentId === c.user.uid && l.status === "issued"
+            : cases.some((k: DisciplineCase) => k.id === l.caseId)) &&
+          (!f.studentId || l.studentId === f.studentId) &&
+          (!f.period || l.periodId === f.period),
+      );
+      const corrections = (c.db.disciplineCorrections || []).filter(
+        (r: any) =>
+          r.schoolId === c.user.institutionId &&
+          ids.has(r.recordId) &&
+          (admin || r.actorId === c.user.uid),
+      );
+      const audits =
+        f.view === "audit"
+          ? admin
+            ? (c.db.schoolAuditEvents || [])
+                .filter(
+                  (a: any) =>
+                    a.schoolId === c.user.institutionId &&
+                    (!f.q ||
+                      `${a.action} ${a.actorName}`
+                        .toLowerCase()
+                        .includes(f.q.toLowerCase())),
+                )
+                .slice()
+                .reverse()
+            : []
+          : [];
+      if (f.view === "audit" && !admin)
+        throw new SchoolError(403, "Audit faqat administrator uchun.");
+      const period =
+          f.period ||
+          policy.periods.find(
+            (p) => localDate(c.now) >= p.start && localDate(c.now) <= p.end,
+          )?.id ||
+          "",
+        totals = (c.db.disciplineTotals || []).filter(
+          (t: any) =>
+            t.schoolId === c.user.institutionId &&
+            t.periodId === period &&
+            students.some(
+              (u: any) =>
+                u.id === t.studentId &&
+                (admin ||
+                  c.user.role === "student" ||
+                  disciplineLeader(c, u.classId)),
+            ),
+        );
+      const selected = {
+        records,
+        appeals,
+        cases,
+        letters,
+        corrections,
+        audit: audits,
+      }[f.view].filter(
+        (r: any) =>
+          (!f.status || r.status === f.status) &&
+          (!f.from ||
+            localDate(new Date(r.happenedAt || r.createdAt || r.at)) >=
+              f.from) &&
+          (!f.to ||
+            localDate(new Date(r.happenedAt || r.createdAt || r.at)) <= f.to) &&
+          (!f.q ||
+            `${(names.get(r.studentId) as any)?.name || ""} ${r.typeName || ""} ${r.reason || ""} ${r.stageName || ""} ${r.action || ""} ${r.actorName || ""}`
+              .toLowerCase()
+              .includes(f.q.toLowerCase())),
+      );
+      const dto = (r: any) => ({
+        ...r,
+        permissions: {
+          canReview: canReviewDiscipline(c, r.classId),
+          canEdit:
+            canReviewDiscipline(c, r.classId) ||
+            (r.teacherId === c.user.uid &&
+              (r.status === "draft" ||
+                c.now.getTime() <= Date.parse(r.editWindowUntil || ""))),
+          own: r.teacherId === c.user.uid,
+        },
+        studentName: (names.get(r.studentId) as any)?.name || "O‘quvchi",
+        studentClass: (names.get(r.studentId) as any)?.classCode,
+      });
+      res.json({
+        ...pageRows(selected.map(dto), f.page),
+        view: f.view,
+        policy: admin
+          ? policy
+          : {
+              approved: policy.approved,
+              limit: policy.limit,
+              positiveEnabled: policy.positiveEnabled,
+              editMinutes: policy.editMinutes,
+              periods: policy.periods,
+              stages: policy.stages.map(({ points, name }) => ({
+                points,
+                name,
+              })),
+            },
+        periodArchive: (c.db.disciplinePeriods || []).filter(
+          (p: any) => p.schoolId === c.user.institutionId,
+        ),
+        teachers: admin
+          ? c.db.users
+              .filter(
+                (u: any) =>
+                  u.institutionId === c.user.institutionId &&
+                  ["teacher", "admin", "platform_owner"].includes(u.role),
+              )
+              .map((u: any) => ({
+                id: u.uid,
+                name: u.displayName,
+                subject: u.subject,
+                classIds: u.assignedClassIds || [],
+              }))
+          : [],
+        subject: c.user.subject || "",
+        lessons:
+          c.user.role === "student"
+            ? []
+            : c.db.lessons
+                .filter(
+                  (l: any) =>
+                    l.institutionId === c.user.institutionId &&
+                    (admin ||
+                      [l.subjectName, l.subject].includes(c.user.subject)) &&
+                    [l.classId, ...(l.classIds || [])].some((id: string) =>
+                      classes.some((cl: any) => cl.id === id),
+                    ) &&
+                    (!f.classId ||
+                      [l.classId, ...(l.classIds || [])].includes(f.classId)),
+                )
+                .slice(0, 1000)
+                .map((l: any) => ({
+                  id: l.id,
+                  title: l.topicTitle || l.title,
+                  subject: l.subjectName || l.subject,
+                  classIds: [l.classId, ...(l.classIds || [])],
+                })),
+        types: (disciplineTypes(c).length
+          ? disciplineTypes(c)
+          : defaultDisciplineTypes(c)
+        ).sort((a, b) => a.order - b.order),
+        students,
+        classes: classes.map((cl: any) => ({ id: cl.id, code: cl.code })),
+        totals,
+        permissions: {
+          admin,
+          canRecord: admin || c.user.role === "teacher",
+          canReview:
+            admin || classes.some((cl: any) => canReviewDiscipline(c, cl.id)),
+        },
+        summary: {
+          records: records.length,
+          approved: records.filter(
+            (r: DisciplineRecord) => r.status === "approved",
+          ).length,
+          pending: records.filter((r: DisciplineRecord) =>
+            ["submitted", "review"].includes(r.status),
+          ).length,
+          appeals: appeals.filter((a: any) => a.status === "pending").length,
+          cases: cases.filter((k: DisciplineCase) => k.status !== "closed")
+            .length,
+          byType: [
+            ...new Set(records.map((r: DisciplineRecord) => r.typeName)),
+          ].map((type) => ({
+            type,
+            count: records.filter((r: DisciplineRecord) => r.typeName === type)
+              .length,
+          })),
+          byTeacher: admin
+            ? [
+                ...new Set(records.map((r: DisciplineRecord) => r.teacherId)),
+              ].map((id) => ({
+                id,
+                name: records.find((r: DisciplineRecord) => r.teacherId === id)
+                  ?.teacherName,
+                count: records.filter(
+                  (r: DisciplineRecord) => r.teacherId === id,
+                ).length,
+              }))
+            : [],
+          byClass: classes.map((cl: any) => ({
+            classId: cl.id,
+            classCode: cl.code,
+            count: records.filter((r: DisciplineRecord) => r.classId === cl.id)
+              .length,
+          })),
+          nearThreshold: admin
+            ? totals
+                .filter((t: any) => t.points >= policy.stages[0].points)
+                .map(dto)
+            : [],
+        },
+        notice:
+          "Faqat tasdiqlangan holat ballga kiradi. Chegara avtomatik jazo emas — vakolatli inson ko‘rib chiqishi kerak.",
+      });
+    }),
+  );
+  app.put(
+    "/api/discipline/policy",
+    mutate(
+      "discipline-policy",
+      policySchema.extend({ operationId: z.uuid() }),
+      (c, d) => configureDiscipline(c, d),
+    ),
+  );
+  app.post(
+    "/api/discipline/types",
+    mutate(
+      "discipline-type",
+      typeSchema.extend({ operationId: z.uuid() }),
+      (c, d) => saveDisciplineType(c, d),
+    ),
+  );
+  app.post(
+    "/api/discipline/records",
+    mutate(
+      "discipline-create",
+      recordSchema.extend({ operationId: z.uuid() }),
+      (c, d) => createDisciplineRecords(c, d),
+    ),
+  );
+  app.patch(
+    "/api/discipline/records/:id",
+    mutate(
+      "discipline-change",
+      common.extend({
+        revision: z.number().int(),
+        action: z.enum([
+          "approve",
+          "review",
+          "cancel",
+          "edit",
+          "submit",
+          "request_correction",
+        ]),
+        reason,
+        typeId: z.string().optional(),
+        evidenceText: z.string().max(2000).optional(),
+        evidence,
+      }),
+      (c, d, req) => changeDisciplineRecord(c, String(req.params.id), d),
+    ),
+  );
+  app.post(
+    "/api/discipline/records/:id/appeals",
+    mutate("discipline-appeal", common.extend({ reason }), (c, d, req) =>
+      appealDiscipline(c, String(req.params.id), d.reason),
+    ),
+  );
+  app.patch(
+    "/api/discipline/appeals/:id",
+    mutate(
+      "discipline-appeal-decision",
+      common.extend({
+        revision: z.number().int(),
+        accepted: z.boolean(),
+        reason,
+      }),
+      (c, d, req) => decideDisciplineAppeal(c, String(req.params.id), d),
+    ),
+  );
+  app.post(
+    "/api/discipline/cases/:id/decision",
+    mutate(
+      "discipline-case",
+      common.extend({
+        revision: z.number().int(),
+        decision: z.enum([
+          "conversation",
+          "letter",
+          "referred",
+          "no_action",
+          "reduce_points",
+        ]),
+        reason,
+        reduceBy: z.number().int().positive().max(1000).optional(),
+        meetingAt: z.iso.datetime({ offset: true }).optional(),
+        parentContactStatus: z.string().max(200).optional(),
+      }),
+      (c, d, req) => {
+        const k = (c.db.disciplineCases || []).find(
+          (k: DisciplineCase) =>
+            k.id === req.params.id && k.schoolId === c.user.institutionId,
+        );
+        if (!k || !caseAllowed(c, k))
+          throw new SchoolError(403, "Bu ish bo‘yicha qarorga ruxsat yo‘q.");
+        checkRevision(k.revision, d.revision);
+        const old = structuredClone(k);
+        if (d.decision === "reduce_points") {
+          if (!schoolAdmin(c.user) || !d.reduceBy)
+            throw new SchoolError(
+              403,
+              "Ballni kamaytirish faqat admin va aniq sabab bilan.",
+            );
+          const total = disciplineTotal(c, k.studentId, k.periodId);
+          if (d.reduceBy > total.points)
+            throw new SchoolError(400, "Kamaytirish joriy balldan oshmasin.");
+          const adjustment: DisciplineRecord = {
+            id: crypto.randomUUID(),
+            schoolId: k.schoolId,
+            studentId: k.studentId,
+            classId: k.classId,
+            teacherId: c.user.uid,
+            teacherName: c.user.displayName,
+            subject: "Ma’muriy qaror",
+            typeId: "adjustment",
+            typeName: "Asoslangan ball tuzatishi",
+            typeRevision: 1,
+            points: -d.reduceBy,
+            kind: "adjustment",
+            reason: d.reason,
+            happenedAt: c.now.toISOString(),
+            periodId: k.periodId,
+            status: "submitted",
+            createdAt: c.now.toISOString(),
+            updatedAt: c.now.toISOString(),
+            editWindowUntil: c.now.toISOString(),
+            revision: 1,
+          };
+          ensureRows(c.db, "disciplineRecords").push(adjustment);
+          changeDisciplineRecord(c, adjustment.id, {
+            revision: 1,
+            action: "approve",
+            reason: d.reason,
+          });
+        }
+        k.status = "closed";
+        k.decision = d.decision;
+        k.reason = d.reason;
+        k.decidedBy = c.user.uid;
+        k.decidedAt = c.now.toISOString();
+        k.meetingAt = d.meetingAt;
+        k.parentContactStatus = d.parentContactStatus;
+        k.revision++;
+        schoolAudit(c, "Inson qarori saqlandi", k.id, old, k);
+        return k;
+      },
+    ),
+  );
+  app.post(
+    "/api/discipline/cases/:id/letter",
+    mutate("discipline-letter-create", common, (c, _d, req) => {
+      const k = (c.db.disciplineCases || []).find(
+        (k: DisciplineCase) =>
+          k.id === req.params.id && k.schoolId === c.user.institutionId,
+      );
+      if (!k || !caseAllowed(c, k))
+        throw new SchoolError(403, "Hujjatga ruxsat yo‘q.");
+      const l = generateWarningLetter(c, k);
+      schoolAudit(c, "Hujjat qoralamasi tayyorlandi", l.id, null, {
+        caseId: k.id,
+      });
+      return l;
+    }),
+  );
+  app.patch(
+    "/api/discipline/letters/:id",
+    mutate(
+      "discipline-letter-change",
+      common.extend({
+        revision: z.number().int(),
+        action: z.enum(["save", "approve", "issue"]),
+        body: z.string().trim().min(30).max(15000).optional(),
+        reason,
+      }),
+      (c, d, req) => {
+        if (!schoolAdmin(c.user))
+          throw new SchoolError(
+            403,
+            "Hujjatni faqat vakolatli administrator rasmiylashtiradi.",
+          );
+        const l = (c.db.warningLetters || []).find(
+          (l: WarningLetter) =>
+            l.id === req.params.id && l.schoolId === c.user.institutionId,
+        );
+        if (!l) throw new SchoolError(404, "Hujjat topilmadi.");
+        checkRevision(l.revision, d.revision);
+        if (l.status === "issued")
+          throw new SchoolError(
+            409,
+            "Berilgan hujjat o‘zgartirilmaydi. Yangi izoh/qaror kiriting.",
+          );
+        const old = structuredClone(l),
+          total = disciplineTotal(c, l.studentId, l.periodId);
+        if (d.action === "save") {
+          if (l.status !== "draft" || !d.body)
+            throw new SchoolError(400, "Faqat qoralama matni tahrirlanadi.");
+          l.body = d.body;
+          l.sourceRevision = total.revision;
+        }
+        if (d.action === "approve") {
+          if (l.status !== "draft" || l.sourceRevision !== total.revision)
+            throw new SchoolError(
+              409,
+              "Holat o‘zgargan. Qoralamani yangilang va qayta ko‘rib chiqing.",
+            );
+          if (/\[(?:vakolatli|to‘ldir|to'ldir|ko‘rib)[^\]]*\]/.test(l.body))
+            throw new SchoolError(
+              400,
+              "Shablondagi to‘ldirilmagan maydonlarni yakunlang.",
+            );
+          l.status = "approved";
+          l.approvedBy = c.user.uid;
+          l.approvedAt = c.now.toISOString();
+        }
+        if (d.action === "issue") {
+          if (l.status !== "approved" || l.sourceRevision !== total.revision)
+            throw new SchoolError(
+              409,
+              "Hujjat tasdiqlangan va joriy holatga mos bo‘lsin.",
+            );
+          l.status = "issued";
+          l.issuedAt = c.now.toISOString();
+          notifySchool(
+            c,
+            l.studentId,
+            "Shaxsiy rasmiy xabar tayyor",
+            "/student/discipline",
+            l.id + ":issued",
+          );
+        }
+        l.revision++;
+        schoolAudit(c, "Hujjat bosqichi o‘zgardi", l.id, old, {
+          ...l,
+          reason: d.reason,
+        });
+        return l;
+      },
+    ),
+  );
+  app.post(
+    "/api/discipline/export",
+    mutate(
+      "discipline-export",
+      common.extend({
+        kind: z.enum(["records", "letters", "cases"]),
+        classId: z.string().optional(),
+        studentId: z.string().optional(),
+        period: z.string().optional(),
+        typeId: z.string().optional(),
+        teacherId: z.string().optional(),
+        status: z.string().optional(),
+        from: z.string().optional(),
+        to: z.string().optional(),
+        q: z.string().max(100).optional(),
+        minPoints: z.number().min(-1000).max(1000).optional(),
+        maxPoints: z.number().min(0).max(1000).optional(),
+      }),
+      (c, d) => {
+        if (!schoolAdmin(c.user))
+          throw new SchoolError(
+            403,
+            "Intizom eksporti faqat administrator uchun.",
+          );
+        const rows =
+          (d.kind === "records"
+            ? c.db.disciplineRecords
+            : d.kind === "letters"
+              ? c.db.warningLetters
+              : c.db.disciplineCases) || [];
+        const selected = rows.filter(
+          (r: any) =>
+            r.schoolId === c.user.institutionId &&
+            (!d.classId || r.classId === d.classId) &&
+            (!d.studentId || r.studentId === d.studentId) &&
+            (!d.period || r.periodId === d.period) &&
+            (!d.typeId || r.typeId === d.typeId) &&
+            (!d.teacherId || r.teacherId === d.teacherId) &&
+            (!d.status || r.status === d.status) &&
+            (!d.from ||
+              localDate(new Date(r.happenedAt || r.createdAt)) >= d.from) &&
+            (!d.to ||
+              localDate(new Date(r.happenedAt || r.createdAt)) <= d.to) &&
+            (d.minPoints === undefined || (r.points ?? 0) >= d.minPoints) &&
+            (d.maxPoints === undefined || (r.points ?? 0) <= d.maxPoints) &&
+            (!d.q ||
+              `${c.db.users.find((u: any) => u.uid === r.studentId && u.institutionId === c.user.institutionId)?.displayName || ""} ${r.typeName || ""} ${r.reason || ""} ${r.stageName || ""}`
+                .toLowerCase()
+                .includes(d.q.toLowerCase())),
+        );
+        if (selected.length > 1000)
+          throw new SchoolError(
+            413,
+            "Eksportni sinf yoki davr bilan toraytiring.",
+          );
+        schoolAudit(c, "Intizom eksporti olindi", d.kind, null, {
+          count: selected.length,
+          classId: d.classId,
+          period: d.period,
+        });
+        return {
+          id: "export",
+          rows: selected,
+          students: c.db.users
+            .filter((u: any) =>
+              selected.some((r: any) => r.studentId === u.uid),
+            )
+            .map((u: any) => ({
+              id: u.uid,
+              name: u.displayName,
+              classCode: u.classCode,
+            })),
+          school: c.db.institutions.find(
+            (i: any) => i.id === c.user.institutionId,
+          )?.name,
+        };
+      },
+    ),
+  );
+  app.get(
+    "/api/discipline/records/:id/history",
+    read((c, req, res) => {
+      const r = record(c, String(req.params.id));
+      if (!r) throw new SchoolError(403, "Qaydga ruxsat yo‘q.");
+      const history = (c.db.schoolAuditEvents || [])
+        .filter((a: any) => a.schoolId === r.schoolId && a.entityId === r.id)
+        .map((a: any) =>
+          c.user.role === "student"
+            ? { id: a.id, action: a.action, at: a.at, actorName: a.actorName }
+            : a,
+        );
+      res.json({ history, record: r });
+    }),
+  );
+  app.get(
+    "/api/discipline/entity/:kind/:id",
+    read((c, req, res) => {
+      const id = String(req.params.id),
+        kind = String(req.params.kind);
+      let row: any;
+      if (kind === "record") row = record(c, id);
+      if (kind === "appeal")
+        row = (c.db.disciplineAppeals || []).find(
+          (a: any) =>
+            a.id === id &&
+            a.schoolId === c.user.institutionId &&
+            record(c, a.recordId),
+        );
+      if (kind === "case")
+        row = (c.db.disciplineCases || []).find(
+          (k: DisciplineCase) =>
+            k.id === id &&
+            k.schoolId === c.user.institutionId &&
+            (c.user.role === "student"
+              ? k.studentId === c.user.uid
+              : caseAllowed(c, k)),
+        );
+      if (kind === "letter")
+        row = (c.db.warningLetters || []).find(
+          (l: WarningLetter) =>
+            l.id === id &&
+            l.schoolId === c.user.institutionId &&
+            (c.user.role === "student"
+              ? l.studentId === c.user.uid && l.status === "issued"
+              : (c.db.disciplineCases || []).some(
+                  (k: DisciplineCase) => k.id === l.caseId && caseAllowed(c, k),
+                )),
+        );
+      if (kind === "correction")
+        row = (c.db.disciplineCorrections || []).find(
+          (r: any) =>
+            r.id === id &&
+            r.schoolId === c.user.institutionId &&
+            (schoolAdmin(c.user) || r.actorId === c.user.uid),
+        );
+      if (!row) throw new SchoolError(403, "Bu yozuvga ruxsat yo‘q.");
+      res.json({ row });
+    }),
+  );
+  app.post(
+    "/api/discipline/corrections/:id/resolve",
+    mutate("discipline-correction", common.extend({ reason }), (c, d, req) => {
+      if (!schoolAdmin(c.user))
+        throw new SchoolError(403, "Faqat administrator.");
+      const r = (c.db.disciplineCorrections || []).find(
+        (r: any) =>
+          r.id === req.params.id && r.schoolId === c.user.institutionId,
+      );
+      if (!r) throw new SchoolError(404, "So‘rov topilmadi.");
+      const old = structuredClone(r);
+      r.status = "resolved";
+      r.decisionReason = d.reason;
+      r.resolvedBy = c.user.uid;
+      r.resolvedAt = c.now.toISOString();
+      schoolAudit(c, "Tuzatish so‘rovi ko‘rib chiqildi", r.recordId, old, r);
+      return r;
+    }),
+  );
 }

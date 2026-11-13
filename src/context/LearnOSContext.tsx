@@ -10,21 +10,7 @@ import {
   signOut as firebaseSignOut,
   User as FirebaseUser,
 } from 'firebase/auth';
-import {
-  doc,
-  deleteDoc,
-  onSnapshot,
-  collection,
-  query,
-  where,
-} from 'firebase/firestore';
-import {
-  auth,
-  db,
-  createGoogleAuthProvider,
-  handleFirestoreError,
-  OperationType,
-} from '../firebase';
+import {auth,createGoogleAuthProvider} from '../firebase';
 import {
   mapFirebaseAuthError,
   isMobileOrTouchRedirectPreferred,
@@ -1391,29 +1377,14 @@ export const LearnOSProvider: React.FC<{ children: React.ReactNode }> = ({ child
     };
   }, [syncFirebaseUserWithBackend, addToast]);
 
-  // Firestore real-time onSnapshot listener when Firebase Auth user is active
+  // The authenticated API owns notification scope, including isolated previews.
   useEffect(() => {
-    if (!auth.currentUser || !currentUser) return;
-    const uid = auth.currentUser.uid;
-    const unsubNotifs = onSnapshot(
-      query(collection(db, 'notifications'), where('recipientUid', '==', uid)),
-      (snapshot) => {
-        if (!snapshot.empty) {
-          const fsNotifs = snapshot.docs.map((d) => d.data() as AppNotification);
-          setNotifications((prev) => {
-            const byId = new Map(prev.map((n) => [n.id, n]));
-            for (const fn of fsNotifs) byId.set(fn.id, fn);
-            return Array.from(byId.values());
-          });
-        }
-      },
-      (err) => {
-        console.warn('Firestore notification listener info:', err.message);
-      }
-    );
-
-    return () => unsubNotifs();
-  }, [currentUser?.uid]);
+    if(!currentUser||currentUser.mustChangePassword)return;
+    let active=true,inFlight=false;
+    const poll=async()=>{if(inFlight||document.visibilityState==='hidden')return;inFlight=true;try{const response=await apiFetch('/api/workspace/notifications?page=0');if(response.ok){const data=await response.json();if(active)setNotifications(prev=>{const byId=new Map(prev.filter(n=>n.institutionId===currentUser.institutionId&&n.recipientUid===currentUser.uid).map(n=>[n.id,n]));for(const n of data.rows)byId.set(n.id,n);return [...byId.values()];});}}catch{/* Keep the last known inbox while offline. */}finally{inFlight=false;}};
+    void poll();const timer=setInterval(()=>void poll(),60000),visible=()=>void poll();document.addEventListener('visibilitychange',visible);
+    return()=>{active=false;clearInterval(timer);document.removeEventListener('visibilitychange',visible);};
+  },[currentUser?.uid,currentUser?.institutionId,currentUser?.mustChangePassword,apiFetch]);
 
   const bootstrapInitialAdmin = useCallback(
     async (payload: {

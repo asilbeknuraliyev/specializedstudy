@@ -322,6 +322,7 @@ export function recalculateAttemptAfterManualGrading(
         awardedPoints: clamped,
         isCorrect: isFullOrPass,
         gradingStatus: 'graded' as const,
+        pendingManualReview: false,
         teacherFeedback: teacherFeedback.trim(),
         confirmedByUid,
         confirmedByName,
@@ -332,7 +333,7 @@ export function recalculateAttemptAfterManualGrading(
         typeof ans.awardedPoints === 'number' ? ans.awardedPoints : ans.isCorrect ? maxPts : 0;
       earnedPoints += pts;
       if (ans.isCorrect) correctCount += 1;
-      if (ans.gradingStatus === 'pending_review') pendingCount += 1;
+      if (ans.gradingStatus !== 'graded' && (ans.pendingManualReview || ['pending_review','pending_manual'].includes(ans.gradingStatus||''))) pendingCount += 1;
     }
 
     const existingTb = attempt.topicBreakdown?.find((t) => t.topicId === finalAns.topicId);

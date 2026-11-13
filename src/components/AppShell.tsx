@@ -1,3 +1,4 @@
+import {previewEnabled} from '../utils/previewUi';
 import {PanelNavigation,ProfileMenu} from './PanelNavigation';
 import {useRouteScroll} from '../utils/useRouteScroll';
 import React, {Suspense, useState, useEffect, useRef } from 'react';
@@ -135,7 +136,7 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
 
   const isActiveTestRunner = /^\/student\/assessments\/[^/]+$/.test(location.pathname);
 
-  const navItems = isAdminAccount
+  const allNavItems = isAdminAccount
     ? [
         { to: '/admin/dashboard', label: 'Bosh sahifa', icon: LayoutDashboard, end: true },
         {to:'/admin/demo',label:'DEMO sinf',icon:GraduationCap},
@@ -164,13 +165,14 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
         { to: '/admin/support-plans', label: 'Yordam rejalari', icon: HeartHandshake },
         { to: '/admin/settings', label: 'Sozlamalar', icon: Settings },
       ]
-    : currentUser.role==='teacher'?[{to:'/teacher/discipline',label:'Intizom va yordam',icon:HeartHandshake},{to:'/teacher/dashboard',label:'Bugungi ishlar',icon:Users,end:true},{to:'/teacher/topic-bank',label:'Mavzu testlari',icon:ClipboardCheck},{to:'/teacher/topic-review',label:'Yozma tekshiruv',icon:FileText},{to:'/teacher/workspace/attendance',label:'Davomat',icon:CalendarCheck},{to:'/teacher/workspace/assignments',label:'Vazifalar',icon:FileText},{to:'/teacher/workspace/materials',label:'Materiallar',icon:Library},{to:'/teacher/workspace/students',label:'O‘quvchi 360°',icon:Users},{to:'/teacher/workspace/support',label:'Yordam rejalari',icon:HeartHandshake}]:[
+    : currentUser.role==='teacher'?[{to:'/teacher/dashboard',label:'Bugungi ishlar',icon:Users,end:true},{to:'/teacher/discipline',label:'Intizom va yordam',icon:HeartHandshake},{to:'/teacher/topic-bank',label:'Mavzu testlari',icon:ClipboardCheck},{to:'/teacher/topic-review',label:'Yozma tekshiruv',icon:FileText},{to:'/teacher/workspace/attendance',label:'Davomat',icon:CalendarCheck},{to:'/teacher/workspace/assignments',label:'Vazifalar',icon:FileText},{to:'/teacher/workspace/materials',label:'Materiallar',icon:Library},{to:'/teacher/workspace/students',label:'O‘quvchi 360°',icon:Users},{to:'/teacher/workspace/support',label:'Yordam rejalari',icon:HeartHandshake}]:[
         {to:'/student/dashboard',label:'Bosh sahifa',icon:LayoutDashboard,end:true},
         {to:'/student/lessons',label:'Fanlar',icon:BookOpen},
         {to:'/student/timetable',label:'Jadval',icon:Calendar},
         {to:'/student/tasks',label:'Vazifalar',icon:ClipboardCheck},
         {to:'/student/me',label:'Men',icon:UserIcon},
       ];
+  const navItems=allNavItems.filter(i=>previewEnabled||!/(?:^|\/)(?:demo|learning-demo)(?:$|\/)/.test(i.to));
   const studentMobileBottomItems=navItems;
 
   // Mobile drawer items (for Students includes secondary actions like Natijalar & Profil)
@@ -404,7 +406,7 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
                       myNotifications.map((n) => (
                         <div
                           key={n.id}
-                          onClick={() => markNotificationRead(n.id)}
+                          role="button" tabIndex={0} onKeyDown={e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();navigate('/'+(currentUser.role==='teacher'?'teacher':currentUser.role==='student'?'student':'admin')+'/notifications');setNotifOpen(false);}}} onClick={() => {navigate('/'+(currentUser.role==='teacher'?'teacher':currentUser.role==='student'?'student':'admin')+'/notifications');setNotifOpen(false);}}
                           className={`p-2 rounded-md border text-xs cursor-pointer transition-colors ${
                             n.read
                               ? 'border-slate-100 dark:border-slate-800/60 bg-slate-50/50 dark:bg-slate-800/20 text-slate-500'
