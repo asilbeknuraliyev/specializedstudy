@@ -24,10 +24,12 @@ export function getRedirectResult(_auth:typeof auth){return redirectResult||=(as
 async function authorizeUrl(redirectTo:string){const {data,error}=await providerClient.auth.signInWithOAuth({provider:'google',options:{redirectTo,skipBrowserRedirect:true,queryParams:{prompt:'select_account'}}});if(error||!data.url)throw Error('Google kirishi sozlanmagan.');const url=new URL(data.url);if(url.origin!==config.url||url.pathname!=='/auth/v1/authorize')throw Error('Kirish manzili rad etildi.');return data.url;}
 export async function signInWithRedirect(_auth:typeof auth,_provider:GoogleAuthProvider){window.location.assign(await authorizeUrl(window.location.origin+'/auth/callback'));}
 export async function signInWithPopup(_auth:typeof auth,_provider:GoogleAuthProvider):Promise<{user:User}>{
- const nonce=crypto.randomUUID(),popup=window.open('about:blank','ss-google-'+nonce,'popup,width=520,height=720');
+ const nonce=crypto.randomUUID();window.sessionStorage.setItem('ss_oauth_popup_nonce',nonce);
+ const popup=window.open('about:blank','ss-google-'+nonce,'popup,width=520,height=720');
+ window.sessionStorage.removeItem('ss_oauth_popup_nonce');
  if(!popup)throw Object.assign(Error('Kirish oynasiga ruxsat bering.'),{code:'auth/popup-blocked'});
  try{
-  const url=await authorizeUrl(window.location.origin+'/auth/callback?ss_nonce='+nonce);
+  const url=await authorizeUrl(window.location.origin+'/auth/callback');
   const code=await new Promise<string>((resolve,reject)=>{
    let done=false;const finish=(error?:Error,value?:string)=>{if(done)return;done=true;window.removeEventListener('message',received);clearInterval(poll);clearTimeout(timeout);if(error)reject(error);else resolve(value!);};
    const received=(event:MessageEvent)=>{if(event.origin!==window.location.origin||event.source!==popup||event.data?.type!=='ss-oauth-code'||event.data.nonce!==nonce)return;if(typeof event.data.code!=='string'||event.data.code.length>4000)return finish(Error('Kirish javobi rad etildi.'));finish(undefined,event.data.code);};

@@ -1,3 +1,4 @@
+import {registerSupabaseAuthRoutes} from './src/server/supabaseAuth';
 import {deliveredNotification} from './src/utils/notificationPolicy';
 import {schoolDay} from './src/server/spacedReviewEngine';
 import {registerAiAccessGuard} from './src/server/aiAccessGuard';
@@ -526,7 +527,7 @@ async function startServer() {
     return standardJsonParser(req, res, next);
   });
 
-  app.use('/api',(req,res,next)=>{const c=authenticateRequest(req);if(c?.user.mustChangePassword&&!['/state','/account/password','/auth/logout','/auth/login','/auth/firebase-sync'].includes(req.path))return res.status(403).json({error:'Davom etish uchun parolni o‘zgartiring.',code:'PASSWORD_CHANGE_REQUIRED'});next();});
+  app.use('/api',(req,res,next)=>{const c=authenticateRequest(req);if(c?.user.mustChangePassword&&!['/state','/account/password','/auth/logout','/auth/login','/auth/firebase-sync','/auth/provider-sync'].includes(req.path))return res.status(403).json({error:'Davom etish uchun parolni o‘zgartiring.',code:'PASSWORD_CHANGE_REQUIRED'});next();});
   registerAiAccessGuard(app,{authenticate:authenticateRequest});
   registerDisciplineRoutes(app,{authenticate:authenticateRequest,save:saveDbState});
   registerWorkspaceRoutes(app,{authenticate:authenticateRequest,save:saveDbState});
@@ -536,6 +537,7 @@ async function startServer() {
   registerExamRoutes(app, {authenticate: authenticateRequest, save: saveDbState, notify: broadcastInstitutionUpdate});
   registerTopicRoutes(app,{authenticate:authenticateRequest,save:saveDbState});
   registerLearningDemoRoutes(app,{authenticate:authenticateRequest,save:saveDbState,hash:hashPassword,revoke:(uid:string)=>revokeAllUserSessions(uid)});
+  registerSupabaseAuthRoutes(app,{database:getDbState,save:saveDbState,issue:issueSessionToken});
   registerAccountRoutes(app,{authenticate:authenticateRequest,save:saveDbState,hash:hashPassword,verify:verifyPassword,revoke:revokeAllUserSessions,issue:issueSessionToken});
   registerTeachingRoutes(app,{authenticate:authenticateRequest,save:saveDbState,hash:hashPassword,revoke:revokeAllUserSessions});
   registerDemoRoutes(app,{authenticate:authenticateRequest,save:saveDbState,hash:hashPassword,revoke:revokeAllUserSessions});
@@ -10841,3 +10843,4 @@ process.on('unhandledRejection', (reason) => {
 startServer().catch((err) => {
   console.error('Failed to start server:', err);
 });
+

@@ -37,7 +37,7 @@ export function registerSupabaseAuthRoutes(app:Express,deps:any){
   const parsed=z.object({idToken:z.string().min(20).max(16000),inviteToken:z.string().max(128).optional()}).safeParse(req.body);
   if(!parsed.success)return res.status(400).json({error:'Kirish javobini tekshiring.'});
   try{
-   const identity=await verifiedProviderUser(parsed.data.idToken);
+   const identity=await (deps.verifyIdentity||verifiedProviderUser)(parsed.data.idToken);
    if(!identity.google)return res.status(403).json({error:'Tasdiqlangan Google kirishi kerak.'});
    const db:PersistentDatabaseState=deps.database('prod'),provider=identity.user,now=new Date().toISOString();
    let user=resolveProviderProfile(db,provider);
