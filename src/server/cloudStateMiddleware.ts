@@ -10,6 +10,7 @@ return async (req,res,next) => {
  try {
    const began=performance.now();
    const snapshot=await store.read();
+   if(snapshot.writesFrozen && !['GET','HEAD','OPTIONS'].includes(req.method))return res.status(503).set('Retry-After','30').json({code:'MIGRATION_IN_PROGRESS',error:'Ma’lumotlar xavfsiz ko‘chirilmoqda. Qurilmadagi javobni saqlang va birozdan keyin qayta urinib ko‘ring.'});
    const readMs=performance.now()-began;
    const baseState=JSON.stringify(snapshot.state);
    const context={...snapshot,dirty:false,afterCommit:[] as Array<()=>void>};

@@ -189,6 +189,8 @@ export class FirestoreExamSessionStore implements ExamSessionStore {
     const db = this.db(),
       ref = db.doc(this.root() + "/" + key);
     return db.runTransaction(async (tx) => {
+      const fence=await tx.get(db.doc((this.namespace||runtimeNamespace())+'/current'));
+      if(fence.data()?.writeFrozen===true)throw Error('MIGRATION_IN_PROGRESS');
       const head = await tx.get(ref);
       runtimeMetrics.read();
       const previous = await this.decode(head.data(), (refs) =>

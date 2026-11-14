@@ -48,13 +48,13 @@ const chunkCache=new Map<string,string>();
 let cachedBytes=0;
 function remember(id:string,data:string){if(chunkCache.has(id))return;chunkCache.set(id,data);cachedBytes+=data.length;while(cachedBytes>32*1024*1024){const key=chunkCache.keys().next().value!;cachedBytes-=chunkCache.get(key)!.length;chunkCache.delete(key);}}
 function database(){return getFirestore(getFirebaseAdminApp(),loadFirebaseAppletConfig().firestoreDatabaseId);}
-async function readCloudStateOnce():Promise<{state:PersistentDatabaseState;revision:string}> {
+async function readCloudStateOnce():Promise<{state:PersistentDatabaseState;revision:string;writesFrozen?:boolean}> {
  const db=database();runtimeMetrics.read();const head=await db.doc(`${ROOT}/current`).get();
  if(!head.exists)throw Error('Cloud state has not been migrated');
  const manifest=head.data()!;
  if(manifest.schema!==1||!Array.isArray(manifest.chunks))throw Error('Unsupported state schema');
  const currentCache=cache;
- if(currentCache && currentCache.revision===manifest.revision)return {state:JSON.parse(currentCache.serialized),revision:currentCache.revision};
+ if(currentCache && currentCache.revision===manifest.revision)return {state:JSON.parse(currentCache.serialized),revision:currentCache.revision,writesFrozen:manifest.writeFrozen===true};
  const contents=new Map<string,string>();
  for(const id of manifest.chunks)if(chunkCache.has(id))contents.set(id,chunkCache.get(id)!);
  const missing=[...new Set<string>(manifest.chunks)].filter(id=>!contents.has(id));
@@ -62,7 +62,7 @@ async function readCloudStateOnce():Promise<{state:PersistentDatabaseState;revis
  const state=decodeState(manifest.chunks.map((id:string)=>({id,data:contents.get(id)!})),manifest.digest);
  state.reinforcementSessions||=[];state.pilotPrograms||=[];state.learningConsents||=[];state.dataDeletionRequests||=[];state.dataDeletionPreviews||=[];state.schoolRetentionPolicies||=[];state.disciplinePeriods||=[];state.disciplinePolicies||=[];state.disciplineTypes||=[];state.disciplineRecords||=[];state.disciplineTotals||=[];state.disciplineCases||=[];state.disciplineAppeals||=[];state.warningLetters||=[];state.disciplineCorrections||=[];state.schoolAuditEvents||=[];state.schoolOperations||=[];state.topicAnalysisFacts||=[];state.topicAnalysisCohorts||=[];state.mistakeRecords||=[];state.spacedReviewQueue||=[];state.spacedReviewSessions||=[];state.spacedReviewAnswers||=[];state.reviewDailyUsage||=[];state.studentTopicProgress||=[];state.topicWriteOperations||=[];state.learningDemos||=[];state.topicQuestionVersions||=[];state.topicTestVersions||=[];state.topicImportBatches||=[];state.topicQuestions||=[];state.topicTests||=[];state.topicSessions||=[];state.topicReviews||=[];
  cache={revision:manifest.revision,serialized:JSON.stringify(state),chunks:manifest.chunks};
- return {state,revision:manifest.revision};
+ return {state,revision:manifest.revision,writesFrozen:manifest.writeFrozen===true};
 }
 export const readCloudState=coalescedRead(readCloudStateOnce);
 export async function writeCloudState(state:PersistentDatabaseState,expectedRevision:string|null,baseState?:string,retry=0):Promise<string> {
@@ -73,7 +73,7 @@ export async function writeCloudState(state:PersistentDatabaseState,expectedRevi
  // Stage immutable chunks before publishing the pointer. An interrupted write leaves
  // only unreachable chunks; readers continue to use the preceding complete revision.
  for(let offset=0;offset<changed.length;){const batch=db.batch();let size=0,count=0;while(offset<changed.length&&count<400&&size+changed[offset].data.length+256<6*1024*1024){const chunk=changed[offset++];batch.set(db.doc(`${ROOT}/chunks/items/${chunk.id}`),{data:chunk.data});size+=chunk.data.length+256;count++;}runtimeMetrics.write(count);await batch.commit();}
- try{await db.runTransaction(async tx=>{const ref=db.doc(`${ROOT}/current`);runtimeMetrics.read();const head=await tx.get(ref);if((head.exists?head.data()!.revision:null)!==expectedRevision)throw new StateConflictError();runtimeMetrics.write(head.exists?2:1);if(head.exists)tx.set(db.doc(`${ROOT}/revisions/items/${head.data()!.revision}`),head.data()!);tx.set(ref,{schema:1,revision,chunks:encoded.chunks.map(c=>c.id),digest:encoded.digest,previousRevision:expectedRevision,updatedAt:new Date().toISOString()});});}
+ try{await db.runTransaction(async tx=>{const ref=db.doc(`${ROOT}/current`);runtimeMetrics.read();const head=await tx.get(ref);if(head.data()?.writeFrozen===true)throw Error('MIGRATION_IN_PROGRESS');if((head.exists?head.data()!.revision:null)!==expectedRevision)throw new StateConflictError();runtimeMetrics.write(head.exists?2:1);if(head.exists)tx.set(db.doc(`${ROOT}/revisions/items/${head.data()!.revision}`),head.data()!);tx.set(ref,{schema:1,revision,chunks:encoded.chunks.map(c=>c.id),digest:encoded.digest,previousRevision:expectedRevision,updatedAt:new Date().toISOString()});});}
  catch(error){if(error instanceof StateConflictError&&baseState&&retry<2){const latest=await readCloudState();let merged:PersistentDatabaseState;try{merged=mergeState(JSON.parse(baseState),state,latest.state);}catch{throw new StateConflictError();}const saved=await writeCloudState(merged,latest.revision,JSON.stringify(latest.state),retry+1);Object.assign(state,merged);return saved;}throw error;}
  for(const chunk of encoded.chunks)remember(chunk.id,chunk.data);
  cache={revision,serialized:JSON.stringify(state),chunks:encoded.chunks.map(c=>c.id)};return revision;

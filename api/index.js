@@ -5160,6 +5160,8 @@ var FirestoreExamSessionStore = class {
   async change(key, fn) {
     const db = this.db(), ref = db.doc(this.root() + "/" + key);
     return db.runTransaction(async (tx) => {
+      const fence = await tx.get(db.doc((this.namespace || runtimeNamespace()) + "/current"));
+      if (fence.data()?.writeFrozen === true) throw Error("MIGRATION_IN_PROGRESS");
       const head = await tx.get(ref);
       runtimeMetrics.read();
       const previous = await this.decode(
@@ -10790,7 +10792,7 @@ async function readCloudStateOnce() {
   const manifest = head.data();
   if (manifest.schema !== 1 || !Array.isArray(manifest.chunks)) throw Error("Unsupported state schema");
   const currentCache = cache;
-  if (currentCache && currentCache.revision === manifest.revision) return { state: JSON.parse(currentCache.serialized), revision: currentCache.revision };
+  if (currentCache && currentCache.revision === manifest.revision) return { state: JSON.parse(currentCache.serialized), revision: currentCache.revision, writesFrozen: manifest.writeFrozen === true };
   const contents = /* @__PURE__ */ new Map();
   for (const id of manifest.chunks) if (chunkCache.has(id)) contents.set(id, chunkCache.get(id));
   const missing = [...new Set(manifest.chunks)].filter((id) => !contents.has(id));
@@ -10839,7 +10841,7 @@ async function readCloudStateOnce() {
   state.topicSessions ||= [];
   state.topicReviews ||= [];
   cache = { revision: manifest.revision, serialized: JSON.stringify(state), chunks: manifest.chunks };
-  return { state, revision: manifest.revision };
+  return { state, revision: manifest.revision, writesFrozen: manifest.writeFrozen === true };
 }
 var readCloudState = coalescedRead(readCloudStateOnce);
 async function writeCloudState(state, expectedRevision, baseState, retry = 0) {
@@ -10866,6 +10868,7 @@ async function writeCloudState(state, expectedRevision, baseState, retry = 0) {
       const ref = db.doc(`${ROOT}/current`);
       runtimeMetrics.read();
       const head = await tx.get(ref);
+      if (head.data()?.writeFrozen === true) throw Error("MIGRATION_IN_PROGRESS");
       if ((head.exists ? head.data().revision : null) !== expectedRevision) throw new StateConflictError();
       runtimeMetrics.write(head.exists ? 2 : 1);
       if (head.exists) tx.set(db.doc(`${ROOT}/revisions/items/${head.data().revision}`), head.data());
@@ -10898,6 +10901,7 @@ function createCloudStateMiddleware(store2 = { read: readCloudState, write: writ
     try {
       const began = performance.now();
       const snapshot = await store2.read();
+      if (snapshot.writesFrozen && !["GET", "HEAD", "OPTIONS"].includes(req.method)) return res.status(503).set("Retry-After", "30").json({ code: "MIGRATION_IN_PROGRESS", error: "Ma\u2019lumotlar xavfsiz ko\u2018chirilmoqda. Qurilmadagi javobni saqlang va birozdan keyin qayta urinib ko\u2018ring." });
       const readMs = performance.now() - began;
       const baseState = JSON.stringify(snapshot.state);
       const context = { ...snapshot, dirty: false, afterCommit: [] };
