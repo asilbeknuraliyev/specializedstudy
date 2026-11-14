@@ -16,7 +16,7 @@ export function ReviewDesk({ children }: React.PropsWithChildren) {
   const [tab, setTab] = useState("assignments");
   return (
     <section className="space-y-5">
-      <p className="text-sm text-slate-500">
+      <p className="text-sm text-slate-500 dark:text-slate-400">
         Ish, o‘quvchining javobi, mezon va ustoz fikri bitta tekshirish
         markazida.
       </p>

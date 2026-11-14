@@ -9,12 +9,10 @@ test("cookie boundary strips token from JSON, sets secure flags, blocks cross-or
   const app = express();
   app.use(localSessionResponse);
   app.post("/save", (_q, r) =>
-    r.json(
-      sessionBody(r, {
-        token: "test-not-a-real-session",
-        user: { uid: "DEMO" },
-      }),
-    ),
+    r.json({
+      token: "test-not-a-real-session",
+      user: { uid: "DEMO" },
+    }),
   );
   const server = app.listen(0, "127.0.0.1");
   await new Promise<void>((r) => server.once("listening", r));
@@ -35,6 +33,7 @@ test("cookie boundary strips token from JSON, sets secure flags, blocks cross-or
     assert.equal(good.status, 200);
     assert.equal((await good.json()).token, "cookie");
     const cookie = good.headers.get("set-cookie")!;
+    assert.ok(cookie.includes("__Host-ss_session=test-not-a-real-session"));
     for (const flag of ["HttpOnly", "Secure", "SameSite=Strict", "Path=/"])
       assert.ok(cookie.includes(flag));
   } finally {

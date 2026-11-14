@@ -11,14 +11,14 @@ export function SubmissionReceipt({ receipt }: { receipt?: ExamReceipt }) {
         Topshirish serverda tasdiqlandi
       </p>
       <p className="break-all text-sm">
-        <span className="text-slate-500">Tasdiq raqami: </span>
+        <span className="text-slate-500 dark:text-slate-400">Tasdiq raqami: </span>
         <strong>{receipt.id}</strong>
       </p>
-      <p className="text-sm text-slate-500">
+      <p className="text-sm text-slate-500 dark:text-slate-400">
         {new Date(receipt.submittedAt).toLocaleString("uz-UZ")} · saqlash v
         {receipt.revision}
       </p>
-      <p className="text-xs leading-6 text-slate-500">
+      <p className="text-xs leading-6 text-slate-500 dark:text-slate-400">
         Bu kvitansiya ish qabul qilinganini tasdiqlaydi. Yozma javoblarning
         yakuniy bahosi ustoz tekshiruvidan keyin chiqadi.
       </p>

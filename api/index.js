@@ -5039,6 +5039,17 @@ var LocalExamSessionStore = class {
     this.data = /* @__PURE__ */ new Map();
     this.locks = /* @__PURE__ */ new Map();
   }
+  async deleteFixture(key) {
+    if (!runtimeNamespace().startsWith("_specialized_preview_") || !/^[a-f0-9]{64}$/.test(key))
+      throw Error("Preview fixture cleanup only");
+    this.data.delete(key);
+    if (this.directory)
+      try {
+        await fs3.unlink(path3.join(this.directory, key + ".json"));
+      } catch (e) {
+        if (e.code !== "ENOENT") throw e;
+      }
+  }
   async read(key) {
     runtimeMetrics.read();
     if (this.directory) {
@@ -5099,6 +5110,11 @@ var FirestoreExamSessionStore = class {
   constructor(provider, namespace) {
     this.provider = provider;
     this.namespace = namespace;
+  }
+  async deleteFixture(key) {
+    if (!this.root().startsWith("_specialized_preview_") || !/^[a-f0-9]{64}$/.test(key))
+      throw Error("Preview fixture cleanup only");
+    await this.db().recursiveDelete(this.db().doc(this.root() + "/" + key));
   }
   db() {
     return this.provider ? this.provider() : getFirestore(
@@ -5766,6 +5782,20 @@ function registerExamReliabilityRoutes(app2, deps) {
       res.json(result);
     })
   );
+}
+
+// src/server/preflightAuth.ts
+function createPrivateApiPreflight(verify, token) {
+  return (req, res, next) => {
+    if (!/^\/api\/(?:state(?:\/|$)|exams(?:\/|$)|assessments\/submit$|workspace(?:\/|$)|school-admin(?:\/|$)|topic[-/]|spaced-review(?:\/|$)|learning-privacy(?:\/|$)|accounts(?:\/|$)|ai(?:\/|$)|events$)/.test(
+      req.path
+    ))
+      return next();
+    const signed = verify(token(req));
+    if (!signed || signed.env === "test" && process.env.NODE_ENV !== "test")
+      return res.status(401).json({ code: "LOGIN_REQUIRED", error: "Hisobga kiring." });
+    next();
+  };
 }
 
 // src/server/feedbackTemplates.ts
@@ -8283,6 +8313,31 @@ function registerAccountRoutes(app2, deps) {
   });
 }
 
+// src/server/cleanupDemoSessions.ts
+async function cleanupDemoSessions(db, demo) {
+  if (!runtimeNamespace().startsWith("_specialized_preview_"))
+    throw Error("Preview only");
+  const users = new Set(demo.userIds);
+  if ([...users].some((u) => !u.startsWith(demo.id + "-")))
+    throw Error("Invalid DEMO ownership");
+  const exams = (db.assessments || []).filter(
+    (a) => a.institutionId === demo.schoolId && users.has(a.teacherId)
+  );
+  const store2 = examSessionStore(), keys = [];
+  for (const exam of exams) {
+    let after;
+    do {
+      const rows = await store2.list(demo.schoolId, exam.id, after);
+      if (rows.some((r) => !users.has(r.session.studentId)))
+        throw Error("A non-DEMO learner session requires separate review");
+      keys.push(...rows.map((r) => r.key));
+      after = rows.length === 50 ? rows.at(-1).key : void 0;
+    } while (after);
+  }
+  for (const key of keys) await store2.deleteFixture(key);
+  return keys.length;
+}
+
 // src/server/cleanupDemoExams.ts
 function cleanupDemoExams(db, schoolId, users) {
   const exams = new Set((db.assessments || []).filter((a) => a.institutionId === schoolId && users.has(a.teacherId)).map((a) => a.id));
@@ -8491,7 +8546,7 @@ function registerLearningDemoRoutes(app2, deps) {
     deps.save(c.env, c.db);
     res.json({ accounts });
   });
-  app2.delete("/api/learning-demo", (req, res) => {
+  app2.delete("/api/learning-demo", async (req, res) => {
     const c = access(req, res);
     if (!c) return;
     const d = own(c);
@@ -8500,6 +8555,11 @@ function registerLearningDemoRoutes(app2, deps) {
     const school = (r) => (r.institutionId || r.schoolId) === c.user.institutionId;
     const assignmentIds = new Set((c.db.studentAssignments || []).filter((r) => school(r) && users.has(r.createdByUid)).map((r) => r.id));
     if ((c.db.assignmentSubmissions || []).some((r) => assignmentIds.has(r.assignmentId) && !users.has(r.studentId)) || (c.db.pilotPrograms || []).some((p) => school(p) && [...p.groupA || [], ...p.groupB || []].some((id) => users.has(id)) && [...p.groupA || [], ...p.groupB || []].some((id) => !users.has(id)))) return res.status(409).json({ error: "DEMO\u2019ga tegishli yozuv tashqi profil bilan bog\u2018langan. Avval administrator alohida tekshirsin; tashqi ma\u2019lumot o\u2018chirilmaydi." });
+    try {
+      await cleanupDemoSessions(c.db, d);
+    } catch {
+      return res.status(409).json({ error: "DEMO sessiyalarini tozalash tugamadi yoki tashqi profil bor. Qayta tekshiring; haqiqiy ma\u2019lumot o\u2018chirilmaydi." });
+    }
     if (!cleanupDemoExams(c.db, c.user.institutionId, users)) return res.status(409).json({ error: "DEMO nazorat ishida tashqi profil qatnashgan. Administrator alohida tekshirsin; ma\u2019lumot o\u2018chirilmaydi." });
     const recordIds = new Set((c.db.disciplineRecords || []).filter((r) => school(r) && users.has(r.studentId)).map((r) => r.id));
     for (const name of ["attendanceSessions", "attendanceRecords", "studentAssignments", "assignmentSubmissions", "submissionRevisions", "studentSupportPlans", "learningMaterials", "announcements", "reinforcementSessions", "learningConsents", "dataDeletionRequests", "dataDeletionPreviews", "disciplineRecords", "disciplineTotals", "disciplineCases", "disciplineAppeals", "warningLetters", "disciplineCorrections", "lessonPracticeResponses", "studentLastLessons"]) c.db[name] = (c.db[name] || []).filter((r) => !school(r) || !(users.has(r.studentId) || users.has(r.createdByUid) || users.has(r.uploadedByUid) || users.has(r.recordedByUid) || recordIds.has(r.recordId) || assignmentIds.has(r.assignmentId)));
@@ -10845,17 +10905,17 @@ function createCloudStateMiddleware(store2 = { read: readCloudState, write: writ
             res.setHeader("Server-Timing", `state;dur=${readMs.toFixed(1)}, commit;dur=${(performance.now() - commitBegan).toFixed(1)}`);
             json(sessionBody(res, body));
           } catch (error) {
-            runtimeMetrics.failure(error instanceof StateConflictError ? "conflict" : "write_failed");
+            runtimeMetrics.failure(quotaExhausted(error) ? "quota_exhausted" : error instanceof StateConflictError ? "conflict" : "write_failed");
             res.status(error instanceof StateConflictError ? 409 : 503);
-            json({ error: error instanceof StateConflictError ? "Ma\u2019lumot yangilangan. Sahifani yangilab, qayta urinib ko\u2018ring." : "Ma\u2019lumot saqlanmadi. Keyinroq qayta urinib ko\u2018ring." });
+            json({ code: quotaExhausted(error) ? "QUOTA_EXHAUSTED" : error instanceof StateConflictError ? "PERSISTENCE_CONFLICT" : "TEMPORARY", error: error instanceof StateConflictError ? "Ma\u2019lumot yangilangan. Sahifani yangilab, qayta urinib ko\u2018ring." : "Ma\u2019lumot saqlanmadi. Keyinroq qayta urinib ko\u2018ring." });
           }
         })();
         return res;
       });
       requestDatabase.run(context, next);
-    } catch {
-      runtimeMetrics.failure("read_failed");
-      res.status(503).json({ error: "Ma\u2019lumotlar bazasi hozircha tayyor emas. Administratorga murojaat qiling." });
+    } catch (error) {
+      runtimeMetrics.failure(quotaExhausted(error) ? "quota_exhausted" : "read_failed");
+      res.status(503).json({ code: quotaExhausted(error) ? "QUOTA_EXHAUSTED" : "TEMPORARY", error: "Ma\u2019lumotlar bazasi hozircha tayyor emas. Administratorga murojaat qiling." });
     }
   };
 }
@@ -14858,6 +14918,7 @@ async function startServer() {
       authorizedAdminCount: AUTHORIZED_ADMIN_EMAILS.length
     });
   });
+  app.use(createPrivateApiPreflight(verifySessionToken, extractRawTokenFromRequest));
   app.use(cloudStateMiddleware);
   app.use(localSessionResponse);
   const uploadJsonParser = express.json({ limit: "20mb" });
@@ -20174,6 +20235,7 @@ async function startServer() {
     const examSession = assessment.examKind ? db.examSessions?.find((s) => s.assessmentId === assessment.id && s.studentId === user.uid) : void 0;
     if (assessment.examKind) {
       if (!canTakeExam(user, assessment) || !examSession) return res.status(403).json({ error: "Nazorat ishini avval boshlang." });
+      if (examSession.stoppedAt && !examSession.submittedAttemptId) return res.status(423).json({ code: "REVIEW_REQUIRED", error: "Oyna almashish hodisalari ustoz ko\u2018rigini talab qiladi; bu ko\u2018chirish xulosasi emas. Sahifani yangilang. Javoblaringiz saqlangan." });
       if (examSession.submittedAttemptId) return res.json({ attempt: publicStudentAttempt(db.attempts.find((a) => a.id === examSession.submittedAttemptId && a.institutionId === user.institutionId), db.assessments) });
       if (assessment.examState === "paused" && !examSession.stoppedAt) return res.status(409).json({ error: "Nazorat vaqtincha to\u2018xtatilgan." });
       if (examSession.stoppedAt || Date.now() > examDeadline(assessment, examSession) || assessment.examState === "closed") submittedMap = examSession.answers;

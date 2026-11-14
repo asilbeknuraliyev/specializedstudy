@@ -19,6 +19,7 @@ export const examSessionKey = (school: string, exam: string, student: string) =>
     .update(JSON.stringify([school, exam, student]))
     .digest("hex");
 export interface ExamSessionStore {
+  deleteFixture(key: string): Promise<void>;
   read(key: string): Promise<DurableExamSession | undefined>;
   change<T>(
     key: string,
@@ -35,6 +36,20 @@ export interface ExamSessionStore {
 }
 // The test/development port serializes only the same learner; independent learners never share a write lock.
 export class LocalExamSessionStore implements ExamSessionStore {
+  async deleteFixture(key: string) {
+    if (
+      !runtimeNamespace().startsWith("_specialized_preview_") ||
+      !/^[a-f0-9]{64}$/.test(key)
+    )
+      throw Error("Preview fixture cleanup only");
+    this.data.delete(key);
+    if (this.directory)
+      try {
+        await fs.unlink(path.join(this.directory, key + ".json"));
+      } catch (e) {
+        if ((e as any).code !== "ENOENT") throw e;
+      }
+  }
   protected data = new Map<string, DurableExamSession>();
   private locks = new Map<string, Promise<any>>();
   constructor(private directory?: string) {}
@@ -105,6 +120,14 @@ export class LocalExamSessionStore implements ExamSessionStore {
   }
 }
 export class FirestoreExamSessionStore implements ExamSessionStore {
+  async deleteFixture(key: string) {
+    if (
+      !this.root().startsWith("_specialized_preview_") ||
+      !/^[a-f0-9]{64}$/.test(key)
+    )
+      throw Error("Preview fixture cleanup only");
+    await this.db().recursiveDelete(this.db().doc(this.root() + "/" + key));
+  }
   constructor(
     private provider?: () => Firestore,
     private namespace?: string,

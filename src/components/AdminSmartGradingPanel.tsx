@@ -420,7 +420,7 @@ export const AdminSmartGradingPanel: React.FC = () => {
                 </button>
               </div>
 
-              {activeSubmission.aiSuggestion&&<p className="text-xs leading-6 text-slate-500">Tavsiya manbasi: {activeSubmission.aiSuggestion.source==='gemini'?'AI modeli: '+activeSubmission.aiSuggestion.model:'Mahalliy mezonli tavsiya'} · {new Date(activeSubmission.aiSuggestion.generatedAt).toLocaleString('uz-UZ')} · dastlabki tavsiya, inson tekshiruvi shart.</p>}
+              {activeSubmission.aiSuggestion&&<p className="text-xs leading-6 text-slate-500">Tavsiya manbasi: {activeSubmission.aiSuggestion.source==='gemini'?'AI modeli: '+activeSubmission.aiSuggestion.model:activeSubmission.aiSuggestion.source==='local_rules'?'Mahalliy mezonli tavsiya':'Eski tavsiya: manba qayd etilmagan'} · {new Date(activeSubmission.aiSuggestion.generatedAt).toLocaleString('uz-UZ')} · dastlabki tavsiya, inson tekshiruvi shart.</p>}
               {/* Guardrail Notice */}
               <div className="p-3 rounded-xl bg-amber-50/70 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/60 flex items-start gap-2.5 text-xs text-amber-800 dark:text-amber-200">
                 <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-amber-600" />

@@ -21,9 +21,9 @@ export function StudentMenu() {
   return (
     <main className="mx-auto max-w-3xl space-y-5">
       <header>
-        <p className="text-xs font-semibold text-blue-600">SHAXSIY BO‘LIM</p>
+        <p className="text-xs font-semibold text-blue-600 dark:text-blue-400">SHAXSIY BO‘LIM</p>
         <h1 className="mt-2 text-3xl font-bold">Men</h1>
-        <p className="mt-3 text-sm text-slate-500">
+        <p className="mt-3 text-sm text-slate-500 dark:text-slate-400">
           {currentUser?.displayName} ·{" "}
           {currentUser?.classCode?.toUpperCase() || "Sinf biriktirilmagan"}
         </p>
@@ -64,7 +64,7 @@ export function StudentMenu() {
           </nav>
         </details>
       ))}
-      <p className="text-sm leading-7 text-slate-500">
+      <p className="text-sm leading-7 text-slate-500 dark:text-slate-400">
         Bugungi ishlar — Bugun sahifasida. Topshiriqlar — Vazifalarda, ustoz
         bahosi — Natijalarda.
       </p>

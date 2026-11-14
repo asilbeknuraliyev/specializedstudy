@@ -4,6 +4,7 @@ import {registerAiAccessGuard} from './src/server/aiAccessGuard';
 import {registerDisciplineRoutes} from './src/server/disciplineRoutes';
 import {finiteScoreOrFallback} from './src/utils/examReliability';
 import {registerExamReliabilityRoutes} from './src/server/examReliabilityRoutes';
+import {createPrivateApiPreflight} from './src/server/preflightAuth';
 import {registerWorkspaceRoutes} from './src/server/workspaceRoutes';
 import {registerReinforcementRoutes} from './src/server/reinforcementRoutes';
 import {registerSchoolAdminRoutes} from './src/server/schoolAdminRoutes';
@@ -504,6 +505,7 @@ async function startServer() {
     });
   });
 
+  app.use(createPrivateApiPreflight(verifySessionToken,extractRawTokenFromRequest));
   app.use(cloudStateMiddleware);
   app.use(localSessionResponse);
   const uploadJsonParser = express.json({ limit: '20mb' });
@@ -6951,6 +6953,7 @@ async function startServer() {
     const examSession = assessment.examKind ? db.examSessions?.find(s => s.assessmentId === assessment.id && s.studentId === user.uid) : undefined;
     if (assessment.examKind) {
       if (!canTakeExam(user,assessment) || !examSession) return res.status(403).json({error:'Nazorat ishini avval boshlang.'});
+      if(examSession.stoppedAt&&!examSession.submittedAttemptId)return res.status(423).json({code:'REVIEW_REQUIRED',error:'Oyna almashish hodisalari ustoz ko‘rigini talab qiladi; bu ko‘chirish xulosasi emas. Sahifani yangilang. Javoblaringiz saqlangan.'});
       if (examSession.submittedAttemptId) return res.json({attempt:publicStudentAttempt(db.attempts.find(a=>a.id===examSession.submittedAttemptId&&a.institutionId===user.institutionId),db.assessments)});
       if (assessment.examState==='paused'&&!examSession.stoppedAt) return res.status(409).json({error:'Nazorat vaqtincha to‘xtatilgan.'});
       if (examSession.stoppedAt || Date.now()>examDeadline(assessment,examSession) || assessment.examState==='closed') submittedMap=examSession.answers;

@@ -1,4 +1,4 @@
-import {runtimeMetrics} from './runtimeMetrics';
+import {runtimeMetrics,quotaExhausted} from './runtimeMetrics';
 import {sessionBody} from './sessionCookies';
 import type { RequestHandler } from 'express';
 import { requestDatabase } from './requestDatabase';
@@ -25,16 +25,16 @@ return async (req,res,next) => {
          for(const action of context.afterCommit)action();
          res.setHeader('Server-Timing',`state;dur=${readMs.toFixed(1)}, commit;dur=${(performance.now()-commitBegan).toFixed(1)}`);
          json(sessionBody(res,body));
-       } catch(error) {runtimeMetrics.failure(error instanceof StateConflictError?'conflict':'write_failed');
+       } catch(error) {runtimeMetrics.failure(quotaExhausted(error)?'quota_exhausted':error instanceof StateConflictError?'conflict':'write_failed');
          res.status(error instanceof StateConflictError?409:503);
-         json({error:error instanceof StateConflictError?'Ma’lumot yangilangan. Sahifani yangilab, qayta urinib ko‘ring.':'Ma’lumot saqlanmadi. Keyinroq qayta urinib ko‘ring.'});
+         json({code:quotaExhausted(error)?'QUOTA_EXHAUSTED':error instanceof StateConflictError?'PERSISTENCE_CONFLICT':'TEMPORARY',error:error instanceof StateConflictError?'Ma’lumot yangilangan. Sahifani yangilab, qayta urinib ko‘ring.':'Ma’lumot saqlanmadi. Keyinroq qayta urinib ko‘ring.'});
        }
      })();
      return res;
    }) as typeof res.json;
    requestDatabase.run(context,next);
- } catch {runtimeMetrics.failure('read_failed');
-   res.status(503).json({error:'Ma’lumotlar bazasi hozircha tayyor emas. Administratorga murojaat qiling.'});
+ } catch(error) {runtimeMetrics.failure(quotaExhausted(error)?'quota_exhausted':'read_failed');
+   res.status(503).json({code:quotaExhausted(error)?'QUOTA_EXHAUSTED':'TEMPORARY',error:'Ma’lumotlar bazasi hozircha tayyor emas. Administratorga murojaat qiling.'});
  }
 };
 

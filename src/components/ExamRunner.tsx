@@ -141,6 +141,11 @@ export function ExamRunner({ assessment }: { assessment: Assessment }) {
           </>
         )}
         {error && <p role="status">{error}</p>}
+        {exam.notice && (
+          <p role="status" className="text-sm text-blue-700 dark:text-blue-300">
+            {exam.notice}
+          </p>
+        )}
         <Link
           className="ss-primary"
           to={"/student/results/" + receipt.attemptId}
@@ -239,6 +244,14 @@ export function ExamRunner({ assessment }: { assessment: Assessment }) {
             Qayta yuborish
           </button>
         </div>
+      )}
+      {exam.notice && (
+        <p
+          role="status"
+          className="rounded-xl bg-blue-50 p-3 text-sm text-blue-800 dark:bg-blue-950 dark:text-blue-200"
+        >
+          {exam.notice}
+        </p>
       )}
       {exam.conflict && (
         <section

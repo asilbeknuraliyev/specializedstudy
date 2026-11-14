@@ -70,13 +70,13 @@ export function WorkflowHub() {
   return (
     <main className="mx-auto max-w-5xl space-y-6">
       <header>
-        <p className="text-xs font-semibold text-blue-600">
+        <p className="text-xs font-semibold text-blue-600 dark:text-blue-400">
           {teacher ? "USTOZ KONTENTI" : "O‘QUV JARAYONI"}
         </p>
         <h1 className="mt-2 text-3xl font-bold">
           {teacher ? "Darsni tayyorlash va o‘tkazish" : "Rejadan natijagacha"}
         </h1>
-        <p className="mt-3 text-sm leading-7 text-slate-500">
+        <p className="mt-3 text-sm leading-7 text-slate-500 dark:text-slate-400">
           Reja → dars → topshiriq → baholash → hisobot. Har bir amal o‘zining
           yagona boshqaruv joyiga olib boradi.
         </p>

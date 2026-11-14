@@ -19,6 +19,7 @@ export function useReliableExam(examId: string, uid: string) {
   const [data, setData] = useState<any>(),
     [answers, setAnswers] = useState<Record<string, string>>({}),
     [error, setError] = useState(""),
+    [notice,setNotice]=useState(''),
     [localStatus, setLocalStatus] = useState("Qurilma nusxasi tayyorlanmoqda"),
     [serverStatus, setServerStatus] = useState("Server tasdig‘i yo‘q"),
     [conflict, setConflict] = useState(false),
@@ -350,9 +351,10 @@ export function useReliableExam(examId: string, uid: string) {
         reason,
         answers: values.current,
       });
-      setError(
+      setNotice(
         "Izoh va qurilma nusxasi ustoz ko‘rigi uchun serverga saqlandi.",
       );
+      setError('');
     } catch (e) {
       issue(e);
     }
@@ -453,6 +455,7 @@ export function useReliableExam(examId: string, uid: string) {
     busy,
     submitting: !!intent.current,
     error,
+    notice,
     localStatus,
     serverStatus,
     conflict,

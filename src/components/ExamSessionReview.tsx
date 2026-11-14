@@ -50,7 +50,7 @@ export function ExamSessionReview() {
   return (
     <section className="space-y-4">
       <h2 className="text-xl font-bold">Imtihon hodisalari va qayta ochish</h2>
-      <p className="text-sm leading-7 text-slate-500">
+      <p className="text-sm leading-7 text-slate-500 dark:text-slate-400">
         {EXAM_POLICY.exits} Qayta ochish sababi, mas’ul va yangi muddat tarixda
         qoladi.
       </p>
@@ -100,7 +100,7 @@ export function ExamSessionReview() {
               Hodisalar va qarorlar tarixi
             </summary>
             {s.events.map((e: any, n: number) => (
-              <p key={n} className="my-2 text-xs text-slate-500">
+              <p key={n} className="my-2 text-xs text-slate-500 dark:text-slate-400">
                 {e.type === "tab_hidden"
                   ? "Boshqa oyna"
                   : e.type === "window_takeover"

@@ -1,3 +1,4 @@
+import {cleanupDemoSessions} from './cleanupDemoSessions';
 import {cleanupDemoExams} from './cleanupDemoExams';
 import {seedLearningDemoAnalysis} from './learningDemoAnalysis';
 import crypto from 'node:crypto';
@@ -49,12 +50,13 @@ export function registerLearningDemoRoutes(app:Express,deps:any){
   const accounts=d.userIds.map((uid:string)=>{const u=c.db.users.find((u:any)=>u.uid===uid),password=crypto.randomBytes(18).toString('base64url');c.db.passwordHashes[uid]=deps.hash(password);deps.revoke(uid,c.env);return{uid,login:u.login,password,displayName:u.displayName,role:u.role,subject:u.subject};});
   deps.save(c.env,c.db);res.json({accounts});
  });
- app.delete('/api/learning-demo',(req,res)=>{
+ app.delete('/api/learning-demo',async(req,res)=>{
   const c=access(req,res);if(!c)return;const d=own(c);if(!d)return res.json({deleted:true});
   const users=new Set(d.userIds),lessons=new Set(d.lessonIds),questions=new Set(c.db.topicQuestions.filter((q:any)=>lessons.has(q.lessonId)).map((q:any)=>q.id)),tests=new Set(c.db.topicTests.filter((t:any)=>lessons.has(t.lessonId)).map((t:any)=>t.id));
   const school=(r:any)=>(r.institutionId||r.schoolId)===c.user.institutionId;
   const assignmentIds=new Set((c.db.studentAssignments||[]).filter((r:any)=>school(r)&&users.has(r.createdByUid)).map((r:any)=>r.id));
   if((c.db.assignmentSubmissions||[]).some((r:any)=>assignmentIds.has(r.assignmentId)&&!users.has(r.studentId))||(c.db.pilotPrograms||[]).some((p:any)=>school(p)&&[...(p.groupA||[]),...(p.groupB||[])].some(id=>users.has(id))&&[...(p.groupA||[]),...(p.groupB||[])].some(id=>!users.has(id))))return res.status(409).json({error:'DEMO’ga tegishli yozuv tashqi profil bilan bog‘langan. Avval administrator alohida tekshirsin; tashqi ma’lumot o‘chirilmaydi.'});
+  try{await cleanupDemoSessions(c.db,d);}catch{return res.status(409).json({error:'DEMO sessiyalarini tozalash tugamadi yoki tashqi profil bor. Qayta tekshiring; haqiqiy ma’lumot o‘chirilmaydi.'});}
   if(!cleanupDemoExams(c.db,c.user.institutionId,users))return res.status(409).json({error:'DEMO nazorat ishida tashqi profil qatnashgan. Administrator alohida tekshirsin; ma’lumot o‘chirilmaydi.'});
   const recordIds=new Set((c.db.disciplineRecords||[]).filter((r:any)=>school(r)&&users.has(r.studentId)).map((r:any)=>r.id));
   for(const name of ['attendanceSessions','attendanceRecords','studentAssignments','assignmentSubmissions','submissionRevisions','studentSupportPlans','learningMaterials','announcements','reinforcementSessions','learningConsents','dataDeletionRequests','dataDeletionPreviews','disciplineRecords','disciplineTotals','disciplineCases','disciplineAppeals','warningLetters','disciplineCorrections','lessonPracticeResponses','studentLastLessons'])c.db[name]=(c.db[name]||[]).filter((r:any)=>!school(r)||!(users.has(r.studentId)||users.has(r.createdByUid)||users.has(r.uploadedByUid)||users.has(r.recordedByUid)||recordIds.has(r.recordId)||assignmentIds.has(r.assignmentId)));
