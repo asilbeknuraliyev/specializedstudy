@@ -169,6 +169,10 @@ test("actual Firestore adapter survives concurrent instances and >1MB payload ch
     assert.equal(await restored.read(key), undefined);
     assert.equal((await db.doc(restoredRoot + "/" + key).collection("chunks").get()).size, 0);
     await restored.deleteFixture(key); // Idempotent even after an interrupted prior cleanup.
+    const fence=db.doc('_specialized_preview_examtest/current');
+    await fence.set({writeFrozen:true});
+    await assert.rejects(store.change(key,old=>({session:old!,result:true})),/MIGRATION_IN_PROGRESS/);
+    await fence.delete();
   } finally {
     await db.recursiveDelete(db.collection(root));
     await db.recursiveDelete(
