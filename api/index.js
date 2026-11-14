@@ -5521,33 +5521,26 @@ function registerExamReliabilityRoutes(app2, deps) {
           const s = session(old);
           if (prior(s, d))
             return { session: s, result: dto(s, a, d.clientId, c.now) };
-          if (d.epoch < s.epoch) {
-            s.events.push({
-              type: "late_" + d.kind,
-              at: new Date(c.now).toISOString(),
-              observedAt: d.observedAt
-            });
-            s.events = s.events.slice(-200);
-            remember2(s, d);
+          const historical = d.epoch < s.epoch;
+          if (s.exitIds?.includes(d.operationId))
             return { session: s, result: dto(s, a, d.clientId, c.now) };
-          }
-          assertExamLease(s, d.clientId, d.epoch);
-          if (!s.receipt) {
-            s.events.push({
-              type: d.kind,
-              at: new Date(c.now).toISOString(),
-              ...d.observedAt ? { observedAt: d.observedAt } : {}
-            });
-            s.events = s.events.slice(-200);
-            if (d.kind === "tab_hidden" && !s.stoppedAt) {
-              s.exitCount = (s.exitCount || 0) + 1;
-              if (s.exitCount >= 3) {
-                s.stoppedAt = new Date(c.now).toISOString();
-                s.reviewStatus = "pending";
-              }
+          if (!historical) assertExamLease(s, d.clientId, d.epoch);
+          s.events.push({
+            type: historical ? "late_" + d.kind : d.kind,
+            at: new Date(c.now).toISOString(),
+            ...d.observedAt ? { observedAt: d.observedAt } : {}
+          });
+          s.events = s.events.slice(-200);
+          s.exitIds ||= [];
+          if (!s.receipt && !s.stoppedAt && d.kind === "tab_hidden" && d.epoch >= (s.reviewEpoch || 0) && !s.exitIds.includes(d.operationId)) {
+            s.exitIds.push(d.operationId);
+            s.exitCount = (s.exitCount || 0) + 1;
+            if (s.exitCount >= 3) {
+              s.stoppedAt = new Date(c.now).toISOString();
+              s.reviewStatus = "pending";
             }
-            remember2(s, d);
           }
+          remember2(s, d);
           return { session: s, result: dto(s, a, d.clientId, c.now) };
         })
       );
@@ -5774,6 +5767,8 @@ function registerExamReliabilityRoutes(app2, deps) {
         s.exitCount = 0;
         s.reviewStatus = "reopened";
         s.epoch++;
+        s.reviewEpoch = s.epoch;
+        s.exitIds = [];
         s.lease = void 0;
         s.revision++;
         remember2(s, d);

@@ -9,6 +9,7 @@ export interface ExamReceipt {
 }
 export interface DurableExamSession extends ExamSession {
   stateVersion?: number;
+  reviewEpoch?: number;
   protocol: 2;
   epoch: number;
   lease?: { clientId: string; until: number };

@@ -344,6 +344,53 @@ test("deadline rejects late answers; durable receipt survives projection failure
       426,
     );
   }));
+test("offline events survive window takeover, but events predating human reopening never penalize the new phase", () =>
+  fixture(async ({ call, store }: any) => {
+    const a = await start(call),
+      b = await start(call);
+    await call("/exams/exam/takeover-v2", {
+      operationId: op(),
+      clientId: b.clientId,
+      epoch: b.data.session.epoch,
+      revision: 0,
+    });
+    const first = {
+      operationId: op(),
+      clientId: a.clientId,
+      epoch: a.data.session.epoch,
+      kind: "tab_hidden",
+    };
+    await call("/exams/exam/exit-v2", first);
+    await store.change(examSessionKey("s", "exam", "u"), (s: any) => {
+      s.operations = [];
+      return { session: s, result: true };
+    });
+    await call("/exams/exam/exit-v2", first);
+    await call("/exams/exam/exit-v2", { ...first, operationId: op() });
+    const stop = await call("/exams/exam/exit-v2", {
+      ...first,
+      operationId: op(),
+    });
+    assert.equal(stop.data.session.exitCount, 3);
+    assert.equal(stop.data.state, "review_required");
+    await call(
+      "/exams/exam/review-v2",
+      {
+        operationId: op(),
+        studentId: "u",
+        revision: 0,
+        reason: "DEMO human system dialog review",
+        minutes: 10,
+      },
+      "teacher",
+    );
+    const late = await call("/exams/exam/exit-v2", {
+      ...first,
+      operationId: op(),
+    });
+    assert.equal(late.data.session.exitCount, 0);
+    assert.equal(late.data.session.stoppedAt, undefined);
+  }));
 test("independent learner transactions do not serialize behind another learner; zero AI score is retained and invalid values fall back", async () => {
   const store = new LocalExamSessionStore(),
     base: any = {

@@ -19,7 +19,7 @@ export function useReliableExam(examId: string, uid: string) {
   const [data, setData] = useState<any>(),
     [answers, setAnswers] = useState<Record<string, string>>({}),
     [error, setError] = useState(""),
-    [notice,setNotice]=useState(''),
+    [notice, setNotice] = useState(""),
     [localStatus, setLocalStatus] = useState("Qurilma nusxasi tayyorlanmoqda"),
     [serverStatus, setServerStatus] = useState("Server tasdig‘i yo‘q"),
     [conflict, setConflict] = useState(false),
@@ -129,6 +129,11 @@ export function useReliableExam(examId: string, uid: string) {
         setLocalStatus("Qurilma nusxasi ochilmadi");
         return [];
       });
+      events.current = [
+        ...new Map(
+          drafts.flatMap((r) => r.events || []).map((e) => [e.operationId, e]),
+        ).values(),
+      ];
       const saved = drafts.find((r) => !same(r.answers, d.session.answers));
       if (saved) setRecovered(saved);
       await persist();
@@ -354,7 +359,7 @@ export function useReliableExam(examId: string, uid: string) {
       setNotice(
         "Izoh va qurilma nusxasi ustoz ko‘rigi uchun serverga saqlandi.",
       );
-      setError('');
+      setError("");
     } catch (e) {
       issue(e);
     }

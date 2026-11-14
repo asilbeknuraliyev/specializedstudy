@@ -27,11 +27,11 @@ Firestore tranzaksiyalari qayta bajarilishi mumkin; tashqi ta’sirlar callback 
 - Emulator sinovi katta javobni arxivdan boshqa test namespace'iga tiklaydi va buzilgan bo‘lakni rad etishni tekshiradi. Bu haqiqiy production'ni ortga qaytarish amaliyoti emas; buning uchun texnik oyna va alohida zaxira kerak.
 - Kuzatuv sanagichlari joriy server nusxasiga tegishli; umumiy Firebase billing yoki kvota emas. Pullik rejim yoqilmaydi. Global xarajat ogohlantirishlari va haqiqiy Cloud Monitoring/Billing sozlamalari alohida operatsion ish bo‘lib qoladi.
 - `scripts/backupExamSessions.ts` mustaqil sessiya boshlarini va faqat ularga ulangan bo‘laklarni SHA-256 manifesti bilan lokal `.data/backups` ga arxivlaydi. Eski umumiy snapshot zaxirasining o‘zi faol v2 javoblari uchun yetarli emas. Arxivlar maxfiy; repozitoriyga qo‘shilmaydi. DEMO tozalash tugmasi yangi sessiya omborini ham tozalaydi va tashqi qatnashchi topilsa to‘xtaydi.
-- Imzosiz yoki noto‘g‘ri sessiya bilan himoyalangan API'ga kelgan so‘rov Firestore snapshot'ini o‘qishdan oldin rad etiladi. Bu faqat dastlabki tekshiruv; saqlangan revokatsiya va har bir resursga ruxsat odatdagi handlerda yana tekshiriladi.
+- Imzosiz yoki noto‘g‘ri sessiya bilan asosiy himoyalangan API'ga kelgan so‘rov Firestore snapshot'ini o‘qishdan oldin rad etiladi. Bu faqat dastlabki tekshiruv; saqlangan revokatsiya va har bir resursga ruxsat odatdagi handlerda yana tekshiriladi.
 
 ## Pilot va kengayish
 
-141 ta unit testi, cookie chegarasi, v2 protokol, alohida Firestore emulatori/rules va bundle tekshiruvi ishlatiladi. Brauzer dalillari alohida release hisobotiga yoziladi. Virtual 375px/1440px tekshiruvi haqiqiy telefon qurilmalaridagi foydalanish o‘rnini bosmaydi.
+143 ta unit testi, cookie chegarasi, v2 protokol, alohida Firestore emulatori/rules va bundle tekshiruvi ishlatiladi. Brauzer dalillari alohida release hisobotiga yoziladi. Virtual 375px/1440px tekshiruvi haqiqiy telefon qurilmalaridagi foydalanish o‘rnini bosmaydi.
 
 Lokal sintetik HTTP sinovida 50 va 200 bir vaqtdagi saqlash xatosiz o‘tdi; 1000 so‘rov bosqichida `ECONNREFUSED` kuzatildi. U muvaffaqiyat deb belgilanmaydi. Bu memory porti sinovi, Firestore/Vercel yuklama yoki narx o‘lchovi emas. 50 → 200 → 1000 cloud sinovi faqat alohida sintetik muhit, belgilangan xarajat chegarasi va to‘xtatish mezoni bilan o‘tkaziladi.
 
