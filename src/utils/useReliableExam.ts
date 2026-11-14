@@ -204,6 +204,11 @@ export function useReliableExam(examId: string, uid: string) {
         await persist();
         return true;
       } catch (e) {
+        if ([400, 413].includes((e as any).status)) {
+          pending.current = undefined;
+          intent.current = undefined;
+          await persist();
+        }
         issue(e);
         return false;
       }

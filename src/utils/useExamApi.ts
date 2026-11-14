@@ -23,7 +23,14 @@ export function useExamApi() {
       try {
         data = await response.json();
       } catch {
-        throw Error("Server javob bermadi. Qayta urinib ko‘ring.");
+        throw Object.assign(
+          Error(
+            response.status === 413
+              ? "Javob hajmi katta. Chizma yoki matnni kamaytiring."
+              : "Server javob bermadi. Qayta urinib ko‘ring.",
+          ),
+          { status: response.status },
+        );
       }
       if (!response.ok)
         throw Object.assign(Error(data.error || "Amal bajarilmadi."), {

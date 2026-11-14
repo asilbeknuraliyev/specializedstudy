@@ -9,6 +9,15 @@ export async function cleanupDemoSessions(db: any, demo: any) {
   const exams = (db.assessments || []).filter(
     (a: any) => a.institutionId === demo.schoolId && users.has(a.teacherId),
   );
+  const examIds = new Set(exams.map((a: any) => a.id));
+  if (
+    ["attempts", "examSessions"].some((name) =>
+      (db[name] || []).some(
+        (s: any) => examIds.has(s.assessmentId) && !users.has(s.studentId),
+      ),
+    )
+  )
+    throw Error("A non-DEMO legacy participant requires separate review");
   const store = examSessionStore(),
     keys: string[] = [];
   for (const exam of exams) {

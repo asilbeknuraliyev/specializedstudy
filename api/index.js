@@ -8318,6 +8318,13 @@ async function cleanupDemoSessions(db, demo) {
   const exams = (db.assessments || []).filter(
     (a) => a.institutionId === demo.schoolId && users.has(a.teacherId)
   );
+  const examIds = new Set(exams.map((a) => a.id));
+  if (["attempts", "examSessions"].some(
+    (name) => (db[name] || []).some(
+      (s) => examIds.has(s.assessmentId) && !users.has(s.studentId)
+    )
+  ))
+    throw Error("A non-DEMO legacy participant requires separate review");
   const store2 = examSessionStore(), keys = [];
   for (const exam of exams) {
     let after;
