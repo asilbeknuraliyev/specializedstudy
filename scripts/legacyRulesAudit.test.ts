@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {initializeApp as adminApp,deleteApp as deleteAdmin} from 'firebase-admin/app';
 import {getFirestore as adminFirestore} from 'firebase-admin/firestore';
+import {getStorage as adminStorage} from 'firebase-admin/storage';
 import {initializeApp,deleteApp} from 'firebase/app';
 import {getFirestore,connectFirestoreEmulator,doc,setDoc,getDoc,updateDoc,terminate} from 'firebase/firestore';
 import {getStorage,connectStorageEmulator,ref,uploadBytes,getBytes} from 'firebase/storage';
@@ -34,7 +35,9 @@ test('local legacy rules audit with synthetic identities only',async()=>{
   // Seed a public-to-signed-in material using the verified admin fixture allowed by the rules.
   const own=initializeApp({projectId:project,apiKey:'emulator-only',storageBucket:project+'.appspot.com'},'audit-owner'),ownerStore=getStorage(own);
   connectStorageEmulator(ownerStore,'127.0.0.1',9299,{mockUserToken:{sub:'DEMO-owner',email:'asilbeknuraliyev43@gmail.com',email_verified:true,platformAdmin:true}});
-  try{await uploadBytes(ref(ownerStore,'institutions/DEMO-school/materials/private.pdf'),new TextEncoder().encode('SYNTHETIC school-private bytes'),{contentType:'application/pdf'});await attempt('foreign signed-in user reads another school material',()=>getBytes(ref(second,'institutions/DEMO-school/materials/private.pdf')));}catch(e){if((e as any).code!=='storage/unauthorized')throw e;}
+  await adminStorage(admin).bucket(project+'.appspot.com').file('institutions/DEMO-school/materials/private.pdf').save(Buffer.from('SYNTHETIC school-private bytes'),{resumable:false,metadata:{contentType:'application/pdf'}});
+  await attempt('foreign signed-in user reads another school material',()=>getBytes(ref(second,'institutions/DEMO-school/materials/private.pdf')));
+  if(process.env.AUDIT_EXPECT_DENY==='1')await assert.rejects(uploadBytes(ref(ownerStore,'institutions/DEMO-school/materials/admin-client.pdf'),new TextEncoder().encode('SYNTHETIC'),{contentType:'application/pdf'}),e=>(e as any).code==='storage/unauthorized');
   await deleteApp(other);await deleteApp(own);
   console.log(JSON.stringify({syntheticOnly:true,productionRequests:0,confirmedLegacyFindings:finding}));
   if(process.env.AUDIT_EXPECT_DENY==='1')assert.deepEqual(finding,[],'Legacy client access must be denied after closure');
