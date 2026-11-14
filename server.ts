@@ -1,4 +1,8 @@
+import {authIngress,authenticationBucket,clientIpFingerprint} from './src/server/authIngress';
 import {registerSupabaseAuthRoutes} from './src/server/supabaseAuth';
+import {apiErrorHandler} from './src/server/apiErrorHandler';
+import {productionCsp} from './src/server/securityHeaders';
+import {asyncRoute} from './src/server/asyncRoute';
 import {deliveredNotification} from './src/utils/notificationPolicy';
 import {schoolDay} from './src/server/spacedReviewEngine';
 import {registerAiAccessGuard} from './src/server/aiAccessGuard';
@@ -74,6 +78,7 @@ import {
   hashPassword,
   generateSecureRandomPassword,
   verifyPassword,
+  verifyPasswordAsync,
   revokeSessionToken,
   revokeAllUserSessions,
   issueSessionToken,
@@ -320,12 +325,7 @@ const apiRateLimiter = new SlidingWindowRateLimiter();
 const failedLoginCounter = new Map<string, number>();
 const deniedAdminCounter = new Map<string, number>();
 
-function getClientIpHash(req: Request): string {
-  const forwarded = String(req.headers['x-forwarded-for'] || req.socket.remoteAddress || '127.0.0.1')
-    .split(',')[0]
-    .trim();
-  return computeSimpleHash(`ip:${forwarded}`);
-}
+function getClientIpHash(req: Request): string { return clientIpFingerprint(req); }
 
 function getRequestId(req: Request): string {
   return String((req as any).requestId || req.headers['x-request-id'] || `req-${Date.now()}`);
@@ -433,14 +433,14 @@ async function startServer() {
 
   app.use((req, res, next) => {
     const reqId =
-      String(req.headers['x-request-id'] || '').trim() ||
+      String(req.headers['x-request-id'] || '').replace(/[^a-zA-Z0-9_-]/g,'').slice(0,80) ||
       `req-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     (req as any).requestId = reqId;
     res.setHeader('X-Request-Id', reqId);
 
     res.setHeader(
       'Content-Security-Policy',
-      "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://apis.google.com https://www.gstatic.com https://*.firebaseapp.com https://accounts.google.com https://*.vercel.app; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https:; frame-src 'self' https://*.firebaseapp.com https://accounts.google.com https://apis.google.com; connect-src 'self' ws: wss: https://*.googleapis.com https://*.firebaseio.com https://*.firebaseapp.com https://apis.google.com https://accounts.google.com https://*.google.com https://www.gstatic.com https://*.vercel.app wss://*.firebaseio.com; frame-ancestors 'self' https://*.google.com https://*.goog https://*.run.app https://*.ai.studio https://ai.studio https://*.vercel.app;"
+      process.env.NODE_ENV === 'production' ? productionCsp : productionCsp.replace("script-src 'self'", "script-src 'self' 'unsafe-inline' 'unsafe-eval'").replace("connect-src 'self'", "connect-src 'self' ws: wss:")
     );
     res.setHeader('Cross-Origin-Opener-Policy', 'same-origin-allow-popups');
     res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
@@ -453,7 +453,7 @@ async function startServer() {
 
     const origin = req.headers.origin;
     if (origin) {
-      const requestHost = String(req.headers['x-forwarded-host'] || req.headers.host || '');
+      const requestHost = String(req.headers.host || '');
       const isAllowedOrigin = isTrustedCorsOrigin(origin, requestHost);
       if (!isAllowedOrigin && req.path.startsWith('/api/')) {
         return res.status(403).json({
@@ -479,6 +479,7 @@ async function startServer() {
   });
 
   app.get('/api/auth/diagnostics', (req, res) => {
+    if(process.env.AUTH_PROVIDER==='supabase')return res.json({status:'ok',provider:'supabase',authDomain:new URL(process.env.SUPABASE_URL||'https://invalid.invalid').host,requestHost:String(req.headers.host||''),googleProviderConfigured:process.env.SUPABASE_GOOGLE_ENABLED==='true'});
     const requestHost = String(req.headers['x-forwarded-host'] || req.headers.host || '').trim();
     const origin = String(req.headers.origin || '').trim();
     const appletCfg = loadFirebaseAppletConfig();
@@ -507,11 +508,14 @@ async function startServer() {
   });
 
   app.use(createPrivateApiPreflight(verifySessionToken,extractRawTokenFromRequest));
+  app.use(authIngress);
   app.use(cloudStateMiddleware);
   app.use(localSessionResponse);
   const uploadJsonParser = express.json({ limit: '20mb' });
   const standardJsonParser = express.json({ limit: '2mb' });
+  const authJsonParser = express.json({limit:'16kb'});
   app.use((req, res, next) => {
+    if(/^\/api\/(?:auth|account)\//.test(req.path))return authJsonParser(req,res,next);
     if (
       req.path.startsWith('/api/topic-bank/') ||
       req.path.startsWith('/api/exams/drafts') ||
@@ -537,7 +541,7 @@ async function startServer() {
   registerExamRoutes(app, {authenticate: authenticateRequest, save: saveDbState, notify: broadcastInstitutionUpdate});
   registerTopicRoutes(app,{authenticate:authenticateRequest,save:saveDbState});
   registerLearningDemoRoutes(app,{authenticate:authenticateRequest,save:saveDbState,hash:hashPassword,revoke:(uid:string)=>revokeAllUserSessions(uid)});
-  registerSupabaseAuthRoutes(app,{database:getDbState,save:saveDbState,issue:issueSessionToken});
+  registerSupabaseAuthRoutes(app,{database:getDbState,save:saveDbState,issue:issueSessionToken,authenticate:authenticateRequest,owner:(user:UserProfile)=>isVerifiedPlatformOwner(user,CONFIGURED_OWNER_EMAIL)});
   registerAccountRoutes(app,{authenticate:authenticateRequest,save:saveDbState,hash:hashPassword,verify:verifyPassword,revoke:revokeAllUserSessions,issue:issueSessionToken});
   registerTeachingRoutes(app,{authenticate:authenticateRequest,save:saveDbState,hash:hashPassword,revoke:revokeAllUserSessions});
   registerDemoRoutes(app,{authenticate:authenticateRequest,save:saveDbState,hash:hashPassword,revoke:revokeAllUserSessions});
@@ -556,7 +560,7 @@ async function startServer() {
     const isTestEnv = resolveRequestEnv(req) === 'test';
     const forceRateLimitInTest = req.headers['x-test-rate-limit'] === 'enforce';
     const effectiveMax = isTestEnv && !forceRateLimitInTest ? maxRequests * 20 : maxRequests;
-    const key = `${scope}:${getClientIpHash(req)}:${String(req.headers['x-test-client-id'] || '')}`;
+    const key = authenticationBucket(req,scope);
     const check = apiRateLimiter.check(key, effectiveMax, windowMs);
     res.setHeader('X-RateLimit-Remaining', String(check.remaining));
     if (!check.allowed) {
@@ -750,7 +754,7 @@ async function startServer() {
   });
 
   // Login with email & password
-  app.post('/api/auth/login', (req, res) => {
+  app.post('/api/auth/login', asyncRoute(async (req, res) => {
     if (!enforceRateLimit(req, res, 'login', 10, 60_000)) return;
     const env = resolveRequestEnv(req);
     const db = getDbState(env);
@@ -762,7 +766,7 @@ async function startServer() {
     }
 
 
-    if (!email || !password) {
+    if (!email || typeof password!=='string' || !password || password.length>128 || email.length>160) {
       return res.status(400).json({ error: 'Login va parolni kiriting.' });
     }
 
@@ -796,6 +800,7 @@ async function startServer() {
       saveDbState(env, db);
     };
 
+    const passwordValid=await verifyPasswordAsync(password,user?.status==='active'?db.passwordHashes[user.uid]:undefined);
     if (!user) {
       recordFailedLogin('hisob topilmadi');
       return res.status(401).json({ error: 'Login yoki parol noto‘g‘ri.' });
@@ -804,7 +809,7 @@ async function startServer() {
       recordFailedLogin('hisob faol emas');
       return res.status(401).json({ error: 'Login yoki parol noto‘g‘ri.' });
     }
-    if (!verifyPassword(String(password), db.passwordHashes[user.uid])) {
+    if (!passwordValid) {
       recordFailedLogin('noto‘g‘ri parol');
       return res.status(401).json({ error: 'Login yoki parol noto‘g‘ri.' });
     }
@@ -842,7 +847,7 @@ async function startServer() {
 
     const token = issueSessionToken(user.uid, env);
     return res.json({ user, token });
-  });
+  }));
 
   // Logout & Session Revocation
   app.post('/api/auth/logout', (req, res) => {
@@ -10783,6 +10788,7 @@ MUHIM: Bu faqat administrator ko'rib chiqishi uchun dastlabki tavsiya. O'zbek ti
     return res.json({ event: ev });
   });
 
+  app.use(apiErrorHandler);
   if (process.env.VERCEL) {
     return;
   }
@@ -10843,4 +10849,3 @@ process.on('unhandledRejection', (reason) => {
 startServer().catch((err) => {
   console.error('Failed to start server:', err);
 });
-

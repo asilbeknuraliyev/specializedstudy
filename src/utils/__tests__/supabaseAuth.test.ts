@@ -14,6 +14,11 @@ test('Supabase provider sync preserves immutable application IDs and trusts only
   identity={google:true,user:{id:'new-provider',email:'new@example.invalid',app_metadata:{},user_metadata:{role:'platform_owner',platformAdmin:true}}};
   const newUser=await sync({role:'teacher',classId:'DEMO-secret-class'});assert.equal(newUser.status,200);assert.equal(newUser.body.user.role,'student');assert.equal(newUser.body.user.classId,undefined);assert.ok(!newUser.body.user.platformAdmin);
   identity={google:true,user:{id:'foreign-provider',email:'native@example.invalid',app_metadata:{},user_metadata:{}}};assert.equal((await sync()).status,409,'email alone never attaches a native account');
+  db.classes=[{id:'DEMO-class',institutionId:'DEMO-school',code:'8a2',grade:8,track:'A',status:'active',inviteCode:'DEMO-INVITE'}];db.invitations=[];
+  identity={google:true,user:{id:'invited-provider',email:'invited@example.invalid',app_metadata:{},user_metadata:{}}};
+  assert.equal((await sync({inviteToken:'WRONG'})).status,400);assert.ok(!db.users.some((u:any)=>u.uid==='invited-provider'));
+  const invited=await sync({inviteToken:'DEMO-INVITE'});assert.equal(invited.status,200);assert.equal(invited.body.user.classId,'DEMO-class');
+  assert.equal((await fetch(base+'/api/admin/provision-claims',{method:'POST'})).status,403);
   identity.google=false;assert.equal((await sync()).status,403);
   assert.equal((await fetch(base+'/api/auth/firebase-sync',{method:'POST'})).status,410);
  }finally{await new Promise<void>(r=>server.close(()=>r()));delete process.env.AUTH_PROVIDER;}

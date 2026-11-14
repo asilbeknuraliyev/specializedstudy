@@ -1,32 +1,2968 @@
+var __defProp = Object.defineProperty;
+var __getOwnPropNames = Object.getOwnPropertyNames;
+var __esm = (fn, res, err) => function __init() {
+  if (err) throw err[0];
+  try {
+    return fn && (res = (0, fn[__getOwnPropNames(fn)[0]])(fn = 0)), res;
+  } catch (e) {
+    throw err = [e], e;
+  }
+};
+var __export = (target, all) => {
+  for (var name in all)
+    __defProp(target, name, { get: all[name], enumerable: true });
+};
+
+// src/server/runtimeScope.ts
+function runtimeNamespace(env = process.env) {
+  const name = env.PERSISTENCE_NAMESPACE || "_specialized_runtime";
+  if (name !== "_specialized_runtime" && !/^_specialized_preview_[a-z0-9_]{1,40}$/.test(name)) throw Error("Invalid persistence namespace");
+  if (env.VERCEL_ENV === "preview" && name === "_specialized_runtime") throw Error("Preview must use an isolated Firestore namespace");
+  if (env.VERCEL_ENV === "production" && name !== "_specialized_runtime") throw Error("Production namespace cannot be overridden");
+  return name;
+}
+var init_runtimeScope = __esm({
+  "src/server/runtimeScope.ts"() {
+  }
+});
+
+// src/constants/curriculum.ts
+function normalizeClassCodeInput(rawCode) {
+  if (rawCode === void 0 || rawCode === null) return null;
+  const cyrillicNormalized = String(rawCode).trim().toLowerCase().replace(/sinf|класс|class/gi, "").replace(/а/g, "a").replace(/т/g, "t").replace(/[-\s_."'`«»()]/g, "");
+  if (OFFICIAL_19_CLASS_CODES.includes(cyrillicNormalized)) {
+    return cyrillicNormalized;
+  }
+  return null;
+}
+function parseOfficialClassCode(rawCode) {
+  const clean = normalizeClassCodeInput(rawCode);
+  if (!clean) {
+    return null;
+  }
+  const match = clean.match(/^(5|6|7|8|9|10|11)(a1|a2|t)$/);
+  if (!match) return null;
+  const grade = Number(match[1]);
+  const suffix = match[2];
+  const track = suffix.startsWith("a") ? "A" : "T";
+  const trackLabel = track === "A" ? "Aniq fanlar" : "Tabiiy fanlar";
+  const section = suffix === "t" ? "t" : suffix.slice(1);
+  return {
+    code: clean,
+    grade,
+    track,
+    trackLabel,
+    section
+  };
+}
+function getDefaultSubjectsForTrack(track) {
+  const matched = DEFAULT_SUBJECTS.filter((s) => s.trackTypes.includes(track));
+  return {
+    subjectIds: matched.map((s) => s.id),
+    subjectNames: matched.map((s) => s.name)
+  };
+}
+function isSubjectCompatibleWithClass(subjectNameOrId, classCodeOrRoom, subjectsList = DEFAULT_SUBJECTS) {
+  const code = typeof classCodeOrRoom === "string" ? classCodeOrRoom.trim().toLowerCase() : (classCodeOrRoom.code || classCodeOrRoom.name || "").trim().toLowerCase();
+  const parsed = parseOfficialClassCode(code);
+  const normSubj = String(subjectNameOrId || "").trim().toLowerCase();
+  const subjObj = subjectsList.find(
+    (s) => s.id.toLowerCase() === normSubj || s.name.toLowerCase() === normSubj || s.code && s.code.toLowerCase() === normSubj
+  );
+  if (!parsed || !subjObj) {
+    return { compatible: true };
+  }
+  if (Array.isArray(subjObj.applicableClassCodes) && subjObj.applicableClassCodes.length > 0 && !subjObj.applicableClassCodes.map((c) => c.toLowerCase()).includes(parsed.code)) {
+    return {
+      compatible: false,
+      reason: `"${subjObj.name}" fani ${parsed.code} (${parsed.trackLabel}) sinfi yo\u2018nalishiga biriktirilmagan.`
+    };
+  }
+  if (Array.isArray(subjObj.trackTypes) && subjObj.trackTypes.length > 0 && !subjObj.trackTypes.includes(parsed.track)) {
+    return {
+      compatible: false,
+      reason: `"${subjObj.name}" fani faqat ${subjObj.trackTypes.join("/")} yo\u2018nalishi uchun mo\u2018ljallangan (${parsed.code} sinfi ${parsed.track} yo\u2018nalishida).`
+    };
+  }
+  return { compatible: true };
+}
+function buildOfficial19Classes(institutionId = DEFAULT_INSTITUTION_ID, academicYear = "2026-2027", adminUid = "admin-owner") {
+  const nowIso = "2026-01-01T00:00:00.000Z";
+  return OFFICIAL_19_CLASS_CODES.map((code) => {
+    const meta = parseOfficialClassCode(code);
+    const { subjectIds, subjectNames } = getDefaultSubjectsForTrack(meta.track);
+    const primarySubject = meta.track === "A" ? "Matematika" : "Biologiya";
+    const inviteCode = `SS-${code.toUpperCase()}-2026`;
+    return {
+      id: `class-${code}`,
+      code,
+      name: code,
+      grade: meta.grade,
+      track: meta.track,
+      trackLabel: meta.trackLabel,
+      section: meta.section,
+      academicYear,
+      subject: primarySubject,
+      subjectIds,
+      subjectNames,
+      teacherId: adminUid,
+      teacherName: "Specialized Study Admin",
+      institutionId,
+      inviteCode,
+      studentCount: 0,
+      status: "active",
+      createdAt: nowIso,
+      updatedAt: nowIso
+    };
+  });
+}
+var PLATFORM_OWNER_EMAIL, SECOND_PLATFORM_ADMIN_EMAIL, AUTHORIZED_ADMIN_EMAILS, DEFAULT_INSTITUTION_ID, A_TRACK_CLASS_CODES, T_TRACK_CLASS_CODES, OFFICIAL_19_CLASS_CODES, DEFAULT_SUBJECTS, DEFAULT_ACADEMIC_YEARS, DEFAULT_CURRICULUM_TOPICS;
+var init_curriculum = __esm({
+  "src/constants/curriculum.ts"() {
+    PLATFORM_OWNER_EMAIL = "asilbeknuraliyev43@gmail.com";
+    SECOND_PLATFORM_ADMIN_EMAIL = "bahodirboliqulov3@gmail.com";
+    AUTHORIZED_ADMIN_EMAILS = [
+      PLATFORM_OWNER_EMAIL,
+      SECOND_PLATFORM_ADMIN_EMAIL
+    ];
+    DEFAULT_INSTITUTION_ID = "inst-specialized-study";
+    A_TRACK_CLASS_CODES = [
+      "5a1",
+      "5a2",
+      "6a1",
+      "6a2",
+      "7a1",
+      "7a2",
+      "8a1",
+      "8a2",
+      "9a1",
+      "9a2",
+      "10a1",
+      "10a2",
+      "11a1",
+      "11a2"
+    ];
+    T_TRACK_CLASS_CODES = [
+      "7t",
+      "8t",
+      "9t",
+      "10t",
+      "11t"
+    ];
+    OFFICIAL_19_CLASS_CODES = [
+      "5a1",
+      "5a2",
+      "6a1",
+      "6a2",
+      "7a1",
+      "7a2",
+      "7t",
+      "8a1",
+      "8a2",
+      "8t",
+      "9a1",
+      "9a2",
+      "9t",
+      "10a1",
+      "10a2",
+      "10t",
+      "11a1",
+      "11a2",
+      "11t"
+    ];
+    DEFAULT_SUBJECTS = [
+      {
+        id: "subj-matematika",
+        institutionId: "global",
+        name: "Matematika",
+        code: "MAT",
+        grade: 8,
+        applicableGrades: [5, 6, 7, 8, 9, 10, 11],
+        trackTypes: ["A"],
+        applicableClassCodes: [...A_TRACK_CLASS_CODES],
+        description: "Aniq fanlar yo\u2018nalishi (A-track: 5a1\u201311a2) uchun matematika, algebra va geometriya kursi.",
+        status: "active",
+        createdAt: "2026-01-01T00:00:00.000Z"
+      },
+      {
+        id: "subj-ingliz-tili",
+        institutionId: "global",
+        name: "Ingliz tili",
+        code: "ENG",
+        grade: 8,
+        applicableGrades: [5, 6, 7, 8, 9, 10, 11],
+        trackTypes: ["A", "T"],
+        applicableClassCodes: [...OFFICIAL_19_CLASS_CODES],
+        description: "Aniq va Tabiiy fanlar yo\u2018nalishlaridagi barcha 19 ta sinf uchun ingliz tili kursi.",
+        status: "active",
+        createdAt: "2026-01-01T00:00:00.000Z"
+      },
+      {
+        id: "subj-fizika",
+        institutionId: "global",
+        name: "Fizika",
+        code: "PHY",
+        grade: 8,
+        applicableGrades: [5, 6, 7, 8, 9, 10, 11],
+        trackTypes: ["A"],
+        applicableClassCodes: [...A_TRACK_CLASS_CODES],
+        description: "Aniq fanlar yo\u2018nalishi (A-track: 5a1\u201311a2) uchun fizika va amaliy mexanika kursi.",
+        status: "active",
+        createdAt: "2026-01-01T00:00:00.000Z"
+      },
+      {
+        id: "subj-biologiya",
+        institutionId: "global",
+        name: "Biologiya",
+        code: "BIO",
+        grade: 7,
+        applicableGrades: [7, 8, 9, 10, 11],
+        trackTypes: ["T"],
+        applicableClassCodes: [...T_TRACK_CLASS_CODES],
+        description: "Tabiiy fanlar yo\u2018nalishi (T-track: 7t\u201311t) uchun biologiya va genetika kursi.",
+        status: "active",
+        createdAt: "2026-01-01T00:00:00.000Z"
+      },
+      {
+        id: "subj-kimyo",
+        institutionId: "global",
+        name: "Kimyo",
+        code: "CHM",
+        grade: 7,
+        applicableGrades: [7, 8, 9, 10, 11],
+        trackTypes: ["T"],
+        applicableClassCodes: [...T_TRACK_CLASS_CODES],
+        description: "Tabiiy fanlar yo\u2018nalishi (T-track: 7t\u201311t) uchun umumiy, noorganik va organik kimyo kursi.",
+        status: "active",
+        createdAt: "2026-01-01T00:00:00.000Z"
+      }
+    ];
+    DEFAULT_ACADEMIC_YEARS = [
+      {
+        id: "ay-2026-2027",
+        institutionId: "global",
+        name: "2026-2027",
+        startDate: "2026-09-02",
+        endDate: "2027-05-25",
+        isCurrent: true,
+        status: "active",
+        createdAt: "2026-01-01T00:00:00.000Z"
+      }
+    ];
+    DEFAULT_CURRICULUM_TOPICS = [
+      {
+        id: "topic-fractions",
+        code: "TOP-FRAC",
+        subjectId: "subj-matematika",
+        subjectCode: "MAT",
+        track: "A",
+        name: "Kasrlar va ratsional sonlar",
+        subject: "Matematika",
+        grade: 7,
+        description: "Oddiy va o\u2018nli kasrlar, ratsional sonlar ustida arifmetik amallar.",
+        learningObjectives: "Ratsional sonlarni qo\u2018shish, ayirish, ko\u2018paytirish va bo\u2018lish.",
+        status: "active",
+        orderIndex: 1
+      },
+      {
+        id: "topic-percentages",
+        code: "TOP-PERC",
+        subjectId: "subj-matematika",
+        subjectCode: "MAT",
+        track: "A",
+        name: "Foizlar va proporsiyalar",
+        subject: "Matematika",
+        grade: 7,
+        description: "Sonning foizini topish, foizga ko\u2018ra sonni topish va proporsiya xossalari.",
+        learningObjectives: "Foizli o\u2018zgarish va proporsional bog\u2018lanish masalalarini yechish.",
+        status: "active",
+        orderIndex: 2
+      },
+      {
+        id: "topic-equations",
+        code: "TOP-EQ",
+        subjectId: "subj-matematika",
+        subjectCode: "MAT",
+        track: "A",
+        name: "Chiziqli tenglamalar",
+        subject: "Matematika",
+        grade: 8,
+        description: "Bir noma\u2019lumli chiziqli tenglamalar, qavslarni ochish va tengsizliklar.",
+        learningObjectives: "Chiziqli tenglama va tengsizliklarning ildizlarini topish.",
+        status: "active",
+        orderIndex: 3
+      },
+      {
+        id: "topic-geometry",
+        code: "TOP-GEOM",
+        subjectId: "subj-matematika",
+        subjectCode: "MAT",
+        track: "A",
+        name: "Asosiy geometriya",
+        subject: "Matematika",
+        grade: 8,
+        description: "Uchburchaklar, to\u2018rtburchaklar yuzi, perimetri va Pifagor teoremasi.",
+        learningObjectives: "Tekis shakllarning yuzi, perimetri va burchak xossalarini hisoblash.",
+        status: "active",
+        orderIndex: 4
+      },
+      {
+        id: "topic-algebra",
+        code: "TOP-ALG",
+        subjectId: "subj-matematika",
+        subjectCode: "MAT",
+        track: "A",
+        name: "Algebraik ifodalar va darajalar",
+        subject: "Matematika",
+        grade: 8,
+        description: "Natural va butun ko\u2018rsatkichli darajalar, ko\u2018phadlar va qisqa ko\u2018paytirish formulalari.",
+        learningObjectives: "Daraja xossalarini qo\u2018llash va algebraik ifodalarni soddalashtirish.",
+        status: "active",
+        orderIndex: 5
+      },
+      {
+        id: "topic-eng-grammar",
+        code: "TOP-ENG-01",
+        subjectId: "subj-ingliz-tili",
+        subjectCode: "ENG",
+        name: "Present & Past Tenses",
+        subject: "Ingliz tili",
+        grade: 7,
+        description: "Ingliz tilida zamonlar tizimi va gap qurilishi.",
+        learningObjectives: "Present Simple, Present Continuous va Past Simple zamonlarini qo\u2018llash.",
+        status: "active",
+        orderIndex: 6
+      },
+      {
+        id: "topic-phy-kinematics",
+        code: "TOP-PHY-01",
+        subjectId: "subj-fizika",
+        subjectCode: "PHY",
+        track: "A",
+        name: "Kinematika asoslari va harakat qonunlari",
+        subject: "Fizika",
+        grade: 7,
+        description: "Tekis va notekis harakat, tezlik, tezlanish va yo\u2018l formulalari.",
+        learningObjectives: "Mexanik harakat tenglamalarini tuzish va masalalar yechish.",
+        status: "active",
+        orderIndex: 7
+      },
+      {
+        id: "topic-bio-cell",
+        code: "TOP-BIO-01",
+        subjectId: "subj-biologiya",
+        subjectCode: "BIO",
+        track: "T",
+        name: "Hujayra tuzilishi va hayotiy jarayonlar",
+        subject: "Biologiya",
+        grade: 8,
+        description: "Eukariot va prokariot hujayralar, organoidlar va moddalar almashinuvi.",
+        learningObjectives: "Hujayra organoidlari funksiyalarini farqlash va tahlil qilish.",
+        status: "active",
+        orderIndex: 8
+      },
+      {
+        id: "topic-chm-atoms",
+        code: "TOP-CHM-01",
+        subjectId: "subj-kimyo",
+        subjectCode: "CHM",
+        track: "T",
+        name: "Atom tuzilishi va davriy qonun",
+        subject: "Kimyo",
+        grade: 9,
+        description: "Kimyoviy elementlar davriy jadvali, elektron konfiguratsiya va kimyoviy bog\u2018lanish.",
+        learningObjectives: "Elementlarning davriy jadvaldagi o\u2018rniga ko\u2018ra xossalarini aniqlash.",
+        status: "active",
+        orderIndex: 9
+      }
+    ];
+  }
+});
+
+// src/utils/security.ts
+function isAuthorizedAdminEmail(email, configuredOwnerEmail) {
+  const normalized = String(email || "").trim().toLowerCase();
+  if (!normalized) return false;
+  if (configuredOwnerEmail && configuredOwnerEmail.trim().toLowerCase() !== PLATFORM_OWNER_EMAIL.toLowerCase()) {
+    return normalized === configuredOwnerEmail.trim().toLowerCase() || AUTHORIZED_ADMIN_EMAILS.includes(normalized);
+  }
+  return AUTHORIZED_ADMIN_EMAILS.includes(normalized);
+}
+function isVerifiedPlatformOwner(actor, configuredOwnerEmail = PLATFORM_OWNER_EMAIL) {
+  if (!actor || actor.status === "suspended" || actor.status === "archived") return false;
+  const normalizedActorEmail = String(actor.email || "").trim().toLowerCase();
+  if (!isAuthorizedAdminEmail(normalizedActorEmail, configuredOwnerEmail)) {
+    return false;
+  }
+  if (actor.emailVerified === false) {
+    return false;
+  }
+  return actor.platformAdmin === true || actor.platformOwner === true || actor.role === "platform_owner" || actor.role === "admin";
+}
+function computeSimpleHash(input) {
+  let h1 = 3735928559 ^ input.length;
+  let h2 = 1103547991 ^ input.length;
+  for (let i = 0, ch; i < input.length; i++) {
+    ch = input.charCodeAt(i);
+    h1 = Math.imul(h1 ^ ch, 2654435761);
+    h2 = Math.imul(h2 ^ ch, 1597334677);
+  }
+  h1 = Math.imul(h1 ^ h1 >>> 16, 2246822507) ^ Math.imul(h2 ^ h2 >>> 13, 3266489909);
+  h2 = Math.imul(h2 ^ h2 >>> 16, 2246822507) ^ Math.imul(h1 ^ h1 >>> 13, 3266489909);
+  return (4294967296 * (2097151 & h2) + (h1 >>> 0)).toString(16).padStart(16, "0");
+}
+function validateInvitationToken(rawToken, invitation, nowIso = (/* @__PURE__ */ new Date()).toISOString()) {
+  if (!invitation) {
+    return { valid: false, error: "Taklif kodi topilmadi." };
+  }
+  if (invitation.status === "accepted") {
+    return { valid: false, error: "Ushbu taklif kodi allaqachon ishlatilgan (bir martalik)." };
+  }
+  if (invitation.status === "revoked") {
+    return { valid: false, error: "Ushbu taklif kodi administrator tomonidan bekor qilingan." };
+  }
+  if (invitation.status === "expired" || new Date(invitation.expiresAt).getTime() < new Date(nowIso).getTime()) {
+    return { valid: false, error: "Taklif kodining amal qilish muddati tugagan." };
+  }
+  const hashed = computeSimpleHash(rawToken.trim().toUpperCase());
+  if (hashed !== invitation.tokenHash) {
+    return { valid: false, error: "Taklif kodi xato yoki haqiqiy emas." };
+  }
+  return { valid: true };
+}
+function canAccessInstitution(actor, targetInstitutionId) {
+  if (!actor || actor.status === "suspended") return false;
+  if (isVerifiedPlatformOwner(actor)) return true;
+  return actor.institutionId === targetInstitutionId;
+}
+function canAccessClass(actor, targetClass) {
+  if (!actor || actor.status === "suspended" || actor.status === "archived") return false;
+  if (isVerifiedPlatformOwner(actor)) return true;
+  if (actor.institutionId !== targetClass.institutionId) return false;
+  if (actor.role === "student") {
+    return actor.classId === targetClass.id || Boolean(
+      actor.classCode && targetClass.code && actor.classCode.trim().toLowerCase() === targetClass.code.trim().toLowerCase()
+    );
+  }
+  return false;
+}
+function canAccessStudentRecord(actor, targetStudent, _authorizedTeacherClassIds = []) {
+  if (!actor || actor.status === "suspended" || actor.status === "archived") return false;
+  if (isVerifiedPlatformOwner(actor)) return true;
+  if (actor.institutionId !== targetStudent.institutionId) return false;
+  if (actor.role === "student") {
+    return actor.uid === targetStudent.uid;
+  }
+  return false;
+}
+function sanitizeFormulaInjection(raw) {
+  const str = String(raw ?? "").trim();
+  if (!str) return "";
+  if (/^[=+\-@\t\r]/.test(str) && !/^[+-]?\d+(\.\d+)?$/.test(str)) {
+    return str.replace(/^[=+\-@\t\r]+/, "").trim();
+  }
+  return str;
+}
+function isSafeArchivePath(entryName) {
+  if (!entryName || typeof entryName !== "string") return false;
+  if (entryName.includes("\0")) return false;
+  const normalized = entryName.replace(/\\/g, "/").trim();
+  if (normalized.startsWith("/") || normalized.includes("../") || normalized.includes("/..") || normalized === ".." || /^[a-zA-Z]:/.test(normalized)) {
+    return false;
+  }
+  const lower = normalized.toLowerCase();
+  const forbiddenExts = [
+    ".exe",
+    ".bat",
+    ".cmd",
+    ".sh",
+    ".js",
+    ".mjs",
+    ".cjs",
+    ".ts",
+    ".php",
+    ".py",
+    ".dll",
+    ".so",
+    ".xlsm",
+    ".xlsb",
+    ".vbs",
+    ".ps1",
+    ".html",
+    ".htm",
+    ".svg"
+  ];
+  if (forbiddenExts.some((ext) => lower.endsWith(ext))) {
+    return false;
+  }
+  return true;
+}
+function detectImageMimeFromBytes(bytes) {
+  if (!bytes || bytes.length < 3) return null;
+  if (bytes.length >= 4 && bytes[0] === 137 && bytes[1] === 80 && bytes[2] === 78 && bytes[3] === 71) {
+    return "image/png";
+  }
+  if (bytes[0] === 255 && bytes[1] === 216 && bytes[2] === 255) {
+    return "image/jpeg";
+  }
+  if (bytes.length >= 12 && bytes[0] === 82 && bytes[1] === 73 && bytes[2] === 70 && bytes[3] === 70 && bytes[8] === 87 && bytes[9] === 69 && bytes[10] === 66 && bytes[11] === 80) {
+    return "image/webp";
+  }
+  return null;
+}
+function validateUploadedImageMeta(fileName, mimeTypeOrSize, sizeOrHeaderBytes, headerBytesArg, maxBytes = 5 * 1024 * 1024) {
+  let mimeType = "";
+  let sizeBytes = 0;
+  let headerBytes;
+  if (typeof mimeTypeOrSize === "number") {
+    sizeBytes = mimeTypeOrSize;
+    headerBytes = sizeOrHeaderBytes instanceof Uint8Array ? sizeOrHeaderBytes : headerBytesArg;
+  } else {
+    mimeType = String(mimeTypeOrSize || "");
+    sizeBytes = typeof sizeOrHeaderBytes === "number" ? sizeOrHeaderBytes : 0;
+    headerBytes = headerBytesArg;
+  }
+  if (!fileName || !isSafeArchivePath(fileName)) {
+    return { valid: false, error: "Xavfsiz bo\u2018lmagan fayl nomi yoki yo\u2018li." };
+  }
+  const lower = fileName.toLowerCase();
+  const extMatch = lower.match(/\.[a-z0-9]+$/);
+  const ext = extMatch ? extMatch[0] : "";
+  if (!ALLOWED_IMAGE_EXTS.has(ext)) {
+    return {
+      valid: false,
+      error: `Ruxsat etilmagan rasm formati (${ext || "noma\u2019lum"}). Faqat JPEG, PNG va WebP ruxsat etiladi.`
+    };
+  }
+  if (sizeBytes <= 0) {
+    return { valid: false, error: "Fayl bo\u2018sh." };
+  }
+  if (sizeBytes > maxBytes) {
+    return {
+      valid: false,
+      error: `Rasm hajmi ruxsat etilgan chegaradan (${Math.round(maxBytes / (1024 * 1024))} MB) oshib ketdi.`
+    };
+  }
+  if (headerBytes && headerBytes.length > 0) {
+    const detected = detectImageMimeFromBytes(headerBytes);
+    if (!detected || !ALLOWED_IMAGE_MIMES.has(detected)) {
+      return {
+        valid: false,
+        error: "Faylning haqiqiy binar tarkibi ruxsat etilgan rasm formatiga (JPEG/PNG/WebP) mos emas."
+      };
+    }
+    return { valid: true, verifiedMime: detected, mimeType: detected };
+  }
+  const cleanMime = String(mimeType || "").toLowerCase();
+  if (cleanMime && !ALLOWED_IMAGE_MIMES.has(cleanMime)) {
+    return {
+      valid: false,
+      error: `Ruxsat etilmagan MIME turi (${cleanMime}). Faqat JPEG, PNG va WebP ruxsat etiladi.`
+    };
+  }
+  const resolvedMime = cleanMime || (ext === ".png" ? "image/png" : ext === ".webp" ? "image/webp" : "image/jpeg");
+  return {
+    valid: true,
+    verifiedMime: resolvedMime,
+    mimeType: resolvedMime
+  };
+}
+function validateCSVStudentImport(csvText, existingEmails = []) {
+  const lines = csvText.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+  if (lines.length === 0) {
+    return {
+      validRows: [],
+      errors: ["CSV fayl bo'sh."],
+      duplicates: []
+    };
+  }
+  if (lines.length > 5001) {
+    return {
+      validRows: [],
+      errors: ["CSV fayl qatorlar soni maksimal chegaradan (5000 qator) oshib ketdi."],
+      duplicates: []
+    };
+  }
+  const headerLine = lines[0].toLowerCase();
+  const hasHeader = headerLine.includes("ism") || headerLine.includes("name") || headerLine.includes("email") || headerLine.includes("pochta");
+  const dataLines = hasHeader ? lines.slice(1) : lines;
+  const existingSet = new Set(existingEmails.map((e) => e.trim().toLowerCase()));
+  const seenInCsv = /* @__PURE__ */ new Set();
+  const validRows = [];
+  const errors = [];
+  const duplicates = [];
+  dataLines.forEach((line, idx) => {
+    const rowNum = hasHeader ? idx + 2 : idx + 1;
+    const cols = line.split(",").map((c) => sanitizeFormulaInjection(c.trim().replace(/^"|"$/g, "")));
+    if (cols.length < 2) {
+      errors.push(`${rowNum}-qator: Ism va elektron pochta ustunlari to'liq emas.`);
+      return;
+    }
+    const [displayName, email, className] = cols;
+    if (!displayName || displayName.length < 3) {
+      errors.push(`${rowNum}-qator: O'quvchi ismi kamida 3 ta belgidan iborat bo'lishi shart.`);
+      return;
+    }
+    const normalizedEmail = (email || "").toLowerCase();
+    if (!normalizedEmail || !normalizedEmail.includes("@") || !normalizedEmail.includes(".")) {
+      errors.push(`${rowNum}-qator: Noto'g'ri elektron pochta manzili (${email}).`);
+      return;
+    }
+    if (existingSet.has(normalizedEmail) || seenInCsv.has(normalizedEmail)) {
+      duplicates.push(`${rowNum}-qator: Takroriy elektron pochta (${email}).`);
+      return;
+    }
+    seenInCsv.add(normalizedEmail);
+    validRows.push({
+      displayName,
+      email: normalizedEmail,
+      className: className || void 0
+    });
+  });
+  return { validRows, errors, duplicates };
+}
+function isTrustedCorsOrigin(origin, requestHost) {
+  if (!origin || !origin.trim()) return true;
+  if (origin.trim().toLowerCase() === "null") return false;
+  try {
+    const parsed = new URL(origin.trim());
+    const hostname = parsed.hostname.toLowerCase();
+    const hostWithPort = parsed.host.toLowerCase();
+    if (requestHost && hostWithPort === requestHost.trim().toLowerCase()) {
+      return parsed.protocol === "https:" || (hostname === "localhost" || hostname === "127.0.0.1") && parsed.protocol === "http:";
+    }
+    if (hostname === "localhost" || hostname === "127.0.0.1") {
+      return false;
+    }
+    if (parsed.protocol !== "https:") {
+      return false;
+    }
+    if (typeof process !== "undefined" && process.env) {
+      const configuredUrls = [
+        process.env.APP_URL,
+        process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : void 0,
+        process.env.VERCEL_BRANCH_URL ? `https://${process.env.VERCEL_BRANCH_URL}` : void 0,
+        process.env.VERCEL_PROJECT_PRODUCTION_URL ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}` : void 0
+      ].filter(Boolean);
+      for (const rawUrl of configuredUrls) {
+        try {
+          const envParsed = new URL(rawUrl.startsWith("http") ? rawUrl : `https://${rawUrl}`);
+          if (envParsed.origin === parsed.origin) {
+            return true;
+          }
+        } catch {
+        }
+      }
+    }
+    return false;
+  } catch {
+    return false;
+  }
+}
+var ALLOWED_IMAGE_MIMES, ALLOWED_IMAGE_EXTS, SlidingWindowRateLimiter;
+var init_security = __esm({
+  "src/utils/security.ts"() {
+    init_curriculum();
+    ALLOWED_IMAGE_MIMES = /* @__PURE__ */ new Set(["image/jpeg", "image/png", "image/webp"]);
+    ALLOWED_IMAGE_EXTS = /* @__PURE__ */ new Set([".jpg", ".jpeg", ".png", ".webp"]);
+    SlidingWindowRateLimiter = class {
+      constructor() {
+        this.buckets = /* @__PURE__ */ new Map();
+      }
+      check(key, maxRequests, windowMs, nowMs = Date.now()) {
+        const cutoff = nowMs - windowMs;
+        const existing = (this.buckets.get(key) || []).filter((ts) => ts > cutoff);
+        if (existing.length >= maxRequests) {
+          const oldest = existing[0] || nowMs;
+          const retryAfterSeconds = Math.max(1, Math.ceil((oldest + windowMs - nowMs) / 1e3));
+          this.buckets.set(key, existing);
+          return {
+            allowed: false,
+            remaining: 0,
+            retryAfterSeconds
+          };
+        }
+        existing.push(nowMs);
+        this.buckets.set(key, existing);
+        return {
+          allowed: true,
+          remaining: Math.max(0, maxRequests - existing.length),
+          retryAfterSeconds: 0
+        };
+      }
+      reset(key) {
+        if (key) {
+          this.buckets.delete(key);
+        } else {
+          this.buckets.clear();
+        }
+      }
+    };
+  }
+});
+
+// src/server/requestDatabase.ts
+import { AsyncLocalStorage } from "node:async_hooks";
+var requestDatabase;
+var init_requestDatabase = __esm({
+  "src/server/requestDatabase.ts"() {
+    requestDatabase = new AsyncLocalStorage();
+  }
+});
+
+// src/utils/gamificationEngine.ts
+function getTashkentDateString(date4 = /* @__PURE__ */ new Date()) {
+  try {
+    const formatter = new Intl.DateTimeFormat("en-CA", {
+      timeZone: "Asia/Tashkent",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit"
+    });
+    return formatter.format(date4);
+  } catch {
+    return date4.toISOString().slice(0, 10);
+  }
+}
+function getIsoWeekKey(dateStr) {
+  const [y, m, d] = dateStr.split("-").map(Number);
+  const dt = new Date(Date.UTC(y || 2026, (m || 1) - 1, d || 1));
+  const dayNum = dt.getUTCDay() || 7;
+  const monday = new Date(dt);
+  monday.setUTCDate(dt.getUTCDate() - dayNum + 1);
+  const sunday = new Date(monday);
+  sunday.setUTCDate(monday.getUTCDate() + 6);
+  const thursday = new Date(monday);
+  thursday.setUTCDate(monday.getUTCDate() + 3);
+  const yearStart = new Date(Date.UTC(thursday.getUTCFullYear(), 0, 1));
+  const weekNo = Math.ceil(((thursday.getTime() - yearStart.getTime()) / 864e5 + 1) / 7);
+  const weekKey = `${thursday.getUTCFullYear()}-W${String(weekNo).padStart(2, "0")}`;
+  return {
+    weekKey,
+    weekStartDate: monday.toISOString().slice(0, 10),
+    weekEndDate: sunday.toISOString().slice(0, 10)
+  };
+}
+function calculateStudentLevel(totalXp) {
+  const safeXp = Math.max(0, Math.floor(Number(totalXp) || 0));
+  let matched = GAMIFICATION_LEVELS[0];
+  for (const lvl of GAMIFICATION_LEVELS) {
+    if (safeXp >= lvl.minXp) {
+      matched = lvl;
+    }
+  }
+  if (matched.maxXp === null) {
+    return {
+      currentLevel: matched.level,
+      currentLevelTitle: matched.title,
+      nextLevelXp: null,
+      levelProgressPercent: 100
+    };
+  }
+  const span = Math.max(1, matched.maxXp - matched.minXp);
+  const earnedInBand = Math.max(0, safeXp - matched.minXp);
+  const percent = Math.min(100, Math.round(earnedInBand / span * 100));
+  return {
+    currentLevel: matched.level,
+    currentLevelTitle: matched.title,
+    nextLevelXp: matched.maxXp,
+    levelProgressPercent: percent
+  };
+}
+function createInitialGamificationProfile(studentId, nowIso = (/* @__PURE__ */ new Date()).toISOString()) {
+  const lvl = calculateStudentLevel(0);
+  return {
+    id: studentId,
+    studentId,
+    totalXp: 0,
+    currentLevel: lvl.currentLevel,
+    currentLevelTitle: lvl.currentLevelTitle,
+    nextLevelXp: lvl.nextLevelXp,
+    levelProgressPercent: lvl.levelProgressPercent,
+    completedLessonsCount: 0,
+    completedPracticeCount: 0,
+    completedAssessmentsCount: 0,
+    completedGoalsCount: 0,
+    completedMilestonesCount: 0,
+    mathActivitiesCount: 0,
+    exploredSubjects: [],
+    exploredTopics: [],
+    avatarIcon: "compass",
+    streakRemindersEnabled: true,
+    notificationsEnabled: true,
+    updatedAt: nowIso
+  };
+}
+function createInitialStreakRecord(studentId, graceDaysAllowed = 1, nowIso = (/* @__PURE__ */ new Date()).toISOString()) {
+  return {
+    id: studentId,
+    studentId,
+    currentStreakDays: 0,
+    longestStreakDays: 0,
+    activeDates: [],
+    lastActiveDate: null,
+    graceDaysAllowed,
+    graceDaysUsedInCurrentStreak: 0,
+    statusMessage: "Yana davom ettirish vaqti! Bugungi ilk mashg'ulotni boshlang.",
+    updatedAt: nowIso
+  };
+}
+function diffDaysBetweenDateKeys(earlierDateKey, laterDateKey) {
+  const [y1, m1, d1] = earlierDateKey.split("-").map(Number);
+  const [y2, m2, d2] = laterDateKey.split("-").map(Number);
+  const t1 = Date.UTC(y1, (m1 || 1) - 1, d1 || 1);
+  const t2 = Date.UTC(y2, (m2 || 1) - 1, d2 || 1);
+  return Math.round((t2 - t1) / 864e5);
+}
+function computeHealthyStreak(existing, studentId, activityDateKey, graceDaysAllowed = 1, nowIso = (/* @__PURE__ */ new Date()).toISOString()) {
+  const base4 = existing ? {
+    ...existing,
+    activeDates: Array.from(new Set(existing.activeDates || [])).sort(),
+    graceDaysAllowed
+  } : createInitialStreakRecord(studentId, graceDaysAllowed, nowIso);
+  if (!activityDateKey || !/^\d{4}-\d{2}-\d{2}$/.test(activityDateKey)) {
+    return base4;
+  }
+  if (base4.activeDates.includes(activityDateKey)) {
+    return {
+      ...base4,
+      statusMessage: `${base4.currentStreakDays} kun faol o'qish davom etmoqda!`,
+      updatedAt: nowIso
+    };
+  }
+  const allDates = Array.from(/* @__PURE__ */ new Set([...base4.activeDates, activityDateKey])).sort();
+  let currentStreak = 1;
+  let longestStreak = Math.max(1, base4.longestStreakDays || 0);
+  let graceUsed = 0;
+  for (let i = 1; i < allDates.length; i++) {
+    const gap = diffDaysBetweenDateKeys(allDates[i - 1], allDates[i]);
+    if (gap === 1) {
+      currentStreak += 1;
+    } else if (gap > 1 && gap - 1 <= graceDaysAllowed) {
+      currentStreak += 1;
+      graceUsed += gap - 1;
+    } else if (gap > 1) {
+      currentStreak = 1;
+      graceUsed = 0;
+    }
+    if (currentStreak > longestStreak) {
+      longestStreak = currentStreak;
+    }
+  }
+  const lastPrev = base4.lastActiveDate;
+  const gapFromLast = lastPrev ? diffDaysBetweenDateKeys(lastPrev, activityDateKey) : 0;
+  const statusMessage = lastPrev && gapFromLast > graceDaysAllowed + 1 ? `Yana davom ettirish vaqti! Yangi ${currentStreak} kunlik ritm boshlandi.` : `${currentStreak} kun izchil o'rganish davom etmoqda!`;
+  return {
+    id: studentId,
+    studentId,
+    currentStreakDays: currentStreak,
+    longestStreakDays: longestStreak,
+    activeDates: allDates,
+    lastActiveDate: allDates[allDates.length - 1] || activityDateKey,
+    graceDaysAllowed,
+    graceDaysUsedInCurrentStreak: graceUsed,
+    statusMessage,
+    updatedAt: nowIso
+  };
+}
+function isMathSubjectOrArea(subject, curriculumArea) {
+  const s = `${subject || ""} ${curriculumArea || ""}`.toLowerCase();
+  return s.includes("matematika") || s.includes("algebra") || s.includes("geometriya");
+}
+function processVerifiedLearningEvent(input) {
+  const nowIso = input.occurredAt || (/* @__PURE__ */ new Date()).toISOString();
+  const dateKey = input.dateKey || getTashkentDateString(new Date(nowIso));
+  const config = input.config || DEFAULT_GAMIFICATION_CONFIG;
+  const badgeDefs = input.badgeDefinitions || DEFAULT_GAMIFICATION_BADGES;
+  const baseProfile = input.existingProfile ? {
+    ...input.existingProfile,
+    exploredSubjects: [...input.existingProfile.exploredSubjects || []],
+    exploredTopics: [...input.existingProfile.exploredTopics || []]
+  } : createInitialGamificationProfile(input.studentId, nowIso);
+  const baseStreak = input.existingStreak || createInitialStreakRecord(input.studentId, config.streakGraceDays, nowIso);
+  const alreadyProcessed = input.existingEvents.some(
+    (e) => e.studentId === input.studentId && e.idempotencyKey === input.idempotencyKey
+  ) || input.existingLedger.some(
+    (l) => l.studentId === input.studentId && l.idempotencyKey === input.idempotencyKey
+  );
+  if (alreadyProcessed || !config.enabled) {
+    return {
+      duplicate: true,
+      xpAwarded: 0,
+      leveledUp: false,
+      previousLevel: baseProfile.currentLevel,
+      newLevel: baseProfile.currentLevel,
+      profile: baseProfile,
+      newlyEarnedBadges: [],
+      streak: baseStreak,
+      updatedChallenges: input.existingChallenges || []
+    };
+  }
+  const xpEarnedToday = input.existingLedger.filter((l) => l.studentId === input.studentId && l.dateKey === dateKey && l.xpDelta > 0).reduce((sum, l) => sum + l.xpDelta, 0);
+  const configuredReward = Math.max(0, Number(config.xpRewards[input.activityType] ?? 0));
+  const remainingDailyAllowance = Math.max(0, (config.dailyXpCap || 150) - xpEarnedToday);
+  const xpAwarded = Math.min(configuredReward, remainingDailyAllowance);
+  const eventId = `evt_${input.studentId}_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+  const event = {
+    id: eventId,
+    idempotencyKey: input.idempotencyKey,
+    studentId: input.studentId,
+    classCode: input.classCode,
+    activityType: input.activityType,
+    subject: input.subject,
+    curriculumArea: input.curriculumArea,
+    topicId: input.topicId,
+    lessonId: input.lessonId,
+    assessmentId: input.assessmentId,
+    goalId: input.goalId,
+    quarter: input.quarter,
+    xpAwarded,
+    occurredAt: nowIso,
+    dateKey
+  };
+  const previousLevel = baseProfile.currentLevel;
+  const newTotalXp = baseProfile.totalXp + xpAwarded;
+  const lvlInfo = calculateStudentLevel(newTotalXp);
+  if (input.activityType === "lesson_completed") {
+    baseProfile.completedLessonsCount += 1;
+  } else if (input.activityType === "practice_completed") {
+    baseProfile.completedPracticeCount += 1;
+  } else if (input.activityType === "assessment_completed") {
+    baseProfile.completedAssessmentsCount += 1;
+  } else if (input.activityType === "weekly_goal_completed") {
+    baseProfile.completedGoalsCount += 1;
+  } else if (input.activityType === "curriculum_milestone_completed") {
+    baseProfile.completedMilestonesCount += 1;
+  }
+  if (input.activityType !== "daily_checkin" && isMathSubjectOrArea(input.subject, input.curriculumArea)) {
+    baseProfile.mathActivitiesCount += 1;
+  }
+  if (input.subject && !baseProfile.exploredSubjects.includes(input.subject)) {
+    baseProfile.exploredSubjects.push(input.subject);
+  }
+  const topicKey = input.topicId || input.lessonId;
+  if (topicKey && !baseProfile.exploredTopics.includes(topicKey)) {
+    baseProfile.exploredTopics.push(topicKey);
+  }
+  baseProfile.totalXp = newTotalXp;
+  baseProfile.currentLevel = lvlInfo.currentLevel;
+  baseProfile.currentLevelTitle = lvlInfo.currentLevelTitle;
+  baseProfile.nextLevelXp = lvlInfo.nextLevelXp;
+  baseProfile.levelProgressPercent = lvlInfo.levelProgressPercent;
+  baseProfile.updatedAt = nowIso;
+  const ledgerEntry = {
+    id: `xpl_${eventId}`,
+    idempotencyKey: input.idempotencyKey,
+    studentId: input.studentId,
+    eventId,
+    activityType: input.activityType,
+    xpDelta: xpAwarded,
+    balanceAfter: newTotalXp,
+    reason: input.reason,
+    referenceId: input.lessonId || input.assessmentId || input.goalId,
+    createdAt: nowIso,
+    dateKey
+  };
+  const updatedStreak = config.enableStreaks ? computeHealthyStreak(
+    baseStreak,
+    input.studentId,
+    dateKey,
+    config.streakGraceDays,
+    nowIso
+  ) : baseStreak;
+  const newlyEarnedBadges = [];
+  if (config.enableBadges) {
+    const ownedCodes = new Set(
+      input.existingStudentBadges.filter((b) => b.studentId === input.studentId).map((b) => b.badgeCode)
+    );
+    const activeDaysCount = updatedStreak.activeDates.length;
+    const distinctTopicsOrAreasCount = baseProfile.exploredTopics.length;
+    for (const def of badgeDefs) {
+      if (!def.isActive || ownedCodes.has(def.code)) continue;
+      let qualifies = false;
+      switch (def.code) {
+        case "BIRINCHI_QADAM":
+          qualifies = baseProfile.completedLessonsCount >= def.thresholdValue;
+          break;
+        case "FAOL_OQUVCHI":
+          qualifies = baseProfile.completedLessonsCount >= def.thresholdValue;
+          break;
+        case "MATEMATIKA_IXLOSMANDI":
+          qualifies = baseProfile.mathActivitiesCount >= def.thresholdValue;
+          break;
+        case "IZCHILLIK":
+          qualifies = activeDaysCount >= def.thresholdValue;
+          break;
+        case "BILIM_IZLOVCHISI":
+          qualifies = distinctTopicsOrAreasCount >= def.thresholdValue || baseProfile.exploredSubjects.length >= 2;
+          break;
+        case "BIRINCHI_TEST":
+          qualifies = baseProfile.completedAssessmentsCount >= def.thresholdValue;
+          break;
+        case "MASHGULOT_USTASI":
+          qualifies = baseProfile.completedGoalsCount >= def.thresholdValue;
+          break;
+      }
+      if (qualifies) {
+        ownedCodes.add(def.code);
+        newlyEarnedBadges.push({
+          id: `sbadge_${input.studentId}_${def.code}`,
+          studentId: input.studentId,
+          badgeId: def.id,
+          badgeCode: def.code,
+          title: def.title,
+          description: def.description,
+          earnedAt: nowIso,
+          triggerEventId: eventId
+        });
+      }
+    }
+  }
+  const updatedChallenges = (input.existingChallenges || []).map((challenge) => {
+    if (!challenge.isActive || challenge.classCode !== input.classCode) {
+      return challenge;
+    }
+    const matchesType = challenge.targetType === "lessons" && input.activityType === "lesson_completed" || challenge.targetType === "assessments" && input.activityType === "assessment_completed" || challenge.targetType === "checkins" && input.activityType === "daily_checkin" || challenge.targetType === "activities";
+    if (!matchesType) return challenge;
+    if (challenge.subject && input.subject && challenge.subject !== input.subject) {
+      return challenge;
+    }
+    const contributors = challenge.contributorStudentIds.includes(input.studentId) ? challenge.contributorStudentIds : [...challenge.contributorStudentIds, input.studentId];
+    return {
+      ...challenge,
+      currentCount: Math.min(challenge.targetCount, challenge.currentCount + 1),
+      contributorStudentIds: contributors,
+      updatedAt: nowIso
+    };
+  });
+  return {
+    duplicate: false,
+    xpAwarded,
+    leveledUp: baseProfile.currentLevel > previousLevel,
+    previousLevel,
+    newLevel: baseProfile.currentLevel,
+    profile: baseProfile,
+    event,
+    ledgerEntry,
+    newlyEarnedBadges,
+    streak: updatedStreak,
+    updatedChallenges
+  };
+}
+function classifyRoadmap2LessonBadge(lesson) {
+  const lt = (lesson.lessonType || "").toLowerCase();
+  const at = (lesson.assessmentType || lesson.milestoneType || "").toLowerCase();
+  const ec = (lesson.eventCategory || "").toLowerCase();
+  const titleLower = `${lesson.topicTitle || ""} ${lesson.title || ""}`.toLowerCase();
+  if (lt === "bsb_analysis" || titleLower.includes("bsb") && (titleLower.includes("tahlil") || titleLower.includes("xato"))) {
+    return "BSB tahlili";
+  }
+  if (lt === "chsb_analysis" || titleLower.includes("chsb") && (titleLower.includes("tahlil") || titleLower.includes("xato"))) {
+    return "CHSB tahlili";
+  }
+  if (lt === "bsb" || at === "bsb" || /\bbsb\b/i.test(titleLower) || lt.includes("yozma ish-41")) {
+    return "BSB";
+  }
+  if (lt === "chsb" || at === "chsb" || ec === "quarterly_assessment" || /\bchsb\b/i.test(titleLower) || lt.includes("choraklik-39")) {
+    return "CHSB";
+  }
+  if (lt === "written_exam" || at === "written_work" || ec === "written_assessment" || titleLower.includes("nazorat ishi") || titleLower.includes("yozma ish") || lt.includes("yozma ish")) {
+    return "Yozma ish";
+  }
+  if (lt === "project" || at === "project" || ec === "project_work" || titleLower.includes("loyiha ishi") || lt.includes("loyiha ishi")) {
+    return "Loyiha ishi";
+  }
+  if (lt === "revision" || ec === "review_and_analysis" || titleLower.includes("takrorlash") || titleLower.includes("xatolar ustida ishlash")) {
+    return "Takrorlash";
+  }
+  return "Oddiy dars";
+}
+function buildWeeklyLearningRecap(params) {
+  const todayKey = params.dateKey || getTashkentDateString();
+  const { weekKey, weekStartDate, weekEndDate } = getIsoWeekKey(todayKey);
+  const weekEvents = params.events.filter(
+    (e) => e.studentId === params.studentId && e.dateKey >= weekStartDate && e.dateKey <= weekEndDate
+  );
+  const completedLessonsCount = weekEvents.filter((e) => e.activityType === "lesson_completed").length;
+  const completedTestsCount = weekEvents.filter((e) => e.activityType === "assessment_completed").length;
+  const xpEarned = weekEvents.reduce((sum, e) => sum + (e.xpAwarded || 0), 0);
+  const subjectsStudied = Array.from(
+    new Set(weekEvents.map((e) => e.subject).filter((s) => Boolean(s)))
+  );
+  const lessonTitleMap = new Map(params.lessons.map((l) => [l.id, l.title]));
+  const topicsPracticed = Array.from(
+    new Set(
+      weekEvents.map((e) => e.lessonId ? lessonTitleMap.get(e.lessonId) : void 0).filter((t) => Boolean(t))
+    )
+  ).slice(0, 6);
+  const newBadges = params.studentBadges.filter((b) => {
+    const earnedDate = (b.earnedAt || "").slice(0, 10);
+    return b.studentId === params.studentId && earnedDate >= weekStartDate && earnedDate <= weekEndDate;
+  }).map((b) => b.badgeCode);
+  const completedIds = new Set(
+    params.completions.filter((c) => c.studentId === params.studentId && c.status === "completed").map((c) => c.lessonId)
+  );
+  const nextClassLesson = params.lessons.filter(
+    (l) => l.status === "published" && (l.classCode === params.classCode || l.classId === `class_${params.classCode}`) && !completedIds.has(l.id)
+  ).sort(
+    (a, b) => (a.quarter || 1) - (b.quarter || 1) || (a.lessonNumber || a.orderIndex || 0) - (b.lessonNumber || b.orderIndex || 0)
+  )[0];
+  const recommendedNextFocus = nextClassLesson ? `${nextClassLesson.subject || nextClassLesson.subjectName || "Fan"}${nextClassLesson.curriculumArea ? ` (${nextClassLesson.curriculumArea})` : ""}: ${nextClassLesson.lessonNumber || nextClassLesson.orderIndex || "\u2014"}-dars \u2014 ${nextClassLesson.title}` : "O'quv xaritasi bo'yicha navbatdagi mavzuni tanlang";
+  return {
+    id: `${params.studentId}_${weekKey}`,
+    studentId: params.studentId,
+    weekKey,
+    weekStartDate,
+    weekEndDate,
+    completedLessonsCount,
+    completedTestsCount,
+    subjectsStudied,
+    xpEarned,
+    newBadges,
+    topicsPracticed,
+    recommendedNextFocus,
+    generatedAt: (/* @__PURE__ */ new Date()).toISOString()
+  };
+}
+var GAMIFICATION_LEVELS, DEFAULT_GAMIFICATION_BADGES, DEFAULT_GAMIFICATION_CONFIG;
+var init_gamificationEngine = __esm({
+  "src/utils/gamificationEngine.ts"() {
+    GAMIFICATION_LEVELS = [
+      { level: 1, title: "Boshlovchi", minXp: 0, maxXp: 50, description: "O'quv sayohatining ilk qadami" },
+      { level: 2, title: "Izlanuvchi", minXp: 50, maxXp: 150, description: "Muntazam bilim izlovchi" },
+      { level: 3, title: "O'rganuvchi", minXp: 150, maxXp: 300, description: "Mavzularni faol o\u2018zlashtiruvchi" },
+      { level: 4, title: "Bilimdon", minXp: 300, maxXp: 550, description: "Chuqur tushunchaga ega o\u2018quvchi" },
+      { level: 5, title: "Tadqiqotchi", minXp: 550, maxXp: 900, description: "Murakkab masalalarni yechuvchi" },
+      { level: 6, title: "Mutaxassis", minXp: 900, maxXp: 1400, description: "Fanlar bo\u2018yicha yuqori mahorat egasi" },
+      { level: 7, title: "Ekspert", minXp: 1400, maxXp: null, description: "Specialized Study akademik yetakchisi" }
+    ];
+    DEFAULT_GAMIFICATION_BADGES = [
+      {
+        id: "badge_birinchi_qadam",
+        code: "BIRINCHI_QADAM",
+        title: "BIRINCHI QADAM",
+        description: "Birinchi dars muvaffaqiyatli yakunlandi.",
+        category: "milestone",
+        thresholdValue: 1,
+        xpBonus: 0,
+        iconKey: "BIRINCHI_QADAM",
+        isActive: true
+      },
+      {
+        id: "badge_faol_oquvchi",
+        code: "FAOL_OQUVCHI",
+        title: "FAOL O'QUVCHI",
+        description: "5 ta tasdiqlangan dars muvaffaqiyatli yakunlandi.",
+        category: "milestone",
+        thresholdValue: 5,
+        xpBonus: 0,
+        iconKey: "FAOL_OQUVCHI",
+        isActive: true
+      },
+      {
+        id: "badge_matematika_ixlosmandi",
+        code: "MATEMATIKA_IXLOSMANDI",
+        title: "MATEMATIKA IXLOSMANDI",
+        description: "Matematika fanidan 10 ta o'quv faoliyati bajarildi.",
+        category: "subject",
+        thresholdValue: 10,
+        xpBonus: 0,
+        iconKey: "MATEMATIKA_IXLOSMANDI",
+        isActive: true
+      },
+      {
+        id: "badge_izchillik",
+        code: "IZCHILLIK",
+        title: "IZCHILLIK",
+        description: "3 ta alohida kunda o'quv faoliyati davom ettirildi.",
+        category: "consistency",
+        thresholdValue: 3,
+        xpBonus: 0,
+        iconKey: "IZCHILLIK",
+        isActive: true
+      },
+      {
+        id: "badge_bilim_izlovchisi",
+        code: "BILIM_IZLOVCHISI",
+        title: "BILIM IZLOVCHISI",
+        description: "Turli o'quv mavzulari va fan yo'nalishlari o'rganildi.",
+        category: "milestone",
+        thresholdValue: 3,
+        xpBonus: 0,
+        iconKey: "BILIM_IZLOVCHISI",
+        isActive: true
+      },
+      {
+        id: "badge_birinchi_test",
+        code: "BIRINCHI_TEST",
+        title: "BIRINCHI TEST",
+        description: "Birinchi nazorat ishi yoki test muvaffaqiyatli topshirildi.",
+        category: "assessment",
+        thresholdValue: 1,
+        xpBonus: 0,
+        iconKey: "BIRINCHI_TEST",
+        isActive: true
+      },
+      {
+        id: "badge_mashgulot_ustasi",
+        code: "MASHGULOT_USTASI",
+        title: "MASHG'ULOT USTASI",
+        description: "Haftalik shaxsiy o'quv maqsadi to'liq bajarildi.",
+        category: "goal",
+        thresholdValue: 1,
+        xpBonus: 0,
+        iconKey: "MASHGULOT_USTASI",
+        isActive: true
+      }
+    ];
+    DEFAULT_GAMIFICATION_CONFIG = {
+      id: "default",
+      enabled: true,
+      xpRewards: {
+        daily_checkin: 5,
+        lesson_completed: 10,
+        practice_completed: 5,
+        assessment_completed: 15,
+        weekly_goal_completed: 20,
+        curriculum_milestone_completed: 25
+      },
+      dailyXpCap: 150,
+      streakGraceDays: 1,
+      enableDailyCheckin: true,
+      enableBadges: true,
+      enableStreaks: true,
+      enableClassChallenges: true,
+      enableWeeklyRecap: true,
+      goalTemplates: [
+        "1 ta darsni o'rganish",
+        "10 ta mashq bajarish",
+        "1 ta test ishlash",
+        "Oldingi mavzuni takrorlash"
+      ],
+      updatedAt: "2026-01-01T00:00:00.000Z"
+    };
+  }
+});
+
+// src/utils/academicOsEngine.ts
+function isTTrackClass(classCode) {
+  return classCode.toLowerCase().endsWith("t");
+}
+function getAllowedSubjectsForClass(classCode) {
+  if (isTTrackClass(classCode)) {
+    return ["Ingliz tili", "Biologiya", "Kimyo", "Matematika"];
+  }
+  return ["Matematika", "Ingliz tili", "Fizika"];
+}
+function parseTimeToMinutes(timeStr) {
+  const match = /^(\d{1,2}):(\d{2})$/.exec((timeStr || "").trim());
+  if (!match) return null;
+  const hours = Number(match[1]);
+  const minutes = Number(match[2]);
+  if (hours < 0 || hours > 23 || minutes < 0 || minutes > 59) return null;
+  return hours * 60 + minutes;
+}
+function validateTimetableEntry(candidate, existingEntries) {
+  const issues = [];
+  const startMin = parseTimeToMinutes(candidate.startTime);
+  const endMin = parseTimeToMinutes(candidate.endTime);
+  if (startMin === null || endMin === null) {
+    issues.push({
+      type: "invalid_duration",
+      severity: "error",
+      message: "Dars boshlanish va tugash vaqti HH:mm formatida bo'lishi shart."
+    });
+    return issues;
+  }
+  const duration = endMin - startMin;
+  if (duration <= 0) {
+    issues.push({
+      type: "invalid_duration",
+      severity: "error",
+      message: "Tugash vaqti boshlanish vaqtidan keyin bo'lishi kerak."
+    });
+  } else if (duration < 25 || duration > 180) {
+    issues.push({
+      type: "invalid_duration",
+      severity: "warning",
+      message: `Dars davomiyligi (${duration} daqiqa) standart me'yordan (35\u201390 daqiqa) farq qiladi.`
+    });
+  }
+  const isT = isTTrackClass(candidate.classCode);
+  const allowedList = isT ? T_TRACK_SUBJECTS : A_TRACK_SUBJECTS;
+  const subjectAllowed = allowedList.some(
+    (s) => candidate.subject.toLowerCase().includes(s.toLowerCase()) || s.toLowerCase().includes(candidate.subject.toLowerCase())
+  );
+  if (!subjectAllowed) {
+    issues.push({
+      type: "subject_track_mismatch",
+      severity: "warning",
+      message: `${candidate.classCode.toUpperCase()} sinfi yo'nalishi uchun "${candidate.subject}" fani standart o'quv rejasiga kirmaydi.`
+    });
+  }
+  const sameDayClassEntries = existingEntries.filter(
+    (e) => e.timetableId === candidate.timetableId && e.classCode === candidate.classCode && e.weekdayIndex === candidate.weekdayIndex && e.id !== candidate.id
+  );
+  for (const existing of sameDayClassEntries) {
+    if (existing.lessonNumber === candidate.lessonNumber && existing.subject.toLowerCase() === candidate.subject.toLowerCase() && existing.startTime === candidate.startTime && existing.endTime === candidate.endTime) {
+      issues.push({
+        type: "duplicate_entry",
+        severity: "error",
+        message: `${candidate.weekday} kuni ${candidate.lessonNumber}-soatda "${candidate.subject}" darsi allaqachon kiritilgan.`,
+        conflictingEntryId: existing.id
+      });
+      continue;
+    }
+    if (existing.lessonNumber === candidate.lessonNumber) {
+      issues.push({
+        type: "time_conflict",
+        severity: "error",
+        message: `${candidate.weekday} kuni ${candidate.lessonNumber}-soat band (${existing.subject}, ${existing.startTime}\u2013${existing.endTime}).`,
+        conflictingEntryId: existing.id
+      });
+      continue;
+    }
+    const exStart = parseTimeToMinutes(existing.startTime);
+    const exEnd = parseTimeToMinutes(existing.endTime);
+    if (exStart !== null && exEnd !== null && startMin < exEnd && endMin > exStart) {
+      issues.push({
+        type: "time_conflict",
+        severity: "error",
+        message: `${candidate.weekday} kuni vaqt ustma-ust tushishi: ${candidate.startTime}\u2013${candidate.endTime} va ${existing.subject} (${existing.startTime}\u2013${existing.endTime}).`,
+        conflictingEntryId: existing.id
+      });
+    }
+  }
+  return issues;
+}
+function resolveStudentTimetableView(params) {
+  const { classCode, timetables, entries, nowIso } = params;
+  const activeTimetables = timetables.filter((t) => t.classCode === classCode && t.status === "active").sort((a, b) => b.version - a.version || b.effectiveFrom.localeCompare(a.effectiveFrom));
+  const activeTimetable = activeTimetables[0] || null;
+  const now = nowIso ? new Date(nowIso) : /* @__PURE__ */ new Date();
+  const jsDay = now.getDay();
+  const todayWeekdayIndex = jsDay === 0 ? 7 : jsDay;
+  const weekdayMap = {
+    1: "Dushanba",
+    2: "Seshanba",
+    3: "Chorshanba",
+    4: "Payshanba",
+    5: "Juma",
+    6: "Shanba",
+    7: "Yakshanba"
+  };
+  const todayWeekdayLabel = weekdayMap[todayWeekdayIndex] || "Dushanba";
+  if (!activeTimetable) {
+    return {
+      activeTimetable: null,
+      allEntries: [],
+      todayWeekdayIndex,
+      todayWeekdayLabel,
+      todaysLessons: [],
+      nextLesson: null,
+      upcomingLessons: []
+    };
+  }
+  const allEntries = entries.filter((e) => e.timetableId === activeTimetable.id && e.classCode === classCode).sort((a, b) => a.weekdayIndex - b.weekdayIndex || a.lessonNumber - b.lessonNumber);
+  const todaysLessons = allEntries.filter((e) => e.weekdayIndex === todayWeekdayIndex);
+  const currentMinutes = now.getHours() * 60 + now.getMinutes();
+  let nextLesson = null;
+  const todayRemaining = todaysLessons.filter((e) => {
+    const endMin = parseTimeToMinutes(e.endTime);
+    return endMin !== null && endMin >= currentMinutes;
+  });
+  if (todayRemaining.length > 0) {
+    nextLesson = todayRemaining[0];
+  } else {
+    const laterInWeek = allEntries.filter((e) => e.weekdayIndex > todayWeekdayIndex);
+    nextLesson = laterInWeek[0] || allEntries[0] || null;
+  }
+  const upcomingLessons = allEntries.filter((e) => {
+    if (e.weekdayIndex === todayWeekdayIndex) {
+      const startMin = parseTimeToMinutes(e.startTime);
+      return startMin !== null && startMin > currentMinutes;
+    }
+    return e.weekdayIndex > todayWeekdayIndex;
+  });
+  return {
+    activeTimetable,
+    allEntries,
+    todayWeekdayIndex,
+    todayWeekdayLabel,
+    todaysLessons,
+    nextLesson,
+    upcomingLessons: upcomingLessons.slice(0, 6)
+  };
+}
+function saveStudentAssignmentDraft(existing, draftContent, draftAttachmentUrl, nowIso = (/* @__PURE__ */ new Date()).toISOString()) {
+  const nextStatus = existing.status === "Yangi" ? "Jarayonda" : existing.status;
+  return {
+    ...existing,
+    status: nextStatus,
+    draftContent,
+    draftAttachmentUrl: draftAttachmentUrl ?? existing.draftAttachmentUrl,
+    draftSavedAt: nowIso,
+    updatedAt: nowIso
+  };
+}
+function submitStudentAssignmentWork(params) {
+  const {
+    assignment,
+    existingSubmission,
+    content,
+    attachmentUrl,
+    attachmentName,
+    attachmentMimeType,
+    nowIso = (/* @__PURE__ */ new Date()).toISOString()
+  } = params;
+  const isResubmission = existingSubmission.attemptCount > 0 && Boolean(existingSubmission.submissionDate);
+  if (isResubmission && assignment.allowResubmission === false && existingSubmission.status !== "Qaytarildi") {
+    throw new Error("Ushbu topshiriq uchun qayta topshirish ruxsat etilmagan.");
+  }
+  let archivedRevision = null;
+  if (isResubmission) {
+    archivedRevision = {
+      id: `rev_${existingSubmission.id}_${existingSubmission.attemptCount}_${Date.now()}`,
+      institutionId: existingSubmission.institutionId,
+      submissionId: existingSubmission.id,
+      assignmentId: existingSubmission.assignmentId,
+      studentId: existingSubmission.studentId,
+      studentName: existingSubmission.studentName,
+      classCode: existingSubmission.classCode,
+      revisionNumber: existingSubmission.attemptCount,
+      content: existingSubmission.content,
+      attachmentUrl: existingSubmission.attachmentUrl,
+      attachmentName: existingSubmission.attachmentName,
+      submittedAt: existingSubmission.submissionDate || existingSubmission.updatedAt,
+      score: existingSubmission.score,
+      feedback: existingSubmission.feedback,
+      gradedByUid: existingSubmission.gradedByUid,
+      gradedByName: existingSubmission.gradedByName,
+      gradedAt: existingSubmission.gradedAt,
+      statusAtArchive: existingSubmission.status
+    };
+  }
+  const updatedSubmission = {
+    ...existingSubmission,
+    status: "Topshirildi",
+    submissionDate: nowIso,
+    attemptCount: existingSubmission.attemptCount + 1,
+    content,
+    attachmentUrl: attachmentUrl ?? existingSubmission.attachmentUrl,
+    attachmentName: attachmentName ?? existingSubmission.attachmentName,
+    attachmentMimeType: attachmentMimeType ?? existingSubmission.attachmentMimeType,
+    draftContent: void 0,
+    draftAttachmentUrl: void 0,
+    updatedAt: nowIso
+  };
+  return { updatedSubmission, archivedRevision };
+}
+function isAnnouncementRelevantToStudent(announcement, studentClassCode, todayDateStr) {
+  if (announcement.status !== "published") return false;
+  if (todayDateStr && announcement.expirationDate && announcement.expirationDate < todayDateStr) {
+    return false;
+  }
+  switch (announcement.audienceType) {
+    case "entire_school":
+      return true;
+    case "specific_classes":
+    case "class_group":
+      return announcement.targetClassCodes.includes(studentClassCode);
+    case "subjects": {
+      if (announcement.targetClassCodes && announcement.targetClassCodes.length > 0) {
+        return announcement.targetClassCodes.includes(studentClassCode);
+      }
+      const allowedSubjects = getAllowedSubjectsForClass(studentClassCode);
+      return announcement.targetSubjects.some(
+        (subj) => allowedSubjects.some((allowed) => subj.toLowerCase().includes(allowed.toLowerCase()))
+      );
+    }
+    default:
+      return false;
+  }
+}
+function filterAuthorizedMaterialsForStudent(materials, studentClassCode, studentGrade) {
+  const allowedSubjects = getAllowedSubjectsForClass(studentClassCode);
+  return materials.filter((m) => {
+    if (m.status !== "published") return false;
+    if (m.targetClassCodes && m.targetClassCodes.length > 0) {
+      return m.targetClassCodes.includes(studentClassCode);
+    }
+    if (m.classCode && m.classCode !== studentClassCode) {
+      return false;
+    }
+    if (m.grade && m.grade !== studentGrade) {
+      return false;
+    }
+    return allowedSubjects.some(
+      (s) => m.subject.toLowerCase().includes(s.toLowerCase()) || s.toLowerCase().includes(m.subject.toLowerCase())
+    );
+  });
+}
+function buildUnifiedAcademicCalendarEvents(params) {
+  const {
+    institutionId,
+    timetableEntries,
+    timetables,
+    lessons,
+    deliveryRecords,
+    assignments,
+    assessments,
+    announcements,
+    customEvents,
+    referenceWeekMondayDate
+  } = params;
+  const events = [...customEvents];
+  if (referenceWeekMondayDate && /^\d{4}-\d{2}-\d{2}$/.test(referenceWeekMondayDate)) {
+    const activeIds = new Set(timetables.filter((t) => t.status === "active").map((t) => t.id));
+    const baseMonday = /* @__PURE__ */ new Date(`${referenceWeekMondayDate}T00:00:00Z`);
+    for (const entry of timetableEntries) {
+      if (!activeIds.has(entry.timetableId)) continue;
+      const d = new Date(baseMonday.getTime() + (entry.weekdayIndex - 1) * 864e5);
+      const dateStr = d.toISOString().slice(0, 10);
+      events.push({
+        id: `cal_tt_${entry.id}_${dateStr}`,
+        institutionId,
+        title: `${entry.lessonNumber}-soat: ${entry.subject}${entry.room ? ` (${entry.room}-xona)` : ""}`,
+        description: entry.relatedLessonTitle || `${entry.classCode.toUpperCase()} dars jadvali`,
+        category: "timetable",
+        date: dateStr,
+        startTime: entry.startTime,
+        endTime: entry.endTime,
+        classCode: entry.classCode,
+        subject: entry.subject,
+        sourceRecordId: entry.id,
+        sourceCollection: "timetable_entries",
+        targetRoute: `/admin/timetable?classCode=${entry.classCode}`,
+        createdAt: entry.createdAt
+      });
+    }
+  }
+  for (const delivery of deliveryRecords) {
+    const actualDate = delivery.actualDeliveryDate || delivery.rescheduledToDate || delivery.plannedDate;
+    if (!actualDate || !/^\d{4}-\d{2}-\d{2}$/.test(actualDate)) continue;
+    events.push({
+      id: `cal_del_${delivery.id}`,
+      institutionId,
+      title: `${delivery.subject}: ${delivery.lessonTitle} (${delivery.deliveryStatus})`,
+      description: delivery.completionNote,
+      category: "published_lesson",
+      date: actualDate.slice(0, 10),
+      classCode: delivery.classCode,
+      subject: delivery.subject,
+      quarter: delivery.quarter,
+      sourceRecordId: delivery.lessonId,
+      sourceCollection: "lessons",
+      targetRoute: `/admin/curriculum?classCode=${delivery.classCode}&lessonId=${delivery.lessonId}`,
+      createdAt: delivery.updatedAt
+    });
+  }
+  for (const lesson of lessons) {
+    if (!lesson.scheduledDate || !/^\d{4}-\d{2}-\d{2}/.test(lesson.scheduledDate)) continue;
+    const dateOnly = lesson.scheduledDate.slice(0, 10);
+    const kind = (lesson.lessonKind || lesson.milestoneType || lesson.lessonType || "").toUpperCase();
+    const category = kind === "BSB" ? "bsb" : kind === "CHSB" ? "chsb" : kind === "PROJECT" ? "project_work" : "published_lesson";
+    const desc = lesson.learningObjective || (Array.isArray(lesson.learningObjectives) ? lesson.learningObjectives.join(", ") : lesson.learningObjectives);
+    events.push({
+      id: `cal_les_${lesson.id}`,
+      institutionId,
+      title: `${lesson.subject || lesson.subjectName}: ${lesson.topicTitle || lesson.topicName || lesson.title}`,
+      description: desc,
+      category,
+      date: dateOnly,
+      classCode: lesson.classCode,
+      subject: lesson.subject || lesson.subjectName,
+      quarter: lesson.quarter,
+      sourceRecordId: lesson.id,
+      sourceCollection: "lessons",
+      targetRoute: `/admin/curriculum-map?lessonId=${lesson.id}`,
+      createdAt: lesson.createdAt
+    });
+  }
+  for (const asgn of assignments) {
+    if (asgn.status === "draft" || !asgn.dueDate || !/^\d{4}-\d{2}-\d{2}/.test(asgn.dueDate)) continue;
+    const dateOnly = asgn.dueDate.slice(0, 10);
+    events.push({
+      id: `cal_asgn_${asgn.id}`,
+      institutionId,
+      title: `Topshiriq: ${asgn.title}`,
+      description: asgn.description,
+      category: "assignment",
+      date: dateOnly,
+      classCode: asgn.classCode || asgn.targetClassCodes[0],
+      targetClassCodes: asgn.targetClassCodes,
+      subject: asgn.subject,
+      sourceRecordId: asgn.id,
+      sourceCollection: "assignments",
+      targetRoute: `/admin/assignments?assignmentId=${asgn.id}`,
+      createdAt: asgn.createdAt
+    });
+  }
+  for (const asmt of assessments) {
+    if (asmt.status === "archived" || !asmt.dueDate || !/^\d{4}-\d{2}-\d{2}/.test(asmt.dueDate)) continue;
+    const dateOnly = asmt.dueDate.slice(0, 10);
+    const upperTitle = asmt.title.toUpperCase();
+    const category = upperTitle.includes("CHSB") ? "chsb" : upperTitle.includes("BSB") ? "bsb" : "assessment";
+    events.push({
+      id: `cal_asmt_${asmt.id}`,
+      institutionId,
+      title: `${category === "bsb" ? "BSB" : category === "chsb" ? "CHSB" : "Nazorat"}: ${asmt.title}`,
+      description: asmt.description,
+      category,
+      date: dateOnly,
+      classCode: asmt.classCode || asmt.assignedClassCodes?.[0],
+      targetClassCodes: asmt.assignedClassCodes,
+      subject: asmt.subject,
+      quarter: asmt.quarter,
+      sourceRecordId: asmt.id,
+      sourceCollection: "assessments",
+      targetRoute: `/assessments/${asmt.id}`,
+      createdAt: asmt.createdAt
+    });
+  }
+  for (const ann of announcements) {
+    if (ann.status !== "published" || !ann.publicationDate || !/^\d{4}-\d{2}-\d{2}/.test(ann.publicationDate)) continue;
+    events.push({
+      id: `cal_ann_${ann.id}`,
+      institutionId,
+      title: `E'lon: ${ann.title}`,
+      description: ann.shortContent,
+      category: "announcement",
+      date: ann.publicationDate.slice(0, 10),
+      classCode: ann.targetClassCodes[0],
+      targetClassCodes: ann.targetClassCodes,
+      subject: ann.targetSubjects[0],
+      sourceRecordId: ann.id,
+      sourceCollection: "announcements",
+      targetRoute: `/admin/announcements?announcementId=${ann.id}`,
+      createdAt: ann.createdAt
+    });
+  }
+  const highStakesByClassDate = /* @__PURE__ */ new Map();
+  for (const ev of events) {
+    if (ev.category === "bsb" || ev.category === "chsb" || ev.category === "assessment") {
+      const classes = ev.targetClassCodes?.length ? ev.targetClassCodes : ev.classCode ? [ev.classCode] : [];
+      for (const cls of classes) {
+        const key = `${cls}_${ev.date}`;
+        const list = highStakesByClassDate.get(key) || [];
+        list.push(ev);
+        highStakesByClassDate.set(key, list);
+      }
+    }
+  }
+  for (const [, list] of highStakesByClassDate.entries()) {
+    if (list.length > 1) {
+      for (const ev of list) {
+        ev.hasConflictWarning = true;
+        ev.conflictMessage = `Diqqat: Shu kuni ushbu sinfda ${list.length} ta nazorat/BSB/CHSB belgilangan.`;
+      }
+    }
+  }
+  return events.sort((a, b) => a.date.localeCompare(b.date) || (a.startTime || "").localeCompare(b.startTime || ""));
+}
+var A_TRACK_SUBJECTS, T_TRACK_SUBJECTS, DEFAULT_GRADING_RUBRICS, DEFAULT_FEEDBACK_COMMENTS;
+var init_academicOsEngine = __esm({
+  "src/utils/academicOsEngine.ts"() {
+    A_TRACK_SUBJECTS = ["Matematika", "Ingliz tili", "Fizika", "Algebra", "Geometriya"];
+    T_TRACK_SUBJECTS = ["Ingliz tili", "Biologiya", "Kimyo", "Matematika", "Algebra", "Geometriya"];
+    DEFAULT_GRADING_RUBRICS = [
+      {
+        id: "rubric_math_standard",
+        institutionId: "inst-1",
+        title: "Matematika va Aniq fanlar yozma ish rubrikasi",
+        subject: "Matematika",
+        description: "Masalani yechish bosqichlari, mantiqiy asoslash va hisoblash aniqligini baholash mezoni.",
+        isDefault: true,
+        totalMaxPoints: 10,
+        criteria: [
+          {
+            id: "crit_solution",
+            title: "To'g'ri yechim",
+            description: "Masala shartiga mos formula va yechish usulining to'g'ri tanlangani",
+            maxPoints: 3,
+            partialCreditRules: "Usul to'g'ri tanlangan, ammo oraliq qadam tushirib qoldirilgan bo'lsa 1.5\u20132 ball"
+          },
+          {
+            id: "crit_logic",
+            title: "Mantiqiy fikrlash",
+            description: "Qadamlar ketma-ketligi va mantiqiy asoslashning izchilligi",
+            maxPoints: 2,
+            partialCreditRules: "Asoslash qisman keltirilgan bo\u2018lsa 1 ball"
+          },
+          {
+            id: "crit_calc",
+            title: "Hisoblash aniqligi",
+            description: "Arifmetik va algebraik amallarning xatosiz bajarilishi",
+            maxPoints: 2,
+            partialCreditRules: "Kichik arifmetik xato mavjud bo\u2018lsa 1 ball"
+          },
+          {
+            id: "crit_explanation",
+            title: "Tushuntirish",
+            description: "Chizma, belgilashlar va izohlarning tushunarli yozilishi",
+            maxPoints: 1,
+            partialCreditRules: "Izohlar qisqa bo\u2018lsa 0.5 ball"
+          },
+          {
+            id: "crit_final",
+            title: "Yakuniy javob",
+            description: "Yakuniy javob va o'lchov birliklarining aniq ko'rsatilishi",
+            maxPoints: 2,
+            partialCreditRules: "O'lchov birligi yozilmagan bo'lsa 1 ball"
+          }
+        ],
+        createdByUid: "system",
+        createdByName: "Platform Admin",
+        createdAt: "2025-01-01T00:00:00.000Z",
+        updatedAt: "2025-01-01T00:00:00.000Z"
+      },
+      {
+        id: "rubric_science_lab",
+        institutionId: "inst-1",
+        title: "Tabiiy fanlar (Fizika, Kimyo, Biologiya) tahliliy ish rubrikasi",
+        subject: "Fizika",
+        description: "Tajriba, reaksiya tenglamalari va ilmiy xulosalarni baholash mezoni.",
+        isDefault: true,
+        totalMaxPoints: 10,
+        criteria: [
+          {
+            id: "crit_sci_concept",
+            title: "To'g'ri yechim",
+            description: "Qonuniyat, formula yoki reaksiya tenglamasining to\u2018g\u2018ri yozilishi",
+            maxPoints: 3,
+            partialCreditRules: "Koeffitsiyentlarda xato bo\u2018lsa 1.5 ball"
+          },
+          {
+            id: "crit_sci_logic",
+            title: "Mantiqiy fikrlash",
+            description: "Sabab-oqibat bog\u2018lanishining ilmiy asoslangani",
+            maxPoints: 3,
+            partialCreditRules: "Qisman asoslangan bo\u2018lsa 1.5 ball"
+          },
+          {
+            id: "crit_sci_explanation",
+            title: "Tushuntirish",
+            description: "Atamalar va jarayonning aniq izohlanishi",
+            maxPoints: 2,
+            partialCreditRules: "1 ball qisman izoh uchun"
+          },
+          {
+            id: "crit_sci_final",
+            title: "Yakuniy javob",
+            description: "Xulosa va yakuniy natijaning to\u2018g\u2018riligi",
+            maxPoints: 2,
+            partialCreditRules: "Xulosa to\u2018liq bo\u2018lmasa 1 ball"
+          }
+        ],
+        createdByUid: "system",
+        createdByName: "Platform Admin",
+        createdAt: "2025-01-01T00:00:00.000Z",
+        updatedAt: "2025-01-01T00:00:00.000Z"
+      }
+    ];
+    DEFAULT_FEEDBACK_COMMENTS = [
+      {
+        id: "fb_1",
+        institutionId: "inst-1",
+        category: "praise",
+        text: "Yechish usuli va mantiqiy qadamlar juda aniq ko'rsatilgan. Barakalla!",
+        createdByUid: "system",
+        createdAt: "2025-01-01T00:00:00.000Z"
+      },
+      {
+        id: "fb_2",
+        institutionId: "inst-1",
+        category: "correction",
+        text: "Formula to'g'ri tanlangan, biroq oraliq hisoblashda ishora xatosiga yo'l qo'yilgan.",
+        createdByUid: "system",
+        createdAt: "2025-01-01T00:00:00.000Z"
+      },
+      {
+        id: "fb_3",
+        institutionId: "inst-1",
+        category: "methodology",
+        text: "Yakuniy javobni yozishdan oldin har bir bosqich izohini qisqacha keltiring.",
+        createdByUid: "system",
+        createdAt: "2025-01-01T00:00:00.000Z"
+      },
+      {
+        id: "fb_4",
+        institutionId: "inst-1",
+        category: "next_step",
+        text: "Mavzuni mustahkamlash uchun o'quv xaritadagi keyingi amaliy mashqlarni bajarib ko'ring.",
+        createdByUid: "system",
+        createdAt: "2025-01-01T00:00:00.000Z"
+      }
+    ];
+  }
+});
+
+// src/server/dbEngine.ts
+var dbEngine_exports = {};
+__export(dbEngine_exports, {
+  createEmptyDatabaseState: () => createEmptyDatabaseState,
+  ensureSpecializedStudyStructure: () => ensureSpecializedStudyStructure,
+  generateCryptographicInviteToken: () => generateCryptographicInviteToken,
+  generateSecureRandomPassword: () => generateSecureRandomPassword,
+  getDbState: () => getDbState,
+  hashPassword: () => hashPassword,
+  issueSessionToken: () => issueSessionToken,
+  resetTestDbState: () => resetTestDbState,
+  revokeAllUserSessions: () => revokeAllUserSessions,
+  revokeSessionToken: () => revokeSessionToken,
+  saveDbState: () => saveDbState,
+  verifyPassword: () => verifyPassword,
+  verifyPasswordAsync: () => verifyPasswordAsync,
+  verifySessionToken: () => verifySessionToken
+});
+import fs from "fs";
+import path from "path";
+import crypto2 from "crypto";
+function ensureSpecializedStudyStructure(state) {
+  if (runtimeNamespace().startsWith("_specialized_preview_") && state.demoLabs?.length) {
+    const labs = state.demoLabs;
+    const insts = new Set(labs.map((l) => l.institutionId));
+    const users = new Set(labs.flatMap((l) => [l.studentId, l.teacherId]));
+    const demo = (r) => r && typeof r === "object" && (insts.has(r.institutionId) || insts.has(r.id) || users.has(r.uid) || users.has(r.studentId));
+    const clean = { ...state, demoLabs: void 0 };
+    const preserved = {};
+    for (const [key, value] of Object.entries(state)) if (Array.isArray(value) && key !== "demoLabs") {
+      preserved[key] = value.filter(demo);
+      clean[key] = value.filter((r) => !demo(r));
+    }
+    ensureSpecializedStudyStructure(clean);
+    for (const [key, rows] of Object.entries(preserved)) clean[key] = [...clean[key] || [], ...rows];
+    Object.assign(state, clean, { demoLabs: labs });
+    return state;
+  }
+  const nowIso = "2026-01-01T00:00:00.000Z";
+  if (!Array.isArray(state.institutions)) {
+    state.institutions = [];
+  }
+  let primaryInst = state.institutions[0];
+  if (!primaryInst) {
+    primaryInst = {
+      id: DEFAULT_INSTITUTION_ID,
+      name: "Specialized Study Ixtisoslashtirilgan Maktabi",
+      shortName: "Specialized Study",
+      officialName: "Specialized Study Ixtisoslashtirilgan Maktabi",
+      type: "specialized_school",
+      code: "SPEC-STUDY-01",
+      region: "Toshkent shahri",
+      district: "Mirzo Ulug\u2018bek tumani",
+      academicYear: "2026-2027",
+      supportedGrades: [5, 6, 7, 8, 9, 10, 11],
+      gradingScale: "100_percent",
+      languageOfInstruction: "O'zbek tili",
+      timezone: "Asia/Tashkent",
+      status: "active",
+      adminUid: "admin-owner",
+      allowExcelImports: true,
+      aiFeaturesEnabled: true,
+      createdAt: nowIso,
+      updatedAt: nowIso
+    };
+    state.institutions.push(primaryInst);
+  } else {
+    if (!primaryInst.name || primaryInst.name.includes("LearnOS")) {
+      primaryInst.name = "Specialized Study Ixtisoslashtirilgan Maktabi";
+      primaryInst.shortName = "Specialized Study";
+    }
+    if (!primaryInst.academicYear) {
+      primaryInst.academicYear = "2026-2027";
+    }
+  }
+  const instId = primaryInst.id;
+  const academicYear = primaryInst.academicYear || "2026-2027";
+  if (!Array.isArray(state.subjects)) {
+    state.subjects = [];
+  }
+  for (const defSubj of DEFAULT_SUBJECTS) {
+    const existing = state.subjects.find(
+      (s) => s.id === defSubj.id || s.name.trim().toLowerCase() === defSubj.name.trim().toLowerCase()
+    );
+    if (!existing) {
+      state.subjects.push({
+        ...defSubj,
+        institutionId: instId
+      });
+    } else {
+      existing.code = defSubj.code;
+      existing.trackTypes = existing.trackTypes?.length ? existing.trackTypes : [...defSubj.trackTypes];
+      existing.applicableGrades = existing.applicableGrades?.length ? existing.applicableGrades : [...defSubj.applicableGrades];
+      existing.applicableClassCodes = existing.applicableClassCodes?.length ? existing.applicableClassCodes : [...defSubj.applicableClassCodes];
+      if (!existing.status) existing.status = "active";
+    }
+  }
+  if (!Array.isArray(state.classes)) {
+    state.classes = [];
+  }
+  state.classes = state.classes.filter((c) => {
+    const raw = String(c.code || c.name || "").trim().toLowerCase();
+    return raw !== "5t" && raw !== "6t";
+  });
+  const seenOfficialCodes = /* @__PURE__ */ new Set();
+  const deduplicatedClasses = [];
+  for (const cls of state.classes) {
+    const rawCode = String(cls.code || cls.name || "").trim().toLowerCase();
+    const parsed = parseOfficialClassCode(rawCode);
+    if (parsed) {
+      if (seenOfficialCodes.has(parsed.code)) {
+        continue;
+      }
+      seenOfficialCodes.add(parsed.code);
+      const { subjectIds, subjectNames } = getDefaultSubjectsForTrack(parsed.track);
+      cls.id = cls.id || `class-${parsed.code}`;
+      cls.code = parsed.code;
+      cls.name = parsed.code;
+      cls.grade = parsed.grade;
+      cls.track = parsed.track;
+      cls.trackLabel = parsed.trackLabel;
+      cls.section = parsed.section;
+      cls.academicYear = cls.academicYear || academicYear;
+      cls.institutionId = cls.institutionId || instId;
+      cls.subjectIds = cls.subjectIds?.length ? cls.subjectIds : subjectIds;
+      cls.subjectNames = cls.subjectNames?.length ? cls.subjectNames : subjectNames;
+      cls.subject = cls.subject || (parsed.track === "A" ? "Matematika" : "Biologiya");
+      cls.inviteCode = cls.inviteCode || `SS-${parsed.code.toUpperCase()}-2026`;
+      cls.status = cls.status || "active";
+      deduplicatedClasses.push(cls);
+    } else {
+      deduplicatedClasses.push(cls);
+    }
+  }
+  for (const code of OFFICIAL_19_CLASS_CODES) {
+    if (!seenOfficialCodes.has(code)) {
+      const meta = parseOfficialClassCode(code);
+      const { subjectIds, subjectNames } = getDefaultSubjectsForTrack(meta.track);
+      deduplicatedClasses.push({
+        id: `class-${code}`,
+        code,
+        name: code,
+        grade: meta.grade,
+        track: meta.track,
+        trackLabel: meta.trackLabel,
+        section: meta.section,
+        academicYear,
+        subject: meta.track === "A" ? "Matematika" : "Biologiya",
+        subjectIds,
+        subjectNames,
+        teacherId: primaryInst.adminUid || "admin-owner",
+        teacherName: "Specialized Study",
+        institutionId: instId,
+        inviteCode: `SS-${code.toUpperCase()}-2026`,
+        studentCount: 0,
+        status: "active",
+        createdAt: nowIso,
+        updatedAt: nowIso
+      });
+      seenOfficialCodes.add(code);
+    }
+  }
+  const orderMap = new Map(
+    OFFICIAL_19_CLASS_CODES.map((c, idx) => [c, idx])
+  );
+  deduplicatedClasses.sort((a, b) => {
+    const idxA = orderMap.has(a.code) ? orderMap.get(a.code) : 999;
+    const idxB = orderMap.has(b.code) ? orderMap.get(b.code) : 999;
+    return idxA - idxB;
+  });
+  if (!state.customClaims || typeof state.customClaims !== "object") {
+    state.customClaims = {};
+  }
+  const usersList = Array.isArray(state.users) ? state.users : [];
+  for (const usr of usersList) {
+    const normalizedEmail = String(usr.email || "").trim().toLowerCase();
+    const isAuthAdminEmail = isAuthorizedAdminEmail(normalizedEmail);
+    if (isAuthAdminEmail && usr.emailVerified !== false && usr.platformAdmin !== false) {
+      usr.role = "platform_owner";
+      usr.platformOwner = true;
+      usr.platformAdmin = true;
+      state.customClaims[usr.uid] = {
+        ...state.customClaims[usr.uid] || {},
+        platformAdmin: true
+      };
+    } else if (!isAuthAdminEmail && (usr.role === "platform_owner" || usr.role === "admin")) {
+      usr.role = "student";
+      usr.platformOwner = false;
+      usr.platformAdmin = false;
+    }
+  }
+  for (const cls of deduplicatedClasses) {
+    const actualCount = usersList.filter(
+      (u) => u.role === "student" && u.status !== "suspended" && u.status !== "archived" && (u.classId === cls.id || u.classCode && u.classCode.toLowerCase() === cls.code.toLowerCase())
+    ).length;
+    cls.studentCount = actualCount;
+  }
+  state.classes = deduplicatedClasses;
+  if (!Array.isArray(state.workPlans)) {
+    state.workPlans = [];
+  }
+  if (!Array.isArray(state.lessons)) {
+    state.lessons = [];
+  }
+  if (!Array.isArray(state.studentImportJobs)) {
+    state.studentImportJobs = [];
+  }
+  if (!Array.isArray(state.curriculumImportJobs)) {
+    state.curriculumImportJobs = [];
+  }
+  if (!Array.isArray(state.academicYears) || state.academicYears.length === 0) {
+    state.academicYears = [...DEFAULT_ACADEMIC_YEARS];
+  }
+  if (!Array.isArray(state.topics) || state.topics.length === 0) {
+    state.topics = [...DEFAULT_CURRICULUM_TOPICS];
+  }
+  if (!Array.isArray(state.studentGamificationProfiles)) {
+    state.studentGamificationProfiles = [];
+  }
+  if (!Array.isArray(state.learningCheckins)) {
+    state.learningCheckins = [];
+  }
+  if (!Array.isArray(state.studentGoals)) {
+    state.studentGoals = [];
+  }
+  if (!Array.isArray(state.learningActivityEvents)) {
+    state.learningActivityEvents = [];
+  }
+  if (!Array.isArray(state.xpLedger)) {
+    state.xpLedger = [];
+  }
+  if (!Array.isArray(state.gamificationBadges) || state.gamificationBadges.length === 0) {
+    state.gamificationBadges = DEFAULT_GAMIFICATION_BADGES.map((b) => ({ ...b }));
+  }
+  if (!Array.isArray(state.studentBadges)) {
+    state.studentBadges = [];
+  }
+  if (!Array.isArray(state.streakRecords)) {
+    state.streakRecords = [];
+  }
+  if (!Array.isArray(state.weeklyRecaps)) {
+    state.weeklyRecaps = [];
+  }
+  if (!Array.isArray(state.classChallenges)) {
+    state.classChallenges = [];
+  }
+  if (!state.gamificationConfig) {
+    state.gamificationConfig = {
+      ...DEFAULT_GAMIFICATION_CONFIG,
+      xpRewards: { ...DEFAULT_GAMIFICATION_CONFIG.xpRewards },
+      goalTemplates: [...DEFAULT_GAMIFICATION_CONFIG.goalTemplates]
+    };
+  }
+  if (!Array.isArray(state.studentLessonCompletions)) {
+    state.studentLessonCompletions = [];
+  }
+  if (!Array.isArray(state.attendanceSessions)) {
+    state.attendanceSessions = [];
+  }
+  if (!Array.isArray(state.attendanceRecords)) {
+    state.attendanceRecords = [];
+  }
+  if (!Array.isArray(state.studentAssignments)) {
+    state.studentAssignments = [];
+  }
+  if (!Array.isArray(state.assignmentSubmissions)) {
+    state.assignmentSubmissions = [];
+  }
+  if (!Array.isArray(state.studentAlerts)) {
+    state.studentAlerts = [];
+  }
+  if (!Array.isArray(state.studentSupportPlans)) {
+    state.studentSupportPlans = [];
+  }
+  if (!Array.isArray(state.academicReports)) {
+    state.academicReports = [];
+  }
+  if (!Array.isArray(state.timetables)) {
+    state.timetables = [];
+  }
+  if (!Array.isArray(state.timetableEntries)) {
+    state.timetableEntries = [];
+  }
+  if (!Array.isArray(state.submissionRevisions)) {
+    state.submissionRevisions = [];
+  }
+  if (!Array.isArray(state.announcements)) {
+    state.announcements = [];
+  }
+  if (!Array.isArray(state.announcementReads)) {
+    state.announcementReads = [];
+  }
+  if (!Array.isArray(state.announcementAcknowledgements)) {
+    state.announcementAcknowledgements = [];
+  }
+  if (!Array.isArray(state.learningMaterials)) {
+    state.learningMaterials = [];
+  }
+  if (!Array.isArray(state.gradingRubrics) || state.gradingRubrics.length === 0) {
+    state.gradingRubrics = DEFAULT_GRADING_RUBRICS.map((r) => ({ ...r, institutionId: instId }));
+  }
+  if (!Array.isArray(state.feedbackComments) || state.feedbackComments.length === 0) {
+    state.feedbackComments = DEFAULT_FEEDBACK_COMMENTS.map((c) => ({ ...c, institutionId: instId }));
+  }
+  if (!Array.isArray(state.gradingHistory)) {
+    state.gradingHistory = [];
+  }
+  if (!Array.isArray(state.academicEvents)) {
+    state.academicEvents = [];
+  }
+  if (!Array.isArray(state.lessonDeliveryRecords)) {
+    state.lessonDeliveryRecords = [];
+  }
+  return state;
+}
+function createEmptyDatabaseState() {
+  const base4 = {
+    institutions: [
+      {
+        id: DEFAULT_INSTITUTION_ID,
+        name: "Specialized Study Ixtisoslashtirilgan Maktabi",
+        shortName: "Specialized Study",
+        officialName: "Specialized Study Ixtisoslashtirilgan Maktabi",
+        type: "specialized_school",
+        code: "SPEC-STUDY-01",
+        region: "Toshkent shahri",
+        district: "Mirzo Ulug\u2018bek tumani",
+        academicYear: "2026-2027",
+        supportedGrades: [5, 6, 7, 8, 9, 10, 11],
+        gradingScale: "100_percent",
+        languageOfInstruction: "O'zbek tili",
+        timezone: "Asia/Tashkent",
+        status: "active",
+        adminUid: "admin-owner",
+        allowExcelImports: true,
+        aiFeaturesEnabled: true,
+        createdAt: "2026-01-01T00:00:00.000Z",
+        updatedAt: "2026-01-01T00:00:00.000Z"
+      }
+    ],
+    institutionSettings: [],
+    academicYears: [...DEFAULT_ACADEMIC_YEARS],
+    users: [],
+    passwordHashes: {},
+    classes: buildOfficial19Classes(DEFAULT_INSTITUTION_ID, "2026-2027", "admin-owner"),
+    classMemberships: [],
+    teacherAssignments: [],
+    studentEnrollments: [],
+    parentLinks: [],
+    invitations: [],
+    subjects: DEFAULT_SUBJECTS.map((s) => ({ ...s, institutionId: DEFAULT_INSTITUTION_ID })),
+    topics: [...DEFAULT_CURRICULUM_TOPICS],
+    workPlans: [],
+    lessons: [],
+    questions: [],
+    questionRevisions: [],
+    questionMedia: [],
+    assessments: [],
+    assignments: [],
+    attempts: [],
+    gradingRecords: [],
+    importBatches: [],
+    studentImportJobs: [],
+    curriculumImportJobs: [],
+    masteryRecords: [],
+    learningPaths: [],
+    learningRecommendations: [],
+    notifications: [],
+    teacherNotes: [],
+    auditLogs: [],
+    studentGamificationProfiles: [],
+    learningCheckins: [],
+    studentGoals: [],
+    learningActivityEvents: [],
+    xpLedger: [],
+    gamificationBadges: DEFAULT_GAMIFICATION_BADGES.map((b) => ({ ...b })),
+    studentBadges: [],
+    streakRecords: [],
+    weeklyRecaps: [],
+    classChallenges: [],
+    gamificationConfig: {
+      ...DEFAULT_GAMIFICATION_CONFIG,
+      xpRewards: { ...DEFAULT_GAMIFICATION_CONFIG.xpRewards },
+      goalTemplates: [...DEFAULT_GAMIFICATION_CONFIG.goalTemplates]
+    },
+    studentLessonCompletions: [],
+    attendanceSessions: [],
+    attendanceRecords: [],
+    studentAssignments: [],
+    assignmentSubmissions: [],
+    studentAlerts: [],
+    studentSupportPlans: [],
+    academicReports: [],
+    timetables: [],
+    timetableEntries: [],
+    submissionRevisions: [],
+    announcements: [],
+    announcementReads: [],
+    announcementAcknowledgements: [],
+    learningMaterials: [],
+    gradingRubrics: DEFAULT_GRADING_RUBRICS.map((r) => ({ ...r, institutionId: DEFAULT_INSTITUTION_ID })),
+    feedbackComments: DEFAULT_FEEDBACK_COMMENTS.map((c) => ({ ...c, institutionId: DEFAULT_INSTITUTION_ID })),
+    gradingHistory: [],
+    academicEvents: [],
+    lessonDeliveryRecords: []
+  };
+  return ensureSpecializedStudyStructure(base4);
+}
+function ensureDataDir() {
+  try {
+    if (!fs.existsSync(DATA_DIR)) {
+      fs.mkdirSync(DATA_DIR, { recursive: true, mode: 511 });
+    }
+    fs.accessSync(DATA_DIR, fs.constants.W_OK);
+    return DATA_DIR;
+  } catch {
+    const tmpDir = path.join("/tmp", ".data");
+    if (!fs.existsSync(tmpDir)) {
+      fs.mkdirSync(tmpDir, { recursive: true, mode: 511 });
+    }
+    return tmpDir;
+  }
+}
+function resolveDbPaths(env) {
+  const writableDir = ensureDataDir();
+  const fileName = env === "test" ? "learnos_test.json" : "learnos_prod.json";
+  const writePath = path.join(writableDir, fileName);
+  const bundledPath = env === "test" ? TEST_DB_PATH : PROD_DB_PATH;
+  if (fs.existsSync(writePath)) {
+    return { readPath: writePath, writePath };
+  }
+  if (fs.existsSync(bundledPath)) {
+    return { readPath: bundledPath, writePath };
+  }
+  return { readPath: writePath, writePath };
+}
+function getDbState(env = "prod") {
+  const context = requestDatabase.getStore();
+  if (env === "prod" && context) return context.state;
+  if (env === "prod" && (process.env.VERCEL || ["firestore", "supabase"].includes(process.env.PERSISTENCE_DRIVER || ""))) {
+    throw new Error("Cloud persistence requires an isolated request context.");
+  }
+  if (memoryCache[env]) {
+    return memoryCache[env];
+  }
+  const { readPath } = resolveDbPaths(env);
+  if (fs.existsSync(readPath)) {
+    try {
+      const raw = fs.readFileSync(readPath, "utf-8");
+      const parsed = JSON.parse(raw);
+      const merged = ensureSpecializedStudyStructure({
+        ...createEmptyDatabaseState(),
+        ...parsed
+      });
+      memoryCache[env] = merged;
+      return merged;
+    } catch (err) {
+      console.warn(`Error reading ${readPath}, initializing clean state:`, err);
+    }
+  }
+  const fresh = createEmptyDatabaseState();
+  memoryCache[env] = fresh;
+  saveDbState(env, fresh);
+  return fresh;
+}
+function saveDbState(env, state) {
+  const context = requestDatabase.getStore();
+  if (env === "prod" && context) {
+    context.state = state;
+    context.dirty = true;
+    return;
+  }
+  if (env === "prod" && (process.env.VERCEL || ["firestore", "supabase"].includes(process.env.PERSISTENCE_DRIVER || ""))) {
+    throw new Error("Cloud persistence cannot fall back to a local file.");
+  }
+  memoryCache[env] = state;
+  const { writePath } = resolveDbPaths(env);
+  const serialized = JSON.stringify(state);
+  try {
+    fs.writeFileSync(writePath, serialized, { encoding: "utf-8", mode: 438 });
+    try {
+      fs.chmodSync(writePath, 438);
+    } catch {
+    }
+  } catch (err) {
+    try {
+      const fallbackDir = path.join("/tmp", ".data");
+      if (!fs.existsSync(fallbackDir)) {
+        fs.mkdirSync(fallbackDir, { recursive: true, mode: 511 });
+      }
+      const fallbackFile = path.join(
+        fallbackDir,
+        env === "test" ? "learnos_test.json" : "learnos_prod.json"
+      );
+      fs.writeFileSync(fallbackFile, serialized, { encoding: "utf-8", mode: 438 });
+    } catch {
+      console.warn("In-memory state preserved; disk write skipped:", err);
+    }
+  }
+}
+function resetTestDbState() {
+  const { writePath } = resolveDbPaths("test");
+  const empty = createEmptyDatabaseState();
+  memoryCache.test = empty;
+  revokedTokenSet.clear();
+  revokedBeforeTimestampByUser.clear();
+  try {
+    if (fs.existsSync(writePath)) {
+      fs.unlinkSync(writePath);
+    }
+  } catch {
+  }
+  saveDbState("test", empty);
+}
+function hashPassword(password) {
+  const salt2 = crypto2.randomBytes(16).toString("hex");
+  const derived = crypto2.scryptSync(password, salt2, 64).toString("hex");
+  return `${salt2}:${derived}`;
+}
+function generateSecureRandomPassword() {
+  return `SS-${crypto2.randomBytes(16).toString("hex")}!9a`;
+}
+function verifyPassword(password, storedHash) {
+  if (!storedHash || !storedHash.includes(":")) return false;
+  const [salt2, key] = storedHash.split(":");
+  const derived = crypto2.scryptSync(password, salt2, 64).toString("hex");
+  const keyBuf = Buffer.from(key, "hex");
+  const derivedBuf = Buffer.from(derived, "hex");
+  if (keyBuf.length !== derivedBuf.length) return false;
+  return crypto2.timingSafeEqual(keyBuf, derivedBuf);
+}
+async function verifyPasswordAsync(password, storedHash) {
+  const valid = !!storedHash && /^[a-f0-9]{32}:[a-f0-9]{128}$/.test(storedHash);
+  const [salt2, key] = valid ? storedHash.split(":") : ["missing-account-constant-work", "0".repeat(128)];
+  const derived = await new Promise((resolve, reject) => crypto2.scrypt(password, salt2, 64, (error, value) => error ? reject(error) : resolve(value)));
+  return crypto2.timingSafeEqual(Buffer.from(key, "hex"), derived) && valid;
+}
+function revokeSessionToken(token) {
+  if (!token) return;
+  const context = requestDatabase.getStore();
+  if (context) {
+    const now = Date.now();
+    context.state.revokedSessionHashes = Object.fromEntries(Object.entries(context.state.revokedSessionHashes || {}).filter(([, expiry]) => expiry > now));
+    try {
+      const payload = JSON.parse(Buffer.from(token.split(".")[0], "base64url").toString("utf8"));
+      context.state.revokedSessionHashes[crypto2.createHash("sha256").update(token.trim()).digest("hex")] = Number(payload.exp) || now + 6048e5;
+      context.dirty = true;
+    } catch {
+    }
+    return;
+  }
+  revokedTokenSet.add(token.trim());
+}
+function revokeAllUserSessions(uid) {
+  if (!uid) return;
+  const context = requestDatabase.getStore();
+  if (context) {
+    context.state.revokedBeforeByUser ||= {};
+    context.state.revokedBeforeByUser[uid] = Date.now();
+    context.dirty = true;
+    return;
+  }
+  revokedBeforeTimestampByUser.set(uid, Date.now());
+}
+function issueSessionToken(uid, env, expiresInMs = 1e3 * 60 * 60 * 24 * 7) {
+  const now = Math.max(Date.now(), (requestDatabase.getStore()?.state.revokedBeforeByUser?.[uid] || 0) + 1);
+  const payload = JSON.stringify({
+    uid,
+    env,
+    jti: crypto2.randomBytes(8).toString("hex"),
+    iat: now,
+    exp: now + expiresInMs
+  });
+  const base64Payload = Buffer.from(payload, "utf-8").toString("base64url");
+  const signature = crypto2.createHmac("sha256", TOKEN_SECRET).update(base64Payload).digest("base64url");
+  return `${base64Payload}.${signature}`;
+}
+function verifySessionToken(token) {
+  if (!token || typeof token !== "string" || !token.includes(".")) return null;
+  const cleanToken = token.trim();
+  if (revokedTokenSet.has(cleanToken)) return null;
+  const durableRevocations = requestDatabase.getStore()?.state.revokedSessionHashes;
+  if (durableRevocations?.[crypto2.createHash("sha256").update(cleanToken).digest("hex")]) return null;
+  const parts = cleanToken.split(".");
+  if (parts.length !== 2) return null;
+  const [base64Payload, signature] = parts;
+  if (!base64Payload || !signature) return null;
+  const expectedSig = crypto2.createHmac("sha256", TOKEN_SECRET).update(base64Payload).digest("base64url");
+  const sigBuf = Buffer.from(signature, "utf-8");
+  const expectedBuf = Buffer.from(expectedSig, "utf-8");
+  if (sigBuf.length !== expectedBuf.length || !crypto2.timingSafeEqual(sigBuf, expectedBuf)) {
+    return null;
+  }
+  try {
+    const decoded = JSON.parse(Buffer.from(base64Payload, "base64url").toString("utf-8"));
+    if (!decoded.uid || typeof decoded.exp !== "number" || decoded.exp < Date.now()) {
+      return null;
+    }
+    const revokedBefore = requestDatabase.getStore()?.state.revokedBeforeByUser?.[decoded.uid] || revokedBeforeTimestampByUser.get(decoded.uid);
+    if (revokedBefore && typeof decoded.iat === "number" && decoded.iat <= revokedBefore) {
+      return null;
+    }
+    return {
+      uid: decoded.uid,
+      env: decoded.env === "test" ? "test" : "prod"
+    };
+  } catch {
+    return null;
+  }
+}
+function generateCryptographicInviteToken(rolePrefix) {
+  const rand = crypto2.randomBytes(4).toString("hex").toUpperCase();
+  const rawToken = `INV-${rolePrefix.slice(0, 3).toUpperCase()}-${rand}`;
+  const tokenHash = computeSimpleHash(rawToken);
+  return { rawToken, tokenHash };
+}
+var DATA_DIR, PROD_DB_PATH, TEST_DB_PATH, configuredSessionSecret, baseSessionSecret, TOKEN_SECRET, memoryCache, revokedTokenSet, revokedBeforeTimestampByUser;
+var init_dbEngine = __esm({
+  "src/server/dbEngine.ts"() {
+    init_requestDatabase();
+    init_runtimeScope();
+    init_curriculum();
+    init_security();
+    init_gamificationEngine();
+    init_academicOsEngine();
+    DATA_DIR = path.resolve(process.cwd(), ".data");
+    PROD_DB_PATH = path.join(DATA_DIR, "learnos_prod.json");
+    TEST_DB_PATH = path.join(DATA_DIR, "learnos_test.json");
+    configuredSessionSecret = process.env.SESSION_SECRET;
+    if (process.env.NODE_ENV === "production" && (!configuredSessionSecret || configuredSessionSecret.length < 32 || configuredSessionSecret.includes("REPLACE_WITH"))) {
+      throw new Error("Production requires a random SESSION_SECRET of at least 32 characters.");
+    }
+    baseSessionSecret = configuredSessionSecret || crypto2.randomBytes(32).toString("hex");
+    TOKEN_SECRET = runtimeNamespace() === "_specialized_runtime" ? baseSessionSecret : crypto2.createHmac("sha256", baseSessionSecret).update(runtimeNamespace()).digest("hex");
+    memoryCache = {
+      prod: null,
+      test: null
+    };
+    revokedTokenSet = /* @__PURE__ */ new Set();
+    revokedBeforeTimestampByUser = /* @__PURE__ */ new Map();
+  }
+});
+
+// src/server/firebaseAdminAuth.ts
+var firebaseAdminAuth_exports = {};
+__export(firebaseAdminAuth_exports, {
+  AUTHORIZED_ADMIN_EMAILS: () => AUTHORIZED_ADMIN_EMAILS,
+  PLATFORM_OWNER_EMAIL: () => PLATFORM_OWNER_EMAIL,
+  SECOND_PLATFORM_ADMIN_EMAIL: () => SECOND_PLATFORM_ADMIN_EMAIL,
+  createIsolatedTestFirebaseIdToken: () => createIsolatedTestFirebaseIdToken,
+  getFirebaseAdminApp: () => getFirebaseAdminApp,
+  getFirebaseAdminAuth: () => getFirebaseAdminAuth,
+  loadFirebaseAppletConfig: () => loadFirebaseAppletConfig,
+  provisionAuthorizedAdmins: () => provisionAuthorizedAdmins,
+  provisionSingleAdminAccount: () => provisionSingleAdminAccount,
+  verifyFirebaseIdToken: () => verifyFirebaseIdToken
+});
+import crypto3 from "crypto";
+import fs2 from "fs";
+import path2 from "path";
+import { initializeApp, getApps, cert } from "firebase-admin/app";
+import { getAuth } from "firebase-admin/auth";
+function loadFirebaseAppletConfig() {
+  const raw = fs2.readFileSync(CONFIG_PATH, "utf-8");
+  return JSON.parse(raw);
+}
+function getFirebaseAdminApp() {
+  if (!cachedAdminApp) {
+    const cfg = loadFirebaseAppletConfig();
+    const existing = getApps();
+    cachedAdminApp = existing.length > 0 ? existing[0] : initializeApp({
+      projectId: cfg.projectId,
+      ...process.env.FIREBASE_ADMIN_SERVICE_ACCOUNT ? { credential: cert(JSON.parse(process.env.FIREBASE_ADMIN_SERVICE_ACCOUNT)) } : {}
+    });
+  }
+  return cachedAdminApp;
+}
+function getFirebaseAdminAuth() {
+  return getAuth(getFirebaseAdminApp());
+}
+function createIsolatedTestFirebaseIdToken(payload) {
+  const nowSec = Math.floor(Date.now() / 1e3);
+  const expSec = nowSec + (payload.expiresInSeconds ?? 3600);
+  const body = {
+    uid: payload.uid,
+    sub: payload.uid,
+    email: String(payload.email || "").trim().toLowerCase(),
+    email_verified: payload.emailVerified === true,
+    name: payload.displayName || payload.email,
+    claims: payload.customClaims || {},
+    iat: nowSec,
+    exp: expSec,
+    iss: `https://securetoken.google.com/${loadFirebaseAppletConfig().projectId}`,
+    aud: loadFirebaseAppletConfig().projectId
+  };
+  const encoded = Buffer.from(JSON.stringify(body), "utf-8").toString("base64url");
+  const sig = crypto3.createHmac("sha256", TEST_ID_TOKEN_SECRET).update(`test-fb-jwt.${encoded}`).digest("base64url");
+  return `test-fb-jwt.${encoded}.${sig}`;
+}
+async function verifyFirebaseIdToken(idToken, env, db) {
+  if (!idToken || typeof idToken !== "string" || !idToken.trim()) {
+    return {
+      valid: false,
+      errorCode: "auth/missing-id-token",
+      errorMessage: "Firebase ID token topilmadi."
+    };
+  }
+  const trimmed = idToken.trim();
+  if (env === "test" && trimmed.startsWith("test-fb-jwt.")) {
+    const parts = trimmed.split(".");
+    if (parts.length !== 3) {
+      return {
+        valid: false,
+        errorCode: "auth/invalid-id-token",
+        errorMessage: "Noto\u2018g\u2018ri token formati."
+      };
+    }
+    const [, encoded, sig] = parts;
+    const expectedSig = crypto3.createHmac("sha256", TEST_ID_TOKEN_SECRET).update(`test-fb-jwt.${encoded}`).digest("base64url");
+    const sigBuf = Buffer.from(sig, "utf-8");
+    const expBuf = Buffer.from(expectedSig, "utf-8");
+    if (sigBuf.length !== expBuf.length || !crypto3.timingSafeEqual(sigBuf, expBuf)) {
+      return {
+        valid: false,
+        errorCode: "auth/invalid-credential",
+        errorMessage: "Token imzosi haqiqiy emas."
+      };
+    }
+    try {
+      const decoded = JSON.parse(Buffer.from(encoded, "base64url").toString("utf-8"));
+      const nowSec = Math.floor(Date.now() / 1e3);
+      if (typeof decoded.exp !== "number" || decoded.exp <= nowSec) {
+        return {
+          valid: false,
+          errorCode: "auth/id-token-expired",
+          errorMessage: "Firebase ID token muddati tugagan. Qaytadan tizimga kiring."
+        };
+      }
+      const uid = String(decoded.uid || decoded.sub || "").trim();
+      const email = String(decoded.email || "").trim().toLowerCase();
+      if (!uid || !email) {
+        return {
+          valid: false,
+          errorCode: "auth/invalid-id-token",
+          errorMessage: "Token tarkibida foydalanuvchi identifikatori (UID/Email) mavjud emas."
+        };
+      }
+      const storedClaims = db.customClaims && db.customClaims[uid] || {};
+      const mergedClaims = {
+        ...storedClaims,
+        ...decoded.claims || {}
+      };
+      return {
+        valid: true,
+        identity: {
+          uid,
+          email,
+          emailVerified: decoded.email_verified === true,
+          displayName: decoded.name ? String(decoded.name) : void 0,
+          customClaims: mergedClaims,
+          issuedAtSeconds: Number(decoded.iat || nowSec),
+          expiresAtSeconds: Number(decoded.exp),
+          verificationSource: "isolated_test_token"
+        }
+      };
+    } catch {
+      return {
+        valid: false,
+        errorCode: "auth/invalid-id-token",
+        errorMessage: "Token ma\u2019lumotlarini o\u2018qib bo\u2018lmadi."
+      };
+    }
+  }
+  try {
+    const adminAuth = getFirebaseAdminAuth();
+    const decodedToken = await adminAuth.verifyIdToken(trimmed, true);
+    const uid = String(decodedToken.uid || decodedToken.sub || "").trim();
+    const email = String(decodedToken.email || "").trim().toLowerCase();
+    if (!uid || !email) {
+      return {
+        valid: false,
+        errorCode: "auth/invalid-id-token",
+        errorMessage: "Tasdiqlangan Google hisobida email manzili mavjud emas."
+      };
+    }
+    const customClaims = {
+      platformAdmin: decodedToken.platformAdmin === true
+    };
+    return {
+      valid: true,
+      identity: {
+        uid,
+        email,
+        emailVerified: decodedToken.email_verified === true,
+        displayName: decodedToken.name ? String(decodedToken.name) : void 0,
+        photoURL: decodedToken.picture ? String(decodedToken.picture) : void 0,
+        customClaims,
+        issuedAtSeconds: decodedToken.iat,
+        expiresAtSeconds: decodedToken.exp,
+        verificationSource: "firebase_admin_jwt"
+      }
+    };
+  } catch (adminErr) {
+    const code = String(adminErr?.code || "");
+    if (code === "auth/id-token-expired") {
+      return {
+        valid: false,
+        errorCode: code,
+        errorMessage: "Sessiya muddati tugagan. Iltimos, Google orqali qayta kiring."
+      };
+    }
+    return {
+      valid: false,
+      errorCode: "auth/invalid-credential",
+      errorMessage: "Firebase hisobini tekshirib bo\u2018lmadi. Qayta kiring yoki administratorga murojaat qiling."
+    };
+  }
+}
+async function provisionSingleAdminAccount(targetEmail, env, db) {
+  const normalizedEmail = String(targetEmail || "").trim().toLowerCase();
+  if (!isAuthorizedAdminEmail(normalizedEmail)) {
+    throw new Error(`Unauthorized administrator email: ${normalizedEmail}`);
+  }
+  if (!db.customClaims) {
+    db.customClaims = {};
+  }
+  let fbUserRecord = null;
+  let firebaseAdminSdkClaimSynced = false;
+  if (env === "prod") {
+    try {
+      const adminAuth = getFirebaseAdminAuth();
+      const userRec = await adminAuth.getUserByEmail(normalizedEmail);
+      fbUserRecord = {
+        uid: userRec.uid,
+        email: (userRec.email || normalizedEmail).toLowerCase(),
+        emailVerified: userRec.emailVerified,
+        displayName: userRec.displayName || void 0,
+        customClaims: userRec.customClaims || {}
+      };
+    } catch {
+    }
+  }
+  const dbUser = db.users.find((u) => u.email.trim().toLowerCase() === normalizedEmail);
+  const resolvedUid = fbUserRecord?.uid || dbUser?.uid || null;
+  if (!resolvedUid) {
+    return {
+      email: normalizedEmail,
+      existsInFirebaseOrDb: false,
+      uid: null,
+      emailVerified: false,
+      platformAdminClaimAssigned: false,
+      preservedCustomClaims: {},
+      firebaseAdminSdkClaimSynced: false,
+      status: "awaiting_first_google_login",
+      message: `${normalizedEmail} hali Google orqali tizimga kirmagan. Haqiqiy Firebase UID yaratilishi uchun foydalanuvchi avval \xABGoogle bilan kirish\xBB tugmasi orqali autentifikatsiyadan o\u2018tishi shart.`
+    };
+  }
+  const isEmailVerified = fbUserRecord !== null ? fbUserRecord.emailVerified : dbUser?.emailVerified === true;
+  if (!isEmailVerified) {
+    return {
+      email: normalizedEmail,
+      existsInFirebaseOrDb: true,
+      uid: resolvedUid,
+      emailVerified: false,
+      platformAdminClaimAssigned: false,
+      preservedCustomClaims: db.customClaims[resolvedUid] || {},
+      firebaseAdminSdkClaimSynced: false,
+      status: "awaiting_email_verification",
+      message: `${normalizedEmail} hisobi mavjud (UID: ${resolvedUid}), biroq elektron pochta tasdiqlanmagan (emailVerified=false).`
+    };
+  }
+  const existingClaims = {
+    ...db.customClaims[resolvedUid] || {},
+    ...fbUserRecord?.customClaims || {}
+  };
+  const updatedClaims = {
+    ...existingClaims,
+    platformAdmin: true
+  };
+  db.customClaims[resolvedUid] = updatedClaims;
+  if (env === "prod") {
+    try {
+      const adminAuth = getFirebaseAdminAuth();
+      await adminAuth.setCustomUserClaims(resolvedUid, updatedClaims);
+      const verifiedRec = await adminAuth.getUser(resolvedUid);
+      firebaseAdminSdkClaimSynced = verifiedRec.customClaims?.platformAdmin === true;
+    } catch {
+      firebaseAdminSdkClaimSynced = false;
+    }
+  }
+  const nowIso = (/* @__PURE__ */ new Date()).toISOString();
+  const instId = db.institutions[0]?.id || "inst-specialized-study";
+  if (dbUser) {
+    dbUser.uid = resolvedUid;
+    dbUser.role = "platform_owner";
+    dbUser.platformOwner = true;
+    dbUser.platformAdmin = true;
+    dbUser.emailVerified = true;
+    dbUser.status = "active";
+    dbUser.updatedAt = nowIso;
+  } else if (fbUserRecord) {
+    db.users.push({
+      uid: resolvedUid,
+      displayName: fbUserRecord.displayName || (normalizedEmail === PLATFORM_OWNER_EMAIL ? "Asilbek Nuraliyev" : "Bahodir Boliqulov"),
+      email: normalizedEmail,
+      emailVerified: true,
+      platformOwner: true,
+      platformAdmin: true,
+      role: "platform_owner",
+      institutionId: instId,
+      status: "active",
+      createdAt: nowIso,
+      updatedAt: nowIso
+    });
+  }
+  db.auditLogs.unshift({
+    id: `audit-prov-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+    institutionId: instId,
+    actorUid: resolvedUid,
+    actorName: normalizedEmail,
+    actorRole: "platform_owner",
+    action: `Platform Admin custom claim (platformAdmin: true) tasdiqlandi: ${normalizedEmail}`,
+    target: normalizedEmail,
+    recordId: resolvedUid,
+    status: "success",
+    eventType: "ADMIN_CLAIM_PROVISIONED",
+    outcome: "success",
+    severity: "INFO",
+    createdAt: nowIso
+  });
+  saveDbState(env, db);
+  return {
+    email: normalizedEmail,
+    existsInFirebaseOrDb: true,
+    uid: resolvedUid,
+    emailVerified: true,
+    platformAdminClaimAssigned: updatedClaims.platformAdmin === true,
+    preservedCustomClaims: updatedClaims,
+    firebaseAdminSdkClaimSynced,
+    status: "active_admin",
+    message: `${normalizedEmail} uchun platformAdmin: true ruxsati muvaffaqiyatli biriktirildi (UID: ${resolvedUid}).`
+  };
+}
+async function provisionAuthorizedAdmins(env, db) {
+  const results = [];
+  for (const adminEmail of AUTHORIZED_ADMIN_EMAILS) {
+    const res = await provisionSingleAdminAccount(adminEmail, env, db);
+    results.push(res);
+  }
+  return {
+    admins: results,
+    allowlist: AUTHORIZED_ADMIN_EMAILS,
+    timestamp: (/* @__PURE__ */ new Date()).toISOString()
+  };
+}
+var CONFIG_PATH, TEST_ID_TOKEN_SECRET, cachedAdminApp;
+var init_firebaseAdminAuth = __esm({
+  "src/server/firebaseAdminAuth.ts"() {
+    init_curriculum();
+    init_security();
+    init_dbEngine();
+    CONFIG_PATH = path2.resolve(process.cwd(), "firebase-applet-config.json");
+    TEST_ID_TOKEN_SECRET = "specialized-study-isolated-test-jwt-secret-2026";
+    cachedAdminApp = null;
+  }
+});
+
+// src/server/authIngress.ts
+import crypto from "node:crypto";
+import { isIP } from "node:net";
+
+// src/server/supabaseClient.ts
+import { createClient } from "@supabase/supabase-js";
+var client;
+var supabaseEnabled = () => process.env.PERSISTENCE_DRIVER === "supabase";
+function serverSupabase() {
+  if (client) return client;
+  const url = process.env.SUPABASE_URL, key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !key || key.length < 30) throw Error("Supabase server configuration missing");
+  if (!/^https:\/\/[a-z0-9]+\.supabase\.co$/.test(url)) throw Error("Invalid Supabase origin");
+  return client = createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false } });
+}
+async function studyRpc(name, args) {
+  if (!/^study_[a-z_]+$/.test(name)) throw Error("Invalid RPC");
+  const { data, error } = await serverSupabase().rpc(name, args);
+  if (error) {
+    const e = Error(error.code === "40001" ? "PERSISTENCE_CONFLICT" : "Supabase operation failed");
+    Object.assign(e, { code: error.code });
+    throw e;
+  }
+  return data;
+}
+
+// src/server/authIngress.ts
+init_runtimeScope();
+var salt = process.env.SESSION_SECRET || crypto.randomBytes(32).toString("hex");
+function clientIpFingerprint(req) {
+  const platform2 = process.env.VERCEL ? String(req.headers["x-vercel-forwarded-for"] || "").split(",")[0].trim() : "";
+  const ip = isIP(platform2) ? platform2 : String(req.socket.remoteAddress || "unknown");
+  return crypto.createHmac("sha256", salt).update(ip).digest("hex");
+}
+function authenticationBucket(req, scope) {
+  const account = scope === "login" ? crypto.createHash("sha256").update(String(req.body?.login || req.body?.email || "").trim().toLowerCase()).digest("hex") : "";
+  const test = process.env.NODE_ENV === "test" ? String(req.headers["x-test-client-id"] || "").slice(0, 80) : "";
+  return `${scope}:${clientIpFingerprint(req)}:${account}:${test}`;
+}
+var authIngress = async (req, res, next) => {
+  const publicLogin = ["/api/auth/login", "/api/auth/provider-sync", "/api/auth/firebase-sync", "/api/auth/register-with-invite"].includes(req.path), sensitive = ["/api/account/password", "/api/account/native-credentials", "/api/account/google-link"].includes(req.path);
+  if (req.method !== "POST" || !publicLogin && !sensitive || !supabaseEnabled()) return next();
+  try {
+    const key = sensitive ? crypto.createHmac("sha256", salt).update(req.path + ":" + String(res.locals.signedUid || "anonymous") + ":" + clientIpFingerprint(req)).digest("hex") : clientIpFingerprint(req);
+    const allowed = await studyRpc("study_auth_rate_limit", { p_namespace: runtimeNamespace(), p_key: key, p_limit: sensitive ? 10 : 600, p_window_ms: sensitive ? 9e5 : 6e4 });
+    if (!allowed) return res.status(429).set("Retry-After", "60").json({ code: "RATE_LIMITED", error: "Kirish so\u2018rovlari ko\u2018paydi. Bir daqiqadan keyin qayta urining." });
+    next();
+  } catch {
+    return res.status(503).json({ code: "TEMPORARY", error: "Kirish xizmati vaqtincha tayyor emas." });
+  }
+};
+
+// src/server/supabaseAuth.ts
+import crypto4 from "node:crypto";
+import { z } from "zod";
+init_security();
+var supabaseAuthEnabled = () => process.env.AUTH_PROVIDER === "supabase";
+async function verifiedProviderUser(token) {
+  if (token.length > 16e3 || !token.includes(".")) throw Error("Invalid provider token");
+  const { data, error } = await serverSupabase().auth.getUser(token);
+  if (error || !data.user || !data.user.email || !data.user.email_confirmed_at) throw Error("Unverified provider identity");
+  const claims = JSON.parse(Buffer.from(token.split(".")[1], "base64url").toString("utf8"));
+  if (claims.sub !== data.user.id || claims.exp * 1e3 <= Date.now()) throw Error("Invalid provider token");
+  const amr = Array.isArray(claims.amr) ? claims.amr : [], oauth = amr.filter((v) => v.method === "oauth");
+  const google = data.user.identities?.some((v) => v.provider === "google") && oauth.length > 0;
+  return { user: data.user, google: !!google, authTime: Math.max(0, ...oauth.map((v) => Number(v.timestamp) || 0)) };
+}
+function resolveProviderProfile(db, provider) {
+  const matched = db.users.find((u) => u.linkedSupabaseUid === provider.id);
+  if (matched) return matched;
+  const legacy = provider.app_metadata?.legacyApplicationUid;
+  return legacy ? db.users.find((u) => u.uid === legacy && u.email.toLowerCase() === provider.email?.toLowerCase()) : void 0;
+}
+async function accountProviderProof(token, db) {
+  if (!supabaseAuthEnabled()) {
+    const { getFirebaseAdminAuth: getFirebaseAdminAuth2 } = await Promise.resolve().then(() => (init_firebaseAdminAuth(), firebaseAdminAuth_exports));
+    return getFirebaseAdminAuth2().verifyIdToken(token, true);
+  }
+  const identity = await verifiedProviderUser(token), profile = resolveProviderProfile(db, identity.user);
+  return { uid: profile?.uid || identity.user.id, providerUid: identity.user.id, email: identity.user.email, email_verified: true, auth_time: identity.authTime, firebase: { sign_in_provider: identity.google ? "google.com" : "other" } };
+}
+function registerSupabaseAuthRoutes(app2, deps) {
+  app2.post("/api/admin/provision-claims", async (req, res, next) => {
+    if (!supabaseAuthEnabled()) return next();
+    const actor = deps.authenticate?.(req);
+    if (!actor || !deps.owner?.(actor.user)) return res.status(403).json({ error: "Faqat tasdiqlangan platforma egasiga ruxsat." });
+    try {
+      const db = deps.database("prod");
+      db.customClaims ||= {};
+      let count = 0;
+      for (const user of db.users.filter((u) => u.status === "active" && u.emailVerified && u.platformAdmin && ["admin", "platform_owner"].includes(u.role) && isAuthorizedAdminEmail(u.email) && u.linkedSupabaseUid)) {
+        const id = user.linkedSupabaseUid;
+        const current = await serverSupabase().auth.admin.getUserById(id);
+        if (current.error || !current.data.user || current.data.user.email?.toLowerCase() !== user.email.toLowerCase() || !current.data.user.email_confirmed_at) throw Error("Identity verification failed");
+        const updated = await serverSupabase().auth.admin.updateUserById(id, { app_metadata: { ...current.data.user.app_metadata, platformAdmin: true, legacyApplicationUid: user.uid } });
+        if (updated.error) throw Error("Claim update failed");
+        db.customClaims[user.uid] = { ...db.customClaims[user.uid], platformAdmin: true };
+        count++;
+      }
+      deps.save("prod", db);
+      return res.json({ provisioned: count, provider: "supabase" });
+    } catch {
+      return res.status(503).json({ error: "Ruxsatlar yangilanmadi. Qayta urinib ko\u2018ring." });
+    }
+  });
+  app2.use("/api/auth/firebase-sync", (_req, res, next) => supabaseAuthEnabled() ? res.status(410).json({ error: "Kirish sahifasini yangilang.", code: "AUTH_PROVIDER_CHANGED" }) : next());
+  app2.post("/api/auth/provider-sync", async (req, res) => {
+    if (!supabaseAuthEnabled()) return res.status(503).json({ error: "Kirish xizmati sozlanmoqda." });
+    const parsed = z.object({ idToken: z.string().min(20).max(16e3), inviteToken: z.string().max(128).optional() }).safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ error: "Kirish javobini tekshiring." });
+    try {
+      const identity = await (deps.verifyIdentity || verifiedProviderUser)(parsed.data.idToken);
+      if (!identity.google) return res.status(403).json({ error: "Tasdiqlangan Google kirishi kerak." });
+      const db = deps.database("prod"), provider = identity.user, now = (/* @__PURE__ */ new Date()).toISOString();
+      let user = resolveProviderProfile(db, provider);
+      if (user && user.status !== "active") return res.status(403).json({ error: "Hisob faol emas." });
+      if (!user) {
+        if (db.users.some((u) => u.email.toLowerCase() === provider.email.toLowerCase())) return res.status(409).json({ error: "Avval mavjud hisobga kirib, Google hisobingizni biriktiring." });
+        if (isAuthorizedAdminEmail(provider.email)) return res.status(403).json({ error: "Administrator hisobi migratsiya reyestrida tasdiqlanishi kerak." });
+        const school = db.institutions[0];
+        if (!school) return res.status(503).json({ error: "Maktab sozlamasi tayyor emas." });
+        let classroom, invitation;
+        if (parsed.data.inviteToken) {
+          const raw = parsed.data.inviteToken.trim().toUpperCase();
+          invitation = (db.invitations || []).find((v) => v.tokenHash === computeSimpleHash(raw));
+          if (invitation) {
+            const valid = validateInvitationToken(raw, invitation, now);
+            if (!valid.valid || invitation.role !== "student" || invitation.email && invitation.email.toLowerCase() !== provider.email.toLowerCase()) return res.status(400).json({ error: "Taklif kodi bu hisob uchun yaroqsiz." });
+            classroom = db.classes.find((c) => c.id === invitation.classId && c.institutionId === invitation.institutionId && c.status !== "archived");
+          } else classroom = (db.classes || []).find((c) => c.inviteCode?.toUpperCase() === raw && c.status !== "archived");
+          if (!classroom) return res.status(400).json({ error: "Taklif kodi topilmadi yoki muddati tugagan." });
+        }
+        user = { uid: provider.id, linkedSupabaseUid: provider.id, email: provider.email, emailVerified: true, displayName: String(provider.user_metadata?.full_name || "O\u2018quvchi").slice(0, 120), role: "student", institutionId: school.id, status: "active", createdAt: now };
+        db.users.push(user);
+        if (classroom) Object.assign(user, { institutionId: classroom.institutionId, classId: classroom.id, classCode: classroom.code, grade: classroom.grade, track: classroom.track, enrolledAt: now });
+        if (invitation) Object.assign(invitation, { status: "accepted", acceptedAt: now, acceptedByUid: user.uid });
+      }
+      const current = user;
+      if (["admin", "platform_owner"].includes(current.role)) {
+        if (!isAuthorizedAdminEmail(provider.email) || provider.app_metadata?.platformAdmin !== true || !current.emailVerified || current.platformAdmin !== true || db.customClaims?.[current.uid]?.platformAdmin !== true) return res.status(403).json({ error: "Administrator ruxsati tasdiqlanmadi." });
+      }
+      current.linkedSupabaseUid = provider.id;
+      current.lastLoginAt = now;
+      db.auditLogs.unshift({ id: crypto4.randomUUID(), institutionId: current.institutionId, actorUid: current.uid, actorName: current.displayName, actorRole: current.role, action: "Supabase Google orqali kirish", target: "Hisob", recordId: current.uid, createdAt: now });
+      deps.save("prod", db);
+      return res.json({ user: current, token: deps.issue(current.uid, "prod"), activationStatus: "active" });
+    } catch {
+      return res.status(401).json({ error: "Google hisobini tekshirib bo\u2018lmadi. Qayta kiring.", code: "auth/invalid-credential" });
+    }
+  });
+}
+
+// src/server/apiErrorHandler.ts
+var apiErrorHandler = (error, _req, res, _next) => {
+  if (res.headersSent) {
+    res.end();
+    return;
+  }
+  const large = error?.type === "entity.too.large", invalid = error?.type === "entity.parse.failed";
+  res.status(large ? 413 : invalid ? 400 : 500).set("Cache-Control", "no-store").json({ code: large ? "PAYLOAD_TOO_LARGE" : invalid ? "INVALID_JSON" : "INTERNAL", error: large ? "Yuborilgan ma\u2019lumot juda katta." : invalid ? "So\u2018rov formati noto\u2018g\u2018ri." : "So\u2018rov bajarilmadi. Qayta urinib ko\u2018ring." });
+};
+
+// src/server/securityHeaders.ts
+var productionCsp = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https:; connect-src 'self' https://*.supabase.co wss://*.supabase.co; worker-src 'self' blob:; frame-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'";
+
+// src/server/asyncRoute.ts
+var asyncRoute = (handler) => (req, res, next) => {
+  Promise.resolve().then(() => handler(req, res, next)).catch(next);
+};
+
 // src/utils/notificationPolicy.ts
 function deliveredNotification(value, day) {
   return !value.cancelled && (!value.deliverOn || /^\d{4}-\d{2}-\d{2}$/.test(value.deliverOn) && value.deliverOn <= day);
 }
 
 // src/server/spacedReviewEngine.ts
-import crypto2 from "node:crypto";
+import crypto6 from "node:crypto";
 
 // src/server/topicEngine.ts
-import crypto from "node:crypto";
-import { z } from "zod";
-var bankQuestion = z.object({
-  id: z.string().max(100).optional(),
-  revision: z.number().int().optional(),
-  kind: z.enum(["single", "multiple", "short", "matching", "ordering", "blank", "written"]),
-  prompt: z.string().trim().min(3).max(12e3),
-  options: z.array(z.string().trim().min(1).max(1e3)).max(20).default([]),
-  labels: z.array(z.string().trim().max(1e3)).max(12).default([]),
-  key: z.string().max(8e3),
-  accepted: z.array(z.string().max(1e3)).max(20).default([]),
-  explanation: z.string().max(5e3).default(""),
-  hint: z.string().max(2e3).default(""),
-  hints: z.array(z.string().trim().min(1).max(2e3)).max(3).default([]),
-  wrongFeedback: z.record(z.string().max(1e3), z.string().max(1e3)).default({}),
-  source: z.object({ title: z.string().trim().max(300), page: z.string().trim().max(40).default("") }).optional(),
-  points: z.number().min(0.5).max(100),
-  difficulty: z.enum(["easy", "medium", "hard"]).default("medium"),
-  sourceImages: z.array(z.string().max(7e5).regex(/^data:image\/(png|jpeg);base64,[a-zA-Z0-9+/=]+$/)).max(10).default([]),
-  image: z.string().max(7e5).refine((s) => !s || /^data:image\/(png|jpeg);base64,[a-zA-Z0-9+/=]+$/.test(s)).default("")
+import crypto5 from "node:crypto";
+import { z as z2 } from "zod";
+var bankQuestion = z2.object({
+  id: z2.string().max(100).optional(),
+  revision: z2.number().int().optional(),
+  kind: z2.enum(["single", "multiple", "short", "matching", "ordering", "blank", "written"]),
+  prompt: z2.string().trim().min(3).max(12e3),
+  options: z2.array(z2.string().trim().min(1).max(1e3)).max(20).default([]),
+  labels: z2.array(z2.string().trim().max(1e3)).max(12).default([]),
+  key: z2.string().max(8e3),
+  accepted: z2.array(z2.string().max(1e3)).max(20).default([]),
+  explanation: z2.string().max(5e3).default(""),
+  hint: z2.string().max(2e3).default(""),
+  hints: z2.array(z2.string().trim().min(1).max(2e3)).max(3).default([]),
+  wrongFeedback: z2.record(z2.string().max(1e3), z2.string().max(1e3)).default({}),
+  source: z2.object({ title: z2.string().trim().max(300), page: z2.string().trim().max(40).default("") }).optional(),
+  points: z2.number().min(0.5).max(100),
+  difficulty: z2.enum(["easy", "medium", "hard"]).default("medium"),
+  sourceImages: z2.array(z2.string().max(7e5).regex(/^data:image\/(png|jpeg);base64,[a-zA-Z0-9+/=]+$/)).max(10).default([]),
+  image: z2.string().max(7e5).refine((s) => !s || /^data:image\/(png|jpeg);base64,[a-zA-Z0-9+/=]+$/.test(s)).default("")
 }).superRefine((q, c) => {
   const issue = (message) => c.addIssue({ code: "custom", message });
   if (q.options.some((o) => o.includes("|"))) issue("Variant ichida | belgisi ishlatilmasin.");
@@ -53,7 +2989,7 @@ function gradeQuestion(q, answer) {
 function shuffle(list) {
   const a = [...list];
   for (let i = a.length - 1; i > 0; i--) {
-    const j = crypto.randomInt(i + 1);
+    const j = crypto5.randomInt(i + 1);
     [a[i], a[j]] = [a[j], a[i]];
   }
   return a;
@@ -193,7 +3129,7 @@ function cachedProgress(db, user, catalog, lessonId, now) {
   else db.studentTopicProgress.push(record);
 }
 function catalogSignature(ids) {
-  return crypto2.createHash("sha256").update([...ids].sort().join("\n")).digest("hex");
+  return crypto6.createHash("sha256").update([...ids].sort().join("\n")).digest("hex");
 }
 function recordTopicLearning(db, user, session, now = /* @__PURE__ */ new Date()) {
   if (session.reviewRecordedAt || !session.submittedAt) return;
@@ -836,7 +3772,7 @@ function generateLearningPathsFromAttempt(studentId, institutionId, topicBreakdo
 }
 
 // src/server/enterpriseCore.ts
-import crypto3 from "node:crypto";
+import crypto7 from "node:crypto";
 var SchoolError = class extends Error {
   constructor(status, message) {
     super(message);
@@ -858,7 +3794,7 @@ function schoolStudent(c, id) {
   return s;
 }
 var schoolKey = (...values) => values.map((v) => encodeURIComponent(String(v))).join(":");
-var digest = (value) => crypto3.createHash("sha256").update(JSON.stringify(value)).digest("hex");
+var digest = (value) => crypto7.createHash("sha256").update(JSON.stringify(value)).digest("hex");
 function ensureRows(db, key) {
   return db[key] || (db[key] = []);
 }
@@ -884,7 +3820,7 @@ function auditValue(value) {
 function schoolAudit(c, action, entityId, before, after) {
   const rows = ensureRows(c.db, "schoolAuditEvents"), previous = rows.filter((a) => a.schoolId === c.user.institutionId).at(-1)?.hash || "genesis";
   const event = {
-    id: crypto3.randomUUID(),
+    id: crypto7.randomUUID(),
     schoolId: c.user.institutionId,
     actorId: c.user.uid,
     actorName: c.user.displayName,
@@ -1032,12 +3968,12 @@ function registerAiAccessGuard(app2, deps) {
 }
 
 // src/server/disciplineRoutes.ts
-import crypto5 from "node:crypto";
-import { z as z3 } from "zod";
+import crypto9 from "node:crypto";
+import { z as z4 } from "zod";
 
 // src/server/disciplineEngine.ts
-import crypto4 from "node:crypto";
-import { z as z2 } from "zod";
+import crypto8 from "node:crypto";
+import { z as z3 } from "zod";
 var defaults = [
   ["late", "Darsga kechikish", false],
   ["homework", "Uy vazifasi bajarilmagan", true],
@@ -1143,59 +4079,59 @@ function disciplinePolicy(c) {
     directors: []
   };
 }
-var policySchema = z2.object({
-  revision: z2.number().int().min(0),
-  approved: z2.boolean(),
-  schoolApprovalAcknowledged: z2.boolean().default(false),
-  reason: z2.string().trim().min(5).max(2e3),
-  limit: z2.number().int().min(1).max(1e3),
-  editMinutes: z2.number().int().min(1).max(60),
-  positiveEnabled: z2.boolean(),
-  periodMode: z2.enum(["quarter", "semester", "year"]),
-  periods: z2.array(
-    z2.object({
-      id: z2.string().min(1).max(80),
-      name: z2.string().trim().min(2).max(100),
-      start: z2.string().refine(validDate),
-      end: z2.string().refine(validDate)
+var policySchema = z3.object({
+  revision: z3.number().int().min(0),
+  approved: z3.boolean(),
+  schoolApprovalAcknowledged: z3.boolean().default(false),
+  reason: z3.string().trim().min(5).max(2e3),
+  limit: z3.number().int().min(1).max(1e3),
+  editMinutes: z3.number().int().min(1).max(60),
+  positiveEnabled: z3.boolean(),
+  periodMode: z3.enum(["quarter", "semester", "year"]),
+  periods: z3.array(
+    z3.object({
+      id: z3.string().min(1).max(80),
+      name: z3.string().trim().min(2).max(100),
+      start: z3.string().refine(validDate),
+      end: z3.string().refine(validDate)
     })
   ).min(1).max(16),
-  stages: z2.array(
-    z2.object({
-      points: z2.number().int().min(1).max(1e3),
-      name: z2.string().trim().min(2).max(100),
-      template: z2.string().trim().min(5).max(2e3),
-      responsible: z2.enum(["homeroom", "admin", "deputy", "director"])
+  stages: z3.array(
+    z3.object({
+      points: z3.number().int().min(1).max(1e3),
+      name: z3.string().trim().min(2).max(100),
+      template: z3.string().trim().min(5).max(2e3),
+      responsible: z3.enum(["homeroom", "admin", "deputy", "director"])
     })
   ).min(1).max(10),
-  homeroom: z2.record(z2.string(), z2.string()).default({}),
-  deputies: z2.array(z2.string()).max(10).default([]),
-  directors: z2.array(z2.string()).max(10).default([])
+  homeroom: z3.record(z3.string(), z3.string()).default({}),
+  deputies: z3.array(z3.string()).max(10).default([]),
+  directors: z3.array(z3.string()).max(10).default([])
 });
-var typeSchema = z2.object({
-  id: z2.string().optional(),
-  revision: z2.number().int().min(0).default(0),
-  name: z2.string().trim().min(3).max(120),
-  description: z2.string().max(1e3).default(""),
-  points: z2.number().int().min(1).max(100).default(1),
-  category: z2.string().trim().max(100).default("kuzatilgan holat"),
-  quick: z2.boolean().default(false),
-  commentRequired: z2.boolean().default(false),
-  careOnly: z2.boolean().default(false),
-  active: z2.boolean().default(true),
-  order: z2.number().int().min(0).max(1e3).default(0)
+var typeSchema = z3.object({
+  id: z3.string().optional(),
+  revision: z3.number().int().min(0).default(0),
+  name: z3.string().trim().min(3).max(120),
+  description: z3.string().max(1e3).default(""),
+  points: z3.number().int().min(1).max(100).default(1),
+  category: z3.string().trim().max(100).default("kuzatilgan holat"),
+  quick: z3.boolean().default(false),
+  commentRequired: z3.boolean().default(false),
+  careOnly: z3.boolean().default(false),
+  active: z3.boolean().default(true),
+  order: z3.number().int().min(0).max(1e3).default(0)
 });
-var recordSchema = z2.object({
-  studentIds: z2.array(z2.string()).min(1).max(30),
-  typeId: z2.string(),
-  kind: z2.enum(["incident", "support", "reminder", "positive"]).default("incident"),
-  reason: z2.string().trim().max(3e3).default(""),
-  subject: z2.string().trim().max(120),
-  lessonId: z2.string().max(200).optional(),
-  happenedAt: z2.iso.datetime({ offset: true }),
-  evidenceText: z2.string().max(2e3).optional(),
-  evidence: z2.string().max(7e5).regex(/^data:image\/(png|jpeg);base64,[A-Za-z0-9+/=]+$/).optional(),
-  draft: z2.boolean().default(false)
+var recordSchema = z3.object({
+  studentIds: z3.array(z3.string()).min(1).max(30),
+  typeId: z3.string(),
+  kind: z3.enum(["incident", "support", "reminder", "positive"]).default("incident"),
+  reason: z3.string().trim().max(3e3).default(""),
+  subject: z3.string().trim().max(120),
+  lessonId: z3.string().max(200).optional(),
+  happenedAt: z3.iso.datetime({ offset: true }),
+  evidenceText: z3.string().max(2e3).optional(),
+  evidence: z3.string().max(7e5).regex(/^data:image\/(png|jpeg);base64,[A-Za-z0-9+/=]+$/).optional(),
+  draft: z3.boolean().default(false)
 });
 function currentDisciplinePeriod(c, at = c.now.toISOString()) {
   const day = localDate(new Date(at)), policy = disciplinePolicy(c), period = policy.periods.find((p) => p.start <= day && p.end >= day);
@@ -1321,7 +4257,7 @@ function saveDisciplineType(c, input) {
   if (old) checkRevision(old.revision, input.revision);
   const next = {
     ...input,
-    id: old ? old.id : crypto4.randomUUID(),
+    id: old ? old.id : crypto8.randomUUID(),
     schoolId: c.user.institutionId,
     revision: (old ? old.revision : 0) + 1
   };
@@ -1446,7 +4382,7 @@ function createDisciplineRecords(c, input) {
     );
   const created = students.map((s) => {
     const r = {
-      id: crypto4.randomUUID(),
+      id: crypto8.randomUUID(),
       schoolId: c.user.institutionId,
       studentId: s.uid,
       classId: s.classId,
@@ -1491,7 +4427,7 @@ function changeDisciplineRecord(c, id, input) {
     if (c.user.role !== "teacher" || r.teacherId !== c.user.uid)
       throw new SchoolError(403, "Faqat o\u2018z qaydingiz uchun so\u2018rov.");
     const row2 = {
-      id: crypto4.randomUUID(),
+      id: crypto8.randomUUID(),
       schoolId: r.schoolId,
       recordId: r.id,
       actorId: c.user.uid,
@@ -1580,7 +4516,7 @@ function appealDiscipline(c, recordId, reason3) {
   ))
     throw new SchoolError(409, "Bu qayd bo\u2018yicha e\u2019tiroz ko\u2018rilmoqda.");
   const a = {
-    id: crypto4.randomUUID(),
+    id: crypto8.randomUUID(),
     schoolId: r.schoolId,
     recordId,
     studentId: r.studentId,
@@ -1637,13 +4573,13 @@ function generateWarningLetter(c, k, total = disciplineTotal(c, k.studentId, k.p
   );
   if (existing && existing.status !== "draft") return existing;
   const letter = {
-    id: existing?.id || crypto4.randomUUID(),
+    id: existing?.id || crypto8.randomUUID(),
     schoolId: k.schoolId,
     studentId: k.studentId,
     classId: k.classId,
     periodId: k.periodId,
     caseId: k.id,
-    number: existing?.number || `INT-${localDate(c.now)}-${crypto4.randomBytes(3).toString("hex").toUpperCase()}`,
+    number: existing?.number || `INT-${localDate(c.now)}-${crypto8.randomBytes(3).toString("hex").toUpperCase()}`,
     body: `${inst?.officialName || inst?.name}
 HOLATLARNI KO\u2018RIB CHIQISH HUJJATI
 Sana: ${localDate(c.now)}
@@ -1675,9 +4611,9 @@ Bu hujjat loyihasi avtomatik jazo, chetlatish yoki imtihonga taqiq hisoblanmaydi
 }
 
 // src/server/disciplineRoutes.ts
-var common = z3.object({ operationId: z3.uuid() });
-var reason = z3.string().trim().min(3).max(4e3);
-var evidence = z3.string().max(7e5).regex(/^data:image\/(png|jpeg);base64,[A-Za-z0-9+/=]+$/).optional();
+var common = z4.object({ operationId: z4.uuid() });
+var reason = z4.string().trim().min(3).max(4e3);
+var evidence = z4.string().max(7e5).regex(/^data:image\/(png|jpeg);base64,[A-Za-z0-9+/=]+$/).optional();
 function registerDisciplineRoutes(app2, deps) {
   const rate = /* @__PURE__ */ new Map();
   const access = (req, res, write5 = false) => {
@@ -1754,20 +4690,20 @@ function registerDisciplineRoutes(app2, deps) {
   app2.get(
     "/api/discipline",
     read5((c, req, res) => {
-      const q = z3.object({
-        page: z3.coerce.number().int().min(0).max(1e4).default(0),
-        classId: z3.string().max(200).default(""),
-        studentId: z3.string().max(200).default(""),
-        teacherId: z3.string().max(200).default(""),
-        typeId: z3.string().max(200).default(""),
-        status: z3.string().max(30).default(""),
-        period: z3.string().max(100).default(""),
-        from: z3.string().max(10).default(""),
-        to: z3.string().max(10).default(""),
-        q: z3.string().max(100).default(""),
-        minPoints: z3.coerce.number().min(-1e3).max(1e3).default(-1e3),
-        maxPoints: z3.coerce.number().min(0).max(1e3).default(1e3),
-        view: z3.enum([
+      const q = z4.object({
+        page: z4.coerce.number().int().min(0).max(1e4).default(0),
+        classId: z4.string().max(200).default(""),
+        studentId: z4.string().max(200).default(""),
+        teacherId: z4.string().max(200).default(""),
+        typeId: z4.string().max(200).default(""),
+        status: z4.string().max(30).default(""),
+        period: z4.string().max(100).default(""),
+        from: z4.string().max(10).default(""),
+        to: z4.string().max(10).default(""),
+        q: z4.string().max(100).default(""),
+        minPoints: z4.coerce.number().min(-1e3).max(1e3).default(-1e3),
+        maxPoints: z4.coerce.number().min(0).max(1e3).default(1e3),
+        view: z4.enum([
           "records",
           "appeals",
           "cases",
@@ -1928,7 +4864,7 @@ function registerDisciplineRoutes(app2, deps) {
     "/api/discipline/policy",
     mutate(
       "discipline-policy",
-      policySchema.extend({ operationId: z3.uuid() }),
+      policySchema.extend({ operationId: z4.uuid() }),
       (c, d) => configureDiscipline(c, d)
     )
   );
@@ -1936,7 +4872,7 @@ function registerDisciplineRoutes(app2, deps) {
     "/api/discipline/types",
     mutate(
       "discipline-type",
-      typeSchema.extend({ operationId: z3.uuid() }),
+      typeSchema.extend({ operationId: z4.uuid() }),
       (c, d) => saveDisciplineType(c, d)
     )
   );
@@ -1944,7 +4880,7 @@ function registerDisciplineRoutes(app2, deps) {
     "/api/discipline/records",
     mutate(
       "discipline-create",
-      recordSchema.extend({ operationId: z3.uuid() }),
+      recordSchema.extend({ operationId: z4.uuid() }),
       (c, d) => createDisciplineRecords(c, d)
     )
   );
@@ -1953,8 +4889,8 @@ function registerDisciplineRoutes(app2, deps) {
     mutate(
       "discipline-change",
       common.extend({
-        revision: z3.number().int(),
-        action: z3.enum([
+        revision: z4.number().int(),
+        action: z4.enum([
           "approve",
           "review",
           "cancel",
@@ -1963,8 +4899,8 @@ function registerDisciplineRoutes(app2, deps) {
           "request_correction"
         ]),
         reason,
-        typeId: z3.string().optional(),
-        evidenceText: z3.string().max(2e3).optional(),
+        typeId: z4.string().optional(),
+        evidenceText: z4.string().max(2e3).optional(),
         evidence
       }),
       (c, d, req) => changeDisciplineRecord(c, String(req.params.id), d)
@@ -1983,8 +4919,8 @@ function registerDisciplineRoutes(app2, deps) {
     mutate(
       "discipline-appeal-decision",
       common.extend({
-        revision: z3.number().int(),
-        accepted: z3.boolean(),
+        revision: z4.number().int(),
+        accepted: z4.boolean(),
         reason
       }),
       (c, d, req) => decideDisciplineAppeal(c, String(req.params.id), d)
@@ -1995,8 +4931,8 @@ function registerDisciplineRoutes(app2, deps) {
     mutate(
       "discipline-case",
       common.extend({
-        revision: z3.number().int(),
-        decision: z3.enum([
+        revision: z4.number().int(),
+        decision: z4.enum([
           "conversation",
           "letter",
           "referred",
@@ -2004,9 +4940,9 @@ function registerDisciplineRoutes(app2, deps) {
           "reduce_points"
         ]),
         reason,
-        reduceBy: z3.number().int().positive().max(1e3).optional(),
-        meetingAt: z3.iso.datetime({ offset: true }).optional(),
-        parentContactStatus: z3.string().max(200).optional()
+        reduceBy: z4.number().int().positive().max(1e3).optional(),
+        meetingAt: z4.iso.datetime({ offset: true }).optional(),
+        parentContactStatus: z4.string().max(200).optional()
       }),
       (c, d, req) => {
         const k = (c.db.disciplineCases || []).find(
@@ -2026,7 +4962,7 @@ function registerDisciplineRoutes(app2, deps) {
           if (d.reduceBy > total.points)
             throw new SchoolError(400, "Kamaytirish joriy balldan oshmasin.");
           const adjustment = {
-            id: crypto5.randomUUID(),
+            id: crypto9.randomUUID(),
             schoolId: k.schoolId,
             studentId: k.studentId,
             classId: k.classId,
@@ -2087,9 +5023,9 @@ function registerDisciplineRoutes(app2, deps) {
     mutate(
       "discipline-letter-change",
       common.extend({
-        revision: z3.number().int(),
-        action: z3.enum(["save", "approve", "issue"]),
-        body: z3.string().trim().min(30).max(15e3).optional(),
+        revision: z4.number().int(),
+        action: z4.enum(["save", "approve", "issue"]),
+        body: z4.string().trim().min(30).max(15e3).optional(),
         reason
       }),
       (c, d, req) => {
@@ -2160,18 +5096,18 @@ function registerDisciplineRoutes(app2, deps) {
     mutate(
       "discipline-export",
       common.extend({
-        kind: z3.enum(["records", "letters", "cases"]),
-        classId: z3.string().optional(),
-        studentId: z3.string().optional(),
-        period: z3.string().optional(),
-        typeId: z3.string().optional(),
-        teacherId: z3.string().optional(),
-        status: z3.string().optional(),
-        from: z3.string().optional(),
-        to: z3.string().optional(),
-        q: z3.string().max(100).optional(),
-        minPoints: z3.number().min(-1e3).max(1e3).optional(),
-        maxPoints: z3.number().min(0).max(1e3).optional()
+        kind: z4.enum(["records", "letters", "cases"]),
+        classId: z4.string().optional(),
+        studentId: z4.string().optional(),
+        period: z4.string().optional(),
+        typeId: z4.string().optional(),
+        teacherId: z4.string().optional(),
+        status: z4.string().optional(),
+        from: z4.string().optional(),
+        to: z4.string().optional(),
+        q: z4.string().max(100).optional(),
+        minPoints: z4.number().min(-1e3).max(1e3).optional(),
+        maxPoints: z4.number().min(0).max(1e3).optional()
       }),
       (c, d) => {
         if (!schoolAdmin(c.user))
@@ -2329,2673 +5265,18 @@ function finiteScoreOrFallback(value, fallback, max) {
 }
 
 // src/server/examReliabilityRoutes.ts
-import crypto9 from "node:crypto";
-import { z as z4 } from "zod";
+import crypto11 from "node:crypto";
+import { z as z5 } from "zod";
 
 // src/server/examSessionStore.ts
-import crypto8 from "node:crypto";
+init_firebaseAdminAuth();
+init_runtimeScope();
+import crypto10 from "node:crypto";
 import { gzip, gunzip } from "node:zlib";
 import { promisify } from "node:util";
 import fs3 from "node:fs/promises";
 import path3 from "node:path";
 import { getFirestore } from "firebase-admin/firestore";
-
-// src/server/firebaseAdminAuth.ts
-import crypto7 from "crypto";
-import fs2 from "fs";
-import path2 from "path";
-import { initializeApp, getApps, cert } from "firebase-admin/app";
-import { getAuth } from "firebase-admin/auth";
-
-// src/constants/curriculum.ts
-var PLATFORM_OWNER_EMAIL = "asilbeknuraliyev43@gmail.com";
-var SECOND_PLATFORM_ADMIN_EMAIL = "bahodirboliqulov3@gmail.com";
-var AUTHORIZED_ADMIN_EMAILS = [
-  PLATFORM_OWNER_EMAIL,
-  SECOND_PLATFORM_ADMIN_EMAIL
-];
-var DEFAULT_INSTITUTION_ID = "inst-specialized-study";
-var A_TRACK_CLASS_CODES = [
-  "5a1",
-  "5a2",
-  "6a1",
-  "6a2",
-  "7a1",
-  "7a2",
-  "8a1",
-  "8a2",
-  "9a1",
-  "9a2",
-  "10a1",
-  "10a2",
-  "11a1",
-  "11a2"
-];
-var T_TRACK_CLASS_CODES = [
-  "7t",
-  "8t",
-  "9t",
-  "10t",
-  "11t"
-];
-var OFFICIAL_19_CLASS_CODES = [
-  "5a1",
-  "5a2",
-  "6a1",
-  "6a2",
-  "7a1",
-  "7a2",
-  "7t",
-  "8a1",
-  "8a2",
-  "8t",
-  "9a1",
-  "9a2",
-  "9t",
-  "10a1",
-  "10a2",
-  "10t",
-  "11a1",
-  "11a2",
-  "11t"
-];
-function normalizeClassCodeInput(rawCode) {
-  if (rawCode === void 0 || rawCode === null) return null;
-  const cyrillicNormalized = String(rawCode).trim().toLowerCase().replace(/sinf|класс|class/gi, "").replace(/а/g, "a").replace(/т/g, "t").replace(/[-\s_."'`«»()]/g, "");
-  if (OFFICIAL_19_CLASS_CODES.includes(cyrillicNormalized)) {
-    return cyrillicNormalized;
-  }
-  return null;
-}
-function parseOfficialClassCode(rawCode) {
-  const clean = normalizeClassCodeInput(rawCode);
-  if (!clean) {
-    return null;
-  }
-  const match = clean.match(/^(5|6|7|8|9|10|11)(a1|a2|t)$/);
-  if (!match) return null;
-  const grade = Number(match[1]);
-  const suffix = match[2];
-  const track = suffix.startsWith("a") ? "A" : "T";
-  const trackLabel = track === "A" ? "Aniq fanlar" : "Tabiiy fanlar";
-  const section = suffix === "t" ? "t" : suffix.slice(1);
-  return {
-    code: clean,
-    grade,
-    track,
-    trackLabel,
-    section
-  };
-}
-var DEFAULT_SUBJECTS = [
-  {
-    id: "subj-matematika",
-    institutionId: "global",
-    name: "Matematika",
-    code: "MAT",
-    grade: 8,
-    applicableGrades: [5, 6, 7, 8, 9, 10, 11],
-    trackTypes: ["A"],
-    applicableClassCodes: [...A_TRACK_CLASS_CODES],
-    description: "Aniq fanlar yo\u2018nalishi (A-track: 5a1\u201311a2) uchun matematika, algebra va geometriya kursi.",
-    status: "active",
-    createdAt: "2026-01-01T00:00:00.000Z"
-  },
-  {
-    id: "subj-ingliz-tili",
-    institutionId: "global",
-    name: "Ingliz tili",
-    code: "ENG",
-    grade: 8,
-    applicableGrades: [5, 6, 7, 8, 9, 10, 11],
-    trackTypes: ["A", "T"],
-    applicableClassCodes: [...OFFICIAL_19_CLASS_CODES],
-    description: "Aniq va Tabiiy fanlar yo\u2018nalishlaridagi barcha 19 ta sinf uchun ingliz tili kursi.",
-    status: "active",
-    createdAt: "2026-01-01T00:00:00.000Z"
-  },
-  {
-    id: "subj-fizika",
-    institutionId: "global",
-    name: "Fizika",
-    code: "PHY",
-    grade: 8,
-    applicableGrades: [5, 6, 7, 8, 9, 10, 11],
-    trackTypes: ["A"],
-    applicableClassCodes: [...A_TRACK_CLASS_CODES],
-    description: "Aniq fanlar yo\u2018nalishi (A-track: 5a1\u201311a2) uchun fizika va amaliy mexanika kursi.",
-    status: "active",
-    createdAt: "2026-01-01T00:00:00.000Z"
-  },
-  {
-    id: "subj-biologiya",
-    institutionId: "global",
-    name: "Biologiya",
-    code: "BIO",
-    grade: 7,
-    applicableGrades: [7, 8, 9, 10, 11],
-    trackTypes: ["T"],
-    applicableClassCodes: [...T_TRACK_CLASS_CODES],
-    description: "Tabiiy fanlar yo\u2018nalishi (T-track: 7t\u201311t) uchun biologiya va genetika kursi.",
-    status: "active",
-    createdAt: "2026-01-01T00:00:00.000Z"
-  },
-  {
-    id: "subj-kimyo",
-    institutionId: "global",
-    name: "Kimyo",
-    code: "CHM",
-    grade: 7,
-    applicableGrades: [7, 8, 9, 10, 11],
-    trackTypes: ["T"],
-    applicableClassCodes: [...T_TRACK_CLASS_CODES],
-    description: "Tabiiy fanlar yo\u2018nalishi (T-track: 7t\u201311t) uchun umumiy, noorganik va organik kimyo kursi.",
-    status: "active",
-    createdAt: "2026-01-01T00:00:00.000Z"
-  }
-];
-function getDefaultSubjectsForTrack(track) {
-  const matched = DEFAULT_SUBJECTS.filter((s) => s.trackTypes.includes(track));
-  return {
-    subjectIds: matched.map((s) => s.id),
-    subjectNames: matched.map((s) => s.name)
-  };
-}
-function isSubjectCompatibleWithClass(subjectNameOrId, classCodeOrRoom, subjectsList = DEFAULT_SUBJECTS) {
-  const code = typeof classCodeOrRoom === "string" ? classCodeOrRoom.trim().toLowerCase() : (classCodeOrRoom.code || classCodeOrRoom.name || "").trim().toLowerCase();
-  const parsed = parseOfficialClassCode(code);
-  const normSubj = String(subjectNameOrId || "").trim().toLowerCase();
-  const subjObj = subjectsList.find(
-    (s) => s.id.toLowerCase() === normSubj || s.name.toLowerCase() === normSubj || s.code && s.code.toLowerCase() === normSubj
-  );
-  if (!parsed || !subjObj) {
-    return { compatible: true };
-  }
-  if (Array.isArray(subjObj.applicableClassCodes) && subjObj.applicableClassCodes.length > 0 && !subjObj.applicableClassCodes.map((c) => c.toLowerCase()).includes(parsed.code)) {
-    return {
-      compatible: false,
-      reason: `"${subjObj.name}" fani ${parsed.code} (${parsed.trackLabel}) sinfi yo\u2018nalishiga biriktirilmagan.`
-    };
-  }
-  if (Array.isArray(subjObj.trackTypes) && subjObj.trackTypes.length > 0 && !subjObj.trackTypes.includes(parsed.track)) {
-    return {
-      compatible: false,
-      reason: `"${subjObj.name}" fani faqat ${subjObj.trackTypes.join("/")} yo\u2018nalishi uchun mo\u2018ljallangan (${parsed.code} sinfi ${parsed.track} yo\u2018nalishida).`
-    };
-  }
-  return { compatible: true };
-}
-function buildOfficial19Classes(institutionId = DEFAULT_INSTITUTION_ID, academicYear = "2026-2027", adminUid = "admin-owner") {
-  const nowIso = "2026-01-01T00:00:00.000Z";
-  return OFFICIAL_19_CLASS_CODES.map((code) => {
-    const meta = parseOfficialClassCode(code);
-    const { subjectIds, subjectNames } = getDefaultSubjectsForTrack(meta.track);
-    const primarySubject = meta.track === "A" ? "Matematika" : "Biologiya";
-    const inviteCode = `SS-${code.toUpperCase()}-2026`;
-    return {
-      id: `class-${code}`,
-      code,
-      name: code,
-      grade: meta.grade,
-      track: meta.track,
-      trackLabel: meta.trackLabel,
-      section: meta.section,
-      academicYear,
-      subject: primarySubject,
-      subjectIds,
-      subjectNames,
-      teacherId: adminUid,
-      teacherName: "Specialized Study Admin",
-      institutionId,
-      inviteCode,
-      studentCount: 0,
-      status: "active",
-      createdAt: nowIso,
-      updatedAt: nowIso
-    };
-  });
-}
-var DEFAULT_ACADEMIC_YEARS = [
-  {
-    id: "ay-2026-2027",
-    institutionId: "global",
-    name: "2026-2027",
-    startDate: "2026-09-02",
-    endDate: "2027-05-25",
-    isCurrent: true,
-    status: "active",
-    createdAt: "2026-01-01T00:00:00.000Z"
-  }
-];
-var DEFAULT_CURRICULUM_TOPICS = [
-  {
-    id: "topic-fractions",
-    code: "TOP-FRAC",
-    subjectId: "subj-matematika",
-    subjectCode: "MAT",
-    track: "A",
-    name: "Kasrlar va ratsional sonlar",
-    subject: "Matematika",
-    grade: 7,
-    description: "Oddiy va o\u2018nli kasrlar, ratsional sonlar ustida arifmetik amallar.",
-    learningObjectives: "Ratsional sonlarni qo\u2018shish, ayirish, ko\u2018paytirish va bo\u2018lish.",
-    status: "active",
-    orderIndex: 1
-  },
-  {
-    id: "topic-percentages",
-    code: "TOP-PERC",
-    subjectId: "subj-matematika",
-    subjectCode: "MAT",
-    track: "A",
-    name: "Foizlar va proporsiyalar",
-    subject: "Matematika",
-    grade: 7,
-    description: "Sonning foizini topish, foizga ko\u2018ra sonni topish va proporsiya xossalari.",
-    learningObjectives: "Foizli o\u2018zgarish va proporsional bog\u2018lanish masalalarini yechish.",
-    status: "active",
-    orderIndex: 2
-  },
-  {
-    id: "topic-equations",
-    code: "TOP-EQ",
-    subjectId: "subj-matematika",
-    subjectCode: "MAT",
-    track: "A",
-    name: "Chiziqli tenglamalar",
-    subject: "Matematika",
-    grade: 8,
-    description: "Bir noma\u2019lumli chiziqli tenglamalar, qavslarni ochish va tengsizliklar.",
-    learningObjectives: "Chiziqli tenglama va tengsizliklarning ildizlarini topish.",
-    status: "active",
-    orderIndex: 3
-  },
-  {
-    id: "topic-geometry",
-    code: "TOP-GEOM",
-    subjectId: "subj-matematika",
-    subjectCode: "MAT",
-    track: "A",
-    name: "Asosiy geometriya",
-    subject: "Matematika",
-    grade: 8,
-    description: "Uchburchaklar, to\u2018rtburchaklar yuzi, perimetri va Pifagor teoremasi.",
-    learningObjectives: "Tekis shakllarning yuzi, perimetri va burchak xossalarini hisoblash.",
-    status: "active",
-    orderIndex: 4
-  },
-  {
-    id: "topic-algebra",
-    code: "TOP-ALG",
-    subjectId: "subj-matematika",
-    subjectCode: "MAT",
-    track: "A",
-    name: "Algebraik ifodalar va darajalar",
-    subject: "Matematika",
-    grade: 8,
-    description: "Natural va butun ko\u2018rsatkichli darajalar, ko\u2018phadlar va qisqa ko\u2018paytirish formulalari.",
-    learningObjectives: "Daraja xossalarini qo\u2018llash va algebraik ifodalarni soddalashtirish.",
-    status: "active",
-    orderIndex: 5
-  },
-  {
-    id: "topic-eng-grammar",
-    code: "TOP-ENG-01",
-    subjectId: "subj-ingliz-tili",
-    subjectCode: "ENG",
-    name: "Present & Past Tenses",
-    subject: "Ingliz tili",
-    grade: 7,
-    description: "Ingliz tilida zamonlar tizimi va gap qurilishi.",
-    learningObjectives: "Present Simple, Present Continuous va Past Simple zamonlarini qo\u2018llash.",
-    status: "active",
-    orderIndex: 6
-  },
-  {
-    id: "topic-phy-kinematics",
-    code: "TOP-PHY-01",
-    subjectId: "subj-fizika",
-    subjectCode: "PHY",
-    track: "A",
-    name: "Kinematika asoslari va harakat qonunlari",
-    subject: "Fizika",
-    grade: 7,
-    description: "Tekis va notekis harakat, tezlik, tezlanish va yo\u2018l formulalari.",
-    learningObjectives: "Mexanik harakat tenglamalarini tuzish va masalalar yechish.",
-    status: "active",
-    orderIndex: 7
-  },
-  {
-    id: "topic-bio-cell",
-    code: "TOP-BIO-01",
-    subjectId: "subj-biologiya",
-    subjectCode: "BIO",
-    track: "T",
-    name: "Hujayra tuzilishi va hayotiy jarayonlar",
-    subject: "Biologiya",
-    grade: 8,
-    description: "Eukariot va prokariot hujayralar, organoidlar va moddalar almashinuvi.",
-    learningObjectives: "Hujayra organoidlari funksiyalarini farqlash va tahlil qilish.",
-    status: "active",
-    orderIndex: 8
-  },
-  {
-    id: "topic-chm-atoms",
-    code: "TOP-CHM-01",
-    subjectId: "subj-kimyo",
-    subjectCode: "CHM",
-    track: "T",
-    name: "Atom tuzilishi va davriy qonun",
-    subject: "Kimyo",
-    grade: 9,
-    description: "Kimyoviy elementlar davriy jadvali, elektron konfiguratsiya va kimyoviy bog\u2018lanish.",
-    learningObjectives: "Elementlarning davriy jadvaldagi o\u2018rniga ko\u2018ra xossalarini aniqlash.",
-    status: "active",
-    orderIndex: 9
-  }
-];
-
-// src/utils/security.ts
-function isAuthorizedAdminEmail(email, configuredOwnerEmail) {
-  const normalized = String(email || "").trim().toLowerCase();
-  if (!normalized) return false;
-  if (configuredOwnerEmail && configuredOwnerEmail.trim().toLowerCase() !== PLATFORM_OWNER_EMAIL.toLowerCase()) {
-    return normalized === configuredOwnerEmail.trim().toLowerCase() || AUTHORIZED_ADMIN_EMAILS.includes(normalized);
-  }
-  return AUTHORIZED_ADMIN_EMAILS.includes(normalized);
-}
-function isVerifiedPlatformOwner(actor, configuredOwnerEmail = PLATFORM_OWNER_EMAIL) {
-  if (!actor || actor.status === "suspended" || actor.status === "archived") return false;
-  const normalizedActorEmail = String(actor.email || "").trim().toLowerCase();
-  if (!isAuthorizedAdminEmail(normalizedActorEmail, configuredOwnerEmail)) {
-    return false;
-  }
-  if (actor.emailVerified === false) {
-    return false;
-  }
-  return actor.platformAdmin === true || actor.platformOwner === true || actor.role === "platform_owner" || actor.role === "admin";
-}
-function computeSimpleHash(input) {
-  let h1 = 3735928559 ^ input.length;
-  let h2 = 1103547991 ^ input.length;
-  for (let i = 0, ch; i < input.length; i++) {
-    ch = input.charCodeAt(i);
-    h1 = Math.imul(h1 ^ ch, 2654435761);
-    h2 = Math.imul(h2 ^ ch, 1597334677);
-  }
-  h1 = Math.imul(h1 ^ h1 >>> 16, 2246822507) ^ Math.imul(h2 ^ h2 >>> 13, 3266489909);
-  h2 = Math.imul(h2 ^ h2 >>> 16, 2246822507) ^ Math.imul(h1 ^ h1 >>> 13, 3266489909);
-  return (4294967296 * (2097151 & h2) + (h1 >>> 0)).toString(16).padStart(16, "0");
-}
-function validateInvitationToken(rawToken, invitation, nowIso = (/* @__PURE__ */ new Date()).toISOString()) {
-  if (!invitation) {
-    return { valid: false, error: "Taklif kodi topilmadi." };
-  }
-  if (invitation.status === "accepted") {
-    return { valid: false, error: "Ushbu taklif kodi allaqachon ishlatilgan (bir martalik)." };
-  }
-  if (invitation.status === "revoked") {
-    return { valid: false, error: "Ushbu taklif kodi administrator tomonidan bekor qilingan." };
-  }
-  if (invitation.status === "expired" || new Date(invitation.expiresAt).getTime() < new Date(nowIso).getTime()) {
-    return { valid: false, error: "Taklif kodining amal qilish muddati tugagan." };
-  }
-  const hashed = computeSimpleHash(rawToken.trim().toUpperCase());
-  if (hashed !== invitation.tokenHash) {
-    return { valid: false, error: "Taklif kodi xato yoki haqiqiy emas." };
-  }
-  return { valid: true };
-}
-function canAccessInstitution(actor, targetInstitutionId) {
-  if (!actor || actor.status === "suspended") return false;
-  if (isVerifiedPlatformOwner(actor)) return true;
-  return actor.institutionId === targetInstitutionId;
-}
-function canAccessClass(actor, targetClass) {
-  if (!actor || actor.status === "suspended" || actor.status === "archived") return false;
-  if (isVerifiedPlatformOwner(actor)) return true;
-  if (actor.institutionId !== targetClass.institutionId) return false;
-  if (actor.role === "student") {
-    return actor.classId === targetClass.id || Boolean(
-      actor.classCode && targetClass.code && actor.classCode.trim().toLowerCase() === targetClass.code.trim().toLowerCase()
-    );
-  }
-  return false;
-}
-function canAccessStudentRecord(actor, targetStudent, _authorizedTeacherClassIds = []) {
-  if (!actor || actor.status === "suspended" || actor.status === "archived") return false;
-  if (isVerifiedPlatformOwner(actor)) return true;
-  if (actor.institutionId !== targetStudent.institutionId) return false;
-  if (actor.role === "student") {
-    return actor.uid === targetStudent.uid;
-  }
-  return false;
-}
-function sanitizeFormulaInjection(raw) {
-  const str = String(raw ?? "").trim();
-  if (!str) return "";
-  if (/^[=+\-@\t\r]/.test(str) && !/^[+-]?\d+(\.\d+)?$/.test(str)) {
-    return str.replace(/^[=+\-@\t\r]+/, "").trim();
-  }
-  return str;
-}
-var ALLOWED_IMAGE_MIMES = /* @__PURE__ */ new Set(["image/jpeg", "image/png", "image/webp"]);
-var ALLOWED_IMAGE_EXTS = /* @__PURE__ */ new Set([".jpg", ".jpeg", ".png", ".webp"]);
-function isSafeArchivePath(entryName) {
-  if (!entryName || typeof entryName !== "string") return false;
-  if (entryName.includes("\0")) return false;
-  const normalized = entryName.replace(/\\/g, "/").trim();
-  if (normalized.startsWith("/") || normalized.includes("../") || normalized.includes("/..") || normalized === ".." || /^[a-zA-Z]:/.test(normalized)) {
-    return false;
-  }
-  const lower = normalized.toLowerCase();
-  const forbiddenExts = [
-    ".exe",
-    ".bat",
-    ".cmd",
-    ".sh",
-    ".js",
-    ".mjs",
-    ".cjs",
-    ".ts",
-    ".php",
-    ".py",
-    ".dll",
-    ".so",
-    ".xlsm",
-    ".xlsb",
-    ".vbs",
-    ".ps1",
-    ".html",
-    ".htm",
-    ".svg"
-  ];
-  if (forbiddenExts.some((ext) => lower.endsWith(ext))) {
-    return false;
-  }
-  return true;
-}
-function detectImageMimeFromBytes(bytes) {
-  if (!bytes || bytes.length < 3) return null;
-  if (bytes.length >= 4 && bytes[0] === 137 && bytes[1] === 80 && bytes[2] === 78 && bytes[3] === 71) {
-    return "image/png";
-  }
-  if (bytes[0] === 255 && bytes[1] === 216 && bytes[2] === 255) {
-    return "image/jpeg";
-  }
-  if (bytes.length >= 12 && bytes[0] === 82 && bytes[1] === 73 && bytes[2] === 70 && bytes[3] === 70 && bytes[8] === 87 && bytes[9] === 69 && bytes[10] === 66 && bytes[11] === 80) {
-    return "image/webp";
-  }
-  return null;
-}
-var SlidingWindowRateLimiter = class {
-  constructor() {
-    this.buckets = /* @__PURE__ */ new Map();
-  }
-  check(key, maxRequests, windowMs, nowMs = Date.now()) {
-    const cutoff = nowMs - windowMs;
-    const existing = (this.buckets.get(key) || []).filter((ts) => ts > cutoff);
-    if (existing.length >= maxRequests) {
-      const oldest = existing[0] || nowMs;
-      const retryAfterSeconds = Math.max(1, Math.ceil((oldest + windowMs - nowMs) / 1e3));
-      this.buckets.set(key, existing);
-      return {
-        allowed: false,
-        remaining: 0,
-        retryAfterSeconds
-      };
-    }
-    existing.push(nowMs);
-    this.buckets.set(key, existing);
-    return {
-      allowed: true,
-      remaining: Math.max(0, maxRequests - existing.length),
-      retryAfterSeconds: 0
-    };
-  }
-  reset(key) {
-    if (key) {
-      this.buckets.delete(key);
-    } else {
-      this.buckets.clear();
-    }
-  }
-};
-function validateUploadedImageMeta(fileName, mimeTypeOrSize, sizeOrHeaderBytes, headerBytesArg, maxBytes = 5 * 1024 * 1024) {
-  let mimeType = "";
-  let sizeBytes = 0;
-  let headerBytes;
-  if (typeof mimeTypeOrSize === "number") {
-    sizeBytes = mimeTypeOrSize;
-    headerBytes = sizeOrHeaderBytes instanceof Uint8Array ? sizeOrHeaderBytes : headerBytesArg;
-  } else {
-    mimeType = String(mimeTypeOrSize || "");
-    sizeBytes = typeof sizeOrHeaderBytes === "number" ? sizeOrHeaderBytes : 0;
-    headerBytes = headerBytesArg;
-  }
-  if (!fileName || !isSafeArchivePath(fileName)) {
-    return { valid: false, error: "Xavfsiz bo\u2018lmagan fayl nomi yoki yo\u2018li." };
-  }
-  const lower = fileName.toLowerCase();
-  const extMatch = lower.match(/\.[a-z0-9]+$/);
-  const ext = extMatch ? extMatch[0] : "";
-  if (!ALLOWED_IMAGE_EXTS.has(ext)) {
-    return {
-      valid: false,
-      error: `Ruxsat etilmagan rasm formati (${ext || "noma\u2019lum"}). Faqat JPEG, PNG va WebP ruxsat etiladi.`
-    };
-  }
-  if (sizeBytes <= 0) {
-    return { valid: false, error: "Fayl bo\u2018sh." };
-  }
-  if (sizeBytes > maxBytes) {
-    return {
-      valid: false,
-      error: `Rasm hajmi ruxsat etilgan chegaradan (${Math.round(maxBytes / (1024 * 1024))} MB) oshib ketdi.`
-    };
-  }
-  if (headerBytes && headerBytes.length > 0) {
-    const detected = detectImageMimeFromBytes(headerBytes);
-    if (!detected || !ALLOWED_IMAGE_MIMES.has(detected)) {
-      return {
-        valid: false,
-        error: "Faylning haqiqiy binar tarkibi ruxsat etilgan rasm formatiga (JPEG/PNG/WebP) mos emas."
-      };
-    }
-    return { valid: true, verifiedMime: detected, mimeType: detected };
-  }
-  const cleanMime = String(mimeType || "").toLowerCase();
-  if (cleanMime && !ALLOWED_IMAGE_MIMES.has(cleanMime)) {
-    return {
-      valid: false,
-      error: `Ruxsat etilmagan MIME turi (${cleanMime}). Faqat JPEG, PNG va WebP ruxsat etiladi.`
-    };
-  }
-  const resolvedMime = cleanMime || (ext === ".png" ? "image/png" : ext === ".webp" ? "image/webp" : "image/jpeg");
-  return {
-    valid: true,
-    verifiedMime: resolvedMime,
-    mimeType: resolvedMime
-  };
-}
-function validateCSVStudentImport(csvText, existingEmails = []) {
-  const lines = csvText.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
-  if (lines.length === 0) {
-    return {
-      validRows: [],
-      errors: ["CSV fayl bo'sh."],
-      duplicates: []
-    };
-  }
-  if (lines.length > 5001) {
-    return {
-      validRows: [],
-      errors: ["CSV fayl qatorlar soni maksimal chegaradan (5000 qator) oshib ketdi."],
-      duplicates: []
-    };
-  }
-  const headerLine = lines[0].toLowerCase();
-  const hasHeader = headerLine.includes("ism") || headerLine.includes("name") || headerLine.includes("email") || headerLine.includes("pochta");
-  const dataLines = hasHeader ? lines.slice(1) : lines;
-  const existingSet = new Set(existingEmails.map((e) => e.trim().toLowerCase()));
-  const seenInCsv = /* @__PURE__ */ new Set();
-  const validRows = [];
-  const errors = [];
-  const duplicates = [];
-  dataLines.forEach((line, idx) => {
-    const rowNum = hasHeader ? idx + 2 : idx + 1;
-    const cols = line.split(",").map((c) => sanitizeFormulaInjection(c.trim().replace(/^"|"$/g, "")));
-    if (cols.length < 2) {
-      errors.push(`${rowNum}-qator: Ism va elektron pochta ustunlari to'liq emas.`);
-      return;
-    }
-    const [displayName, email, className] = cols;
-    if (!displayName || displayName.length < 3) {
-      errors.push(`${rowNum}-qator: O'quvchi ismi kamida 3 ta belgidan iborat bo'lishi shart.`);
-      return;
-    }
-    const normalizedEmail = (email || "").toLowerCase();
-    if (!normalizedEmail || !normalizedEmail.includes("@") || !normalizedEmail.includes(".")) {
-      errors.push(`${rowNum}-qator: Noto'g'ri elektron pochta manzili (${email}).`);
-      return;
-    }
-    if (existingSet.has(normalizedEmail) || seenInCsv.has(normalizedEmail)) {
-      duplicates.push(`${rowNum}-qator: Takroriy elektron pochta (${email}).`);
-      return;
-    }
-    seenInCsv.add(normalizedEmail);
-    validRows.push({
-      displayName,
-      email: normalizedEmail,
-      className: className || void 0
-    });
-  });
-  return { validRows, errors, duplicates };
-}
-function isTrustedCorsOrigin(origin, requestHost) {
-  if (!origin || !origin.trim() || origin.trim().toLowerCase() === "null") {
-    return true;
-  }
-  try {
-    const parsed = new URL(origin.trim());
-    const hostname = parsed.hostname.toLowerCase();
-    const hostWithPort = parsed.host.toLowerCase();
-    if (requestHost && requestHost.trim()) {
-      const candidateHosts = requestHost.split(",").map((h) => h.trim().toLowerCase()).filter(Boolean);
-      for (const normalizedReqHost of candidateHosts) {
-        if (hostWithPort === normalizedReqHost || hostname === normalizedReqHost.split(":")[0]) {
-          return true;
-        }
-      }
-    }
-    if (hostname === "localhost" || hostname === "127.0.0.1") {
-      return parsed.protocol === "http:" || parsed.protocol === "https:";
-    }
-    if (parsed.protocol !== "https:") {
-      return false;
-    }
-    if (typeof process !== "undefined" && process.env) {
-      const configuredUrls = [
-        process.env.APP_URL,
-        process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : void 0,
-        process.env.VERCEL_BRANCH_URL ? `https://${process.env.VERCEL_BRANCH_URL}` : void 0,
-        process.env.VERCEL_PROJECT_PRODUCTION_URL ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}` : void 0
-      ].filter(Boolean);
-      for (const rawUrl of configuredUrls) {
-        try {
-          const envParsed = new URL(rawUrl.startsWith("http") ? rawUrl : `https://${rawUrl}`);
-          if (envParsed.hostname.toLowerCase() === hostname) {
-            return true;
-          }
-        } catch {
-        }
-      }
-    }
-    return hostname.endsWith(".vercel.app") || hostname === "vercel.app" || hostname.endsWith(".run.app") || hostname === "ai.studio" || hostname.endsWith(".ai.studio") || hostname.endsWith(".firebaseapp.com") || hostname.endsWith(".web.app") || hostname === "google.com" || hostname.endsWith(".google.com") || hostname.endsWith(".googleusercontent.com") || hostname.endsWith(".goog") || hostname.endsWith(".cloudworkstations.dev") || hostname.endsWith(".idx.dev") || hostname.endsWith(".appspot.com");
-  } catch {
-    return false;
-  }
-}
-
-// src/server/requestDatabase.ts
-import { AsyncLocalStorage } from "node:async_hooks";
-var requestDatabase = new AsyncLocalStorage();
-
-// src/server/runtimeScope.ts
-function runtimeNamespace(env = process.env) {
-  const name = env.PERSISTENCE_NAMESPACE || "_specialized_runtime";
-  if (name !== "_specialized_runtime" && !/^_specialized_preview_[a-z0-9_]{1,40}$/.test(name)) throw Error("Invalid persistence namespace");
-  if (env.VERCEL_ENV === "preview" && name === "_specialized_runtime") throw Error("Preview must use an isolated Firestore namespace");
-  if (env.VERCEL_ENV === "production" && name !== "_specialized_runtime") throw Error("Production namespace cannot be overridden");
-  return name;
-}
-
-// src/server/dbEngine.ts
-import fs from "fs";
-import path from "path";
-import crypto6 from "crypto";
-
-// src/utils/gamificationEngine.ts
-var GAMIFICATION_LEVELS = [
-  { level: 1, title: "Boshlovchi", minXp: 0, maxXp: 50, description: "O'quv sayohatining ilk qadami" },
-  { level: 2, title: "Izlanuvchi", minXp: 50, maxXp: 150, description: "Muntazam bilim izlovchi" },
-  { level: 3, title: "O'rganuvchi", minXp: 150, maxXp: 300, description: "Mavzularni faol o\u2018zlashtiruvchi" },
-  { level: 4, title: "Bilimdon", minXp: 300, maxXp: 550, description: "Chuqur tushunchaga ega o\u2018quvchi" },
-  { level: 5, title: "Tadqiqotchi", minXp: 550, maxXp: 900, description: "Murakkab masalalarni yechuvchi" },
-  { level: 6, title: "Mutaxassis", minXp: 900, maxXp: 1400, description: "Fanlar bo\u2018yicha yuqori mahorat egasi" },
-  { level: 7, title: "Ekspert", minXp: 1400, maxXp: null, description: "Specialized Study akademik yetakchisi" }
-];
-var DEFAULT_GAMIFICATION_BADGES = [
-  {
-    id: "badge_birinchi_qadam",
-    code: "BIRINCHI_QADAM",
-    title: "BIRINCHI QADAM",
-    description: "Birinchi dars muvaffaqiyatli yakunlandi.",
-    category: "milestone",
-    thresholdValue: 1,
-    xpBonus: 0,
-    iconKey: "BIRINCHI_QADAM",
-    isActive: true
-  },
-  {
-    id: "badge_faol_oquvchi",
-    code: "FAOL_OQUVCHI",
-    title: "FAOL O'QUVCHI",
-    description: "5 ta tasdiqlangan dars muvaffaqiyatli yakunlandi.",
-    category: "milestone",
-    thresholdValue: 5,
-    xpBonus: 0,
-    iconKey: "FAOL_OQUVCHI",
-    isActive: true
-  },
-  {
-    id: "badge_matematika_ixlosmandi",
-    code: "MATEMATIKA_IXLOSMANDI",
-    title: "MATEMATIKA IXLOSMANDI",
-    description: "Matematika fanidan 10 ta o'quv faoliyati bajarildi.",
-    category: "subject",
-    thresholdValue: 10,
-    xpBonus: 0,
-    iconKey: "MATEMATIKA_IXLOSMANDI",
-    isActive: true
-  },
-  {
-    id: "badge_izchillik",
-    code: "IZCHILLIK",
-    title: "IZCHILLIK",
-    description: "3 ta alohida kunda o'quv faoliyati davom ettirildi.",
-    category: "consistency",
-    thresholdValue: 3,
-    xpBonus: 0,
-    iconKey: "IZCHILLIK",
-    isActive: true
-  },
-  {
-    id: "badge_bilim_izlovchisi",
-    code: "BILIM_IZLOVCHISI",
-    title: "BILIM IZLOVCHISI",
-    description: "Turli o'quv mavzulari va fan yo'nalishlari o'rganildi.",
-    category: "milestone",
-    thresholdValue: 3,
-    xpBonus: 0,
-    iconKey: "BILIM_IZLOVCHISI",
-    isActive: true
-  },
-  {
-    id: "badge_birinchi_test",
-    code: "BIRINCHI_TEST",
-    title: "BIRINCHI TEST",
-    description: "Birinchi nazorat ishi yoki test muvaffaqiyatli topshirildi.",
-    category: "assessment",
-    thresholdValue: 1,
-    xpBonus: 0,
-    iconKey: "BIRINCHI_TEST",
-    isActive: true
-  },
-  {
-    id: "badge_mashgulot_ustasi",
-    code: "MASHGULOT_USTASI",
-    title: "MASHG'ULOT USTASI",
-    description: "Haftalik shaxsiy o'quv maqsadi to'liq bajarildi.",
-    category: "goal",
-    thresholdValue: 1,
-    xpBonus: 0,
-    iconKey: "MASHGULOT_USTASI",
-    isActive: true
-  }
-];
-var DEFAULT_GAMIFICATION_CONFIG = {
-  id: "default",
-  enabled: true,
-  xpRewards: {
-    daily_checkin: 5,
-    lesson_completed: 10,
-    practice_completed: 5,
-    assessment_completed: 15,
-    weekly_goal_completed: 20,
-    curriculum_milestone_completed: 25
-  },
-  dailyXpCap: 150,
-  streakGraceDays: 1,
-  enableDailyCheckin: true,
-  enableBadges: true,
-  enableStreaks: true,
-  enableClassChallenges: true,
-  enableWeeklyRecap: true,
-  goalTemplates: [
-    "1 ta darsni o'rganish",
-    "10 ta mashq bajarish",
-    "1 ta test ishlash",
-    "Oldingi mavzuni takrorlash"
-  ],
-  updatedAt: "2026-01-01T00:00:00.000Z"
-};
-function getTashkentDateString(date4 = /* @__PURE__ */ new Date()) {
-  try {
-    const formatter = new Intl.DateTimeFormat("en-CA", {
-      timeZone: "Asia/Tashkent",
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit"
-    });
-    return formatter.format(date4);
-  } catch {
-    return date4.toISOString().slice(0, 10);
-  }
-}
-function getIsoWeekKey(dateStr) {
-  const [y, m, d] = dateStr.split("-").map(Number);
-  const dt = new Date(Date.UTC(y || 2026, (m || 1) - 1, d || 1));
-  const dayNum = dt.getUTCDay() || 7;
-  const monday = new Date(dt);
-  monday.setUTCDate(dt.getUTCDate() - dayNum + 1);
-  const sunday = new Date(monday);
-  sunday.setUTCDate(monday.getUTCDate() + 6);
-  const thursday = new Date(monday);
-  thursday.setUTCDate(monday.getUTCDate() + 3);
-  const yearStart = new Date(Date.UTC(thursday.getUTCFullYear(), 0, 1));
-  const weekNo = Math.ceil(((thursday.getTime() - yearStart.getTime()) / 864e5 + 1) / 7);
-  const weekKey = `${thursday.getUTCFullYear()}-W${String(weekNo).padStart(2, "0")}`;
-  return {
-    weekKey,
-    weekStartDate: monday.toISOString().slice(0, 10),
-    weekEndDate: sunday.toISOString().slice(0, 10)
-  };
-}
-function calculateStudentLevel(totalXp) {
-  const safeXp = Math.max(0, Math.floor(Number(totalXp) || 0));
-  let matched = GAMIFICATION_LEVELS[0];
-  for (const lvl of GAMIFICATION_LEVELS) {
-    if (safeXp >= lvl.minXp) {
-      matched = lvl;
-    }
-  }
-  if (matched.maxXp === null) {
-    return {
-      currentLevel: matched.level,
-      currentLevelTitle: matched.title,
-      nextLevelXp: null,
-      levelProgressPercent: 100
-    };
-  }
-  const span = Math.max(1, matched.maxXp - matched.minXp);
-  const earnedInBand = Math.max(0, safeXp - matched.minXp);
-  const percent = Math.min(100, Math.round(earnedInBand / span * 100));
-  return {
-    currentLevel: matched.level,
-    currentLevelTitle: matched.title,
-    nextLevelXp: matched.maxXp,
-    levelProgressPercent: percent
-  };
-}
-function createInitialGamificationProfile(studentId, nowIso = (/* @__PURE__ */ new Date()).toISOString()) {
-  const lvl = calculateStudentLevel(0);
-  return {
-    id: studentId,
-    studentId,
-    totalXp: 0,
-    currentLevel: lvl.currentLevel,
-    currentLevelTitle: lvl.currentLevelTitle,
-    nextLevelXp: lvl.nextLevelXp,
-    levelProgressPercent: lvl.levelProgressPercent,
-    completedLessonsCount: 0,
-    completedPracticeCount: 0,
-    completedAssessmentsCount: 0,
-    completedGoalsCount: 0,
-    completedMilestonesCount: 0,
-    mathActivitiesCount: 0,
-    exploredSubjects: [],
-    exploredTopics: [],
-    avatarIcon: "compass",
-    streakRemindersEnabled: true,
-    notificationsEnabled: true,
-    updatedAt: nowIso
-  };
-}
-function createInitialStreakRecord(studentId, graceDaysAllowed = 1, nowIso = (/* @__PURE__ */ new Date()).toISOString()) {
-  return {
-    id: studentId,
-    studentId,
-    currentStreakDays: 0,
-    longestStreakDays: 0,
-    activeDates: [],
-    lastActiveDate: null,
-    graceDaysAllowed,
-    graceDaysUsedInCurrentStreak: 0,
-    statusMessage: "Yana davom ettirish vaqti! Bugungi ilk mashg'ulotni boshlang.",
-    updatedAt: nowIso
-  };
-}
-function diffDaysBetweenDateKeys(earlierDateKey, laterDateKey) {
-  const [y1, m1, d1] = earlierDateKey.split("-").map(Number);
-  const [y2, m2, d2] = laterDateKey.split("-").map(Number);
-  const t1 = Date.UTC(y1, (m1 || 1) - 1, d1 || 1);
-  const t2 = Date.UTC(y2, (m2 || 1) - 1, d2 || 1);
-  return Math.round((t2 - t1) / 864e5);
-}
-function computeHealthyStreak(existing, studentId, activityDateKey, graceDaysAllowed = 1, nowIso = (/* @__PURE__ */ new Date()).toISOString()) {
-  const base4 = existing ? {
-    ...existing,
-    activeDates: Array.from(new Set(existing.activeDates || [])).sort(),
-    graceDaysAllowed
-  } : createInitialStreakRecord(studentId, graceDaysAllowed, nowIso);
-  if (!activityDateKey || !/^\d{4}-\d{2}-\d{2}$/.test(activityDateKey)) {
-    return base4;
-  }
-  if (base4.activeDates.includes(activityDateKey)) {
-    return {
-      ...base4,
-      statusMessage: `${base4.currentStreakDays} kun faol o'qish davom etmoqda!`,
-      updatedAt: nowIso
-    };
-  }
-  const allDates = Array.from(/* @__PURE__ */ new Set([...base4.activeDates, activityDateKey])).sort();
-  let currentStreak = 1;
-  let longestStreak = Math.max(1, base4.longestStreakDays || 0);
-  let graceUsed = 0;
-  for (let i = 1; i < allDates.length; i++) {
-    const gap = diffDaysBetweenDateKeys(allDates[i - 1], allDates[i]);
-    if (gap === 1) {
-      currentStreak += 1;
-    } else if (gap > 1 && gap - 1 <= graceDaysAllowed) {
-      currentStreak += 1;
-      graceUsed += gap - 1;
-    } else if (gap > 1) {
-      currentStreak = 1;
-      graceUsed = 0;
-    }
-    if (currentStreak > longestStreak) {
-      longestStreak = currentStreak;
-    }
-  }
-  const lastPrev = base4.lastActiveDate;
-  const gapFromLast = lastPrev ? diffDaysBetweenDateKeys(lastPrev, activityDateKey) : 0;
-  const statusMessage = lastPrev && gapFromLast > graceDaysAllowed + 1 ? `Yana davom ettirish vaqti! Yangi ${currentStreak} kunlik ritm boshlandi.` : `${currentStreak} kun izchil o'rganish davom etmoqda!`;
-  return {
-    id: studentId,
-    studentId,
-    currentStreakDays: currentStreak,
-    longestStreakDays: longestStreak,
-    activeDates: allDates,
-    lastActiveDate: allDates[allDates.length - 1] || activityDateKey,
-    graceDaysAllowed,
-    graceDaysUsedInCurrentStreak: graceUsed,
-    statusMessage,
-    updatedAt: nowIso
-  };
-}
-function isMathSubjectOrArea(subject, curriculumArea) {
-  const s = `${subject || ""} ${curriculumArea || ""}`.toLowerCase();
-  return s.includes("matematika") || s.includes("algebra") || s.includes("geometriya");
-}
-function processVerifiedLearningEvent(input) {
-  const nowIso = input.occurredAt || (/* @__PURE__ */ new Date()).toISOString();
-  const dateKey = input.dateKey || getTashkentDateString(new Date(nowIso));
-  const config = input.config || DEFAULT_GAMIFICATION_CONFIG;
-  const badgeDefs = input.badgeDefinitions || DEFAULT_GAMIFICATION_BADGES;
-  const baseProfile = input.existingProfile ? {
-    ...input.existingProfile,
-    exploredSubjects: [...input.existingProfile.exploredSubjects || []],
-    exploredTopics: [...input.existingProfile.exploredTopics || []]
-  } : createInitialGamificationProfile(input.studentId, nowIso);
-  const baseStreak = input.existingStreak || createInitialStreakRecord(input.studentId, config.streakGraceDays, nowIso);
-  const alreadyProcessed = input.existingEvents.some(
-    (e) => e.studentId === input.studentId && e.idempotencyKey === input.idempotencyKey
-  ) || input.existingLedger.some(
-    (l) => l.studentId === input.studentId && l.idempotencyKey === input.idempotencyKey
-  );
-  if (alreadyProcessed || !config.enabled) {
-    return {
-      duplicate: true,
-      xpAwarded: 0,
-      leveledUp: false,
-      previousLevel: baseProfile.currentLevel,
-      newLevel: baseProfile.currentLevel,
-      profile: baseProfile,
-      newlyEarnedBadges: [],
-      streak: baseStreak,
-      updatedChallenges: input.existingChallenges || []
-    };
-  }
-  const xpEarnedToday = input.existingLedger.filter((l) => l.studentId === input.studentId && l.dateKey === dateKey && l.xpDelta > 0).reduce((sum, l) => sum + l.xpDelta, 0);
-  const configuredReward = Math.max(0, Number(config.xpRewards[input.activityType] ?? 0));
-  const remainingDailyAllowance = Math.max(0, (config.dailyXpCap || 150) - xpEarnedToday);
-  const xpAwarded = Math.min(configuredReward, remainingDailyAllowance);
-  const eventId = `evt_${input.studentId}_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
-  const event = {
-    id: eventId,
-    idempotencyKey: input.idempotencyKey,
-    studentId: input.studentId,
-    classCode: input.classCode,
-    activityType: input.activityType,
-    subject: input.subject,
-    curriculumArea: input.curriculumArea,
-    topicId: input.topicId,
-    lessonId: input.lessonId,
-    assessmentId: input.assessmentId,
-    goalId: input.goalId,
-    quarter: input.quarter,
-    xpAwarded,
-    occurredAt: nowIso,
-    dateKey
-  };
-  const previousLevel = baseProfile.currentLevel;
-  const newTotalXp = baseProfile.totalXp + xpAwarded;
-  const lvlInfo = calculateStudentLevel(newTotalXp);
-  if (input.activityType === "lesson_completed") {
-    baseProfile.completedLessonsCount += 1;
-  } else if (input.activityType === "practice_completed") {
-    baseProfile.completedPracticeCount += 1;
-  } else if (input.activityType === "assessment_completed") {
-    baseProfile.completedAssessmentsCount += 1;
-  } else if (input.activityType === "weekly_goal_completed") {
-    baseProfile.completedGoalsCount += 1;
-  } else if (input.activityType === "curriculum_milestone_completed") {
-    baseProfile.completedMilestonesCount += 1;
-  }
-  if (input.activityType !== "daily_checkin" && isMathSubjectOrArea(input.subject, input.curriculumArea)) {
-    baseProfile.mathActivitiesCount += 1;
-  }
-  if (input.subject && !baseProfile.exploredSubjects.includes(input.subject)) {
-    baseProfile.exploredSubjects.push(input.subject);
-  }
-  const topicKey = input.topicId || input.lessonId;
-  if (topicKey && !baseProfile.exploredTopics.includes(topicKey)) {
-    baseProfile.exploredTopics.push(topicKey);
-  }
-  baseProfile.totalXp = newTotalXp;
-  baseProfile.currentLevel = lvlInfo.currentLevel;
-  baseProfile.currentLevelTitle = lvlInfo.currentLevelTitle;
-  baseProfile.nextLevelXp = lvlInfo.nextLevelXp;
-  baseProfile.levelProgressPercent = lvlInfo.levelProgressPercent;
-  baseProfile.updatedAt = nowIso;
-  const ledgerEntry = {
-    id: `xpl_${eventId}`,
-    idempotencyKey: input.idempotencyKey,
-    studentId: input.studentId,
-    eventId,
-    activityType: input.activityType,
-    xpDelta: xpAwarded,
-    balanceAfter: newTotalXp,
-    reason: input.reason,
-    referenceId: input.lessonId || input.assessmentId || input.goalId,
-    createdAt: nowIso,
-    dateKey
-  };
-  const updatedStreak = config.enableStreaks ? computeHealthyStreak(
-    baseStreak,
-    input.studentId,
-    dateKey,
-    config.streakGraceDays,
-    nowIso
-  ) : baseStreak;
-  const newlyEarnedBadges = [];
-  if (config.enableBadges) {
-    const ownedCodes = new Set(
-      input.existingStudentBadges.filter((b) => b.studentId === input.studentId).map((b) => b.badgeCode)
-    );
-    const activeDaysCount = updatedStreak.activeDates.length;
-    const distinctTopicsOrAreasCount = baseProfile.exploredTopics.length;
-    for (const def of badgeDefs) {
-      if (!def.isActive || ownedCodes.has(def.code)) continue;
-      let qualifies = false;
-      switch (def.code) {
-        case "BIRINCHI_QADAM":
-          qualifies = baseProfile.completedLessonsCount >= def.thresholdValue;
-          break;
-        case "FAOL_OQUVCHI":
-          qualifies = baseProfile.completedLessonsCount >= def.thresholdValue;
-          break;
-        case "MATEMATIKA_IXLOSMANDI":
-          qualifies = baseProfile.mathActivitiesCount >= def.thresholdValue;
-          break;
-        case "IZCHILLIK":
-          qualifies = activeDaysCount >= def.thresholdValue;
-          break;
-        case "BILIM_IZLOVCHISI":
-          qualifies = distinctTopicsOrAreasCount >= def.thresholdValue || baseProfile.exploredSubjects.length >= 2;
-          break;
-        case "BIRINCHI_TEST":
-          qualifies = baseProfile.completedAssessmentsCount >= def.thresholdValue;
-          break;
-        case "MASHGULOT_USTASI":
-          qualifies = baseProfile.completedGoalsCount >= def.thresholdValue;
-          break;
-      }
-      if (qualifies) {
-        ownedCodes.add(def.code);
-        newlyEarnedBadges.push({
-          id: `sbadge_${input.studentId}_${def.code}`,
-          studentId: input.studentId,
-          badgeId: def.id,
-          badgeCode: def.code,
-          title: def.title,
-          description: def.description,
-          earnedAt: nowIso,
-          triggerEventId: eventId
-        });
-      }
-    }
-  }
-  const updatedChallenges = (input.existingChallenges || []).map((challenge) => {
-    if (!challenge.isActive || challenge.classCode !== input.classCode) {
-      return challenge;
-    }
-    const matchesType = challenge.targetType === "lessons" && input.activityType === "lesson_completed" || challenge.targetType === "assessments" && input.activityType === "assessment_completed" || challenge.targetType === "checkins" && input.activityType === "daily_checkin" || challenge.targetType === "activities";
-    if (!matchesType) return challenge;
-    if (challenge.subject && input.subject && challenge.subject !== input.subject) {
-      return challenge;
-    }
-    const contributors = challenge.contributorStudentIds.includes(input.studentId) ? challenge.contributorStudentIds : [...challenge.contributorStudentIds, input.studentId];
-    return {
-      ...challenge,
-      currentCount: Math.min(challenge.targetCount, challenge.currentCount + 1),
-      contributorStudentIds: contributors,
-      updatedAt: nowIso
-    };
-  });
-  return {
-    duplicate: false,
-    xpAwarded,
-    leveledUp: baseProfile.currentLevel > previousLevel,
-    previousLevel,
-    newLevel: baseProfile.currentLevel,
-    profile: baseProfile,
-    event,
-    ledgerEntry,
-    newlyEarnedBadges,
-    streak: updatedStreak,
-    updatedChallenges
-  };
-}
-function classifyRoadmap2LessonBadge(lesson) {
-  const lt = (lesson.lessonType || "").toLowerCase();
-  const at = (lesson.assessmentType || lesson.milestoneType || "").toLowerCase();
-  const ec = (lesson.eventCategory || "").toLowerCase();
-  const titleLower = `${lesson.topicTitle || ""} ${lesson.title || ""}`.toLowerCase();
-  if (lt === "bsb_analysis" || titleLower.includes("bsb") && (titleLower.includes("tahlil") || titleLower.includes("xato"))) {
-    return "BSB tahlili";
-  }
-  if (lt === "chsb_analysis" || titleLower.includes("chsb") && (titleLower.includes("tahlil") || titleLower.includes("xato"))) {
-    return "CHSB tahlili";
-  }
-  if (lt === "bsb" || at === "bsb" || /\bbsb\b/i.test(titleLower) || lt.includes("yozma ish-41")) {
-    return "BSB";
-  }
-  if (lt === "chsb" || at === "chsb" || ec === "quarterly_assessment" || /\bchsb\b/i.test(titleLower) || lt.includes("choraklik-39")) {
-    return "CHSB";
-  }
-  if (lt === "written_exam" || at === "written_work" || ec === "written_assessment" || titleLower.includes("nazorat ishi") || titleLower.includes("yozma ish") || lt.includes("yozma ish")) {
-    return "Yozma ish";
-  }
-  if (lt === "project" || at === "project" || ec === "project_work" || titleLower.includes("loyiha ishi") || lt.includes("loyiha ishi")) {
-    return "Loyiha ishi";
-  }
-  if (lt === "revision" || ec === "review_and_analysis" || titleLower.includes("takrorlash") || titleLower.includes("xatolar ustida ishlash")) {
-    return "Takrorlash";
-  }
-  return "Oddiy dars";
-}
-function buildWeeklyLearningRecap(params) {
-  const todayKey = params.dateKey || getTashkentDateString();
-  const { weekKey, weekStartDate, weekEndDate } = getIsoWeekKey(todayKey);
-  const weekEvents = params.events.filter(
-    (e) => e.studentId === params.studentId && e.dateKey >= weekStartDate && e.dateKey <= weekEndDate
-  );
-  const completedLessonsCount = weekEvents.filter((e) => e.activityType === "lesson_completed").length;
-  const completedTestsCount = weekEvents.filter((e) => e.activityType === "assessment_completed").length;
-  const xpEarned = weekEvents.reduce((sum, e) => sum + (e.xpAwarded || 0), 0);
-  const subjectsStudied = Array.from(
-    new Set(weekEvents.map((e) => e.subject).filter((s) => Boolean(s)))
-  );
-  const lessonTitleMap = new Map(params.lessons.map((l) => [l.id, l.title]));
-  const topicsPracticed = Array.from(
-    new Set(
-      weekEvents.map((e) => e.lessonId ? lessonTitleMap.get(e.lessonId) : void 0).filter((t) => Boolean(t))
-    )
-  ).slice(0, 6);
-  const newBadges = params.studentBadges.filter((b) => {
-    const earnedDate = (b.earnedAt || "").slice(0, 10);
-    return b.studentId === params.studentId && earnedDate >= weekStartDate && earnedDate <= weekEndDate;
-  }).map((b) => b.badgeCode);
-  const completedIds = new Set(
-    params.completions.filter((c) => c.studentId === params.studentId && c.status === "completed").map((c) => c.lessonId)
-  );
-  const nextClassLesson = params.lessons.filter(
-    (l) => l.status === "published" && (l.classCode === params.classCode || l.classId === `class_${params.classCode}`) && !completedIds.has(l.id)
-  ).sort(
-    (a, b) => (a.quarter || 1) - (b.quarter || 1) || (a.lessonNumber || a.orderIndex || 0) - (b.lessonNumber || b.orderIndex || 0)
-  )[0];
-  const recommendedNextFocus = nextClassLesson ? `${nextClassLesson.subject || nextClassLesson.subjectName || "Fan"}${nextClassLesson.curriculumArea ? ` (${nextClassLesson.curriculumArea})` : ""}: ${nextClassLesson.lessonNumber || nextClassLesson.orderIndex || "\u2014"}-dars \u2014 ${nextClassLesson.title}` : "O'quv xaritasi bo'yicha navbatdagi mavzuni tanlang";
-  return {
-    id: `${params.studentId}_${weekKey}`,
-    studentId: params.studentId,
-    weekKey,
-    weekStartDate,
-    weekEndDate,
-    completedLessonsCount,
-    completedTestsCount,
-    subjectsStudied,
-    xpEarned,
-    newBadges,
-    topicsPracticed,
-    recommendedNextFocus,
-    generatedAt: (/* @__PURE__ */ new Date()).toISOString()
-  };
-}
-
-// src/utils/academicOsEngine.ts
-var A_TRACK_SUBJECTS = ["Matematika", "Ingliz tili", "Fizika", "Algebra", "Geometriya"];
-var T_TRACK_SUBJECTS = ["Ingliz tili", "Biologiya", "Kimyo", "Matematika", "Algebra", "Geometriya"];
-function isTTrackClass(classCode) {
-  return classCode.toLowerCase().endsWith("t");
-}
-function getAllowedSubjectsForClass(classCode) {
-  if (isTTrackClass(classCode)) {
-    return ["Ingliz tili", "Biologiya", "Kimyo", "Matematika"];
-  }
-  return ["Matematika", "Ingliz tili", "Fizika"];
-}
-function parseTimeToMinutes(timeStr) {
-  const match = /^(\d{1,2}):(\d{2})$/.exec((timeStr || "").trim());
-  if (!match) return null;
-  const hours = Number(match[1]);
-  const minutes = Number(match[2]);
-  if (hours < 0 || hours > 23 || minutes < 0 || minutes > 59) return null;
-  return hours * 60 + minutes;
-}
-function validateTimetableEntry(candidate, existingEntries) {
-  const issues = [];
-  const startMin = parseTimeToMinutes(candidate.startTime);
-  const endMin = parseTimeToMinutes(candidate.endTime);
-  if (startMin === null || endMin === null) {
-    issues.push({
-      type: "invalid_duration",
-      severity: "error",
-      message: "Dars boshlanish va tugash vaqti HH:mm formatida bo'lishi shart."
-    });
-    return issues;
-  }
-  const duration = endMin - startMin;
-  if (duration <= 0) {
-    issues.push({
-      type: "invalid_duration",
-      severity: "error",
-      message: "Tugash vaqti boshlanish vaqtidan keyin bo'lishi kerak."
-    });
-  } else if (duration < 25 || duration > 180) {
-    issues.push({
-      type: "invalid_duration",
-      severity: "warning",
-      message: `Dars davomiyligi (${duration} daqiqa) standart me'yordan (35\u201390 daqiqa) farq qiladi.`
-    });
-  }
-  const isT = isTTrackClass(candidate.classCode);
-  const allowedList = isT ? T_TRACK_SUBJECTS : A_TRACK_SUBJECTS;
-  const subjectAllowed = allowedList.some(
-    (s) => candidate.subject.toLowerCase().includes(s.toLowerCase()) || s.toLowerCase().includes(candidate.subject.toLowerCase())
-  );
-  if (!subjectAllowed) {
-    issues.push({
-      type: "subject_track_mismatch",
-      severity: "warning",
-      message: `${candidate.classCode.toUpperCase()} sinfi yo'nalishi uchun "${candidate.subject}" fani standart o'quv rejasiga kirmaydi.`
-    });
-  }
-  const sameDayClassEntries = existingEntries.filter(
-    (e) => e.timetableId === candidate.timetableId && e.classCode === candidate.classCode && e.weekdayIndex === candidate.weekdayIndex && e.id !== candidate.id
-  );
-  for (const existing of sameDayClassEntries) {
-    if (existing.lessonNumber === candidate.lessonNumber && existing.subject.toLowerCase() === candidate.subject.toLowerCase() && existing.startTime === candidate.startTime && existing.endTime === candidate.endTime) {
-      issues.push({
-        type: "duplicate_entry",
-        severity: "error",
-        message: `${candidate.weekday} kuni ${candidate.lessonNumber}-soatda "${candidate.subject}" darsi allaqachon kiritilgan.`,
-        conflictingEntryId: existing.id
-      });
-      continue;
-    }
-    if (existing.lessonNumber === candidate.lessonNumber) {
-      issues.push({
-        type: "time_conflict",
-        severity: "error",
-        message: `${candidate.weekday} kuni ${candidate.lessonNumber}-soat band (${existing.subject}, ${existing.startTime}\u2013${existing.endTime}).`,
-        conflictingEntryId: existing.id
-      });
-      continue;
-    }
-    const exStart = parseTimeToMinutes(existing.startTime);
-    const exEnd = parseTimeToMinutes(existing.endTime);
-    if (exStart !== null && exEnd !== null && startMin < exEnd && endMin > exStart) {
-      issues.push({
-        type: "time_conflict",
-        severity: "error",
-        message: `${candidate.weekday} kuni vaqt ustma-ust tushishi: ${candidate.startTime}\u2013${candidate.endTime} va ${existing.subject} (${existing.startTime}\u2013${existing.endTime}).`,
-        conflictingEntryId: existing.id
-      });
-    }
-  }
-  return issues;
-}
-function resolveStudentTimetableView(params) {
-  const { classCode, timetables, entries, nowIso } = params;
-  const activeTimetables = timetables.filter((t) => t.classCode === classCode && t.status === "active").sort((a, b) => b.version - a.version || b.effectiveFrom.localeCompare(a.effectiveFrom));
-  const activeTimetable = activeTimetables[0] || null;
-  const now = nowIso ? new Date(nowIso) : /* @__PURE__ */ new Date();
-  const jsDay = now.getDay();
-  const todayWeekdayIndex = jsDay === 0 ? 7 : jsDay;
-  const weekdayMap = {
-    1: "Dushanba",
-    2: "Seshanba",
-    3: "Chorshanba",
-    4: "Payshanba",
-    5: "Juma",
-    6: "Shanba",
-    7: "Yakshanba"
-  };
-  const todayWeekdayLabel = weekdayMap[todayWeekdayIndex] || "Dushanba";
-  if (!activeTimetable) {
-    return {
-      activeTimetable: null,
-      allEntries: [],
-      todayWeekdayIndex,
-      todayWeekdayLabel,
-      todaysLessons: [],
-      nextLesson: null,
-      upcomingLessons: []
-    };
-  }
-  const allEntries = entries.filter((e) => e.timetableId === activeTimetable.id && e.classCode === classCode).sort((a, b) => a.weekdayIndex - b.weekdayIndex || a.lessonNumber - b.lessonNumber);
-  const todaysLessons = allEntries.filter((e) => e.weekdayIndex === todayWeekdayIndex);
-  const currentMinutes = now.getHours() * 60 + now.getMinutes();
-  let nextLesson = null;
-  const todayRemaining = todaysLessons.filter((e) => {
-    const endMin = parseTimeToMinutes(e.endTime);
-    return endMin !== null && endMin >= currentMinutes;
-  });
-  if (todayRemaining.length > 0) {
-    nextLesson = todayRemaining[0];
-  } else {
-    const laterInWeek = allEntries.filter((e) => e.weekdayIndex > todayWeekdayIndex);
-    nextLesson = laterInWeek[0] || allEntries[0] || null;
-  }
-  const upcomingLessons = allEntries.filter((e) => {
-    if (e.weekdayIndex === todayWeekdayIndex) {
-      const startMin = parseTimeToMinutes(e.startTime);
-      return startMin !== null && startMin > currentMinutes;
-    }
-    return e.weekdayIndex > todayWeekdayIndex;
-  });
-  return {
-    activeTimetable,
-    allEntries,
-    todayWeekdayIndex,
-    todayWeekdayLabel,
-    todaysLessons,
-    nextLesson,
-    upcomingLessons: upcomingLessons.slice(0, 6)
-  };
-}
-function saveStudentAssignmentDraft(existing, draftContent, draftAttachmentUrl, nowIso = (/* @__PURE__ */ new Date()).toISOString()) {
-  const nextStatus = existing.status === "Yangi" ? "Jarayonda" : existing.status;
-  return {
-    ...existing,
-    status: nextStatus,
-    draftContent,
-    draftAttachmentUrl: draftAttachmentUrl ?? existing.draftAttachmentUrl,
-    draftSavedAt: nowIso,
-    updatedAt: nowIso
-  };
-}
-function submitStudentAssignmentWork(params) {
-  const {
-    assignment,
-    existingSubmission,
-    content,
-    attachmentUrl,
-    attachmentName,
-    attachmentMimeType,
-    nowIso = (/* @__PURE__ */ new Date()).toISOString()
-  } = params;
-  const isResubmission = existingSubmission.attemptCount > 0 && Boolean(existingSubmission.submissionDate);
-  if (isResubmission && assignment.allowResubmission === false && existingSubmission.status !== "Qaytarildi") {
-    throw new Error("Ushbu topshiriq uchun qayta topshirish ruxsat etilmagan.");
-  }
-  let archivedRevision = null;
-  if (isResubmission) {
-    archivedRevision = {
-      id: `rev_${existingSubmission.id}_${existingSubmission.attemptCount}_${Date.now()}`,
-      institutionId: existingSubmission.institutionId,
-      submissionId: existingSubmission.id,
-      assignmentId: existingSubmission.assignmentId,
-      studentId: existingSubmission.studentId,
-      studentName: existingSubmission.studentName,
-      classCode: existingSubmission.classCode,
-      revisionNumber: existingSubmission.attemptCount,
-      content: existingSubmission.content,
-      attachmentUrl: existingSubmission.attachmentUrl,
-      attachmentName: existingSubmission.attachmentName,
-      submittedAt: existingSubmission.submissionDate || existingSubmission.updatedAt,
-      score: existingSubmission.score,
-      feedback: existingSubmission.feedback,
-      gradedByUid: existingSubmission.gradedByUid,
-      gradedByName: existingSubmission.gradedByName,
-      gradedAt: existingSubmission.gradedAt,
-      statusAtArchive: existingSubmission.status
-    };
-  }
-  const updatedSubmission = {
-    ...existingSubmission,
-    status: "Topshirildi",
-    submissionDate: nowIso,
-    attemptCount: existingSubmission.attemptCount + 1,
-    content,
-    attachmentUrl: attachmentUrl ?? existingSubmission.attachmentUrl,
-    attachmentName: attachmentName ?? existingSubmission.attachmentName,
-    attachmentMimeType: attachmentMimeType ?? existingSubmission.attachmentMimeType,
-    draftContent: void 0,
-    draftAttachmentUrl: void 0,
-    updatedAt: nowIso
-  };
-  return { updatedSubmission, archivedRevision };
-}
-function isAnnouncementRelevantToStudent(announcement, studentClassCode, todayDateStr) {
-  if (announcement.status !== "published") return false;
-  if (todayDateStr && announcement.expirationDate && announcement.expirationDate < todayDateStr) {
-    return false;
-  }
-  switch (announcement.audienceType) {
-    case "entire_school":
-      return true;
-    case "specific_classes":
-    case "class_group":
-      return announcement.targetClassCodes.includes(studentClassCode);
-    case "subjects": {
-      if (announcement.targetClassCodes && announcement.targetClassCodes.length > 0) {
-        return announcement.targetClassCodes.includes(studentClassCode);
-      }
-      const allowedSubjects = getAllowedSubjectsForClass(studentClassCode);
-      return announcement.targetSubjects.some(
-        (subj) => allowedSubjects.some((allowed) => subj.toLowerCase().includes(allowed.toLowerCase()))
-      );
-    }
-    default:
-      return false;
-  }
-}
-function filterAuthorizedMaterialsForStudent(materials, studentClassCode, studentGrade) {
-  const allowedSubjects = getAllowedSubjectsForClass(studentClassCode);
-  return materials.filter((m) => {
-    if (m.status !== "published") return false;
-    if (m.targetClassCodes && m.targetClassCodes.length > 0) {
-      return m.targetClassCodes.includes(studentClassCode);
-    }
-    if (m.classCode && m.classCode !== studentClassCode) {
-      return false;
-    }
-    if (m.grade && m.grade !== studentGrade) {
-      return false;
-    }
-    return allowedSubjects.some(
-      (s) => m.subject.toLowerCase().includes(s.toLowerCase()) || s.toLowerCase().includes(m.subject.toLowerCase())
-    );
-  });
-}
-function buildUnifiedAcademicCalendarEvents(params) {
-  const {
-    institutionId,
-    timetableEntries,
-    timetables,
-    lessons,
-    deliveryRecords,
-    assignments,
-    assessments,
-    announcements,
-    customEvents,
-    referenceWeekMondayDate
-  } = params;
-  const events = [...customEvents];
-  if (referenceWeekMondayDate && /^\d{4}-\d{2}-\d{2}$/.test(referenceWeekMondayDate)) {
-    const activeIds = new Set(timetables.filter((t) => t.status === "active").map((t) => t.id));
-    const baseMonday = /* @__PURE__ */ new Date(`${referenceWeekMondayDate}T00:00:00Z`);
-    for (const entry of timetableEntries) {
-      if (!activeIds.has(entry.timetableId)) continue;
-      const d = new Date(baseMonday.getTime() + (entry.weekdayIndex - 1) * 864e5);
-      const dateStr = d.toISOString().slice(0, 10);
-      events.push({
-        id: `cal_tt_${entry.id}_${dateStr}`,
-        institutionId,
-        title: `${entry.lessonNumber}-soat: ${entry.subject}${entry.room ? ` (${entry.room}-xona)` : ""}`,
-        description: entry.relatedLessonTitle || `${entry.classCode.toUpperCase()} dars jadvali`,
-        category: "timetable",
-        date: dateStr,
-        startTime: entry.startTime,
-        endTime: entry.endTime,
-        classCode: entry.classCode,
-        subject: entry.subject,
-        sourceRecordId: entry.id,
-        sourceCollection: "timetable_entries",
-        targetRoute: `/admin/timetable?classCode=${entry.classCode}`,
-        createdAt: entry.createdAt
-      });
-    }
-  }
-  for (const delivery of deliveryRecords) {
-    const actualDate = delivery.actualDeliveryDate || delivery.rescheduledToDate || delivery.plannedDate;
-    if (!actualDate || !/^\d{4}-\d{2}-\d{2}$/.test(actualDate)) continue;
-    events.push({
-      id: `cal_del_${delivery.id}`,
-      institutionId,
-      title: `${delivery.subject}: ${delivery.lessonTitle} (${delivery.deliveryStatus})`,
-      description: delivery.completionNote,
-      category: "published_lesson",
-      date: actualDate.slice(0, 10),
-      classCode: delivery.classCode,
-      subject: delivery.subject,
-      quarter: delivery.quarter,
-      sourceRecordId: delivery.lessonId,
-      sourceCollection: "lessons",
-      targetRoute: `/admin/curriculum?classCode=${delivery.classCode}&lessonId=${delivery.lessonId}`,
-      createdAt: delivery.updatedAt
-    });
-  }
-  for (const lesson of lessons) {
-    if (!lesson.scheduledDate || !/^\d{4}-\d{2}-\d{2}/.test(lesson.scheduledDate)) continue;
-    const dateOnly = lesson.scheduledDate.slice(0, 10);
-    const kind = (lesson.lessonKind || lesson.milestoneType || lesson.lessonType || "").toUpperCase();
-    const category = kind === "BSB" ? "bsb" : kind === "CHSB" ? "chsb" : kind === "PROJECT" ? "project_work" : "published_lesson";
-    const desc = lesson.learningObjective || (Array.isArray(lesson.learningObjectives) ? lesson.learningObjectives.join(", ") : lesson.learningObjectives);
-    events.push({
-      id: `cal_les_${lesson.id}`,
-      institutionId,
-      title: `${lesson.subject || lesson.subjectName}: ${lesson.topicTitle || lesson.topicName || lesson.title}`,
-      description: desc,
-      category,
-      date: dateOnly,
-      classCode: lesson.classCode,
-      subject: lesson.subject || lesson.subjectName,
-      quarter: lesson.quarter,
-      sourceRecordId: lesson.id,
-      sourceCollection: "lessons",
-      targetRoute: `/admin/curriculum-map?lessonId=${lesson.id}`,
-      createdAt: lesson.createdAt
-    });
-  }
-  for (const asgn of assignments) {
-    if (asgn.status === "draft" || !asgn.dueDate || !/^\d{4}-\d{2}-\d{2}/.test(asgn.dueDate)) continue;
-    const dateOnly = asgn.dueDate.slice(0, 10);
-    events.push({
-      id: `cal_asgn_${asgn.id}`,
-      institutionId,
-      title: `Topshiriq: ${asgn.title}`,
-      description: asgn.description,
-      category: "assignment",
-      date: dateOnly,
-      classCode: asgn.classCode || asgn.targetClassCodes[0],
-      targetClassCodes: asgn.targetClassCodes,
-      subject: asgn.subject,
-      sourceRecordId: asgn.id,
-      sourceCollection: "assignments",
-      targetRoute: `/admin/assignments?assignmentId=${asgn.id}`,
-      createdAt: asgn.createdAt
-    });
-  }
-  for (const asmt of assessments) {
-    if (asmt.status === "archived" || !asmt.dueDate || !/^\d{4}-\d{2}-\d{2}/.test(asmt.dueDate)) continue;
-    const dateOnly = asmt.dueDate.slice(0, 10);
-    const upperTitle = asmt.title.toUpperCase();
-    const category = upperTitle.includes("CHSB") ? "chsb" : upperTitle.includes("BSB") ? "bsb" : "assessment";
-    events.push({
-      id: `cal_asmt_${asmt.id}`,
-      institutionId,
-      title: `${category === "bsb" ? "BSB" : category === "chsb" ? "CHSB" : "Nazorat"}: ${asmt.title}`,
-      description: asmt.description,
-      category,
-      date: dateOnly,
-      classCode: asmt.classCode || asmt.assignedClassCodes?.[0],
-      targetClassCodes: asmt.assignedClassCodes,
-      subject: asmt.subject,
-      quarter: asmt.quarter,
-      sourceRecordId: asmt.id,
-      sourceCollection: "assessments",
-      targetRoute: `/assessments/${asmt.id}`,
-      createdAt: asmt.createdAt
-    });
-  }
-  for (const ann of announcements) {
-    if (ann.status !== "published" || !ann.publicationDate || !/^\d{4}-\d{2}-\d{2}/.test(ann.publicationDate)) continue;
-    events.push({
-      id: `cal_ann_${ann.id}`,
-      institutionId,
-      title: `E'lon: ${ann.title}`,
-      description: ann.shortContent,
-      category: "announcement",
-      date: ann.publicationDate.slice(0, 10),
-      classCode: ann.targetClassCodes[0],
-      targetClassCodes: ann.targetClassCodes,
-      subject: ann.targetSubjects[0],
-      sourceRecordId: ann.id,
-      sourceCollection: "announcements",
-      targetRoute: `/admin/announcements?announcementId=${ann.id}`,
-      createdAt: ann.createdAt
-    });
-  }
-  const highStakesByClassDate = /* @__PURE__ */ new Map();
-  for (const ev of events) {
-    if (ev.category === "bsb" || ev.category === "chsb" || ev.category === "assessment") {
-      const classes = ev.targetClassCodes?.length ? ev.targetClassCodes : ev.classCode ? [ev.classCode] : [];
-      for (const cls of classes) {
-        const key = `${cls}_${ev.date}`;
-        const list = highStakesByClassDate.get(key) || [];
-        list.push(ev);
-        highStakesByClassDate.set(key, list);
-      }
-    }
-  }
-  for (const [, list] of highStakesByClassDate.entries()) {
-    if (list.length > 1) {
-      for (const ev of list) {
-        ev.hasConflictWarning = true;
-        ev.conflictMessage = `Diqqat: Shu kuni ushbu sinfda ${list.length} ta nazorat/BSB/CHSB belgilangan.`;
-      }
-    }
-  }
-  return events.sort((a, b) => a.date.localeCompare(b.date) || (a.startTime || "").localeCompare(b.startTime || ""));
-}
-var DEFAULT_GRADING_RUBRICS = [
-  {
-    id: "rubric_math_standard",
-    institutionId: "inst-1",
-    title: "Matematika va Aniq fanlar yozma ish rubrikasi",
-    subject: "Matematika",
-    description: "Masalani yechish bosqichlari, mantiqiy asoslash va hisoblash aniqligini baholash mezoni.",
-    isDefault: true,
-    totalMaxPoints: 10,
-    criteria: [
-      {
-        id: "crit_solution",
-        title: "To'g'ri yechim",
-        description: "Masala shartiga mos formula va yechish usulining to'g'ri tanlangani",
-        maxPoints: 3,
-        partialCreditRules: "Usul to'g'ri tanlangan, ammo oraliq qadam tushirib qoldirilgan bo'lsa 1.5\u20132 ball"
-      },
-      {
-        id: "crit_logic",
-        title: "Mantiqiy fikrlash",
-        description: "Qadamlar ketma-ketligi va mantiqiy asoslashning izchilligi",
-        maxPoints: 2,
-        partialCreditRules: "Asoslash qisman keltirilgan bo\u2018lsa 1 ball"
-      },
-      {
-        id: "crit_calc",
-        title: "Hisoblash aniqligi",
-        description: "Arifmetik va algebraik amallarning xatosiz bajarilishi",
-        maxPoints: 2,
-        partialCreditRules: "Kichik arifmetik xato mavjud bo\u2018lsa 1 ball"
-      },
-      {
-        id: "crit_explanation",
-        title: "Tushuntirish",
-        description: "Chizma, belgilashlar va izohlarning tushunarli yozilishi",
-        maxPoints: 1,
-        partialCreditRules: "Izohlar qisqa bo\u2018lsa 0.5 ball"
-      },
-      {
-        id: "crit_final",
-        title: "Yakuniy javob",
-        description: "Yakuniy javob va o'lchov birliklarining aniq ko'rsatilishi",
-        maxPoints: 2,
-        partialCreditRules: "O'lchov birligi yozilmagan bo'lsa 1 ball"
-      }
-    ],
-    createdByUid: "system",
-    createdByName: "Platform Admin",
-    createdAt: "2025-01-01T00:00:00.000Z",
-    updatedAt: "2025-01-01T00:00:00.000Z"
-  },
-  {
-    id: "rubric_science_lab",
-    institutionId: "inst-1",
-    title: "Tabiiy fanlar (Fizika, Kimyo, Biologiya) tahliliy ish rubrikasi",
-    subject: "Fizika",
-    description: "Tajriba, reaksiya tenglamalari va ilmiy xulosalarni baholash mezoni.",
-    isDefault: true,
-    totalMaxPoints: 10,
-    criteria: [
-      {
-        id: "crit_sci_concept",
-        title: "To'g'ri yechim",
-        description: "Qonuniyat, formula yoki reaksiya tenglamasining to\u2018g\u2018ri yozilishi",
-        maxPoints: 3,
-        partialCreditRules: "Koeffitsiyentlarda xato bo\u2018lsa 1.5 ball"
-      },
-      {
-        id: "crit_sci_logic",
-        title: "Mantiqiy fikrlash",
-        description: "Sabab-oqibat bog\u2018lanishining ilmiy asoslangani",
-        maxPoints: 3,
-        partialCreditRules: "Qisman asoslangan bo\u2018lsa 1.5 ball"
-      },
-      {
-        id: "crit_sci_explanation",
-        title: "Tushuntirish",
-        description: "Atamalar va jarayonning aniq izohlanishi",
-        maxPoints: 2,
-        partialCreditRules: "1 ball qisman izoh uchun"
-      },
-      {
-        id: "crit_sci_final",
-        title: "Yakuniy javob",
-        description: "Xulosa va yakuniy natijaning to\u2018g\u2018riligi",
-        maxPoints: 2,
-        partialCreditRules: "Xulosa to\u2018liq bo\u2018lmasa 1 ball"
-      }
-    ],
-    createdByUid: "system",
-    createdByName: "Platform Admin",
-    createdAt: "2025-01-01T00:00:00.000Z",
-    updatedAt: "2025-01-01T00:00:00.000Z"
-  }
-];
-var DEFAULT_FEEDBACK_COMMENTS = [
-  {
-    id: "fb_1",
-    institutionId: "inst-1",
-    category: "praise",
-    text: "Yechish usuli va mantiqiy qadamlar juda aniq ko'rsatilgan. Barakalla!",
-    createdByUid: "system",
-    createdAt: "2025-01-01T00:00:00.000Z"
-  },
-  {
-    id: "fb_2",
-    institutionId: "inst-1",
-    category: "correction",
-    text: "Formula to'g'ri tanlangan, biroq oraliq hisoblashda ishora xatosiga yo'l qo'yilgan.",
-    createdByUid: "system",
-    createdAt: "2025-01-01T00:00:00.000Z"
-  },
-  {
-    id: "fb_3",
-    institutionId: "inst-1",
-    category: "methodology",
-    text: "Yakuniy javobni yozishdan oldin har bir bosqich izohini qisqacha keltiring.",
-    createdByUid: "system",
-    createdAt: "2025-01-01T00:00:00.000Z"
-  },
-  {
-    id: "fb_4",
-    institutionId: "inst-1",
-    category: "next_step",
-    text: "Mavzuni mustahkamlash uchun o'quv xaritadagi keyingi amaliy mashqlarni bajarib ko'ring.",
-    createdByUid: "system",
-    createdAt: "2025-01-01T00:00:00.000Z"
-  }
-];
-
-// src/server/dbEngine.ts
-var DATA_DIR = path.resolve(process.cwd(), ".data");
-var PROD_DB_PATH = path.join(DATA_DIR, "learnos_prod.json");
-var TEST_DB_PATH = path.join(DATA_DIR, "learnos_test.json");
-var configuredSessionSecret = process.env.SESSION_SECRET;
-if (process.env.NODE_ENV === "production" && (!configuredSessionSecret || configuredSessionSecret.length < 32 || configuredSessionSecret.includes("REPLACE_WITH"))) {
-  throw new Error("Production requires a random SESSION_SECRET of at least 32 characters.");
-}
-var baseSessionSecret = configuredSessionSecret || crypto6.randomBytes(32).toString("hex");
-var TOKEN_SECRET = runtimeNamespace() === "_specialized_runtime" ? baseSessionSecret : crypto6.createHmac("sha256", baseSessionSecret).update(runtimeNamespace()).digest("hex");
-function ensureSpecializedStudyStructure(state) {
-  if (runtimeNamespace().startsWith("_specialized_preview_") && state.demoLabs?.length) {
-    const labs = state.demoLabs;
-    const insts = new Set(labs.map((l) => l.institutionId));
-    const users = new Set(labs.flatMap((l) => [l.studentId, l.teacherId]));
-    const demo = (r) => r && typeof r === "object" && (insts.has(r.institutionId) || insts.has(r.id) || users.has(r.uid) || users.has(r.studentId));
-    const clean = { ...state, demoLabs: void 0 };
-    const preserved = {};
-    for (const [key, value] of Object.entries(state)) if (Array.isArray(value) && key !== "demoLabs") {
-      preserved[key] = value.filter(demo);
-      clean[key] = value.filter((r) => !demo(r));
-    }
-    ensureSpecializedStudyStructure(clean);
-    for (const [key, rows] of Object.entries(preserved)) clean[key] = [...clean[key] || [], ...rows];
-    Object.assign(state, clean, { demoLabs: labs });
-    return state;
-  }
-  const nowIso = "2026-01-01T00:00:00.000Z";
-  if (!Array.isArray(state.institutions)) {
-    state.institutions = [];
-  }
-  let primaryInst = state.institutions[0];
-  if (!primaryInst) {
-    primaryInst = {
-      id: DEFAULT_INSTITUTION_ID,
-      name: "Specialized Study Ixtisoslashtirilgan Maktabi",
-      shortName: "Specialized Study",
-      officialName: "Specialized Study Ixtisoslashtirilgan Maktabi",
-      type: "specialized_school",
-      code: "SPEC-STUDY-01",
-      region: "Toshkent shahri",
-      district: "Mirzo Ulug\u2018bek tumani",
-      academicYear: "2026-2027",
-      supportedGrades: [5, 6, 7, 8, 9, 10, 11],
-      gradingScale: "100_percent",
-      languageOfInstruction: "O'zbek tili",
-      timezone: "Asia/Tashkent",
-      status: "active",
-      adminUid: "admin-owner",
-      allowExcelImports: true,
-      aiFeaturesEnabled: true,
-      createdAt: nowIso,
-      updatedAt: nowIso
-    };
-    state.institutions.push(primaryInst);
-  } else {
-    if (!primaryInst.name || primaryInst.name.includes("LearnOS")) {
-      primaryInst.name = "Specialized Study Ixtisoslashtirilgan Maktabi";
-      primaryInst.shortName = "Specialized Study";
-    }
-    if (!primaryInst.academicYear) {
-      primaryInst.academicYear = "2026-2027";
-    }
-  }
-  const instId = primaryInst.id;
-  const academicYear = primaryInst.academicYear || "2026-2027";
-  if (!Array.isArray(state.subjects)) {
-    state.subjects = [];
-  }
-  for (const defSubj of DEFAULT_SUBJECTS) {
-    const existing = state.subjects.find(
-      (s) => s.id === defSubj.id || s.name.trim().toLowerCase() === defSubj.name.trim().toLowerCase()
-    );
-    if (!existing) {
-      state.subjects.push({
-        ...defSubj,
-        institutionId: instId
-      });
-    } else {
-      existing.code = defSubj.code;
-      existing.trackTypes = existing.trackTypes?.length ? existing.trackTypes : [...defSubj.trackTypes];
-      existing.applicableGrades = existing.applicableGrades?.length ? existing.applicableGrades : [...defSubj.applicableGrades];
-      existing.applicableClassCodes = existing.applicableClassCodes?.length ? existing.applicableClassCodes : [...defSubj.applicableClassCodes];
-      if (!existing.status) existing.status = "active";
-    }
-  }
-  if (!Array.isArray(state.classes)) {
-    state.classes = [];
-  }
-  state.classes = state.classes.filter((c) => {
-    const raw = String(c.code || c.name || "").trim().toLowerCase();
-    return raw !== "5t" && raw !== "6t";
-  });
-  const seenOfficialCodes = /* @__PURE__ */ new Set();
-  const deduplicatedClasses = [];
-  for (const cls of state.classes) {
-    const rawCode = String(cls.code || cls.name || "").trim().toLowerCase();
-    const parsed = parseOfficialClassCode(rawCode);
-    if (parsed) {
-      if (seenOfficialCodes.has(parsed.code)) {
-        continue;
-      }
-      seenOfficialCodes.add(parsed.code);
-      const { subjectIds, subjectNames } = getDefaultSubjectsForTrack(parsed.track);
-      cls.id = cls.id || `class-${parsed.code}`;
-      cls.code = parsed.code;
-      cls.name = parsed.code;
-      cls.grade = parsed.grade;
-      cls.track = parsed.track;
-      cls.trackLabel = parsed.trackLabel;
-      cls.section = parsed.section;
-      cls.academicYear = cls.academicYear || academicYear;
-      cls.institutionId = cls.institutionId || instId;
-      cls.subjectIds = cls.subjectIds?.length ? cls.subjectIds : subjectIds;
-      cls.subjectNames = cls.subjectNames?.length ? cls.subjectNames : subjectNames;
-      cls.subject = cls.subject || (parsed.track === "A" ? "Matematika" : "Biologiya");
-      cls.inviteCode = cls.inviteCode || `SS-${parsed.code.toUpperCase()}-2026`;
-      cls.status = cls.status || "active";
-      deduplicatedClasses.push(cls);
-    } else {
-      deduplicatedClasses.push(cls);
-    }
-  }
-  for (const code of OFFICIAL_19_CLASS_CODES) {
-    if (!seenOfficialCodes.has(code)) {
-      const meta = parseOfficialClassCode(code);
-      const { subjectIds, subjectNames } = getDefaultSubjectsForTrack(meta.track);
-      deduplicatedClasses.push({
-        id: `class-${code}`,
-        code,
-        name: code,
-        grade: meta.grade,
-        track: meta.track,
-        trackLabel: meta.trackLabel,
-        section: meta.section,
-        academicYear,
-        subject: meta.track === "A" ? "Matematika" : "Biologiya",
-        subjectIds,
-        subjectNames,
-        teacherId: primaryInst.adminUid || "admin-owner",
-        teacherName: "Specialized Study",
-        institutionId: instId,
-        inviteCode: `SS-${code.toUpperCase()}-2026`,
-        studentCount: 0,
-        status: "active",
-        createdAt: nowIso,
-        updatedAt: nowIso
-      });
-      seenOfficialCodes.add(code);
-    }
-  }
-  const orderMap = new Map(
-    OFFICIAL_19_CLASS_CODES.map((c, idx) => [c, idx])
-  );
-  deduplicatedClasses.sort((a, b) => {
-    const idxA = orderMap.has(a.code) ? orderMap.get(a.code) : 999;
-    const idxB = orderMap.has(b.code) ? orderMap.get(b.code) : 999;
-    return idxA - idxB;
-  });
-  if (!state.customClaims || typeof state.customClaims !== "object") {
-    state.customClaims = {};
-  }
-  const usersList = Array.isArray(state.users) ? state.users : [];
-  for (const usr of usersList) {
-    const normalizedEmail = String(usr.email || "").trim().toLowerCase();
-    const isAuthAdminEmail = isAuthorizedAdminEmail(normalizedEmail);
-    if (isAuthAdminEmail && usr.emailVerified !== false && usr.platformAdmin !== false) {
-      usr.role = "platform_owner";
-      usr.platformOwner = true;
-      usr.platformAdmin = true;
-      state.customClaims[usr.uid] = {
-        ...state.customClaims[usr.uid] || {},
-        platformAdmin: true
-      };
-    } else if (!isAuthAdminEmail && (usr.role === "platform_owner" || usr.role === "admin")) {
-      usr.role = "student";
-      usr.platformOwner = false;
-      usr.platformAdmin = false;
-    }
-  }
-  for (const cls of deduplicatedClasses) {
-    const actualCount = usersList.filter(
-      (u) => u.role === "student" && u.status !== "suspended" && u.status !== "archived" && (u.classId === cls.id || u.classCode && u.classCode.toLowerCase() === cls.code.toLowerCase())
-    ).length;
-    cls.studentCount = actualCount;
-  }
-  state.classes = deduplicatedClasses;
-  if (!Array.isArray(state.workPlans)) {
-    state.workPlans = [];
-  }
-  if (!Array.isArray(state.lessons)) {
-    state.lessons = [];
-  }
-  if (!Array.isArray(state.studentImportJobs)) {
-    state.studentImportJobs = [];
-  }
-  if (!Array.isArray(state.curriculumImportJobs)) {
-    state.curriculumImportJobs = [];
-  }
-  if (!Array.isArray(state.academicYears) || state.academicYears.length === 0) {
-    state.academicYears = [...DEFAULT_ACADEMIC_YEARS];
-  }
-  if (!Array.isArray(state.topics) || state.topics.length === 0) {
-    state.topics = [...DEFAULT_CURRICULUM_TOPICS];
-  }
-  if (!Array.isArray(state.studentGamificationProfiles)) {
-    state.studentGamificationProfiles = [];
-  }
-  if (!Array.isArray(state.learningCheckins)) {
-    state.learningCheckins = [];
-  }
-  if (!Array.isArray(state.studentGoals)) {
-    state.studentGoals = [];
-  }
-  if (!Array.isArray(state.learningActivityEvents)) {
-    state.learningActivityEvents = [];
-  }
-  if (!Array.isArray(state.xpLedger)) {
-    state.xpLedger = [];
-  }
-  if (!Array.isArray(state.gamificationBadges) || state.gamificationBadges.length === 0) {
-    state.gamificationBadges = DEFAULT_GAMIFICATION_BADGES.map((b) => ({ ...b }));
-  }
-  if (!Array.isArray(state.studentBadges)) {
-    state.studentBadges = [];
-  }
-  if (!Array.isArray(state.streakRecords)) {
-    state.streakRecords = [];
-  }
-  if (!Array.isArray(state.weeklyRecaps)) {
-    state.weeklyRecaps = [];
-  }
-  if (!Array.isArray(state.classChallenges)) {
-    state.classChallenges = [];
-  }
-  if (!state.gamificationConfig) {
-    state.gamificationConfig = {
-      ...DEFAULT_GAMIFICATION_CONFIG,
-      xpRewards: { ...DEFAULT_GAMIFICATION_CONFIG.xpRewards },
-      goalTemplates: [...DEFAULT_GAMIFICATION_CONFIG.goalTemplates]
-    };
-  }
-  if (!Array.isArray(state.studentLessonCompletions)) {
-    state.studentLessonCompletions = [];
-  }
-  if (!Array.isArray(state.attendanceSessions)) {
-    state.attendanceSessions = [];
-  }
-  if (!Array.isArray(state.attendanceRecords)) {
-    state.attendanceRecords = [];
-  }
-  if (!Array.isArray(state.studentAssignments)) {
-    state.studentAssignments = [];
-  }
-  if (!Array.isArray(state.assignmentSubmissions)) {
-    state.assignmentSubmissions = [];
-  }
-  if (!Array.isArray(state.studentAlerts)) {
-    state.studentAlerts = [];
-  }
-  if (!Array.isArray(state.studentSupportPlans)) {
-    state.studentSupportPlans = [];
-  }
-  if (!Array.isArray(state.academicReports)) {
-    state.academicReports = [];
-  }
-  if (!Array.isArray(state.timetables)) {
-    state.timetables = [];
-  }
-  if (!Array.isArray(state.timetableEntries)) {
-    state.timetableEntries = [];
-  }
-  if (!Array.isArray(state.submissionRevisions)) {
-    state.submissionRevisions = [];
-  }
-  if (!Array.isArray(state.announcements)) {
-    state.announcements = [];
-  }
-  if (!Array.isArray(state.announcementReads)) {
-    state.announcementReads = [];
-  }
-  if (!Array.isArray(state.announcementAcknowledgements)) {
-    state.announcementAcknowledgements = [];
-  }
-  if (!Array.isArray(state.learningMaterials)) {
-    state.learningMaterials = [];
-  }
-  if (!Array.isArray(state.gradingRubrics) || state.gradingRubrics.length === 0) {
-    state.gradingRubrics = DEFAULT_GRADING_RUBRICS.map((r) => ({ ...r, institutionId: instId }));
-  }
-  if (!Array.isArray(state.feedbackComments) || state.feedbackComments.length === 0) {
-    state.feedbackComments = DEFAULT_FEEDBACK_COMMENTS.map((c) => ({ ...c, institutionId: instId }));
-  }
-  if (!Array.isArray(state.gradingHistory)) {
-    state.gradingHistory = [];
-  }
-  if (!Array.isArray(state.academicEvents)) {
-    state.academicEvents = [];
-  }
-  if (!Array.isArray(state.lessonDeliveryRecords)) {
-    state.lessonDeliveryRecords = [];
-  }
-  return state;
-}
-function createEmptyDatabaseState() {
-  const base4 = {
-    institutions: [
-      {
-        id: DEFAULT_INSTITUTION_ID,
-        name: "Specialized Study Ixtisoslashtirilgan Maktabi",
-        shortName: "Specialized Study",
-        officialName: "Specialized Study Ixtisoslashtirilgan Maktabi",
-        type: "specialized_school",
-        code: "SPEC-STUDY-01",
-        region: "Toshkent shahri",
-        district: "Mirzo Ulug\u2018bek tumani",
-        academicYear: "2026-2027",
-        supportedGrades: [5, 6, 7, 8, 9, 10, 11],
-        gradingScale: "100_percent",
-        languageOfInstruction: "O'zbek tili",
-        timezone: "Asia/Tashkent",
-        status: "active",
-        adminUid: "admin-owner",
-        allowExcelImports: true,
-        aiFeaturesEnabled: true,
-        createdAt: "2026-01-01T00:00:00.000Z",
-        updatedAt: "2026-01-01T00:00:00.000Z"
-      }
-    ],
-    institutionSettings: [],
-    academicYears: [...DEFAULT_ACADEMIC_YEARS],
-    users: [],
-    passwordHashes: {},
-    classes: buildOfficial19Classes(DEFAULT_INSTITUTION_ID, "2026-2027", "admin-owner"),
-    classMemberships: [],
-    teacherAssignments: [],
-    studentEnrollments: [],
-    parentLinks: [],
-    invitations: [],
-    subjects: DEFAULT_SUBJECTS.map((s) => ({ ...s, institutionId: DEFAULT_INSTITUTION_ID })),
-    topics: [...DEFAULT_CURRICULUM_TOPICS],
-    workPlans: [],
-    lessons: [],
-    questions: [],
-    questionRevisions: [],
-    questionMedia: [],
-    assessments: [],
-    assignments: [],
-    attempts: [],
-    gradingRecords: [],
-    importBatches: [],
-    studentImportJobs: [],
-    curriculumImportJobs: [],
-    masteryRecords: [],
-    learningPaths: [],
-    learningRecommendations: [],
-    notifications: [],
-    teacherNotes: [],
-    auditLogs: [],
-    studentGamificationProfiles: [],
-    learningCheckins: [],
-    studentGoals: [],
-    learningActivityEvents: [],
-    xpLedger: [],
-    gamificationBadges: DEFAULT_GAMIFICATION_BADGES.map((b) => ({ ...b })),
-    studentBadges: [],
-    streakRecords: [],
-    weeklyRecaps: [],
-    classChallenges: [],
-    gamificationConfig: {
-      ...DEFAULT_GAMIFICATION_CONFIG,
-      xpRewards: { ...DEFAULT_GAMIFICATION_CONFIG.xpRewards },
-      goalTemplates: [...DEFAULT_GAMIFICATION_CONFIG.goalTemplates]
-    },
-    studentLessonCompletions: [],
-    attendanceSessions: [],
-    attendanceRecords: [],
-    studentAssignments: [],
-    assignmentSubmissions: [],
-    studentAlerts: [],
-    studentSupportPlans: [],
-    academicReports: [],
-    timetables: [],
-    timetableEntries: [],
-    submissionRevisions: [],
-    announcements: [],
-    announcementReads: [],
-    announcementAcknowledgements: [],
-    learningMaterials: [],
-    gradingRubrics: DEFAULT_GRADING_RUBRICS.map((r) => ({ ...r, institutionId: DEFAULT_INSTITUTION_ID })),
-    feedbackComments: DEFAULT_FEEDBACK_COMMENTS.map((c) => ({ ...c, institutionId: DEFAULT_INSTITUTION_ID })),
-    gradingHistory: [],
-    academicEvents: [],
-    lessonDeliveryRecords: []
-  };
-  return ensureSpecializedStudyStructure(base4);
-}
-function ensureDataDir() {
-  try {
-    if (!fs.existsSync(DATA_DIR)) {
-      fs.mkdirSync(DATA_DIR, { recursive: true, mode: 511 });
-    }
-    fs.accessSync(DATA_DIR, fs.constants.W_OK);
-    return DATA_DIR;
-  } catch {
-    const tmpDir = path.join("/tmp", ".data");
-    if (!fs.existsSync(tmpDir)) {
-      fs.mkdirSync(tmpDir, { recursive: true, mode: 511 });
-    }
-    return tmpDir;
-  }
-}
-function resolveDbPaths(env) {
-  const writableDir = ensureDataDir();
-  const fileName = env === "test" ? "learnos_test.json" : "learnos_prod.json";
-  const writePath = path.join(writableDir, fileName);
-  const bundledPath = env === "test" ? TEST_DB_PATH : PROD_DB_PATH;
-  if (fs.existsSync(writePath)) {
-    return { readPath: writePath, writePath };
-  }
-  if (fs.existsSync(bundledPath)) {
-    return { readPath: bundledPath, writePath };
-  }
-  return { readPath: writePath, writePath };
-}
-var memoryCache = {
-  prod: null,
-  test: null
-};
-function getDbState(env = "prod") {
-  const context = requestDatabase.getStore();
-  if (env === "prod" && context) return context.state;
-  if (env === "prod" && process.env.PERSISTENCE_DRIVER === "firestore") {
-    throw new Error("Cloud persistence requires an isolated request context.");
-  }
-  if (memoryCache[env]) {
-    return memoryCache[env];
-  }
-  const { readPath } = resolveDbPaths(env);
-  if (fs.existsSync(readPath)) {
-    try {
-      const raw = fs.readFileSync(readPath, "utf-8");
-      const parsed = JSON.parse(raw);
-      const merged = ensureSpecializedStudyStructure({
-        ...createEmptyDatabaseState(),
-        ...parsed
-      });
-      memoryCache[env] = merged;
-      return merged;
-    } catch (err) {
-      console.warn(`Error reading ${readPath}, initializing clean state:`, err);
-    }
-  }
-  const fresh = createEmptyDatabaseState();
-  memoryCache[env] = fresh;
-  saveDbState(env, fresh);
-  return fresh;
-}
-function saveDbState(env, state) {
-  const context = requestDatabase.getStore();
-  if (env === "prod" && context) {
-    context.state = state;
-    context.dirty = true;
-    return;
-  }
-  if (env === "prod" && process.env.PERSISTENCE_DRIVER === "firestore") {
-    throw new Error("Cloud persistence cannot fall back to a local file.");
-  }
-  memoryCache[env] = state;
-  const { writePath } = resolveDbPaths(env);
-  const serialized = JSON.stringify(state);
-  try {
-    fs.writeFileSync(writePath, serialized, { encoding: "utf-8", mode: 438 });
-    try {
-      fs.chmodSync(writePath, 438);
-    } catch {
-    }
-  } catch (err) {
-    try {
-      const fallbackDir = path.join("/tmp", ".data");
-      if (!fs.existsSync(fallbackDir)) {
-        fs.mkdirSync(fallbackDir, { recursive: true, mode: 511 });
-      }
-      const fallbackFile = path.join(
-        fallbackDir,
-        env === "test" ? "learnos_test.json" : "learnos_prod.json"
-      );
-      fs.writeFileSync(fallbackFile, serialized, { encoding: "utf-8", mode: 438 });
-    } catch {
-      console.warn("In-memory state preserved; disk write skipped:", err);
-    }
-  }
-}
-var revokedTokenSet = /* @__PURE__ */ new Set();
-var revokedBeforeTimestampByUser = /* @__PURE__ */ new Map();
-function resetTestDbState() {
-  const { writePath } = resolveDbPaths("test");
-  const empty = createEmptyDatabaseState();
-  memoryCache.test = empty;
-  revokedTokenSet.clear();
-  revokedBeforeTimestampByUser.clear();
-  try {
-    if (fs.existsSync(writePath)) {
-      fs.unlinkSync(writePath);
-    }
-  } catch {
-  }
-  saveDbState("test", empty);
-}
-function hashPassword(password) {
-  const salt = crypto6.randomBytes(16).toString("hex");
-  const derived = crypto6.scryptSync(password, salt, 64).toString("hex");
-  return `${salt}:${derived}`;
-}
-function generateSecureRandomPassword() {
-  return `SS-${crypto6.randomBytes(16).toString("hex")}!9a`;
-}
-function verifyPassword(password, storedHash) {
-  if (!storedHash || !storedHash.includes(":")) return false;
-  const [salt, key] = storedHash.split(":");
-  const derived = crypto6.scryptSync(password, salt, 64).toString("hex");
-  const keyBuf = Buffer.from(key, "hex");
-  const derivedBuf = Buffer.from(derived, "hex");
-  if (keyBuf.length !== derivedBuf.length) return false;
-  return crypto6.timingSafeEqual(keyBuf, derivedBuf);
-}
-function revokeSessionToken(token) {
-  if (!token) return;
-  const context = requestDatabase.getStore();
-  if (context) {
-    const now = Date.now();
-    context.state.revokedSessionHashes = Object.fromEntries(Object.entries(context.state.revokedSessionHashes || {}).filter(([, expiry]) => expiry > now));
-    try {
-      const payload = JSON.parse(Buffer.from(token.split(".")[0], "base64url").toString("utf8"));
-      context.state.revokedSessionHashes[crypto6.createHash("sha256").update(token.trim()).digest("hex")] = Number(payload.exp) || now + 6048e5;
-      context.dirty = true;
-    } catch {
-    }
-    return;
-  }
-  revokedTokenSet.add(token.trim());
-}
-function revokeAllUserSessions(uid) {
-  if (!uid) return;
-  const context = requestDatabase.getStore();
-  if (context) {
-    context.state.revokedBeforeByUser ||= {};
-    context.state.revokedBeforeByUser[uid] = Date.now();
-    context.dirty = true;
-    return;
-  }
-  revokedBeforeTimestampByUser.set(uid, Date.now());
-}
-function issueSessionToken(uid, env, expiresInMs = 1e3 * 60 * 60 * 24 * 7) {
-  const now = Math.max(Date.now(), (requestDatabase.getStore()?.state.revokedBeforeByUser?.[uid] || 0) + 1);
-  const payload = JSON.stringify({
-    uid,
-    env,
-    jti: crypto6.randomBytes(8).toString("hex"),
-    iat: now,
-    exp: now + expiresInMs
-  });
-  const base64Payload = Buffer.from(payload, "utf-8").toString("base64url");
-  const signature = crypto6.createHmac("sha256", TOKEN_SECRET).update(base64Payload).digest("base64url");
-  return `${base64Payload}.${signature}`;
-}
-function verifySessionToken(token) {
-  if (!token || typeof token !== "string" || !token.includes(".")) return null;
-  const cleanToken = token.trim();
-  if (revokedTokenSet.has(cleanToken)) return null;
-  const durableRevocations = requestDatabase.getStore()?.state.revokedSessionHashes;
-  if (durableRevocations?.[crypto6.createHash("sha256").update(cleanToken).digest("hex")]) return null;
-  const parts = cleanToken.split(".");
-  if (parts.length !== 2) return null;
-  const [base64Payload, signature] = parts;
-  if (!base64Payload || !signature) return null;
-  const expectedSig = crypto6.createHmac("sha256", TOKEN_SECRET).update(base64Payload).digest("base64url");
-  const sigBuf = Buffer.from(signature, "utf-8");
-  const expectedBuf = Buffer.from(expectedSig, "utf-8");
-  if (sigBuf.length !== expectedBuf.length || !crypto6.timingSafeEqual(sigBuf, expectedBuf)) {
-    return null;
-  }
-  try {
-    const decoded = JSON.parse(Buffer.from(base64Payload, "base64url").toString("utf-8"));
-    if (!decoded.uid || typeof decoded.exp !== "number" || decoded.exp < Date.now()) {
-      return null;
-    }
-    const revokedBefore = requestDatabase.getStore()?.state.revokedBeforeByUser?.[decoded.uid] || revokedBeforeTimestampByUser.get(decoded.uid);
-    if (revokedBefore && typeof decoded.iat === "number" && decoded.iat <= revokedBefore) {
-      return null;
-    }
-    return {
-      uid: decoded.uid,
-      env: decoded.env === "test" ? "test" : "prod"
-    };
-  } catch {
-    return null;
-  }
-}
-function generateCryptographicInviteToken(rolePrefix) {
-  const rand = crypto6.randomBytes(4).toString("hex").toUpperCase();
-  const rawToken = `INV-${rolePrefix.slice(0, 3).toUpperCase()}-${rand}`;
-  const tokenHash = computeSimpleHash(rawToken);
-  return { rawToken, tokenHash };
-}
-
-// src/server/firebaseAdminAuth.ts
-var CONFIG_PATH = path2.resolve(process.cwd(), "firebase-applet-config.json");
-var TEST_ID_TOKEN_SECRET = "specialized-study-isolated-test-jwt-secret-2026";
-function loadFirebaseAppletConfig() {
-  const raw = fs2.readFileSync(CONFIG_PATH, "utf-8");
-  return JSON.parse(raw);
-}
-var cachedAdminApp = null;
-function getFirebaseAdminApp() {
-  if (!cachedAdminApp) {
-    const cfg = loadFirebaseAppletConfig();
-    const existing = getApps();
-    cachedAdminApp = existing.length > 0 ? existing[0] : initializeApp({
-      projectId: cfg.projectId,
-      ...process.env.FIREBASE_ADMIN_SERVICE_ACCOUNT ? { credential: cert(JSON.parse(process.env.FIREBASE_ADMIN_SERVICE_ACCOUNT)) } : {}
-    });
-  }
-  return cachedAdminApp;
-}
-function getFirebaseAdminAuth() {
-  return getAuth(getFirebaseAdminApp());
-}
-async function verifyFirebaseIdToken(idToken, env, db) {
-  if (!idToken || typeof idToken !== "string" || !idToken.trim()) {
-    return {
-      valid: false,
-      errorCode: "auth/missing-id-token",
-      errorMessage: "Firebase ID token topilmadi."
-    };
-  }
-  const trimmed = idToken.trim();
-  if (env === "test" && trimmed.startsWith("test-fb-jwt.")) {
-    const parts = trimmed.split(".");
-    if (parts.length !== 3) {
-      return {
-        valid: false,
-        errorCode: "auth/invalid-id-token",
-        errorMessage: "Noto\u2018g\u2018ri token formati."
-      };
-    }
-    const [, encoded, sig] = parts;
-    const expectedSig = crypto7.createHmac("sha256", TEST_ID_TOKEN_SECRET).update(`test-fb-jwt.${encoded}`).digest("base64url");
-    const sigBuf = Buffer.from(sig, "utf-8");
-    const expBuf = Buffer.from(expectedSig, "utf-8");
-    if (sigBuf.length !== expBuf.length || !crypto7.timingSafeEqual(sigBuf, expBuf)) {
-      return {
-        valid: false,
-        errorCode: "auth/invalid-credential",
-        errorMessage: "Token imzosi haqiqiy emas."
-      };
-    }
-    try {
-      const decoded = JSON.parse(Buffer.from(encoded, "base64url").toString("utf-8"));
-      const nowSec = Math.floor(Date.now() / 1e3);
-      if (typeof decoded.exp !== "number" || decoded.exp <= nowSec) {
-        return {
-          valid: false,
-          errorCode: "auth/id-token-expired",
-          errorMessage: "Firebase ID token muddati tugagan. Qaytadan tizimga kiring."
-        };
-      }
-      const uid = String(decoded.uid || decoded.sub || "").trim();
-      const email = String(decoded.email || "").trim().toLowerCase();
-      if (!uid || !email) {
-        return {
-          valid: false,
-          errorCode: "auth/invalid-id-token",
-          errorMessage: "Token tarkibida foydalanuvchi identifikatori (UID/Email) mavjud emas."
-        };
-      }
-      const storedClaims = db.customClaims && db.customClaims[uid] || {};
-      const mergedClaims = {
-        ...storedClaims,
-        ...decoded.claims || {}
-      };
-      return {
-        valid: true,
-        identity: {
-          uid,
-          email,
-          emailVerified: decoded.email_verified === true,
-          displayName: decoded.name ? String(decoded.name) : void 0,
-          customClaims: mergedClaims,
-          issuedAtSeconds: Number(decoded.iat || nowSec),
-          expiresAtSeconds: Number(decoded.exp),
-          verificationSource: "isolated_test_token"
-        }
-      };
-    } catch {
-      return {
-        valid: false,
-        errorCode: "auth/invalid-id-token",
-        errorMessage: "Token ma\u2019lumotlarini o\u2018qib bo\u2018lmadi."
-      };
-    }
-  }
-  try {
-    const adminAuth = getFirebaseAdminAuth();
-    const decodedToken = await adminAuth.verifyIdToken(trimmed, true);
-    const uid = String(decodedToken.uid || decodedToken.sub || "").trim();
-    const email = String(decodedToken.email || "").trim().toLowerCase();
-    if (!uid || !email) {
-      return {
-        valid: false,
-        errorCode: "auth/invalid-id-token",
-        errorMessage: "Tasdiqlangan Google hisobida email manzili mavjud emas."
-      };
-    }
-    const customClaims = {
-      platformAdmin: decodedToken.platformAdmin === true
-    };
-    return {
-      valid: true,
-      identity: {
-        uid,
-        email,
-        emailVerified: decodedToken.email_verified === true,
-        displayName: decodedToken.name ? String(decodedToken.name) : void 0,
-        photoURL: decodedToken.picture ? String(decodedToken.picture) : void 0,
-        customClaims,
-        issuedAtSeconds: decodedToken.iat,
-        expiresAtSeconds: decodedToken.exp,
-        verificationSource: "firebase_admin_jwt"
-      }
-    };
-  } catch (adminErr) {
-    const code = String(adminErr?.code || "");
-    if (code === "auth/id-token-expired") {
-      return {
-        valid: false,
-        errorCode: code,
-        errorMessage: "Sessiya muddati tugagan. Iltimos, Google orqali qayta kiring."
-      };
-    }
-    return {
-      valid: false,
-      errorCode: "auth/invalid-credential",
-      errorMessage: "Firebase hisobini tekshirib bo\u2018lmadi. Qayta kiring yoki administratorga murojaat qiling."
-    };
-  }
-}
-async function provisionSingleAdminAccount(targetEmail, env, db) {
-  const normalizedEmail = String(targetEmail || "").trim().toLowerCase();
-  if (!isAuthorizedAdminEmail(normalizedEmail)) {
-    throw new Error(`Unauthorized administrator email: ${normalizedEmail}`);
-  }
-  if (!db.customClaims) {
-    db.customClaims = {};
-  }
-  let fbUserRecord = null;
-  let firebaseAdminSdkClaimSynced = false;
-  if (env === "prod") {
-    try {
-      const adminAuth = getFirebaseAdminAuth();
-      const userRec = await adminAuth.getUserByEmail(normalizedEmail);
-      fbUserRecord = {
-        uid: userRec.uid,
-        email: (userRec.email || normalizedEmail).toLowerCase(),
-        emailVerified: userRec.emailVerified,
-        displayName: userRec.displayName || void 0,
-        customClaims: userRec.customClaims || {}
-      };
-    } catch {
-    }
-  }
-  const dbUser = db.users.find((u) => u.email.trim().toLowerCase() === normalizedEmail);
-  const resolvedUid = fbUserRecord?.uid || dbUser?.uid || null;
-  if (!resolvedUid) {
-    return {
-      email: normalizedEmail,
-      existsInFirebaseOrDb: false,
-      uid: null,
-      emailVerified: false,
-      platformAdminClaimAssigned: false,
-      preservedCustomClaims: {},
-      firebaseAdminSdkClaimSynced: false,
-      status: "awaiting_first_google_login",
-      message: `${normalizedEmail} hali Google orqali tizimga kirmagan. Haqiqiy Firebase UID yaratilishi uchun foydalanuvchi avval \xABGoogle bilan kirish\xBB tugmasi orqali autentifikatsiyadan o\u2018tishi shart.`
-    };
-  }
-  const isEmailVerified = fbUserRecord !== null ? fbUserRecord.emailVerified : dbUser?.emailVerified === true;
-  if (!isEmailVerified) {
-    return {
-      email: normalizedEmail,
-      existsInFirebaseOrDb: true,
-      uid: resolvedUid,
-      emailVerified: false,
-      platformAdminClaimAssigned: false,
-      preservedCustomClaims: db.customClaims[resolvedUid] || {},
-      firebaseAdminSdkClaimSynced: false,
-      status: "awaiting_email_verification",
-      message: `${normalizedEmail} hisobi mavjud (UID: ${resolvedUid}), biroq elektron pochta tasdiqlanmagan (emailVerified=false).`
-    };
-  }
-  const existingClaims = {
-    ...db.customClaims[resolvedUid] || {},
-    ...fbUserRecord?.customClaims || {}
-  };
-  const updatedClaims = {
-    ...existingClaims,
-    platformAdmin: true
-  };
-  db.customClaims[resolvedUid] = updatedClaims;
-  if (env === "prod") {
-    try {
-      const adminAuth = getFirebaseAdminAuth();
-      await adminAuth.setCustomUserClaims(resolvedUid, updatedClaims);
-      const verifiedRec = await adminAuth.getUser(resolvedUid);
-      firebaseAdminSdkClaimSynced = verifiedRec.customClaims?.platformAdmin === true;
-    } catch {
-      firebaseAdminSdkClaimSynced = false;
-    }
-  }
-  const nowIso = (/* @__PURE__ */ new Date()).toISOString();
-  const instId = db.institutions[0]?.id || "inst-specialized-study";
-  if (dbUser) {
-    dbUser.uid = resolvedUid;
-    dbUser.role = "platform_owner";
-    dbUser.platformOwner = true;
-    dbUser.platformAdmin = true;
-    dbUser.emailVerified = true;
-    dbUser.status = "active";
-    dbUser.updatedAt = nowIso;
-  } else if (fbUserRecord) {
-    db.users.push({
-      uid: resolvedUid,
-      displayName: fbUserRecord.displayName || (normalizedEmail === PLATFORM_OWNER_EMAIL ? "Asilbek Nuraliyev" : "Bahodir Boliqulov"),
-      email: normalizedEmail,
-      emailVerified: true,
-      platformOwner: true,
-      platformAdmin: true,
-      role: "platform_owner",
-      institutionId: instId,
-      status: "active",
-      createdAt: nowIso,
-      updatedAt: nowIso
-    });
-  }
-  db.auditLogs.unshift({
-    id: `audit-prov-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-    institutionId: instId,
-    actorUid: resolvedUid,
-    actorName: normalizedEmail,
-    actorRole: "platform_owner",
-    action: `Platform Admin custom claim (platformAdmin: true) tasdiqlandi: ${normalizedEmail}`,
-    target: normalizedEmail,
-    recordId: resolvedUid,
-    status: "success",
-    eventType: "ADMIN_CLAIM_PROVISIONED",
-    outcome: "success",
-    severity: "INFO",
-    createdAt: nowIso
-  });
-  saveDbState(env, db);
-  return {
-    email: normalizedEmail,
-    existsInFirebaseOrDb: true,
-    uid: resolvedUid,
-    emailVerified: true,
-    platformAdminClaimAssigned: updatedClaims.platformAdmin === true,
-    preservedCustomClaims: updatedClaims,
-    firebaseAdminSdkClaimSynced,
-    status: "active_admin",
-    message: `${normalizedEmail} uchun platformAdmin: true ruxsati muvaffaqiyatli biriktirildi (UID: ${resolvedUid}).`
-  };
-}
-async function provisionAuthorizedAdmins(env, db) {
-  const results = [];
-  for (const adminEmail of AUTHORIZED_ADMIN_EMAILS) {
-    const res = await provisionSingleAdminAccount(adminEmail, env, db);
-    results.push(res);
-  }
-  return {
-    admins: results,
-    allowlist: AUTHORIZED_ADMIN_EMAILS,
-    timestamp: (/* @__PURE__ */ new Date()).toISOString()
-  };
-}
 
 // src/server/runtimeMetrics.ts
 function createRuntimeMetrics(clock = () => Date.now()) {
@@ -5029,10 +5310,46 @@ function quotaExhausted(error) {
   return error?.code === 8 || error?.code === "resource-exhausted" || error?.status === 429;
 }
 
+// src/server/supabaseExamStore.ts
+init_runtimeScope();
+var SupabaseExamSessionStore = class {
+  constructor(rpc = studyRpc) {
+    this.rpc = rpc;
+  }
+  async read(key) {
+    return (await this.head(key))?.session;
+  }
+  head(key) {
+    return this.rpc("study_read_exam", { p_namespace: runtimeNamespace(), p_key: key });
+  }
+  async change(key, fn) {
+    for (let retry = 0; retry < 8; retry++) {
+      const head = await this.head(key), before = JSON.stringify(head?.session), { session, result } = fn(head?.session);
+      if (head && before === JSON.stringify(session)) return result;
+      if (Buffer.byteLength(JSON.stringify(session)) > 8e6) throw Error("Exam exceeds safe bound");
+      try {
+        await this.rpc("study_write_exam", { p_namespace: runtimeNamespace(), p_key: key, p_expected_version: head?.version || 0, p_session: session });
+        return result;
+      } catch (error) {
+        if (error.code !== "40001" || retry === 7) throw error;
+        await new Promise((r) => setTimeout(r, Math.min(100, 10 * 2 ** retry)));
+      }
+    }
+    throw Error("Exam save retry limit");
+  }
+  list(school, exam, after = "") {
+    return this.rpc("study_list_exams", { p_namespace: runtimeNamespace(), p_school: school, p_exam: exam, p_after: after });
+  }
+  async deleteFixture(key) {
+    if (!runtimeNamespace().startsWith("_specialized_preview_") || !/^[a-f0-9]{64}$/.test(key)) throw Error("Preview fixture cleanup only");
+    await this.rpc("study_delete_exam_fixture", { p_namespace: runtimeNamespace(), p_key: key });
+  }
+};
+
 // src/server/examSessionStore.ts
 var zip = promisify(gzip);
 var unzip = promisify(gunzip);
-var examSessionKey = (school, exam, student) => crypto8.createHash("sha256").update(JSON.stringify([school, exam, student])).digest("hex");
+var examSessionKey = (school, exam, student) => crypto10.createHash("sha256").update(JSON.stringify([school, exam, student])).digest("hex");
 var LocalExamSessionStore = class {
   constructor(directory) {
     this.directory = directory;
@@ -5070,7 +5387,7 @@ var LocalExamSessionStore = class {
       const { session, result } = fn(await this.read(key));
       if (this.directory) {
         await fs3.mkdir(this.directory, { recursive: true });
-        const target = path3.join(this.directory, key + ".json"), temporary = target + "." + crypto8.randomUUID();
+        const target = path3.join(this.directory, key + ".json"), temporary = target + "." + crypto10.randomUUID();
         await fs3.writeFile(temporary, JSON.stringify(session), {
           mode: 384
         });
@@ -5142,7 +5459,7 @@ var FirestoreExamSessionStore = class {
     const chunks = docs.map((d) => {
       if (!d.exists) throw Error("Exam chunk missing");
       const bytes = Buffer.from(d.data().bytes);
-      if (crypto8.createHash("sha256").update(bytes).digest("hex") !== d.id)
+      if (crypto10.createHash("sha256").update(bytes).digest("hex") !== d.id)
         throw Error("Exam integrity mismatch");
       return bytes;
     });
@@ -5177,7 +5494,7 @@ var FirestoreExamSessionStore = class {
       const bytes = await zip(Buffer.from(raw));
       const chunks = [];
       for (let start = 0; start < bytes.length; start += 35e4) {
-        const part = bytes.subarray(start, start + 35e4), hash = crypto8.createHash("sha256").update(part).digest("hex");
+        const part = bytes.subarray(start, start + 35e4), hash = crypto10.createHash("sha256").update(part).digest("hex");
         chunks.push(hash);
         if (!(head.data()?.chunks || []).includes(hash))
           tx.set(ref.collection("chunks").doc(hash), {
@@ -5213,23 +5530,23 @@ var FirestoreExamSessionStore = class {
   }
 };
 function digestScope(school, exam) {
-  return crypto8.createHash("sha256").update(JSON.stringify([school, exam])).digest("hex");
+  return crypto10.createHash("sha256").update(JSON.stringify([school, exam])).digest("hex");
 }
 var store;
 function examSessionStore() {
-  return store ||= process.env.PERSISTENCE_DRIVER === "firestore" ? new FirestoreExamSessionStore() : new LocalExamSessionStore(
+  return store ||= process.env.PERSISTENCE_DRIVER === "supabase" ? new SupabaseExamSessionStore() : process.env.PERSISTENCE_DRIVER === "firestore" ? new FirestoreExamSessionStore() : new LocalExamSessionStore(
     path3.resolve(".data/exam-sessions", runtimeNamespace())
   );
 }
 
 // src/server/examReliabilityRoutes.ts
-var packet = z4.object({
-  operationId: z4.uuid(),
-  clientId: z4.uuid(),
-  epoch: z4.number().int().nonnegative()
+var packet = z5.object({
+  operationId: z5.uuid(),
+  clientId: z5.uuid(),
+  epoch: z5.number().int().nonnegative()
 });
-var answers = z4.record(z4.string().max(200), z4.string().max(25e4));
-var digest3 = (value) => crypto9.createHash("sha256").update(JSON.stringify(value)).digest("hex");
+var answers = z5.record(z5.string().max(200), z5.string().max(25e4));
+var digest3 = (value) => crypto11.createHash("sha256").update(JSON.stringify(value)).digest("hex");
 var fail = (status, code, message) => {
   throw new ExamProtocolError(status, code, message);
 };
@@ -5369,9 +5686,9 @@ function registerExamReliabilityRoutes(app2, deps) {
     "/api/exams/:id/start-v2",
     route(async (c, req, res) => {
       const a = own(c, req.params.id), d = checked(
-        z4.object({ operationId: z4.uuid(), clientId: z4.uuid() }),
+        z5.object({ operationId: z5.uuid(), clientId: z5.uuid() }),
         req.body
-      ), candidate = crypto9.randomUUID();
+      ), candidate = crypto11.randomUUID();
       const result = await store2.change(key(c, a), (old) => {
         let s = old;
         if (!s) {
@@ -5425,7 +5742,7 @@ function registerExamReliabilityRoutes(app2, deps) {
   app2.get(
     "/api/exams/:id/session-v2",
     route(async (c, req, res) => {
-      const a = own(c, req.params.id), d = checked(z4.object({ clientId: z4.uuid() }), req.query), s = session(await store2.read(key(c, a)));
+      const a = own(c, req.params.id), d = checked(z5.object({ clientId: z5.uuid() }), req.query), s = session(await store2.read(key(c, a)));
       res.json(dto(s, a, d.clientId, c.now));
     })
   );
@@ -5433,7 +5750,7 @@ function registerExamReliabilityRoutes(app2, deps) {
     "/api/exams/:id/session-v2",
     route(async (c, req, res) => {
       const a = own(c, req.params.id), d = checked(
-        packet.extend({ revision: z4.number().int().nonnegative(), answers }),
+        packet.extend({ revision: z5.number().int().nonnegative(), answers }),
         req.body
       );
       boundedAnswers(d.answers, a);
@@ -5480,7 +5797,7 @@ function registerExamReliabilityRoutes(app2, deps) {
     "/api/exams/:id/takeover-v2",
     route(async (c, req, res) => {
       const a = own(c, req.params.id), d = checked(
-        packet.extend({ revision: z4.number().int().nonnegative() }),
+        packet.extend({ revision: z5.number().int().nonnegative() }),
         req.body
       );
       res.json(
@@ -5516,12 +5833,12 @@ function registerExamReliabilityRoutes(app2, deps) {
     route(async (c, req, res) => {
       const a = own(c, req.params.id), d = checked(
         packet.extend({
-          kind: z4.enum([
+          kind: z5.enum([
             "tab_hidden",
             "fullscreen_exit",
             "fullscreen_unavailable"
           ]),
-          observedAt: z4.string().max(50).optional()
+          observedAt: z5.string().max(50).optional()
         }),
         req.body
       );
@@ -5560,7 +5877,7 @@ function registerExamReliabilityRoutes(app2, deps) {
     route(async (c, req, res) => {
       const a = own(c, req.params.id), d = checked(
         packet.extend({
-          reason: z4.string().trim().min(8).max(2e3),
+          reason: z5.string().trim().min(8).max(2e3),
           answers: answers.optional()
         }),
         req.body
@@ -5593,7 +5910,7 @@ function registerExamReliabilityRoutes(app2, deps) {
   app2.post(
     "/api/exams/:id/finish-v2",
     route(async (c, req, res) => {
-      const a = own(c, req.params.id), d = checked(packet, req.body), receiptId = "SS-" + crypto9.randomUUID().toUpperCase();
+      const a = own(c, req.params.id), d = checked(packet, req.body), receiptId = "SS-" + crypto11.randomUUID().toUpperCase();
       const result = await store2.change(key(c, a), (old) => {
         const s = session(old);
         if (!s.receipt) {
@@ -5692,8 +6009,8 @@ function registerExamReliabilityRoutes(app2, deps) {
     "/api/exams/:id/monitor-v2",
     route(async (c, req, res) => {
       const a = teacher(c, req.params.id), d = checked(
-        z4.object({
-          after: z4.string().regex(/^[a-f0-9]{64}$/).optional()
+        z5.object({
+          after: z5.string().regex(/^[a-f0-9]{64}$/).optional()
         }),
         req.query
       ), rows = await store2.list(c.user.institutionId, a.id, d.after);
@@ -5724,12 +6041,12 @@ function registerExamReliabilityRoutes(app2, deps) {
     "/api/exams/:id/review-v2",
     route(async (c, req, res) => {
       const a = teacher(c, req.params.id), d = checked(
-        z4.object({
-          operationId: z4.uuid(),
-          studentId: z4.string().max(200),
-          revision: z4.number().int().nonnegative(),
-          reason: z4.string().trim().min(8).max(2e3),
-          minutes: z4.number().int().min(1).max(180)
+        z5.object({
+          operationId: z5.uuid(),
+          studentId: z5.string().max(200),
+          revision: z5.number().int().nonnegative(),
+          reason: z5.string().trim().min(8).max(2e3),
+          minutes: z5.number().int().min(1).max(180)
         }),
         req.body
       );
@@ -5791,13 +6108,14 @@ function registerExamReliabilityRoutes(app2, deps) {
 // src/server/preflightAuth.ts
 function createPrivateApiPreflight(verify, token) {
   return (req, res, next) => {
-    if (!/^\/api\/(?:state(?:\/|$)|exams(?:\/|$)|assessments\/submit$|workspace(?:\/|$)|school-admin(?:\/|$)|topic[-/]|spaced-review(?:\/|$)|learning-privacy(?:\/|$)|accounts(?:\/|$)|ai(?:\/|$)|events$)/.test(
-      req.path
-    ))
-      return next();
+    if (!req.path.startsWith("/api/")) return next();
+    if (/^\/api\/learning-demo(?:\/|$)/.test(req.path) && !String(process.env.PERSISTENCE_NAMESPACE || "").startsWith("_specialized_preview_")) return res.status(404).json({ error: "Topilmadi." });
+    if (req.path === "/api/test/reset" && process.env.NODE_ENV !== "test") return res.status(404).json({ error: "Topilmadi." });
+    if (/^\/api\/(?:health$|auth\/(?:login|provider-sync|firebase-sync|diagnostics|bootstrap-status|bootstrap|register-with-invite)$|invitations\/preview\/[^/]+$)/.test(req.path) || req.path === "/api/test/reset" && process.env.NODE_ENV === "test") return next();
     const signed = verify(token(req));
     if (!signed || signed.env === "test" && process.env.NODE_ENV !== "test")
       return res.status(401).json({ code: "LOGIN_REQUIRED", error: "Hisobga kiring." });
+    res.locals.signedUid = signed.uid;
     next();
   };
 }
@@ -5811,12 +6129,12 @@ function feedbackTemplates(db, user) {
 }
 
 // src/server/workspaceRoutes.ts
-import crypto10 from "node:crypto";
-import { z as z5 } from "zod";
-var text = z5.string().trim().min(2).max(4e3);
-var date = z5.string().refine(validDate, "Sana noto\u2018g\u2018ri");
-var base = z5.object({ operationId: z5.uuid() });
-var link = z5.url().max(2e3).refine((v) => {
+import crypto12 from "node:crypto";
+import { z as z6 } from "zod";
+var text = z6.string().trim().min(2).max(4e3);
+var date = z6.string().refine(validDate, "Sana noto\u2018g\u2018ri");
+var base = z6.object({ operationId: z6.uuid() });
+var link = z6.url().max(2e3).refine((v) => {
   const u = new URL(v);
   return u.protocol === "https:" && !u.username && !u.password;
 }, "HTTPS havola kerak");
@@ -5974,9 +6292,9 @@ function registerWorkspaceRoutes(app2, deps) {
         status: u.status,
         login: u.login
       }));
-      const lessonFilter = z5.object({
-        lessonPage: z5.coerce.number().int().min(0).max(1e4).default(0),
-        lessonQ: z5.string().max(100).default("")
+      const lessonFilter = z6.object({
+        lessonPage: z6.coerce.number().int().min(0).max(1e4).default(0),
+        lessonQ: z6.string().max(100).default("")
       }).safeParse(req.query);
       if (!lessonFilter.success)
         throw new SchoolError(400, "Dars qidiruvi yoki sahifasini tekshiring.");
@@ -6129,17 +6447,17 @@ function registerWorkspaceRoutes(app2, deps) {
     write5(
       "lesson-attendance",
       base.extend({
-        classId: z5.string(),
+        classId: z6.string(),
         date,
-        lessonId: z5.string().optional(),
-        lessonNumber: z5.number().int().min(1).max(12),
+        lessonId: z6.string().optional(),
+        lessonNumber: z6.number().int().min(1).max(12),
         subject: text,
-        revision: z5.number().int().min(0),
-        records: z5.array(
-          z5.object({
-            studentId: z5.string(),
-            status: z5.enum(["PRESENT", "ABSENT", "LATE", "EXCUSED_ABSENCE"]),
-            notes: z5.string().max(1e3).default("")
+        revision: z6.number().int().min(0),
+        records: z6.array(
+          z6.object({
+            studentId: z6.string(),
+            status: z6.enum(["PRESENT", "ABSENT", "LATE", "EXCUSED_ABSENCE"]),
+            notes: z6.string().max(1e3).default("")
           })
         ).min(1).max(100)
       }),
@@ -6230,17 +6548,17 @@ function registerWorkspaceRoutes(app2, deps) {
     )
   );
   const assignmentSchema = base.extend({
-    id: z5.string().optional(),
-    revision: z5.number().int().min(0),
+    id: z6.string().optional(),
+    revision: z6.number().int().min(0),
     title: text,
     description: text,
     subject: text,
-    classIds: z5.array(z5.string()).min(1).max(30),
+    classIds: z6.array(z6.string()).min(1).max(30),
     dueDate: date,
-    maxScore: z5.number().positive().max(1e3),
-    status: z5.enum(["draft", "published", "closed"]),
-    allowResubmission: z5.boolean().default(true),
-    relatedLessonId: z5.string().optional()
+    maxScore: z6.number().positive().max(1e3),
+    status: z6.enum(["draft", "published", "closed"]),
+    allowResubmission: z6.boolean().default(true),
+    relatedLessonId: z6.string().optional()
   });
   app2.post(
     "/api/workspace/assignments",
@@ -6266,7 +6584,7 @@ function registerWorkspaceRoutes(app2, deps) {
           );
         const now = c.now.toISOString(), row2 = {
           ...old,
-          id: old?.id || crypto10.randomUUID(),
+          id: old?.id || crypto12.randomUUID(),
           institutionId: c.user.institutionId,
           title: d.title,
           description: d.description,
@@ -6335,10 +6653,10 @@ function registerWorkspaceRoutes(app2, deps) {
     write5(
       "workspace-submission",
       base.extend({
-        assignmentId: z5.string(),
-        revision: z5.number().int().min(0),
-        content: z5.string().max(2e4),
-        submit: z5.boolean()
+        assignmentId: z6.string(),
+        revision: z6.number().int().min(0),
+        content: z6.string().max(2e4),
+        submit: z6.boolean()
       }),
       (c, d) => {
         if (c.user.role !== "student")
@@ -6358,7 +6676,7 @@ function registerWorkspaceRoutes(app2, deps) {
         if (old?.submittedAt && d.submit)
           ensureRows(c.db, "submissionRevisions").push({
             ...structuredClone(old),
-            id: crypto10.randomUUID(),
+            id: crypto12.randomUUID(),
             submissionId: old.id,
             revisionNumber: old.attemptCount,
             statusAtArchive: old.status
@@ -6418,11 +6736,11 @@ function registerWorkspaceRoutes(app2, deps) {
     write5(
       "workspace-grading",
       base.extend({
-        submissionId: z5.string(),
-        revision: z5.number().int(),
-        score: z5.number().min(0).max(1e3),
+        submissionId: z6.string(),
+        revision: z6.number().int(),
+        score: z6.number().min(0).max(1e3),
         feedback: text,
-        returnForRevision: z5.boolean().default(false)
+        returnForRevision: z6.boolean().default(false)
       }),
       (c, d) => {
         staff(c);
@@ -6466,17 +6784,17 @@ function registerWorkspaceRoutes(app2, deps) {
     write5(
       "workspace-support",
       base.extend({
-        id: z5.string().optional(),
-        revision: z5.number().int().min(0),
-        studentId: z5.string(),
+        id: z6.string().optional(),
+        revision: z6.number().int().min(0),
+        studentId: z6.string(),
         subject: text,
         topic: text,
         observedNeed: text,
         goal: text,
         recommendedActivity: text,
         reviewDate: date,
-        status: z5.enum(["Yangi", "Jarayonda", "Yakunlandi"]),
-        progressNotes: z5.string().max(4e3).default("")
+        status: z6.enum(["Yangi", "Jarayonda", "Yakunlandi"]),
+        progressNotes: z6.string().max(4e3).default("")
       }),
       (c, d) => {
         staff(c);
@@ -6490,7 +6808,7 @@ function registerWorkspaceRoutes(app2, deps) {
         const before = old ? structuredClone(old) : null, now = c.now.toISOString(), row2 = {
           ...old,
           ...d,
-          id: old?.id || crypto10.randomUUID(),
+          id: old?.id || crypto12.randomUUID(),
           operationId: void 0,
           institutionId: c.user.institutionId,
           studentName: s.displayName,
@@ -6521,14 +6839,14 @@ function registerWorkspaceRoutes(app2, deps) {
     write5(
       "workspace-material",
       base.extend({
-        id: z5.string().optional(),
-        revision: z5.number().int().min(0),
+        id: z6.string().optional(),
+        revision: z6.number().int().min(0),
         title: text,
         description: text,
         subject: text,
-        classIds: z5.array(z5.string()).min(1).max(30),
+        classIds: z6.array(z6.string()).min(1).max(30),
         fileUrl: link,
-        materialType: z5.enum([
+        materialType: z6.enum([
           "pdf",
           "docx",
           "pptx",
@@ -6538,9 +6856,9 @@ function registerWorkspaceRoutes(app2, deps) {
           "webp",
           "video_link"
         ]),
-        quarter: z5.number().int().min(1).max(4),
+        quarter: z6.number().int().min(1).max(4),
         folder: text,
-        status: z5.enum(["published", "archived"])
+        status: z6.enum(["published", "archived"])
       }),
       (c, d) => {
         staff(c);
@@ -6550,7 +6868,7 @@ function registerWorkspaceRoutes(app2, deps) {
         checkRevision(old?.revision || 0, d.revision);
         const before = old ? structuredClone(old) : null, now = c.now.toISOString(), row2 = {
           ...old,
-          id: old?.id || crypto10.randomUUID(),
+          id: old?.id || crypto12.randomUUID(),
           institutionId: c.user.institutionId,
           title: d.title,
           description: d.description,
@@ -6581,13 +6899,13 @@ function registerWorkspaceRoutes(app2, deps) {
     write5(
       "workspace-announcement",
       base.extend({
-        id: z5.string().optional(),
-        revision: z5.number().int().min(0),
+        id: z6.string().optional(),
+        revision: z6.number().int().min(0),
         title: text,
         content: text,
-        classIds: z5.array(z5.string()).min(1).max(30),
-        priority: z5.enum(["normal", "high", "urgent"]),
-        status: z5.enum(["published", "archived"])
+        classIds: z6.array(z6.string()).min(1).max(30),
+        priority: z6.enum(["normal", "high", "urgent"]),
+        status: z6.enum(["published", "archived"])
       }),
       (c, d) => {
         staff(c);
@@ -6596,7 +6914,7 @@ function registerWorkspaceRoutes(app2, deps) {
         checkRevision(old?.revision || 0, d.revision);
         const before = old ? structuredClone(old) : null, now = c.now.toISOString(), row2 = {
           ...old,
-          id: old?.id || crypto10.randomUUID(),
+          id: old?.id || crypto12.randomUUID(),
           institutionId: c.user.institutionId,
           title: d.title,
           shortContent: d.content.slice(0, 200),
@@ -6739,8 +7057,8 @@ function registerWorkspaceRoutes(app2, deps) {
     write5(
       "notification-read",
       base.extend({
-        id: z5.string().optional(),
-        all: z5.boolean().default(false)
+        id: z6.string().optional(),
+        all: z6.boolean().default(false)
       }),
       (c, d) => {
         const day = localDate(c.now);
@@ -6771,8 +7089,8 @@ function registerWorkspaceRoutes(app2, deps) {
 }
 
 // src/server/reinforcementRoutes.ts
-import crypto11 from "node:crypto";
-import { z as z6 } from "zod";
+import crypto13 from "node:crypto";
+import { z as z7 } from "zod";
 var learningGames = [
   {
     id: "formula",
@@ -6924,9 +7242,9 @@ function registerReinforcementRoutes(app2, deps) {
     "/api/reinforcement/start",
     write5(
       "reinforcement-start",
-      z6.object({
-        operationId: z6.uuid(),
-        game: z6.enum([
+      z7.object({
+        operationId: z7.uuid(),
+        game: z7.enum([
           "flashcards",
           "formula",
           "word",
@@ -6939,7 +7257,7 @@ function registerReinforcementRoutes(app2, deps) {
           "class",
           "daily"
         ]),
-        lessonId: z6.string().max(200).default("")
+        lessonId: z7.string().max(200).default("")
       }),
       (c, d) => {
         const rows = ensureRows(c.db, "reinforcementSessions"), active = rows.find(
@@ -6961,7 +7279,7 @@ function registerReinforcementRoutes(app2, deps) {
             "Bu usul uchun tasdiqlangan savollar hali yo\u2018q. Boshqa mavzu yoki mashqni tanlang."
           );
         const s = {
-          id: crypto11.randomUUID(),
+          id: crypto13.randomUUID(),
           schoolId: c.user.institutionId,
           studentId: c.user.uid,
           classId: c.user.classId,
@@ -6983,7 +7301,7 @@ function registerReinforcementRoutes(app2, deps) {
     "/api/reinforcement/:id/reveal",
     write5(
       "reinforcement-reveal",
-      z6.object({ operationId: z6.uuid(), revision: z6.number().int() }),
+      z7.object({ operationId: z7.uuid(), revision: z7.number().int() }),
       (c, d, req) => {
         const s = own(c, String(req.params.id));
         if (!["flashcards", "memory"].includes(s.game) || s.status !== "active")
@@ -7002,12 +7320,12 @@ function registerReinforcementRoutes(app2, deps) {
     "/api/reinforcement/:id/answer",
     write5(
       "reinforcement-answer",
-      z6.object({
-        operationId: z6.uuid(),
-        revision: z6.number().int(),
-        answer: z6.string().max(8e3).default(""),
-        remembered: z6.boolean().optional(),
-        finish: z6.boolean().default(false)
+      z7.object({
+        operationId: z7.uuid(),
+        revision: z7.number().int(),
+        answer: z7.string().max(8e3).default(""),
+        remembered: z7.boolean().optional(),
+        finish: z7.boolean().default(false)
       }),
       (c, d, req) => {
         const s = own(c, String(req.params.id));
@@ -7084,7 +7402,7 @@ var AnalysisCache = class {
 };
 
 // src/server/topicAnalysisEngine.ts
-import crypto12 from "node:crypto";
+import crypto14 from "node:crypto";
 var MIN_ANALYSIS_STUDENTS = 5;
 var cohortId = (f) => [f.schoolId, f.classId, f.testId, f.testVersion].map(String).map(encodeURIComponent).join(":");
 var itemId = (context, qid, revision) => [context, encodeURIComponent(qid), revision].join(":");
@@ -7159,10 +7477,10 @@ function recordTopicAnalysis(db, s, now = /* @__PURE__ */ new Date()) {
   return true;
 }
 var filteredCache = new AnalysisCache(4 * 1024 * 1024, 1024 * 1024, 40);
-function cachedAnalysisItems(cohort, facts, questions, from, to, salt = "") {
+function cachedAnalysisItems(cohort, facts, questions, from, to, salt2 = "") {
   const allInRange = facts.every((f) => inAnalysisRange(f.submittedAt, from, to));
   if (allInRange) return cohort.items;
-  const key = crypto12.createHash("sha256").update(JSON.stringify([process.env.PERSISTENCE_NAMESPACE, salt, cohort.id, cohort.revision, from, to])).digest("hex"), old = filteredCache.get(key);
+  const key = crypto14.createHash("sha256").update(JSON.stringify([process.env.PERSISTENCE_NAMESPACE, salt2, cohort.id, cohort.revision, from, to])).digest("hex"), old = filteredCache.get(key);
   if (old) return old;
   const items = calculateItems(facts.filter((f) => inAnalysisRange(f.submittedAt, from, to)), questions, cohort.id);
   filteredCache.set(key, items);
@@ -7174,11 +7492,12 @@ function inAnalysisRange(timestamp, from, to) {
 }
 
 // src/server/schoolAdminRoutes.ts
-import crypto13 from "node:crypto";
-import { z as z7 } from "zod";
-var base2 = z7.object({ operationId: z7.uuid() });
-var date2 = z7.string().refine(validDate);
-var reason2 = z7.string().trim().min(8).max(2e3);
+import crypto15 from "node:crypto";
+import { z as z8 } from "zod";
+init_runtimeScope();
+var base2 = z8.object({ operationId: z8.uuid() });
+var date2 = z8.string().refine(validDate);
+var reason2 = z8.string().trim().min(8).max(2e3);
 var CONSENT_VERSION = "learning-pilot-v1";
 var CONSENT_TEXT = "Ixtiyoriy ichki o\u2018quv sinovi: mavzu testlaridagi javoblar va takrorlash faolligi ta\u2019lim usulini yaxshilash uchun guruhlar bo\u2018yicha tahlil qilinadi. Qatnashmaslik baho, darsga kirish va intizomga ta\u2019sir qilmaydi. Ism-familiya tashqi hisobotga kiritilmaydi. Istalgan vaqtda rozilikni bekor qilish va o\u2018quv mashqlari ma\u2019lumotini o\u2018chirishni so\u2018rash mumkin. Rasmiy nazorat, davomat va tarbiyaviy hujjatlar alohida tartibda yuritiladi.";
 function pilotSummary(c, p) {
@@ -7311,11 +7630,11 @@ function registerSchoolAdminRoutes(app2, deps) {
   app2.get(
     "/api/school-admin/coverage",
     read5((c, req, res) => {
-      const f = z7.object({
-        classId: z7.string().max(200).default(""),
-        subject: z7.string().max(100).default(""),
-        q: z7.string().max(100).default(""),
-        page: z7.coerce.number().int().min(0).max(1e4).default(0)
+      const f = z8.object({
+        classId: z8.string().max(200).default(""),
+        subject: z8.string().max(100).default(""),
+        q: z8.string().max(100).default(""),
+        page: z8.coerce.number().int().min(0).max(1e4).default(0)
       }).safeParse(req.query);
       if (!f.success) throw new SchoolError(400, "Filtrlarni tekshiring.");
       const classes = c.db.classes.filter(
@@ -7364,11 +7683,11 @@ function registerSchoolAdminRoutes(app2, deps) {
     write5(
       "account-assignment",
       base2.extend({
-        revision: z7.number().int().min(0),
-        name: z7.string().trim().min(3).max(120),
-        classId: z7.string().max(200).default(""),
-        classIds: z7.array(z7.string().max(200)).max(30).default([]),
-        subject: z7.string().trim().max(100).default(""),
+        revision: z8.number().int().min(0),
+        name: z8.string().trim().min(3).max(120),
+        classId: z8.string().max(200).default(""),
+        classIds: z8.array(z8.string().max(200)).max(30).default([]),
+        subject: z8.string().trim().max(100).default(""),
         reason: reason2
       }),
       (c, d, req) => {
@@ -7508,19 +7827,19 @@ function registerSchoolAdminRoutes(app2, deps) {
     write5(
       "pilot-config",
       base2.extend({
-        id: z7.string().optional(),
-        revision: z7.number().int().min(0),
-        title: z7.string().trim().min(3).max(200),
-        testId: z7.string(),
-        testVersion: z7.number().int().positive(),
-        groupA: z7.array(z7.string()).min(5).max(100),
-        groupB: z7.array(z7.string()).min(5).max(100),
+        id: z8.string().optional(),
+        revision: z8.number().int().min(0),
+        title: z8.string().trim().min(3).max(200),
+        testId: z8.string(),
+        testVersion: z8.number().int().positive(),
+        groupA: z8.array(z8.string()).min(5).max(100),
+        groupB: z8.array(z8.string()).min(5).max(100),
         preFrom: date2,
         preTo: date2,
         postFrom: date2,
         postTo: date2,
-        status: z7.enum(["draft", "active", "closed"]),
-        schoolPermissionAcknowledged: z7.boolean(),
+        status: z8.enum(["draft", "active", "closed"]),
+        schoolPermissionAcknowledged: z8.boolean(),
         reason: reason2
       }),
       (c, d) => {
@@ -7577,7 +7896,7 @@ function registerSchoolAdminRoutes(app2, deps) {
         const before = old ? structuredClone(old) : null, now = c.now.toISOString(), row2 = {
           ...d,
           operationId: void 0,
-          id: old?.id || crypto13.randomUUID(),
+          id: old?.id || crypto15.randomUUID(),
           schoolId: c.user.institutionId,
           consentVersion: CONSENT_VERSION,
           revision: d.revision + 1,
@@ -7630,8 +7949,8 @@ function registerSchoolAdminRoutes(app2, deps) {
     write5(
       "learning-consent",
       base2.extend({
-        accepted: z7.boolean(),
-        version: z7.literal(CONSENT_VERSION)
+        accepted: z8.boolean(),
+        version: z8.literal(CONSENT_VERSION)
       }),
       (c, d) => {
         if (c.user.role !== "student")
@@ -7673,7 +7992,7 @@ function registerSchoolAdminRoutes(app2, deps) {
         ))
           throw new SchoolError(409, "Ochiq so\u2018rovingiz bor.");
         const row2 = {
-          id: crypto13.randomUUID(),
+          id: crypto15.randomUUID(),
           schoolId: c.user.institutionId,
           studentId: c.user.uid,
           reason: d.reason,
@@ -7695,9 +8014,9 @@ function registerSchoolAdminRoutes(app2, deps) {
     write5(
       "learning-retention",
       base2.extend({
-        revision: z7.number().int().min(0),
-        days: z7.number().int().min(30).max(1825),
-        approved: z7.boolean(),
+        revision: z8.number().int().min(0),
+        days: z8.number().int().min(30).max(1825),
+        approved: z8.boolean(),
         reason: reason2
       }),
       (c, d) => {
@@ -7726,11 +8045,11 @@ function registerSchoolAdminRoutes(app2, deps) {
     write5(
       "learning-deletion-review",
       base2.extend({
-        revision: z7.number().int(),
-        action: z7.enum(["dry_run", "reject", "approve"]),
+        revision: z8.number().int(),
+        action: z8.enum(["dry_run", "reject", "approve"]),
         reason: reason2,
-        confirmation: z7.string().optional(),
-        previewId: z7.uuid().optional()
+        confirmation: z8.string().optional(),
+        previewId: z8.uuid().optional()
       }),
       (c, d, req) => {
         const r = (c.db.dataDeletionRequests || []).find(
@@ -7761,7 +8080,7 @@ function registerSchoolAdminRoutes(app2, deps) {
         );
         if (d.action === "dry_run") {
           const preview = {
-            id: crypto13.randomUUID(),
+            id: crypto15.randomUUID(),
             schoolId: c.user.institutionId,
             studentId: r.studentId,
             requestId: r.id,
@@ -7914,8 +8233,9 @@ function registerSchoolAdminRoutes(app2, deps) {
 }
 
 // src/server/demoRoutes.ts
-import crypto14 from "node:crypto";
-import { z as z8 } from "zod";
+init_runtimeScope();
+import crypto16 from "node:crypto";
+import { z as z9 } from "zod";
 
 // src/server/demoLabEngine.ts
 var normalizeDemo = (value) => value.trim().toLowerCase().replace(/\s+/g, " ");
@@ -7960,7 +8280,7 @@ function registerDemoRoutes(app2, deps) {
   };
   const audit = (c, lab, action) => {
     c.db.auditLogs ||= [];
-    c.db.auditLogs.push({ id: crypto14.randomUUID(), institutionId: c.user.institutionId, actorUid: c.user.uid, actorName: c.user.displayName, actorRole: c.user.role, action, target: "DEMO", recordId: lab.id, createdAt: (/* @__PURE__ */ new Date()).toISOString() });
+    c.db.auditLogs.push({ id: crypto16.randomUUID(), institutionId: c.user.institutionId, actorUid: c.user.uid, actorName: c.user.displayName, actorRole: c.user.role, action, target: "DEMO", recordId: lab.id, createdAt: (/* @__PURE__ */ new Date()).toISOString() });
   };
   const isAdmin = (c) => ["admin", "platform_owner"].includes(c.user.role) && c.user.platformAdmin && c.user.emailVerified;
   const find = (c) => (c.db.demoLabs || []).find((l) => l.ownerId === c.user.uid || [l.studentId, l.teacherId].includes(c.user.uid));
@@ -7976,7 +8296,7 @@ function registerDemoRoutes(app2, deps) {
     if (!c) return;
     if (!isAdmin(c)) return res.status(403).json({ error: "Faqat administrator." });
     if (find(c)) return res.status(409).json({ error: "DEMO mavjud. Hisob parolini qayta yaratish uchun avval DEMO\u2019ni o\u2018chiring." });
-    const id = "demo-" + crypto14.randomUUID(), institutionId = id + "-school", studentId = id + "-student", teacherId = id + "-teacher", password = crypto14.randomBytes(18).toString("base64url"), now = (/* @__PURE__ */ new Date()).toISOString();
+    const id = "demo-" + crypto16.randomUUID(), institutionId = id + "-school", studentId = id + "-student", teacherId = id + "-teacher", password = crypto16.randomBytes(18).toString("base64url"), now = (/* @__PURE__ */ new Date()).toISOString();
     const lab = { id, ownerId: c.user.uid, institutionId, studentId, teacherId, exams: buildDemoExams(), responses: [] };
     c.db.demoLabs ||= [];
     c.db.demoLabs.push(lab);
@@ -8012,7 +8332,7 @@ function registerDemoRoutes(app2, deps) {
     if (!isAdmin(c) || !lab || lab.ownerId !== c.user.uid) return res.status(403).json({ error: "Faqat DEMO egasi." });
     const accounts = [lab.studentId, lab.teacherId].map((uid) => {
       const u = c.db.users.find((u2) => u2.uid === uid);
-      const password = crypto14.randomBytes(18).toString("base64url");
+      const password = crypto16.randomBytes(18).toString("base64url");
       c.db.passwordHashes[uid] = deps.hash(password);
       deps.revoke(uid, c.env);
       return { email: u.email, role: u.role, password };
@@ -8045,7 +8365,7 @@ function registerDemoRoutes(app2, deps) {
     const c = context(req, res);
     if (!c) return;
     const lab = find(c);
-    const p = z8.object({ trackExits: z8.boolean(), durationMinutes: z8.number().int().min(0).max(120) }).safeParse(req.body);
+    const p = z9.object({ trackExits: z9.boolean(), durationMinutes: z9.number().int().min(0).max(120) }).safeParse(req.body);
     if (!lab || lab.ownerId !== c.user.uid || !isAdmin(c)) return res.status(403).json({ error: "Faqat DEMO egasi." });
     if (!p.success) return res.status(400).json({ error: "Sozlamalarni tekshiring." });
     lab.settings = p.data;
@@ -8076,7 +8396,7 @@ function registerDemoRoutes(app2, deps) {
     if (!exam || Date.parse(exam.due) <= Date.now()) return res.status(409).json({ error: "Mashq muddati tugagan." });
     let r = lab.responses.find((r2) => r2.examId === exam.id);
     if (!r) {
-      r = { id: crypto14.randomUUID(), examId: exam.id, studentId: c.user.uid, revision: 0, answers: {}, flags: [] };
+      r = { id: crypto16.randomUUID(), examId: exam.id, studentId: c.user.uid, revision: 0, answers: {}, flags: [] };
       lab.responses.push(r);
     }
     if (!r.startedAt) {
@@ -8091,7 +8411,7 @@ function registerDemoRoutes(app2, deps) {
     if (!c) return;
     const lab = find(c), exam = lab?.exams.find((e) => e.id === req.params.exam);
     if (!lab || c.user.uid !== lab.studentId || !exam) return res.status(403).json({ error: "Bu DEMO sizga biriktirilmagan." });
-    const parsed = z8.object({ revision: z8.number().int().min(0), answers: z8.record(z8.string(), z8.string().max(4e3)), submit: z8.boolean().optional(), flags: z8.array(z8.string()).max(60).optional(), event: z8.object({ id: z8.uuid(), type: z8.literal("tab_exit") }).optional() }).safeParse(req.body);
+    const parsed = z9.object({ revision: z9.number().int().min(0), answers: z9.record(z9.string(), z9.string().max(4e3)), submit: z9.boolean().optional(), flags: z9.array(z9.string()).max(60).optional(), event: z9.object({ id: z9.uuid(), type: z9.literal("tab_exit") }).optional() }).safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ error: "Javob shaklini tekshiring." });
     if ([...Object.keys(parsed.data.answers), ...parsed.data.flags || []].some((id) => !exam.questions.some((q) => q.id === id))) return res.status(400).json({ error: "Begona savol." });
     let response = lab.responses.find((r) => r.examId === exam.id);
@@ -8099,7 +8419,7 @@ function registerDemoRoutes(app2, deps) {
     if (Date.parse(exam.due) <= Date.now()) return res.status(409).json({ error: "DEMO mashq muddati tugagan. Administrator yangi DEMO yaratishi mumkin." });
     if ((response?.revision || 0) !== parsed.data.revision) return res.status(409).json({ error: "Boshqa qurilmada javob yangilangan. Qayta oching." });
     if (!response) {
-      response = { id: crypto14.randomUUID(), examId: exam.id, studentId: c.user.uid, revision: 0, answers: {} };
+      response = { id: crypto16.randomUUID(), examId: exam.id, studentId: c.user.uid, revision: 0, answers: {} };
       lab.responses.push(response);
     }
     const expired = response.deadlineAt && Date.parse(response.deadlineAt) <= Date.now();
@@ -8123,7 +8443,7 @@ function registerDemoRoutes(app2, deps) {
     const lab = find(c);
     if (!lab || c.user.uid !== lab.teacherId) return res.status(403).json({ error: "Faqat biriktirilgan DEMO ustoz." });
     const r = lab.responses.find((r2) => r2.id === req.params.id && r2.submittedAt);
-    const p = z8.object({ score: z8.number().min(0).max(2), feedback: z8.string().trim().min(3).max(2e3) }).safeParse(req.body);
+    const p = z9.object({ score: z9.number().min(0).max(2), feedback: z9.string().trim().min(3).max(2e3) }).safeParse(req.body);
     if (!r || !p.success) return res.status(400).json({ error: "0\u20132 ball va izoh kiriting." });
     r.writtenScore = p.data.score;
     r.feedback = p.data.feedback;
@@ -8171,7 +8491,7 @@ function sessionBody(res, body) {
   return body;
 }
 var localSessionResponse = (req, res, next) => {
-  if (process.env.PERSISTENCE_DRIVER !== "firestore") {
+  if (!["firestore", "supabase"].includes(process.env.PERSISTENCE_DRIVER || "")) {
     const json = res.json.bind(res);
     res.json = (body) => json(sessionBody(res, body));
   }
@@ -8187,10 +8507,10 @@ var localSessionResponse = (req, res, next) => {
 };
 
 // src/server/accountRoutes.ts
-import crypto15 from "node:crypto";
-import { z as z9 } from "zod";
-var loginSchema = z9.string().trim().regex(/^[a-z0-9._]{3,40}$/);
-var row = z9.object({ displayName: z9.string().trim().min(3).max(120), role: z9.enum(["student", "teacher"]), login: loginSchema.optional(), classCode: z9.string().max(12).optional(), subject: z9.string().max(100).optional(), password: z9.string().min(8).max(128).optional(), mustChangePassword: z9.boolean().default(true) });
+import crypto17 from "node:crypto";
+import { z as z10 } from "zod";
+var loginSchema = z10.string().trim().regex(/^[a-z0-9._]{3,40}$/);
+var row = z10.object({ displayName: z10.string().trim().min(3).max(120), role: z10.enum(["student", "teacher"]), login: loginSchema.optional(), classCode: z10.string().max(12).optional(), subject: z10.string().max(100).optional(), password: z10.string().min(8).max(128).optional(), mustChangePassword: z10.boolean().default(true) });
 function registerAccountRoutes(app2, deps) {
   const access = (req, res, admin = false) => {
     const c = deps.authenticate(req);
@@ -8205,7 +8525,7 @@ function registerAccountRoutes(app2, deps) {
     return c;
   };
   const audit = (c, action, id) => {
-    c.db.auditLogs.push({ id: crypto15.randomUUID(), institutionId: c.user.institutionId, actorUid: c.user.uid, actorName: c.user.displayName, actorRole: c.user.role, action, target: "Hisoblar", recordId: id, createdAt: (/* @__PURE__ */ new Date()).toISOString() });
+    c.db.auditLogs.push({ id: crypto17.randomUUID(), institutionId: c.user.institutionId, actorUid: c.user.uid, actorName: c.user.displayName, actorRole: c.user.role, action, target: "Hisoblar", recordId: id, createdAt: (/* @__PURE__ */ new Date()).toISOString() });
   };
   app2.get("/api/accounts", (req, res) => {
     const c = access(req, res, true);
@@ -8217,7 +8537,7 @@ function registerAccountRoutes(app2, deps) {
   app2.post("/api/accounts", (req, res) => {
     const c = access(req, res, true);
     if (!c) return;
-    const parsed = z9.object({ operationId: z9.uuid(), rows: z9.array(row).min(1).max(200) }).safeParse(req.body);
+    const parsed = z10.object({ operationId: z10.uuid(), rows: z10.array(row).min(1).max(200) }).safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ error: "F.I.Sh., rol, login yoki parol shaklini tekshiring." });
     c.db.accountOperations ||= [];
     if (c.db.accountOperations.includes(parsed.data.operationId)) return res.status(409).json({ error: "Bu paket avval yaratilgan. Kerak bo\u2018lsa parollarini tiklang." });
@@ -8235,10 +8555,10 @@ function registerAccountRoutes(app2, deps) {
     const accounts = rows.map((r) => {
       let login = r.login;
       if (!login) do {
-        login = `${r.role === "student" ? "st" : "tc"}${crypto15.randomInt(1e7, 99999999)}`;
+        login = `${r.role === "student" ? "st" : "tc"}${crypto17.randomInt(1e7, 99999999)}`;
       } while (names.has(login) || c.db.users.some((u) => u.login === login));
       names.add(login);
-      const password = r.password || crypto15.randomBytes(15).toString("base64url"), uid = crypto15.randomUUID();
+      const password = r.password || crypto17.randomBytes(15).toString("base64url"), uid = crypto17.randomUUID();
       const user = { uid, login, email: login + "@accounts.specialized.invalid", displayName: r.displayName, role: r.role, status: "active", institutionId: c.user.institutionId, classId: r.role === "student" ? r.cls?.id : void 0, classCode: r.role === "student" ? r.cls?.code : void 0, assignedClassIds: r.role === "teacher" ? [r.cls.id] : void 0, subject: r.subject, mustChangePassword: r.mustChangePassword, createdAt: (/* @__PURE__ */ new Date()).toISOString() };
       c.db.users.push(user);
       c.db.passwordHashes[uid] = deps.hash(password);
@@ -8256,7 +8576,7 @@ function registerAccountRoutes(app2, deps) {
     if (!u) return res.status(404).json({ error: "Hisob topilmadi." });
     let password;
     if (req.body.resetPassword === true) {
-      password = crypto15.randomBytes(15).toString("base64url");
+      password = crypto17.randomBytes(15).toString("base64url");
       c.db.passwordHashes[u.uid] = deps.hash(password);
       u.mustChangePassword = true;
     } else if (["active", "suspended"].includes(req.body.status)) u.status = req.body.status;
@@ -8269,7 +8589,7 @@ function registerAccountRoutes(app2, deps) {
   app2.post("/api/account/password", (req, res) => {
     const c = access(req, res);
     if (!c) return;
-    const parsed = z9.object({ oldPassword: z9.string().max(128), password: z9.string().min(12).max(128) }).safeParse(req.body);
+    const parsed = z10.object({ oldPassword: z10.string().max(128), password: z10.string().min(12).max(128) }).safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ error: "Yangi parol kamida 12 belgidan iborat bo\u2018lsin." });
     if (parsed.data.password === parsed.data.oldPassword) return res.status(400).json({ error: "Yangi parol joriy paroldan farq qilsin." });
     if (!deps.verify(parsed.data.oldPassword, c.db.passwordHashes[c.user.uid])) return res.status(400).json({ error: "Joriy parol noto\u2018g\u2018ri." });
@@ -8283,10 +8603,10 @@ function registerAccountRoutes(app2, deps) {
   app2.post("/api/account/native-credentials", async (req, res) => {
     const c = access(req, res);
     if (!c) return;
-    const p = z9.object({ login: loginSchema, password: z9.string().min(12).max(128), idToken: z9.string().max(1e4) }).safeParse(req.body);
+    const p = z10.object({ login: loginSchema, password: z10.string().min(12).max(128), idToken: z10.string().max(1e4) }).safeParse(req.body);
     if (!p.success) return res.status(400).json({ error: "Login va kuchli parol kiriting." });
     try {
-      const id = await getFirebaseAdminAuth().verifyIdToken(p.data.idToken, true);
+      const id = await accountProviderProof(p.data.idToken, c.db);
       if (id.firebase?.sign_in_provider !== "google.com" || !id.email_verified || Date.now() / 1e3 - id.auth_time > 300 || ![c.user.uid, c.user.linkedGoogleUid].includes(id.uid)) return res.status(403).json({ error: "O\u2018z Google hisobingizni qayta tasdiqlang." });
       if (c.db.users.some((u) => u.uid !== c.user.uid && (u.login === p.data.login || u.email === p.data.login))) return res.status(409).json({ error: "Login band." });
       c.user.login = p.data.login;
@@ -8304,10 +8624,11 @@ function registerAccountRoutes(app2, deps) {
     const c = access(req, res);
     if (!c) return;
     try {
-      const identity = await getFirebaseAdminAuth().verifyIdToken(String(req.body.idToken || ""), true);
+      const identity = await accountProviderProof(String(req.body.idToken || ""), c.db);
       if (Date.now() / 1e3 - identity.auth_time > 300 || !identity.email_verified || identity.firebase?.sign_in_provider !== "google.com") return res.status(403).json({ error: "Tasdiqlangan Google hisobi kerak." });
       if (c.db.users.some((u) => u.uid !== c.user.uid && (u.uid === identity.uid || u.linkedGoogleUid === identity.uid || String(u.email || "").toLowerCase() === identity.email?.toLowerCase()))) return res.status(409).json({ error: "Bu Google hisobi boshqa hisobga ulangan." });
-      c.user.linkedGoogleUid = identity.uid;
+      if (supabaseAuthEnabled()) c.user.linkedSupabaseUid = identity.providerUid;
+      else c.user.linkedGoogleUid = identity.uid;
       audit(c, "Google hisobini biriktirdi", c.user.uid);
       deps.save(c.env, c.db);
       res.json({ linked: true });
@@ -8318,6 +8639,7 @@ function registerAccountRoutes(app2, deps) {
 }
 
 // src/server/cleanupDemoSessions.ts
+init_runtimeScope();
 async function cleanupDemoSessions(db, demo) {
   if (!runtimeNamespace().startsWith("_specialized_preview_"))
     throw Error("Preview only");
@@ -8362,14 +8684,14 @@ function cleanupDemoExams(db, schoolId, users) {
 }
 
 // src/server/learningDemoAnalysis.ts
-import crypto16 from "node:crypto";
+import crypto18 from "node:crypto";
 function seedLearningDemoAnalysis(db, d, now = /* @__PURE__ */ new Date()) {
   if (d.analysisSeededAt) return { created: false, students: 13, attempts: 62 };
   const lessons = db.lessons.filter((l) => d.lessonIds.includes(l.id) && l.institutionId === d.schoolId), tests = (db.topicTests || []).filter((t) => d.lessonIds.includes(t.lessonId) && t.institutionId === d.schoolId && t.status === "published");
   const primary = db.users.find((u) => d.userIds.includes(u.uid) && u.displayName === "DEMO O\u2018quvchi" && u.role === "student" && u.institutionId === d.schoolId);
   if (!primary || lessons.length !== 6 || tests.length !== 6 || new Set(tests.map((t) => t.lessonId)).size !== 6 || tests.some((t) => t.snapshot.length !== 12 || t.snapshot.some((q) => q.status !== "published" || q.approval?.revision !== q.revision))) throw Error("Avval yangi, tasdiqlangan DEMO yarating.");
   if (db.topicSessions?.some((s) => d.lessonIds.includes(s.lessonId || "") || d.userIds.includes(s.studentId))) throw Error("Bu DEMO\u2019da ish boshlangan. Uni tozalab, yangi DEMO yarating.");
-  const profiles = [primary, ...Array.from({ length: 11 }, (_, i) => ({ ...primary, uid: d.id + "-synthetic-" + crypto16.randomUUID(), login: "demo_st_" + crypto16.randomBytes(5).toString("hex"), email: "demo-synthetic-" + crypto16.randomUUID() + "@accounts.specialized.invalid", displayName: "DEMO O\u2018quvchi " + String(i + 2).padStart(2, "0"), createdAt: now.toISOString() }))];
+  const profiles = [primary, ...Array.from({ length: 11 }, (_, i) => ({ ...primary, uid: d.id + "-synthetic-" + crypto18.randomUUID(), login: "demo_st_" + crypto18.randomBytes(5).toString("hex"), email: "demo-synthetic-" + crypto18.randomUUID() + "@accounts.specialized.invalid", displayName: "DEMO O\u2018quvchi " + String(i + 2).padStart(2, "0"), createdAt: now.toISOString() }))];
   db.users.push(...profiles.slice(1));
   d.userIds.push(...profiles.slice(1).map((u) => u.uid));
   db.topicSessions ||= [];
@@ -8386,7 +8708,7 @@ function seedLearningDemoAnalysis(db, d, now = /* @__PURE__ */ new Date()) {
       answers2[q.id] = correct ? q.key : ["single", "multiple"].includes(q.kind) ? q.options.find((o) => !q.key.split("|").includes(o)) || "" : q.kind === "ordering" ? [...q.key.split("|")].reverse().join("|") : "DEMO xato";
     }
     const at = new Date(now.getTime() + (repeat ? 1 : 0)).toISOString();
-    const s = { id: crypto16.randomUUID(), institutionId: d.schoolId, schoolId: d.schoolId, studentId: profiles[i].uid, classId: primary.classId, lessonId: test.lessonId, testId: test.id, version: test.version, title: "DEMO \xB7 Sun\u2019iy tahlil \xB7 " + test.title, subject: lessons.find((l) => l.id === test.lessonId)?.subjectName, questions: structuredClone(test.snapshot), answers: answers2, flags: [], revision: 1, startedAt: at, submittedAt: at, maxScore: test.snapshot.reduce((n, q) => n + q.points, 0), pending: true, events: [], confidence: { [test.snapshot[0].id]: "high" }, hintsUsed: i === 5 ? { [test.snapshot[0].id]: 1 } : {}, release: "immediate" };
+    const s = { id: crypto18.randomUUID(), institutionId: d.schoolId, schoolId: d.schoolId, studentId: profiles[i].uid, classId: primary.classId, lessonId: test.lessonId, testId: test.id, version: test.version, title: "DEMO \xB7 Sun\u2019iy tahlil \xB7 " + test.title, subject: lessons.find((l) => l.id === test.lessonId)?.subjectName, questions: structuredClone(test.snapshot), answers: answers2, flags: [], revision: 1, startedAt: at, submittedAt: at, maxScore: test.snapshot.reduce((n, q) => n + q.points, 0), pending: true, events: [], confidence: { [test.snapshot[0].id]: "high" }, hintsUsed: i === 5 ? { [test.snapshot[0].id]: 1 } : {}, release: "immediate" };
     s.results = s.questions.map((q) => ({ id: q.id, earned: gradeQuestion(q, answers2[q.id]), points: q.points, explanation: q.explanation, pending: q.kind === "written" }));
     s.score = s.results.reduce((n, r) => n + r.earned, 0);
     s.pending = s.results.some((r) => r.pending);
@@ -8401,7 +8723,8 @@ function seedLearningDemoAnalysis(db, d, now = /* @__PURE__ */ new Date()) {
 }
 
 // src/server/learningDemoRoutes.ts
-import crypto17 from "node:crypto";
+init_runtimeScope();
+import crypto19 from "node:crypto";
 
 // src/server/learningDemoContent.ts
 var learningDemoTopics = [
@@ -8498,12 +8821,12 @@ function registerLearningDemoRoutes(app2, deps) {
     if (own(c)) return res.status(409).json({ error: "DEMO mavjud. Parollarini tiklang yoki avval o\u2018chiring." });
     const cls = c.db.classes.find((cl) => cl.code === "8a2" && cl.institutionId === c.user.institutionId);
     if (!cls) return res.status(400).json({ error: "DEMO uchun 8A2 sinfi kerak." });
-    const id = "learning-demo-" + crypto17.randomUUID(), now = (/* @__PURE__ */ new Date()).toISOString(), schoolId = c.user.institutionId, inst = c.db.institutions.find((i) => i.id === schoolId);
+    const id = "learning-demo-" + crypto19.randomUUID(), now = (/* @__PURE__ */ new Date()).toISOString(), schoolId = c.user.institutionId, inst = c.db.institutions.find((i) => i.id === schoolId);
     const subjects = ["Matematika", "Fizika", "Ingliz tili"];
     const otherClass = c.db.classes.find((cl) => cl.code === "7a1" && cl.institutionId === c.user.institutionId);
     const definitions = [{ role: "student", displayName: "DEMO O\u2018quvchi", classId: cls.id, classCode: cls.code }, ...subjects.map((subject) => ({ role: "teacher", displayName: "DEMO Ustoz \xB7 " + subject, subject, assignedClassIds: [cls.id] })), ...otherClass ? [{ role: "student", displayName: "DEMO Boshqa sinf", classId: otherClass.id, classCode: otherClass.code }] : []];
     const accounts = definitions.map((d) => {
-      const uid = id + "-" + crypto17.randomUUID(), login = (d.role === "student" ? "demo_st_" : "demo_tc_") + crypto17.randomBytes(5).toString("hex"), password = crypto17.randomBytes(18).toString("base64url");
+      const uid = id + "-" + crypto19.randomUUID(), login = (d.role === "student" ? "demo_st_" : "demo_tc_") + crypto19.randomBytes(5).toString("hex"), password = crypto19.randomBytes(18).toString("base64url");
       const user = { ...d, uid, login, email: login + "@accounts.specialized.invalid", institutionId: schoolId, schoolId, status: "active", mustChangePassword: false, createdAt: now };
       c.db.users.push(user);
       c.db.passwordHashes[uid] = deps.hash(password);
@@ -8516,10 +8839,10 @@ function registerLearningDemoRoutes(app2, deps) {
     const lessonIds = learningDemoTopics.map((topic, n) => {
       const lessonId = id + "-lesson-" + n;
       c.db.lessons.push({ id: lessonId, institutionId: schoolId, schoolId, title: "DEMO \xB7 " + topic.title, topicTitle: "DEMO \xB7 " + topic.title, subjectName: topic.subject, subject: topic.subject, curriculumArea: topic.subject, classId: cls.id, classIds: [cls.id], classCode: cls.code, classCodes: [cls.code], academicYear: inst.academicYear, quarter: 2, orderIndex: n + 1, lessonNumber: n + 1, status: "published", classwork: topic.reading, homework: "Mavzu testini ishlang va izohni o\u2018z so\u2018zingiz bilan ayting.", schoolDeliveredAt: now, createdAt: now, updatedAt: now });
-      const questions = learningDemoQuestions(n).map((q) => ({ ...q, id: crypto17.randomUUID(), schoolId, institutionId: schoolId, lessonId, revision: 1, status: "published", approval: { by: c.user.uid, at: now, revision: 1 } }));
+      const questions = learningDemoQuestions(n).map((q) => ({ ...q, id: crypto19.randomUUID(), schoolId, institutionId: schoolId, lessonId, revision: 1, status: "published", approval: { by: c.user.uid, at: now, revision: 1 } }));
       c.db.topicQuestions.push(...questions);
       for (const q of questions) c.db.topicQuestionVersions.push({ id: q.id + ":1", schoolId, questionId: q.id, revision: 1, question: structuredClone(q), createdAt: now });
-      const test = { id: crypto17.randomUUID(), institutionId: schoolId, schoolId, lessonId, title: "DEMO \xB7 " + topic.title + " \xB7 mavzu testi", status: "published", version: 1, questionIds: questions.map((q) => q.id), snapshot: structuredClone(questions), count: 12, durationMinutes: 0, maxAttempts: 5, passPercent: 70, trackExits: true, release: "immediate", shuffle: true, confidenceEnabled: true, updatedAt: now, createdBy: c.user.uid };
+      const test = { id: crypto19.randomUUID(), institutionId: schoolId, schoolId, lessonId, title: "DEMO \xB7 " + topic.title + " \xB7 mavzu testi", status: "published", version: 1, questionIds: questions.map((q) => q.id), snapshot: structuredClone(questions), count: 12, durationMinutes: 0, maxAttempts: 5, passPercent: 70, trackExits: true, release: "immediate", shuffle: true, confidenceEnabled: true, updatedAt: now, createdBy: c.user.uid };
       c.db.topicTests.push(test);
       c.db.topicTestVersions.push({ id: test.id + ":1", schoolId, testId: test.id, version: 1, test: structuredClone(test), createdAt: now });
       return lessonId;
@@ -8549,7 +8872,7 @@ function registerLearningDemoRoutes(app2, deps) {
     const d = own(c);
     if (!d) return res.status(404).json({ error: "DEMO topilmadi." });
     const accounts = d.userIds.map((uid) => {
-      const u = c.db.users.find((u2) => u2.uid === uid), password = crypto17.randomBytes(18).toString("base64url");
+      const u = c.db.users.find((u2) => u2.uid === uid), password = crypto19.randomBytes(18).toString("base64url");
       c.db.passwordHashes[uid] = deps.hash(password);
       deps.revoke(uid, c.env);
       return { uid, login: u.login, password, displayName: u.displayName, role: u.role, subject: u.subject };
@@ -8602,14 +8925,14 @@ function registerLearningDemoRoutes(app2, deps) {
 }
 
 // src/server/topicAnalysisRoutes.ts
-import crypto18 from "node:crypto";
-import { z as z10 } from "zod";
+import crypto20 from "node:crypto";
+import { z as z11 } from "zod";
 var reportCache = new AnalysisCache();
-var date3 = z10.string().regex(/^\d{4}-\d{2}-\d{2}$/).refine((v) => {
+var date3 = z11.string().regex(/^\d{4}-\d{2}-\d{2}$/).refine((v) => {
   const d = /* @__PURE__ */ new Date(v + "T12:00:00Z");
   return Number.isFinite(d.getTime()) && d.toISOString().slice(0, 10) === v;
 });
-var query = z10.object({ subject: z10.string().max(200).default(""), classId: z10.string().max(200).default(""), lesson: z10.string().max(200).default(""), from: date3.optional(), to: date3.optional(), view: z10.enum(["items", "topics", "students"]).default("items"), page: z10.coerce.number().int().min(0).max(1e4).default(0) });
+var query = z11.object({ subject: z11.string().max(200).default(""), classId: z11.string().max(200).default(""), lesson: z11.string().max(200).default(""), from: date3.optional(), to: date3.optional(), view: z11.enum(["items", "topics", "students"]).default("items"), page: z11.coerce.number().int().min(0).max(1e4).default(0) });
 function registerTopicAnalysisRoutes(app2, deps, guards) {
   const context = (req, res) => {
     const c = guards.access(req, res, true);
@@ -8637,7 +8960,7 @@ function registerTopicAnalysisRoutes(app2, deps, guards) {
     return { ...c, schoolId, filters: { ...d, from, to }, classes, subjects, lessons, selectedClasses, selectedClassIds, selectedLessons, lessonIds, scoped };
   };
   const report = (c) => {
-    const fingerprint = crypto18.createHash("sha256").update(JSON.stringify([
+    const fingerprint = crypto20.createHash("sha256").update(JSON.stringify([
       process.env.PERSISTENCE_NAMESPACE,
       c.env,
       c.schoolId,
@@ -8721,7 +9044,7 @@ function registerTopicAnalysisRoutes(app2, deps, guards) {
   app2.post("/api/topic-analysis/rebuild", (req, res) => {
     const c = context(req, res);
     if (!c) return;
-    const p = z10.object({ operationId: z10.uuid(), sessionIds: z10.array(z10.string().min(1).max(200)).min(1).max(20) }).safeParse(req.body);
+    const p = z11.object({ operationId: z11.uuid(), sessionIds: z11.array(z11.string().min(1).max(200)).min(1).max(20) }).safeParse(req.body);
     if (!p.success) return res.status(400).json({ error: "Bir martada 20 tagacha aniq ishni tanlang." });
     const rows = p.data.sessionIds.map((id) => c.db.topicSessions?.find((s) => s.id === id && s.institutionId === c.schoolId && (!s.schoolId || s.schoolId === c.schoolId) && c.selectedClassIds.has(s.classId) && c.lessonIds.has(s.lessonId) && s.submittedAt && inAnalysisRange(s.submittedAt, c.filters.from, c.filters.to)));
     if (rows.some((r) => !r)) return res.status(403).json({ error: "Bir yoki bir nechta ishga ruxsat yo\u2018q." });
@@ -8736,8 +9059,8 @@ function registerTopicAnalysisRoutes(app2, deps, guards) {
 }
 
 // src/server/spacedReviewRoutes.ts
-import crypto19 from "node:crypto";
-import { z as z11 } from "zod";
+import crypto21 from "node:crypto";
+import { z as z12 } from "zod";
 function registerSpacedReviewRoutes(app2, deps) {
   const clock = () => deps.now ? new Date(deps.now()) : /* @__PURE__ */ new Date();
   const student = (req, res) => {
@@ -8810,7 +9133,7 @@ function registerSpacedReviewRoutes(app2, deps) {
     if (!c) return;
     const m = c.db.mistakeRecords?.find((m2) => m2.id === req.params.id && own(c, m2)), entry = allowedReviewCatalog(c.db, c.user).get(req.params.id);
     if (!m || !entry) return res.status(403).json({ error: "Bu xato yoki savolga ruxsat yo\u2018q." });
-    const p = z11.object({ operationId: z11.uuid() }).safeParse(req.body);
+    const p = z12.object({ operationId: z12.uuid() }).safeParse(req.body);
     if (!p.success) return res.status(400).json({ error: "So\u2018rov identifikatorini tekshiring." });
     const item = c.db.spacedReviewQueue?.find((q) => q.id === m.id && own(c, q)), day = schoolDay(clock());
     if (!item) return res.status(409).json({ error: "Takrorlash yozuvi yangilangan. Daftarni qayta oching." });
@@ -8823,7 +9146,7 @@ function registerSpacedReviewRoutes(app2, deps) {
   app2.post("/api/spaced-review/sessions", (req, res) => {
     const c = student(req, res);
     if (!c) return;
-    const p = z11.object({ operationId: z11.uuid(), mode: z11.enum(["review", "mistake"]).default("review"), subject: z11.string().max(100).optional(), limit: z11.union([z11.literal(5), z11.literal(10)]).default(5), mistakeId: z11.string().max(600).optional() }).safeParse(req.body);
+    const p = z12.object({ operationId: z12.uuid(), mode: z12.enum(["review", "mistake"]).default("review"), subject: z12.string().max(100).optional(), limit: z12.union([z12.literal(5), z12.literal(10)]).default(5), mistakeId: z12.string().max(600).optional() }).safeParse(req.body);
     if (!p.success) return res.status(400).json({ error: "5 yoki 10 savollik seansni tanlang." });
     const d = p.data, now = clock(), day = schoolDay(now), signature = JSON.stringify({ mode: d.mode, subject: d.subject, limit: d.limit, mistakeId: d.mistakeId });
     c.db.spacedReviewSessions ||= [];
@@ -8847,7 +9170,7 @@ function registerSpacedReviewRoutes(app2, deps) {
     } else chosen = selectReviewItems(queue, catalog, usage.seen, now, Math.min(d.limit, remaining), d.subject);
     if (!chosen.length) return res.json({ session: null, message: "Bugun uchun takrorlash yetarli. Yangi savollar muddatida ko\u2018rinadi.", summary: reviewSummary(c.db, c.user, now, catalog) });
     for (const old of c.db.spacedReviewSessions.filter((s2) => own(c, s2) && s2.status === "active")) Object.assign(old, { status: "stopped", closedAt: now.toISOString() });
-    const s = { id: crypto19.randomUUID(), schoolId: c.user.institutionId, studentId: c.user.uid, classId: c.user.classId, day, subject: d.subject, mode: d.mode, items: chosen.map((q) => q.id), index: 0, revision: 0, status: "active", startedAt: now.toISOString(), startOperationId: d.operationId, startSignature: signature, draft: { answer: "" }, hintsUsed: {}, operations: [] };
+    const s = { id: crypto21.randomUUID(), schoolId: c.user.institutionId, studentId: c.user.uid, classId: c.user.classId, day, subject: d.subject, mode: d.mode, items: chosen.map((q) => q.id), index: 0, revision: 0, status: "active", startedAt: now.toISOString(), startOperationId: d.operationId, startSignature: signature, draft: { answer: "" }, hintsUsed: {}, operations: [] };
     c.db.spacedReviewSessions.push(s);
     save(c);
     res.json({ session: sessionView(c, s), resumed: false });
@@ -8861,7 +9184,7 @@ function registerSpacedReviewRoutes(app2, deps) {
     if (!c) return;
     const a = active(c, res);
     if (!a) return;
-    const p = z11.object({ revision: z11.number().int(), operationId: z11.uuid(), queueId: z11.string().max(600), answer: z11.string().max(8e3), confidence: z11.enum(["low", "medium", "high"]).optional() }).safeParse(req.body);
+    const p = z12.object({ revision: z12.number().int(), operationId: z12.uuid(), queueId: z12.string().max(600), answer: z12.string().max(8e3), confidence: z12.enum(["low", "medium", "high"]).optional() }).safeParse(req.body);
     if (!p.success || p.data.queueId !== a.queueId) return res.status(400).json({ error: "Joriy savol shaklini tekshiring." });
     if (c.s.operations.includes(p.data.operationId)) return res.json({ session: sessionView(c, c.s) });
     if (c.s.revision !== p.data.revision) return res.status(409).json({ error: "Boshqa oynada yangi qoralama bor. Seansni serverdan tiklang." });
@@ -8876,7 +9199,7 @@ function registerSpacedReviewRoutes(app2, deps) {
     if (!c) return;
     const a = active(c, res);
     if (!a) return;
-    const p = z11.object({ operationId: z11.uuid(), queueId: z11.string().max(600), expectedLevel: z11.number().int().min(0).max(3) }).safeParse(req.body);
+    const p = z12.object({ operationId: z12.uuid(), queueId: z12.string().max(600), expectedLevel: z12.number().int().min(0).max(3) }).safeParse(req.body);
     if (!p.success || p.data.queueId !== a.queueId) return res.status(400).json({ error: "Maslahat so\u2018rovini tekshiring." });
     const used = c.s.hintsUsed[a.queueId] || 0;
     if (used === p.data.expectedLevel && !c.s.operations.includes(p.data.operationId) && used < questionHints(a.entry.question).length) {
@@ -8891,7 +9214,7 @@ function registerSpacedReviewRoutes(app2, deps) {
   app2.post("/api/spaced-review/sessions/:id/answers", (req, res) => {
     const c = session(req, res);
     if (!c) return;
-    const p = z11.object({ operationId: z11.uuid(), revision: z11.number().int(), queueId: z11.string().max(600), answer: z11.string().max(8e3), confidence: z11.enum(["low", "medium", "high"]).optional() }).safeParse(req.body);
+    const p = z12.object({ operationId: z12.uuid(), revision: z12.number().int(), queueId: z12.string().max(600), answer: z12.string().max(8e3), confidence: z12.enum(["low", "medium", "high"]).optional() }).safeParse(req.body);
     if (!p.success) return res.status(400).json({ error: "Javob shaklini tekshiring." });
     const existing = c.db.spacedReviewAnswers?.find((a2) => own(c, a2) && a2.sessionId === c.s.id && a2.operationId === p.data.operationId);
     if (existing) return res.json({ session: sessionView(c, c.s), feedback: feedback(c, existing), duplicate: true });
@@ -8918,7 +9241,7 @@ function registerSpacedReviewRoutes(app2, deps) {
   app2.post("/api/spaced-review/sessions/:id/finish", (req, res) => {
     const c = session(req, res);
     if (!c) return;
-    if (!z11.object({ operationId: z11.uuid() }).safeParse(req.body).success) return res.status(400).json({ error: "So\u2018rovni tekshiring." });
+    if (!z12.object({ operationId: z12.uuid() }).safeParse(req.body).success) return res.status(400).json({ error: "So\u2018rovni tekshiring." });
     if (c.s.status === "active") {
       c.s.status = "stopped";
       c.s.closedAt = clock().toISOString();
@@ -8949,19 +9272,19 @@ function registerSpacedReviewRoutes(app2, deps) {
 }
 
 // src/server/topicRoutes.ts
-import crypto21 from "node:crypto";
-import { z as z14 } from "zod";
+import crypto23 from "node:crypto";
+import { z as z15 } from "zod";
 
 // src/server/topicImportRoutes.ts
-import crypto20 from "node:crypto";
-import { z as z12 } from "zod";
+import crypto22 from "node:crypto";
+import { z as z13 } from "zod";
 function registerTopicImports(app2, deps, guards) {
   const { access, ownLesson: ownLesson2, audit } = guards;
   app2.post("/api/topic-bank/:lesson/import", (req, res) => {
     const c = access(req, res, true);
     if (!c) return;
     if (!ownLesson2(c, req.params.lesson)) return res.status(404).json({ error: "Mavzu topilmadi." });
-    const p = z12.object({ operationId: z12.uuid(), questions: z12.array(z12.unknown()).min(1).max(100), dryRun: z12.boolean(), validOnly: z12.boolean().default(false) }).safeParse(req.body);
+    const p = z13.object({ operationId: z13.uuid(), questions: z13.array(z13.unknown()).min(1).max(100), dryRun: z13.boolean(), validOnly: z13.boolean().default(false) }).safeParse(req.body);
     if (!p.success) return res.status(400).json({ error: "Import shaklini tekshiring." });
     const valid = [], errors = [];
     p.data.questions.forEach((raw, i) => {
@@ -8980,7 +9303,7 @@ function registerTopicImports(app2, deps, guards) {
     if (errors.length && !p.data.validOnly) return res.status(400).json({ error: "Xato qatorlarni tuzating yoki to\u2018g\u2018ri qismini alohida kiriting.", errors });
     if (!valid.length) return res.status(400).json({ error: "Kiritish uchun to\u2018g\u2018ri savol yo\u2018q.", errors });
     c.db.topicQuestions ||= [];
-    const questions = valid.map((q) => ({ ...q, id: crypto20.randomUUID(), institutionId: c.user.institutionId, schoolId: c.user.institutionId, lessonId: req.params.lesson, revision: 1, status: "draft" }));
+    const questions = valid.map((q) => ({ ...q, id: crypto22.randomUUID(), institutionId: c.user.institutionId, schoolId: c.user.institutionId, lessonId: req.params.lesson, revision: 1, status: "draft" }));
     c.db.topicQuestions.push(...questions);
     for (const q of questions) guards.questionVersion?.(c, q);
     const batch = { id: p.data.operationId, institutionId: c.user.institutionId, schoolId: c.user.institutionId, lessonId: req.params.lesson, questions: questions.map((q) => q.id), createdAt: (/* @__PURE__ */ new Date()).toISOString(), undone: false };
@@ -9007,7 +9330,7 @@ function registerTopicImports(app2, deps, guards) {
 }
 
 // src/server/topicGradingRoutes.ts
-import { z as z13 } from "zod";
+import { z as z14 } from "zod";
 function registerTopicGrading(app2, deps, guards) {
   const { access, ownLesson: ownLesson2, canAuthor, audit } = guards;
   const allowed = (c, s) => {
@@ -9028,7 +9351,7 @@ function registerTopicGrading(app2, deps, guards) {
     if (!c) return;
     const s = c.db.topicSessions?.find((s2) => s2.id === req.params.id);
     if (!s || !allowed(c, s)) return res.status(403).json({ error: "Bu sinf yoki fan yozma ishiga ruxsat yo\u2018q." });
-    const p = z13.object({ questionId: z13.string(), earned: z13.number().min(0).max(100), comment: z13.string().trim().min(3).max(4e3), revision: z13.number().int(), operationId: z13.uuid() }).safeParse(req.body);
+    const p = z14.object({ questionId: z14.string(), earned: z14.number().min(0).max(100), comment: z14.string().trim().min(3).max(4e3), revision: z14.number().int(), operationId: z14.uuid() }).safeParse(req.body);
     if (!p.success || !s.submittedAt) return res.status(400).json({ error: "Ball va asoslangan izoh kiriting." });
     if (s.operations?.includes(p.data.operationId)) return res.json({ row: dto2(c, s), duplicate: true });
     if (s.revision !== p.data.revision) return res.status(409).json({ error: "Yozma ish boshqa oynada tekshirilgan. Ro\u2018yxatni yangilang." });
@@ -9074,13 +9397,13 @@ function registerTopicRoutes(app2, deps) {
     return { ...c, lesson };
   };
   const canStudy = (c, l) => l && c.user.role === "student" && l.status === "published" && [l.classId, ...l.classIds || []].includes(c.user.classId) && (!l.additionalCurriculumAssignment || l.tTrackVisibilityApproved);
-  const audit = (c, action, id) => c.db.auditLogs.push({ id: crypto21.randomUUID(), institutionId: c.user.institutionId, actorUid: c.user.uid, actorName: c.user.displayName, actorRole: c.user.role, action, target: "Mavzu testi", recordId: id, createdAt: (/* @__PURE__ */ new Date()).toISOString() });
+  const audit = (c, action, id) => c.db.auditLogs.push({ id: crypto23.randomUUID(), institutionId: c.user.institutionId, actorUid: c.user.uid, actorName: c.user.displayName, actorRole: c.user.role, action, target: "Mavzu testi", recordId: id, createdAt: (/* @__PURE__ */ new Date()).toISOString() });
   const save = (c) => deps.save(c.env, c.db);
   const replay = (c, kind, body, res) => {
     if (!body.operationId) return false;
     const old = c.db.topicWriteOperations?.find((o) => o.id === body.operationId);
     if (!old) return false;
-    const signature = crypto21.createHash("sha256").update(JSON.stringify(body)).digest("hex");
+    const signature = crypto23.createHash("sha256").update(JSON.stringify(body)).digest("hex");
     if (old.schoolId !== c.user.institutionId || old.actorUid !== c.user.uid || old.kind !== kind || old.signature !== signature) {
       res.status(409).json({ error: "Bir so\u2018rov identifikatori boshqa amal uchun ishlatilgan." });
       return true;
@@ -9092,7 +9415,7 @@ function registerTopicRoutes(app2, deps) {
   const remember4 = (c, kind, body, refs) => {
     if (!body.operationId) return;
     c.db.topicWriteOperations ||= [];
-    c.db.topicWriteOperations.push({ id: body.operationId, schoolId: c.user.institutionId, actorUid: c.user.uid, kind, signature: crypto21.createHash("sha256").update(JSON.stringify(body)).digest("hex"), refs, createdAt: (/* @__PURE__ */ new Date()).toISOString() });
+    c.db.topicWriteOperations.push({ id: body.operationId, schoolId: c.user.institutionId, actorUid: c.user.uid, kind, signature: crypto23.createHash("sha256").update(JSON.stringify(body)).digest("hex"), refs, createdAt: (/* @__PURE__ */ new Date()).toISOString() });
   };
   const questionVersion = (c, q) => {
     c.db.topicQuestionVersions ||= [];
@@ -9116,7 +9439,7 @@ function registerTopicRoutes(app2, deps) {
   app2.post("/api/topic-bank/:lesson/questions", (req, res) => {
     const c = author(req, res);
     if (!c) return;
-    const p = z14.object({ questions: z14.array(bankQuestion).min(1).max(100), operationId: z14.uuid().optional() }).safeParse(req.body);
+    const p = z15.object({ questions: z15.array(bankQuestion).min(1).max(100), operationId: z15.uuid().optional() }).safeParse(req.body);
     if (!p.success) return res.status(400).json({ error: p.error.issues[0]?.message });
     if (replay(c, "questions", p.data, res)) return;
     const ids = p.data.questions.filter((q) => q.id).map((q) => q.id);
@@ -9130,7 +9453,7 @@ function registerTopicRoutes(app2, deps) {
     const records = p.data.questions.map((q) => {
       const old = q.id && c.db.topicQuestions.find((x) => x.id === q.id);
       if (old) questionVersion(c, old);
-      const record = { ...q, id: q.id || crypto21.randomUUID(), institutionId: c.user.institutionId, schoolId: c.user.institutionId, lessonId: c.lesson.id, revision: (old?.revision || 0) + 1, status: "draft", approval: void 0 };
+      const record = { ...q, id: q.id || crypto23.randomUUID(), institutionId: c.user.institutionId, schoolId: c.user.institutionId, lessonId: c.lesson.id, revision: (old?.revision || 0) + 1, status: "draft", approval: void 0 };
       if (old) Object.assign(old, record);
       else c.db.topicQuestions.push(record);
       questionVersion(c, record);
@@ -9144,7 +9467,7 @@ function registerTopicRoutes(app2, deps) {
   app2.post("/api/topic-bank/:lesson/approve", (req, res) => {
     const c = author(req, res);
     if (!c) return;
-    const p = z14.object({ questions: z14.array(z14.object({ id: z14.string(), revision: z14.number().int() })).min(1).max(100), acknowledgeWarnings: z14.boolean().default(false) }).safeParse(req.body);
+    const p = z15.object({ questions: z15.array(z15.object({ id: z15.string(), revision: z15.number().int() })).min(1).max(100), acknowledgeWarnings: z15.boolean().default(false) }).safeParse(req.body);
     if (!p.success) return res.status(400).json({ error: "Tasdiqlash shaklini tekshiring." });
     const rows = p.data.questions.map((r) => (c.db.topicQuestions || []).find((q) => q.id === r.id && q.lessonId === c.lesson.id && sameSchool(c, q) && q.revision === r.revision));
     if (rows.some((q) => !q)) return res.status(409).json({ error: "Savol versiyasi yangilangan. Bankni yangilang." });
@@ -9162,7 +9485,7 @@ function registerTopicRoutes(app2, deps) {
   app2.post("/api/topic-bank/:lesson/test", (req, res) => {
     const c = author(req, res);
     if (!c) return;
-    const p = z14.object({ id: z14.string().optional(), expectedVersion: z14.number().int().optional(), title: z14.string().trim().min(3).max(180), questionIds: z14.array(z14.string()).min(1).max(100), count: z14.number().int().min(1).max(60), durationMinutes: z14.number().int().min(0).max(180), maxAttempts: z14.number().int().min(1).max(10), passPercent: z14.number().min(0).max(100), trackExits: z14.boolean(), release: z14.enum(["immediate", "review"]), shuffle: z14.boolean(), publish: z14.boolean().optional(), status: z14.enum(["draft", "review", "published", "archived"]).optional(), confidenceEnabled: z14.boolean().default(false), operationId: z14.uuid().optional() }).safeParse(req.body);
+    const p = z15.object({ id: z15.string().optional(), expectedVersion: z15.number().int().optional(), title: z15.string().trim().min(3).max(180), questionIds: z15.array(z15.string()).min(1).max(100), count: z15.number().int().min(1).max(60), durationMinutes: z15.number().int().min(0).max(180), maxAttempts: z15.number().int().min(1).max(10), passPercent: z15.number().min(0).max(100), trackExits: z15.boolean(), release: z15.enum(["immediate", "review"]), shuffle: z15.boolean(), publish: z15.boolean().optional(), status: z15.enum(["draft", "review", "published", "archived"]).optional(), confidenceEnabled: z15.boolean().default(false), operationId: z15.uuid().optional() }).safeParse(req.body);
     if (!p.success) return res.status(400).json({ error: "Test sozlamalarini tekshiring." });
     if (replay(c, "test", p.data, res)) return;
     const d = p.data, status = d.publish === true ? "published" : d.publish === false ? "draft" : d.status || "draft";
@@ -9180,7 +9503,7 @@ function registerTopicRoutes(app2, deps) {
     };
     if (old) stamp(old);
     const { publish, expectedVersion, operationId, ...settings } = d;
-    const record = { ...settings, id: old?.id || crypto21.randomUUID(), institutionId: c.user.institutionId, schoolId: c.user.institutionId, lessonId: c.lesson.id, classIds: [.../* @__PURE__ */ new Set([c.lesson.classId, ...c.lesson.classIds || []])].filter((id) => c.admin || c.user.assignedClassIds?.includes(id)), status, version: (old?.version || 0) + 1, snapshot: structuredClone(questions), updatedAt: (/* @__PURE__ */ new Date()).toISOString(), createdBy: c.user.uid };
+    const record = { ...settings, id: old?.id || crypto23.randomUUID(), institutionId: c.user.institutionId, schoolId: c.user.institutionId, lessonId: c.lesson.id, classIds: [.../* @__PURE__ */ new Set([c.lesson.classId, ...c.lesson.classIds || []])].filter((id) => c.admin || c.user.assignedClassIds?.includes(id)), status, version: (old?.version || 0) + 1, snapshot: structuredClone(questions), updatedAt: (/* @__PURE__ */ new Date()).toISOString(), createdBy: c.user.uid };
     if (old) Object.assign(old, record);
     else c.db.topicTests.push(record);
     stamp(record);
@@ -9200,7 +9523,7 @@ function registerTopicRoutes(app2, deps) {
   app2.post("/api/topic-bank/:lesson/preview", (req, res) => {
     const c = author(req, res);
     if (!c) return;
-    const p = z14.object({ questionIds: z14.array(z14.string()).min(1).max(100), answers: z14.record(z14.string(), z14.string().max(8e3)) }).safeParse(req.body);
+    const p = z15.object({ questionIds: z15.array(z15.string()).min(1).max(100), answers: z15.record(z15.string(), z15.string().max(8e3)) }).safeParse(req.body);
     if (!p.success) return res.status(400).json({ error: "Sinov ma\u2019lumotlarini tekshiring." });
     const questions = (c.db.topicQuestions || []).filter((q) => sameSchool(c, q) && q.lessonId === c.lesson.id && p.data.questionIds.includes(q.id));
     res.json({ score: questions.reduce((n, q) => n + gradeQuestion(q, p.data.answers[q.id] || ""), 0), maxScore: questions.reduce((n, q) => n + q.points, 0), pending: questions.some((q) => q.kind === "written"), persisted: false });
@@ -9247,7 +9570,7 @@ function registerTopicRoutes(app2, deps) {
     if (c.db.topicSessions.filter((s2) => s2.studentId === c.user.uid && s2.testId === test.id).length >= test.maxAttempts) return res.status(409).json({ error: "Urinishlar tugagan." });
     let questions = structuredClone((test.shuffle ? shuffle(test.snapshot) : test.snapshot).slice(0, test.count));
     for (const q of questions) if (test.shuffle && ["single", "multiple"].includes(q.kind)) q.options = shuffle(q.options);
-    const now = Date.now(), s = { id: crypto21.randomUUID(), institutionId: c.user.institutionId, schoolId: c.user.institutionId, studentId: c.user.uid, classId: c.user.classId, testId: test.id, version: test.version, lessonId: test.lessonId, title: test.title, subject: ownLesson2(c, test.lessonId)?.subjectName, release: test.release, trackExits: test.trackExits, passPercent: test.passPercent, confidenceEnabled: test.confidenceEnabled, questions, answers: {}, flags: [], confidence: {}, hintsUsed: {}, timeSpentMs: {}, operations: [], revision: 0, startedAt: new Date(now).toISOString(), deadlineAt: test.durationMinutes ? new Date(now + test.durationMinutes * 6e4).toISOString() : void 0, maxScore: questions.reduce((n, q) => n + q.points, 0), pending: false, events: [] };
+    const now = Date.now(), s = { id: crypto23.randomUUID(), institutionId: c.user.institutionId, schoolId: c.user.institutionId, studentId: c.user.uid, classId: c.user.classId, testId: test.id, version: test.version, lessonId: test.lessonId, title: test.title, subject: ownLesson2(c, test.lessonId)?.subjectName, release: test.release, trackExits: test.trackExits, passPercent: test.passPercent, confidenceEnabled: test.confidenceEnabled, questions, answers: {}, flags: [], confidence: {}, hintsUsed: {}, timeSpentMs: {}, operations: [], revision: 0, startedAt: new Date(now).toISOString(), deadlineAt: test.durationMinutes ? new Date(now + test.durationMinutes * 6e4).toISOString() : void 0, maxScore: questions.reduce((n, q) => n + q.points, 0), pending: false, events: [] };
     c.db.topicSessions.push(s);
     save(c);
     res.json({ session: publicSession(s), serverNow: now });
@@ -9264,7 +9587,7 @@ function registerTopicRoutes(app2, deps) {
   app2.put("/api/topic-sessions/:id", (req, res) => {
     const c = sessionAccess(req, res);
     if (!c) return;
-    const p = z14.object({ revision: z14.number().int().min(0), answers: z14.record(z14.string(), z14.string().max(8e3)), flags: z14.array(z14.string()).max(100), submit: z14.boolean().optional(), operationId: z14.uuid().optional(), confidence: z14.record(z14.string(), z14.enum(["low", "medium", "high"])).optional(), timeSpentMs: z14.record(z14.string(), z14.number().int().min(0).max(108e5)).optional(), event: z14.object({ id: z14.uuid(), type: z14.literal("tab_exit") }).optional() }).safeParse(req.body);
+    const p = z15.object({ revision: z15.number().int().min(0), answers: z15.record(z15.string(), z15.string().max(8e3)), flags: z15.array(z15.string()).max(100), submit: z15.boolean().optional(), operationId: z15.uuid().optional(), confidence: z15.record(z15.string(), z15.enum(["low", "medium", "high"])).optional(), timeSpentMs: z15.record(z15.string(), z15.number().int().min(0).max(108e5)).optional(), event: z15.object({ id: z15.uuid(), type: z15.literal("tab_exit") }).optional() }).safeParse(req.body);
     if (!p.success) return res.status(400).json({ error: "Javob shaklini tekshiring." });
     const s = c.s, d = p.data;
     if (s.submittedAt || d.operationId && s.operations?.includes(d.operationId)) return res.json({ session: visible(c) });
@@ -9299,7 +9622,7 @@ function registerTopicRoutes(app2, deps) {
   app2.post("/api/topic-sessions/:id/hint", (req, res) => {
     const c = sessionAccess(req, res);
     if (!c) return;
-    const p = z14.object({ questionId: z14.string(), operationId: z14.uuid(), expectedLevel: z14.number().int().min(0).max(3) }).safeParse(req.body);
+    const p = z15.object({ questionId: z15.string(), operationId: z15.uuid(), expectedLevel: z15.number().int().min(0).max(3) }).safeParse(req.body);
     if (!p.success || c.s.submittedAt) return res.status(400).json({ error: "Maslahat so\u2018rovini tekshiring." });
     if (c.s.deadlineAt && Date.now() >= Date.parse(c.s.deadlineAt)) return res.status(409).json({ error: "Test vaqti tugagan." });
     const q = c.s.questions.find((q2) => q2.id === p.data.questionId);
@@ -9327,8 +9650,8 @@ var canonicalProduction = (req, res, next) => {
 import nodeCrypto from "node:crypto";
 
 // src/server/practiceRoutes.ts
-import crypto22 from "node:crypto";
-import { z as z15 } from "zod";
+import crypto24 from "node:crypto";
+import { z as z16 } from "zod";
 function registerPracticeRoutes(app2, deps) {
   const access = (req) => {
     const c = deps.authenticate(req), lesson = c?.db.lessons.find((l) => l.id === req.params.id);
@@ -9344,14 +9667,14 @@ function registerPracticeRoutes(app2, deps) {
   const write5 = (submit) => (req, res) => {
     const c = access(req);
     if (!c) return res.status(403).json({ error: "Darsga ruxsat yo\u2018q." });
-    const parsed = z15.array(z15.string().max(1e4)).length(2).safeParse(req.body.answers);
+    const parsed = z16.array(z16.string().max(1e4)).length(2).safeParse(req.body.answers);
     if (!parsed.success || submit && parsed.data.some((a) => a.trim().length < 3)) return res.status(400).json({ error: "Javoblar shakli yoki uzunligi noto\u2018g\u2018ri." });
     c.db.lessonPracticeResponses ||= [];
     let record = c.db.lessonPracticeResponses.find((r) => r.studentId === c.user.uid && r.lessonId === c.lesson.id);
     if (record && record.status !== "draft") return res.status(submit ? 200 : 409).json(submit ? { id: record.id, status: "received" } : { error: "Ish allaqachon topshirilgan." });
     if ((req.body.revision ?? 0) !== (record?.revision || 0)) return res.status(409).json({ error: "Qoralama boshqa oynada yangilangan. Mashqni qayta oching." });
     if (!record) {
-      record = { id: crypto22.randomUUID(), lessonId: c.lesson.id, studentId: c.user.uid, institutionId: c.user.institutionId, answers: [], status: "draft", revision: 0 };
+      record = { id: crypto24.randomUUID(), lessonId: c.lesson.id, studentId: c.user.uid, institutionId: c.user.institutionId, answers: [], status: "draft", revision: 0 };
       c.db.lessonPracticeResponses.push(record);
     }
     record.answers = parsed.data;
@@ -9367,14 +9690,14 @@ function registerPracticeRoutes(app2, deps) {
 }
 
 // src/server/teachingRoutes.ts
-import crypto23 from "node:crypto";
-import { z as z16 } from "zod";
+import crypto25 from "node:crypto";
+import { z as z17 } from "zod";
 var deliveredForClass = (lesson, classId) => !lesson.schoolUndeliveredClassIds?.includes(classId) && Boolean(lesson.schoolDeliveredAt || lesson.schoolDeliveredClassIds?.includes(classId));
 var teacherClasses = (user, db) => db.classes.filter((c) => c.institutionId === user.institutionId && user.assignedClassIds?.includes(c.id));
 function registerTeachingRoutes(app2, deps) {
   registerPracticeRoutes(app2, deps);
   const admin = (c) => c && ["admin", "platform_owner"].includes(c.user.role) && c.user.platformAdmin === true && c.user.emailVerified === true;
-  const schema = z16.object({ displayName: z16.string().trim().min(3).max(120), email: z16.email().max(180).transform((v) => v.toLowerCase()), password: z16.string().min(12).max(128), subject: z16.string().min(2).max(100), classIds: z16.array(z16.string()).min(1).max(19) });
+  const schema = z17.object({ displayName: z17.string().trim().min(3).max(120), email: z17.email().max(180).transform((v) => v.toLowerCase()), password: z17.string().min(12).max(128), subject: z17.string().min(2).max(100), classIds: z17.array(z17.string()).min(1).max(19) });
   app2.post("/api/teaching/accounts", (req, res) => {
     const c = deps.authenticate(req);
     if (!admin(c)) return res.status(403).json({ error: "Faqat administrator." });
@@ -9383,7 +9706,7 @@ function registerTeachingRoutes(app2, deps) {
     const p = parsed.data;
     if (c.db.users.some((u) => u.email.toLowerCase() === p.email)) return res.status(409).json({ error: "Bu email band." });
     if (p.classIds.some((id) => !c.db.classes.some((cls) => cls.id === id && cls.institutionId === c.user.institutionId))) return res.status(400).json({ error: "Sinf mos emas." });
-    const user = { uid: crypto23.randomUUID(), displayName: p.displayName, email: p.email, role: "teacher", status: "active", institutionId: c.user.institutionId, assignedClassIds: [...new Set(p.classIds)], subject: p.subject, createdAt: (/* @__PURE__ */ new Date()).toISOString(), platformAdmin: false, emailVerified: false };
+    const user = { uid: crypto25.randomUUID(), displayName: p.displayName, email: p.email, role: "teacher", status: "active", institutionId: c.user.institutionId, assignedClassIds: [...new Set(p.classIds)], subject: p.subject, createdAt: (/* @__PURE__ */ new Date()).toISOString(), platformAdmin: false, emailVerified: false };
     c.db.users.push(user);
     c.db.passwordHashes[user.uid] = deps.hash(p.password);
     deps.save(c.env, c.db);
@@ -9395,7 +9718,7 @@ function registerTeachingRoutes(app2, deps) {
     const user = c.db.users.find((u) => u.uid === req.params.id && u.role === "teacher" && u.institutionId === c.user.institutionId);
     if (!user) return res.status(404).json({ error: "Hisob topilmadi." });
     if (req.body.password !== void 0) {
-      const parsed = z16.string().min(12).max(128).safeParse(req.body.password);
+      const parsed = z17.string().min(12).max(128).safeParse(req.body.password);
       if (!parsed.success) return res.status(400).json({ error: "Parol kamida 12 belgi bo\u2018lsin." });
       c.db.passwordHashes[user.uid] = deps.hash(parsed.data);
       deps.revoke(user.uid, c.env);
@@ -9443,8 +9766,28 @@ function registerTeachingRoutes(app2, deps) {
 }
 
 // src/server/examMedia.ts
+init_runtimeScope();
+init_firebaseAdminAuth();
 import { getFirestore as getFirestore2 } from "firebase-admin/firestore";
-import crypto24 from "node:crypto";
+import crypto26 from "node:crypto";
+
+// src/server/supabaseMedia.ts
+init_runtimeScope();
+async function storeSupabaseExamImage(hash, schoolId, mime, bytes) {
+  const path6 = `${runtimeNamespace()}/exams/${encodeURIComponent(schoolId)}/${hash}`;
+  const { error } = await serverSupabase().storage.from("study-private").upload(path6, bytes, { contentType: mime, upsert: false, cacheControl: "0" });
+  if (error && String(error.statusCode) !== "409") throw Error("Private media upload failed");
+  await studyRpc("study_media_index", { p_namespace: runtimeNamespace(), p_id: hash, p_data: { schoolId, mime, path: path6, size: bytes.length } });
+}
+async function readSupabaseExamImage(hash) {
+  const index = await studyRpc("study_media_index", { p_namespace: runtimeNamespace(), p_id: hash });
+  if (!index) return null;
+  const { data, error } = await serverSupabase().storage.from("study-private").download(index.path);
+  if (error || !data) throw Error("Private media download failed");
+  return { institutionId: index.institutionId, mime: index.mime, data: Buffer.from(await data.arrayBuffer()).toString("base64") };
+}
+
+// src/server/examMedia.ts
 var mediaRoot = runtimeNamespace() === "_specialized_runtime" ? "_specialized_exam_media" : runtimeNamespace() + "_media";
 async function storeExamImage(institutionId, examId, dataUrl) {
   const match = dataUrl.match(/^data:image\/(jpeg|png);base64,(.+)$/);
@@ -9453,65 +9796,70 @@ async function storeExamImage(institutionId, examId, dataUrl) {
   if (bytes.length > 5e5 || bytes.length < 8) throw Error("Image size rejected");
   const png = bytes[0] === 137 && bytes[1] === 80 && bytes[2] === 78 && bytes[3] === 71, jpeg = bytes[0] === 255 && bytes[1] === 216 && bytes[2] === 255;
   if (!(match[1] === "png" ? png : jpeg)) throw Error("Image signature rejected");
-  const hash = crypto24.createHash("sha256").update(institutionId).update(bytes).digest("hex");
+  const hash = crypto26.createHash("sha256").update(institutionId).update(bytes).digest("hex");
+  if (supabaseEnabled()) {
+    await storeSupabaseExamImage(hash, institutionId, `image/${match[1]}`, bytes);
+    return `/api/exams/${examId}/media/${hash}`;
+  }
   const db = getFirestore2(getFirebaseAdminApp(), loadFirebaseAppletConfig().firestoreDatabaseId);
   await db.doc(`${mediaRoot}/${hash}`).set({ institutionId, data: match[2], mime: `image/${match[1]}`, createdAt: (/* @__PURE__ */ new Date()).toISOString() });
   return `/api/exams/${examId}/media/${hash}`;
 }
 async function readExamImage(hash) {
+  if (supabaseEnabled()) return readSupabaseExamImage(hash);
   const db = getFirestore2(getFirebaseAdminApp(), loadFirebaseAppletConfig().firestoreDatabaseId);
   const doc = await db.doc(`${mediaRoot}/${hash}`).get();
   return doc.exists ? doc.data() : null;
 }
 
 // src/server/examRoutes.ts
-import crypto25 from "node:crypto";
-import { z as z17 } from "zod";
-var image = z17.string().max(65e4).refine(
+import crypto27 from "node:crypto";
+import { z as z18 } from "zod";
+var image = z18.string().max(65e4).refine(
   (v) => /^data:image\/(jpeg|png);base64,[A-Za-z0-9+/=]+$/.test(v),
   "Faqat JPEG/PNG tasvirlari."
 );
-var question = z17.object({
-  sourceNumber: z17.number().int().positive(),
-  variant: z17.string().max(12),
-  prompt: z17.string().min(3).max(18e3),
-  sourcePages: z17.array(z17.number().int().positive()).max(20),
-  sourceImages: z17.array(image).max(20),
-  fields: z17.array(
-    z17.object({
-      id: z17.string().max(80),
-      label: z17.string().max(120),
-      imageIndex: z17.number().int().min(0),
-      x: z17.number().min(0).max(1),
-      y: z17.number().min(0).max(1),
-      width: z17.number().min(0.01).max(1),
-      height: z17.number().min(0.01).max(1)
+var question = z18.object({
+  sourceNumber: z18.number().int().positive(),
+  variant: z18.string().max(12),
+  prompt: z18.string().min(3).max(18e3),
+  sourcePages: z18.array(z18.number().int().positive()).max(20),
+  sourceImages: z18.array(image).max(20),
+  fields: z18.array(
+    z18.object({
+      id: z18.string().max(80),
+      label: z18.string().max(120),
+      imageIndex: z18.number().int().min(0),
+      x: z18.number().min(0).max(1),
+      y: z18.number().min(0).max(1),
+      width: z18.number().min(0.01).max(1),
+      height: z18.number().min(0.01).max(1)
     })
   ).max(40),
-  points: z17.number().min(0).max(100),
-  type: z17.enum(["written_open", "single_choice"]),
-  options: z17.array(z17.string().max(4e3)).max(8),
-  correctAnswer: z17.string().max(4e3),
-  rubricText: z17.string().max(12e3)
+  points: z18.number().min(0).max(100),
+  type: z18.enum(["written_open", "single_choice"]),
+  options: z18.array(z18.string().max(4e3)).max(8),
+  correctAnswer: z18.string().max(4e3),
+  rubricText: z18.string().max(12e3)
 });
-var draftSchema = z17.object({
-  sourceLayoutVersion: z17.literal(2, {
+var draftSchema = z18.object({
+  sourceLayoutVersion: z18.literal(2, {
     error: "Importni yangilash uchun sahifani qayta oching."
   }),
-  title: z17.string().min(3).max(200),
-  examKind: z17.enum(["BSB", "CHSB"]),
-  examNumber: z17.number().int().min(1).max(2),
-  quarter: z17.number().int().min(1).max(4),
-  academicYear: z17.string().regex(/^\d{4}-\d{4}$/),
-  subject: z17.string().min(2).max(100),
-  classCodes: z17.array(z17.string()).min(1).max(19),
-  durationMinutes: z17.number().int().min(1).max(180),
-  availableFrom: z17.string().datetime(),
-  dueDate: z17.string().datetime(),
-  sourceFileName: z17.string().max(200),
-  sourceHash: z17.string().regex(/^[a-f0-9]{64}$/),
-  contextImages: z17.array(image).max(20),
-  questions: z17.array(question).min(1).max(60)
+  title: z18.string().min(3).max(200),
+  examKind: z18.enum(["BSB", "CHSB"]),
+  examNumber: z18.number().int().min(1).max(2),
+  quarter: z18.number().int().min(1).max(4),
+  academicYear: z18.string().regex(/^\d{4}-\d{4}$/),
+  subject: z18.string().min(2).max(100),
+  classCodes: z18.array(z18.string()).min(1).max(19),
+  durationMinutes: z18.number().int().min(1).max(180),
+  availableFrom: z18.string().datetime(),
+  dueDate: z18.string().datetime(),
+  sourceFileName: z18.string().max(200),
+  sourceHash: z18.string().regex(/^[a-f0-9]{64}$/),
+  contextImages: z18.array(image).max(20),
+  questions: z18.array(question).min(1).max(60)
 });
 function registerExamRoutes(app2, deps) {
   const limits = /* @__PURE__ */ new Map();
@@ -9559,12 +9907,12 @@ function registerExamRoutes(app2, deps) {
   app2.post("/api/exams/attempts/:id/grade", (req, res) => {
     const c = admin(req, res);
     if (!c) return;
-    const parsed = z17.object({
-      operationId: z17.uuid(),
-      questionId: z17.string().max(200),
-      revision: z17.number().int().min(0),
-      points: z17.number().finite().min(0).max(100),
-      feedback: z17.string().trim().min(3).max(4e3)
+    const parsed = z18.object({
+      operationId: z18.uuid(),
+      questionId: z18.string().max(200),
+      revision: z18.number().int().min(0),
+      points: z18.number().finite().min(0).max(100),
+      feedback: z18.string().trim().min(3).max(4e3)
     }).safeParse(req.body);
     if (!parsed.success)
       return res.status(400).json({ error: "Ball va ustoz fikrini tekshiring." });
@@ -9604,7 +9952,7 @@ function registerExamRoutes(app2, deps) {
     updated.revision = d.revision + 1;
     c.db.attempts[c.db.attempts.indexOf(attempt)] = updated;
     c.db.gradingRecords.push({
-      id: crypto25.randomUUID(),
+      id: crypto27.randomUUID(),
       institutionId: c.user.institutionId,
       attemptId: attempt.id,
       questionId: d.questionId,
@@ -9670,7 +10018,7 @@ function registerExamRoutes(app2, deps) {
       (a) => a.institutionId === c.user.institutionId && manages2(c, a) && a.sourceHash === data.sourceHash && a.sourceLayoutVersion === data.sourceLayoutVersion && a.title === data.title && a.examKind === data.examKind && a.academicYear === data.academicYear && a.examNumber === data.examNumber && a.quarter === data.quarter && JSON.stringify(a.assignedClassCodes) === JSON.stringify(data.classCodes)
     );
     if (existing) return res.json({ assessment: existing, replayed: true });
-    const now = (/* @__PURE__ */ new Date()).toISOString(), id = "exam-" + crypto25.randomUUID();
+    const now = (/* @__PURE__ */ new Date()).toISOString(), id = "exam-" + crypto27.randomUUID();
     try {
       for (const q of data.questions)
         q.sourceImages = await Promise.all(
@@ -9777,12 +10125,12 @@ function registerExamRoutes(app2, deps) {
       contextImages: true,
       questions: true
     }).extend({
-      questions: z17.array(
+      questions: z18.array(
         question.omit({ sourceImages: true }).extend({
-          sourceImages: z17.array(z17.union([image, z17.string().max(180)])).max(20)
+          sourceImages: z18.array(z18.union([image, z18.string().max(180)])).max(20)
         })
       ).min(1).max(60),
-      contextImages: z17.array(z17.union([image, z17.string().max(180)])).max(20).optional()
+      contextImages: z18.array(z18.union([image, z18.string().max(180)])).max(20).optional()
     }).safeParse(req.body);
     if (!edit.success)
       return res.status(400).json({ error: edit.error.issues[0]?.message });
@@ -10053,7 +10401,7 @@ function registerExamRoutes(app2, deps) {
       ))
         return res.status(409).json({ error: "Nazorat ishi allaqachon topshirilgan." });
       session = {
-        id: crypto25.randomUUID(),
+        id: crypto27.randomUUID(),
         assessmentId: exam.id,
         studentId: c.user.uid,
         institutionId: c.user.institutionId,
@@ -10105,7 +10453,7 @@ function registerExamRoutes(app2, deps) {
     );
     if (!exam || !session || !canTakeExam(c.user, exam))
       return res.status(403).json({ error: "Ruxsat yo\u2018q." });
-    const id = z17.string().uuid().safeParse(req.body.eventId);
+    const id = z18.string().uuid().safeParse(req.body.eventId);
     if (!id.success)
       return res.status(400).json({ error: "Hodisa noto\u2018g\u2018ri." });
     session.exitIds ||= [];
@@ -10142,7 +10490,7 @@ function registerExamRoutes(app2, deps) {
       });
     if (exam.examState === "paused" || exam.examState === "closed" || Date.now() > examDeadline(exam, session))
       return res.status(409).json({ error: "Nazorat to\u2018xtatilgan yoki vaqti tugagan." });
-    const incoming = z17.record(z17.string(), z17.string().max(25e4)).safeParse(req.body.answers);
+    const incoming = z18.record(z18.string(), z18.string().max(25e4)).safeParse(req.body.answers);
     if (!incoming.success || Buffer.byteLength(JSON.stringify(incoming.data)) > 18e5)
       return res.status(400).json({ error: "Javoblar hajmi yoki shakli noto\u2018g\u2018ri." });
     if (Object.keys(incoming.data).some((id) => !exam.questionIds.includes(id)))
@@ -10167,12 +10515,12 @@ function registerExamRoutes(app2, deps) {
 }
 
 // src/server/contentRoutes.ts
-import crypto27 from "node:crypto";
-import { z as z18 } from "zod";
+import crypto29 from "node:crypto";
+import { z as z19 } from "zod";
 
 // src/server/contentImportEngine.ts
-import crypto26 from "node:crypto";
-var contentHash = (value) => crypto26.createHash("sha256").update(JSON.stringify(value)).digest("hex");
+import crypto28 from "node:crypto";
+var contentHash = (value) => crypto28.createHash("sha256").update(JSON.stringify(value)).digest("hex");
 var days = ["", "Dushanba", "Seshanba", "Chorshanba", "Payshanba", "Juma", "Shanba"];
 var templates = { workplan: ["sinf", "fan", "chorak", "tartib", "mavzu", "soat", "sinf_ishi", "uy_vazifasi"], timetable: ["sinf", "kun", "dars", "boshlanish", "tugash", "fan", "oqituvchi", "xona"], questions: ["sinf", "fan", "chorak", "mavzu", "tur", "savol", "A", "B", "C", "D", "javob", "ball", "izoh"] };
 var minute = (s) => /^([01]\d|2[0-3]):[0-5]\d$/.test(s) ? Number(s.slice(0, 2)) * 60 + Number(s.slice(3)) : NaN;
@@ -10234,7 +10582,7 @@ function registerContentRoutes(app2, deps) {
     }
     return c;
   };
-  const audit = (c, job, action) => c.db.auditLogs.push({ id: crypto27.randomUUID(), institutionId: c.user.institutionId, actorUid: c.user.uid, actorName: c.user.displayName, actorRole: c.user.role, action, target: job.fileName, recordId: job.id, createdAt: (/* @__PURE__ */ new Date()).toISOString() });
+  const audit = (c, job, action) => c.db.auditLogs.push({ id: crypto29.randomUUID(), institutionId: c.user.institutionId, actorUid: c.user.uid, actorName: c.user.displayName, actorRole: c.user.role, action, target: job.fileName, recordId: job.id, createdAt: (/* @__PURE__ */ new Date()).toISOString() });
   app2.get("/api/content-imports/templates/:kind", async (req, res) => {
     const c = admin(req, res);
     if (!c) return;
@@ -10263,7 +10611,7 @@ function registerContentRoutes(app2, deps) {
   app2.post("/api/content-imports/preview", async (req, res) => {
     const c = admin(req, res);
     if (!c) return;
-    const parsed = z18.object({ kind: z18.enum(["workplan", "timetable"]), fileName: z18.string().max(180).regex(/\.(xlsx|csv)$/i), base64: z18.string().max(42e5), year: z18.string().regex(/^\d{4}-\d{4}$/) }).safeParse(req.body);
+    const parsed = z19.object({ kind: z19.enum(["workplan", "timetable"]), fileName: z19.string().max(180).regex(/\.(xlsx|csv)$/i), base64: z19.string().max(42e5), year: z19.string().regex(/^\d{4}-\d{4}$/) }).safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ error: "Excel/CSV fayli va o\u2018quv yilini tekshiring." });
     const p = parsed.data, bytes = Buffer.from(p.base64, "base64");
     if (!bytes.length || bytes.length > 3 * 1024 * 1024) return res.status(413).json({ error: "Fayl 3 MB dan oshmasin." });
@@ -10287,7 +10635,7 @@ function registerContentRoutes(app2, deps) {
       const raw = matrix.slice(1).map((row2, i) => Object.fromEntries([...headers.map((h, n) => [h, String(row2[n] ?? "").trim()]), ["__row", String(i + 2)]]));
       const rows = validateContentRows(p.kind, raw.filter((r) => headers.some((h) => r[h])), c.db, c.user.institutionId, p.year);
       if (!rows.length) return res.status(400).json({ error: "Faylda ma\u2019lumot qatori yo\u2018q." });
-      const job = { id: crypto27.randomUUID(), institutionId: c.user.institutionId, actorId: c.user.uid, kind: p.kind, year: p.year, fileName: p.fileName, createdAt: (/* @__PURE__ */ new Date()).toISOString(), status: "review", rows };
+      const job = { id: crypto29.randomUUID(), institutionId: c.user.institutionId, actorId: c.user.uid, kind: p.kind, year: p.year, fileName: p.fileName, createdAt: (/* @__PURE__ */ new Date()).toISOString(), status: "review", rows };
       c.db.contentImports ||= [];
       c.db.contentImports.push(job);
       audit(c, job, "Kontent importi tekshirildi");
@@ -10328,13 +10676,13 @@ function registerContentRoutes(app2, deps) {
       if (job.kind === "workplan") {
         let subject = c.db.subjects.find((s) => s.institutionId === c.user.institutionId && s.name === r.fan);
         if (!subject) {
-          subject = { id: crypto27.randomUUID(), institutionId: c.user.institutionId, name: r.fan, code: r.fan.toUpperCase().slice(0, 8), description: "", status: "active", createdAt: now };
+          subject = { id: crypto29.randomUUID(), institutionId: c.user.institutionId, name: r.fan, code: r.fan.toUpperCase().slice(0, 8), description: "", status: "active", createdAt: now };
           add("subjects", subject);
         }
         const group = `${cls.id}:${r.fan}:${r.chorak}`;
         let plan = c.db.workPlans.find((p) => p.importJobId === job.id && p.sourceWorksheet === group);
         if (!plan) {
-          plan = { id: crypto27.randomUUID(), institutionId: c.user.institutionId, title: `${cls.code.toUpperCase()} \xB7 ${r.fan} \xB7 ${r.chorak}-chorak`, fileName: job.fileName, classId: cls.id, classIds: [cls.id], classCode: cls.code, classCodes: [cls.code], grade: cls.grade, track: cls.track, subjectId: subject.id, subjectName: r.fan, academicYear: job.year, quarter: Number(r.chorak), planType: "quarterly", status: req.body.mode === "publish" ? "published" : "draft", rows: [], warnings: [], importJobId: job.id, sourceWorksheet: group, createdByUid: c.user.uid, createdByName: c.user.displayName, createdAt: now };
+          plan = { id: crypto29.randomUUID(), institutionId: c.user.institutionId, title: `${cls.code.toUpperCase()} \xB7 ${r.fan} \xB7 ${r.chorak}-chorak`, fileName: job.fileName, classId: cls.id, classIds: [cls.id], classCode: cls.code, classCodes: [cls.code], grade: cls.grade, track: cls.track, subjectId: subject.id, subjectName: r.fan, academicYear: job.year, quarter: Number(r.chorak), planType: "quarterly", status: req.body.mode === "publish" ? "published" : "draft", rows: [], warnings: [], importJobId: job.id, sourceWorksheet: group, createdByUid: c.user.uid, createdByName: c.user.displayName, createdAt: now };
           add("workPlans", plan);
         }
         add("lessons", { id: "content-" + row2.key, institutionId: c.user.institutionId, workPlanId: plan.id, importJobId: job.id, classId: cls.id, classIds: [cls.id], classCode: cls.code, classCodes: [cls.code], grade: cls.grade, track: cls.track, subjectId: subject.id, subjectName: r.fan, subject: r.fan, academicYear: job.year, quarter: Number(r.chorak), lessonNumber: Number(r.tartib), orderIndex: Number(r.tartib), title: r.mavzu, topicTitle: r.mavzu, topicName: r.mavzu, topicId: "", unitTitle: "", learningObjectives: [], content: r.sinf_ishi, classwork: r.sinf_ishi, homework: r.uy_vazifasi, hours: Number(r.soat), materials: [], relatedAssessmentIds: [], status: req.body.mode === "publish" ? "published" : "draft", additionalCurriculumAssignment: cls.track === "T" && r.fan === "Matematika", tTrackVisibilityApproved: cls.track === "T" && r.fan === "Matematika" ? true : void 0, sourceRecordHash: row2.key, sourceFileName: job.fileName, sourceRow: row2.rowNumber, createdAt: now });
@@ -10343,7 +10691,7 @@ function registerContentRoutes(app2, deps) {
         const mode = req.body.mode === "publish" ? "active" : "draft";
         let timetable = c.db.timetables.find((t) => t.institutionId === c.user.institutionId && t.classId === cls.id && t.status === mode && (mode === "active" || job.created.some((r2) => r2.collection === "timetables" && r2.id === t.id)) && (t.academicYear || c.db.institutions.find((i) => i.id === c.user.institutionId)?.academicYear) === job.year);
         if (!timetable) {
-          timetable = { id: crypto27.randomUUID(), institutionId: c.user.institutionId, classId: cls.id, classCode: cls.code, title: cls.code.toUpperCase() + " dars jadvali", academicYear: job.year, effectiveFrom: now.slice(0, 10), version: 1, status: mode, createdByUid: c.user.uid, createdByName: c.user.displayName, createdAt: now, updatedAt: now };
+          timetable = { id: crypto29.randomUUID(), institutionId: c.user.institutionId, classId: cls.id, classCode: cls.code, title: cls.code.toUpperCase() + " dars jadvali", academicYear: job.year, effectiveFrom: now.slice(0, 10), version: 1, status: mode, createdByUid: c.user.uid, createdByName: c.user.displayName, createdAt: now, updatedAt: now };
           add("timetables", timetable);
         }
         add("timetableEntries", { id: "content-" + row2.key, institutionId: c.user.institutionId, timetableId: timetable.id, classCode: cls.code, classId: cls.id, weekday: days[Number(r.__day)], weekdayIndex: Number(r.__day), lessonNumber: Number(r.dars), subject: r.fan, startTime: r.boshlanish, endTime: r.tugash, teacherId: r.__teacherId, teacherName: r.__teacherName, room: r.xona, sourceRecordHash: row2.key, createdAt: now, updatedAt: now });
@@ -10494,6 +10842,9 @@ function registerStudentHomeRoutes(app2, deps) {
   });
 }
 
+// src/server/cloudStateMiddleware.ts
+init_requestDatabase();
+
 // src/server/coalescedRead.ts
 function coalescedRead(read5) {
   let pending;
@@ -10506,12 +10857,14 @@ function coalescedRead(read5) {
 }
 
 // src/server/cloudState.ts
-import crypto29 from "node:crypto";
+init_firebaseAdminAuth();
+init_runtimeScope();
+import crypto31 from "node:crypto";
 import { gzipSync, gunzipSync } from "node:zlib";
 import { getFirestore as getFirestore3 } from "firebase-admin/firestore";
 
 // src/server/mergeState.ts
-import crypto28 from "node:crypto";
+import crypto30 from "node:crypto";
 var same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 var MergeConflictError = class extends Error {
 };
@@ -10565,7 +10918,7 @@ function mergeState(base4, local, remote) {
           const { hash, ...unsigned } = { ...event, previous };
           merged.push({
             ...unsigned,
-            hash: crypto28.createHash("sha256").update(JSON.stringify(unsigned)).digest("hex")
+            hash: crypto30.createHash("sha256").update(JSON.stringify(unsigned)).digest("hex")
           });
         }
         result[key] = merged;
@@ -10753,19 +11106,19 @@ function encodeState(value) {
     const compressed = gzipSync(Buffer.from(part));
     for (let offset = 0; offset < compressed.length; offset += CHUNK_BYTES) {
       const bytes = compressed.subarray(offset, offset + CHUNK_BYTES);
-      chunks.push({ id: crypto29.createHash("sha256").update(bytes).digest("hex"), data: bytes.toString("base64") });
+      chunks.push({ id: crypto31.createHash("sha256").update(bytes).digest("hex"), data: bytes.toString("base64") });
     }
   }
-  return { chunks, digest: crypto29.createHash("sha256").update(raw).digest("hex") };
+  return { chunks, digest: crypto31.createHash("sha256").update(raw).digest("hex") };
 }
 function decodeState(chunks, digest4) {
   const compressed = Buffer.concat(chunks.map((c) => {
     const b = Buffer.from(c.data, "base64");
-    if (crypto29.createHash("sha256").update(b).digest("hex") !== c.id) throw Error("Snapshot chunk integrity failure");
+    if (crypto31.createHash("sha256").update(b).digest("hex") !== c.id) throw Error("Snapshot chunk integrity failure");
     return b;
   }));
   const raw = gunzipSync(compressed, { maxOutputLength: MAX_STATE_BYTES });
-  if (crypto29.createHash("sha256").update(raw).digest("hex") !== digest4) throw Error("Snapshot integrity failure");
+  if (crypto31.createHash("sha256").update(raw).digest("hex") !== digest4) throw Error("Snapshot integrity failure");
   return JSON.parse(raw.toString("utf8"));
 }
 var cache = null;
@@ -10847,7 +11200,7 @@ var readCloudState = coalescedRead(readCloudStateOnce);
 async function writeCloudState(state, expectedRevision, baseState, retry = 0) {
   const db = database();
   const encoded = encodeState(state);
-  const revision = crypto29.randomUUID();
+  const revision = crypto31.randomUUID();
   const previous = cache?.revision === expectedRevision ? cache.chunks : [];
   const reused = new Set(previous);
   const changed = encoded.chunks.filter((chunk, i, all) => !reused.has(chunk.id) && all.findIndex((c) => c.id === chunk.id) === i);
@@ -10894,13 +11247,85 @@ async function writeCloudState(state, expectedRevision, baseState, retry = 0) {
   return revision;
 }
 
+// src/server/supabaseState.ts
+init_runtimeScope();
+import crypto32 from "node:crypto";
+function stateRows(state) {
+  const rows = [], layout = {};
+  for (const [collection, value] of Object.entries(state)) {
+    if (value === void 0) continue;
+    if (!/^[a-zA-Z][a-zA-Z0-9_]{0,79}$/.test(collection)) throw Error("Invalid state collection");
+    layout[collection] = Array.isArray(value) ? "array" : value && typeof value === "object" ? "object" : "scalar";
+    const values = Array.isArray(value) ? value : Object.entries(value && typeof value === "object" ? value : { $: value });
+    const used = /* @__PURE__ */ new Set();
+    values.forEach((entry, position) => {
+      let key, data;
+      if (Array.isArray(value)) {
+        data = entry;
+        key = String(entry?.id || entry?.uid || "h:" + crypto32.createHash("sha256").update(JSON.stringify(entry)).digest("hex"));
+        if (used.has(key)) key += ":duplicate:" + position;
+      } else [key, data] = entry;
+      if (key.length > 256 || !key) throw Error("Invalid state key");
+      used.add(key);
+      rows.push({ collection, key, position, data });
+    });
+  }
+  return { layout, rows };
+}
+var cache2;
+var readSupabaseState = coalescedRead(async () => {
+  const namespace = runtimeNamespace(), revision = await studyRpc("study_state_version", { p_namespace: namespace });
+  if (!revision) throw Error("Supabase state has not been migrated");
+  if (cache2?.revision === revision) return { state: JSON.parse(cache2.serialized), revision };
+  const snapshot = await studyRpc("study_read_state", { p_namespace: namespace });
+  cache2 = { revision: snapshot.revision, serialized: JSON.stringify(snapshot.state) };
+  return { state: structuredClone(snapshot.state), revision: snapshot.revision };
+});
+async function readSupabaseExamContext(uid, exam) {
+  const scope = await studyRpc("study_read_exam_context", { p_namespace: runtimeNamespace(), p_user: uid, p_exam: exam });
+  if (!scope) return readSupabaseState();
+  const { createEmptyDatabaseState: createEmptyDatabaseState2 } = await Promise.resolve().then(() => (init_dbEngine(), dbEngine_exports));
+  return { ...scope, state: { ...createEmptyDatabaseState2(), ...scope.state } };
+}
+async function writeSupabaseState(state, expectedRevision, baseState, retry = 0) {
+  const before = stateRows(baseState ? JSON.parse(baseState) : {}), after = stateRows(state), old = new Map(before.rows.map((r) => [r.collection + "\0" + r.key, r])), next = new Map(after.rows.map((r) => [r.collection + "\0" + r.key, r]));
+  const changes = [];
+  for (const [key, row2] of next) {
+    const prior2 = old.get(key);
+    if (!prior2 || prior2.position !== row2.position || JSON.stringify(prior2.data) !== JSON.stringify(row2.data)) changes.push(row2);
+  }
+  for (const [key, row2] of old) if (!next.has(key)) changes.push({ collection: row2.collection, key: row2.key, deleted: true });
+  try {
+    const revision = await studyRpc("study_write_state", { p_namespace: runtimeNamespace(), p_expected_revision: expectedRevision, p_layout: after.layout, p_changes: changes });
+    cache2 = { revision, serialized: JSON.stringify(state) };
+    return revision;
+  } catch (error) {
+    if (error.code === "40001" && baseState && retry < 2) {
+      const latest = await readSupabaseState();
+      let merged;
+      try {
+        merged = mergeState(JSON.parse(baseState), state, latest.state);
+      } catch {
+        throw Object.assign(Error("PERSISTENCE_CONFLICT"), { code: "40001" });
+      }
+      const revision = await writeSupabaseState(merged, latest.revision, JSON.stringify(latest.state), retry + 1);
+      Object.assign(state, merged);
+      return revision;
+    }
+    throw error;
+  }
+}
+
 // src/server/cloudStateMiddleware.ts
-function createCloudStateMiddleware(store2 = { read: readCloudState, write: writeCloudState }) {
+function createCloudStateMiddleware(store2 = { read: (req, res) => {
+  const exam = /^\/api\/exams\/([a-zA-Z0-9_-]+)\/(?:session-v2|takeover-v2|exit-v2|explanation-v2)$/.exec(req?.path || "");
+  return supabaseEnabled() ? exam && res?.locals?.signedUid ? readSupabaseExamContext(res.locals.signedUid, exam[1]) : readSupabaseState() : readCloudState();
+}, write: (state, revision, base4) => supabaseEnabled() ? writeSupabaseState(state, revision, base4) : writeCloudState(state, revision, base4) }) {
   return async (req, res, next) => {
-    if (process.env.PERSISTENCE_DRIVER !== "firestore" || !req.path.startsWith("/api/") || req.path === "/api/health") return next();
+    if (!["firestore", "supabase"].includes(process.env.PERSISTENCE_DRIVER || "") || !req.path.startsWith("/api/") || req.path === "/api/health") return next();
     try {
       const began = performance.now();
-      const snapshot = await store2.read();
+      const snapshot = await store2.read(req, res);
       if (snapshot.writesFrozen && !["GET", "HEAD", "OPTIONS"].includes(req.method)) return res.status(503).set("Retry-After", "30").json({ code: "MIGRATION_IN_PROGRESS", error: "Ma\u2019lumotlar xavfsiz ko\u2018chirilmoqda. Qurilmadagi javobni saqlang va birozdan keyin qayta urinib ko\u2018ring." });
       const readMs = performance.now() - began;
       const baseState = JSON.stringify(snapshot.state);
@@ -10913,14 +11338,18 @@ function createCloudStateMiddleware(store2 = { read: readCloudState, write: writ
         void (async () => {
           try {
             const commitBegan = performance.now();
-            if (context.dirty) await store2.write(context.state, context.revision, baseState);
+            if (context.dirty) {
+              if (snapshot.readOnly) throw Error("Scoped exam context cannot mutate school records");
+              await store2.write(context.state, context.revision, baseState);
+            }
             for (const action of context.afterCommit) action();
             res.setHeader("Server-Timing", `state;dur=${readMs.toFixed(1)}, commit;dur=${(performance.now() - commitBegan).toFixed(1)}`);
             json(sessionBody(res, body));
           } catch (error) {
             runtimeMetrics.failure(quotaExhausted(error) ? "quota_exhausted" : error instanceof StateConflictError ? "conflict" : "write_failed");
-            res.status(error instanceof StateConflictError ? 409 : 503);
-            json({ code: quotaExhausted(error) ? "QUOTA_EXHAUSTED" : error instanceof StateConflictError ? "PERSISTENCE_CONFLICT" : "TEMPORARY", error: error instanceof StateConflictError ? "Ma\u2019lumot yangilangan. Sahifani yangilab, qayta urinib ko\u2018ring." : "Ma\u2019lumot saqlanmadi. Keyinroq qayta urinib ko\u2018ring." });
+            const conflict = error instanceof StateConflictError || error?.code === "40001";
+            res.status(conflict ? 409 : 503);
+            json({ code: quotaExhausted(error) ? "QUOTA_EXHAUSTED" : conflict ? "PERSISTENCE_CONFLICT" : "TEMPORARY", error: conflict ? "Ma\u2019lumot yangilangan. Sahifani yangilab, qayta urinib ko\u2018ring." : "Ma\u2019lumot saqlanmadi. Keyinroq qayta urinib ko\u2018ring." });
           }
         })();
         return res;
@@ -10935,13 +11364,17 @@ function createCloudStateMiddleware(store2 = { read: readCloudState, write: writ
 var cloudStateMiddleware = createCloudStateMiddleware();
 
 // server.ts
+init_requestDatabase();
 import "dotenv/config";
 import express from "express";
 import path5 from "path";
 import { fileURLToPath } from "url";
-import { z as z19 } from "zod";
+import { z as z20 } from "zod";
+init_security();
+init_firebaseAdminAuth();
 
 // src/utils/excelImporter.ts
+init_security();
 import * as XLSX from "xlsx";
 import JSZip from "jszip";
 var ASSESSMENT_COLUMNS = [
@@ -11924,7 +12357,12 @@ async function parseAndValidateImportPackage(fileBuffer, fileName, knownTopics, 
   };
 }
 
+// server.ts
+init_dbEngine();
+init_curriculum();
+
 // src/utils/workPlanAndCommandEngine.ts
+init_curriculum();
 import * as XLSX2 from "xlsx";
 function generateWorkPlanTemplateExcelBuffer(classCode = "7a1", subjectName = "Matematika", academicYear = "2026-2027") {
   const wb = XLSX2.utils.book_new();
@@ -12465,6 +12903,7 @@ function parseUzbekAICommand(rawCommand, classes, subjects, lessons, workPlans) 
 }
 
 // src/utils/studentExcelImporter.ts
+init_curriculum();
 import * as XLSX3 from "xlsx";
 var FULL_NAME_ALIASES = [
   "full_name",
@@ -13136,9 +13575,10 @@ function generateStudentExportBuffer(students) {
 }
 
 // src/utils/mathCurriculumImporter.ts
+init_curriculum();
 import fs4 from "fs";
 import path4 from "path";
-import crypto30 from "crypto";
+import crypto33 from "crypto";
 import JSZip2 from "jszip";
 import * as XLSX4 from "xlsx";
 var OFFICIAL_MATH_ARCHIVE_DISPLAY_NAME = "Matematika  elektron jurnal uchun ish reja.zip";
@@ -13147,7 +13587,7 @@ var MAX_ZIP_SIZE_BYTES = 25 * 1024 * 1024;
 var MAX_ZIP_ENTRIES = 100;
 var MAX_UNCOMPRESSED_BYTES = 50 * 1024 * 1024;
 function computeSha256Hex(input) {
-  return crypto30.createHash("sha256").update(input).digest("hex");
+  return crypto33.createHash("sha256").update(input).digest("hex");
 }
 function resolveOfficialMathArchivePath() {
   const candidates = [
@@ -14162,7 +14602,11 @@ function buildCurriculumLessonQuestions(params) {
   return questions;
 }
 
+// server.ts
+init_gamificationEngine();
+
 // src/utils/studentMonitoringEngine.ts
+init_curriculum();
 var ATTENDANCE_STATUS_LABELS = {
   PRESENT: "Keldi",
   ABSENT: "Kelmagan",
@@ -14712,37 +15156,38 @@ function calculateClassMonitoringSnapshot(classCode, grade, track, enrolledStude
 }
 
 // server.ts
+init_academicOsEngine();
 var CONFIGURED_OWNER_EMAIL = (process.env.PLATFORM_OWNER_EMAIL || PLATFORM_OWNER_EMAIL).trim().toLowerCase();
 var __filename = fileURLToPath(import.meta.url);
 var __dirname = path5.dirname(__filename);
-var AIAnalysisSchema = z19.object({
-  summary: z19.string().min(5),
-  topic_analysis: z19.array(
-    z19.object({
-      topic_id: z19.string(),
-      observed_performance: z19.string(),
-      possible_error_pattern: z19.string(),
-      evidence_count: z19.number(),
-      confidence: z19.enum(["low", "medium", "high"]),
-      recommendation: z19.string()
+var AIAnalysisSchema = z20.object({
+  summary: z20.string().min(5),
+  topic_analysis: z20.array(
+    z20.object({
+      topic_id: z20.string(),
+      observed_performance: z20.string(),
+      possible_error_pattern: z20.string(),
+      evidence_count: z20.number(),
+      confidence: z20.enum(["low", "medium", "high"]),
+      recommendation: z20.string()
     })
   ),
-  next_steps: z19.array(
-    z19.object({
-      topic_id: z19.string(),
-      activity: z19.string(),
-      reason: z19.string(),
-      priority: z19.enum(["low", "medium", "high"])
+  next_steps: z20.array(
+    z20.object({
+      topic_id: z20.string(),
+      activity: z20.string(),
+      reason: z20.string(),
+      priority: z20.enum(["low", "medium", "high"])
     })
   ),
-  teacher_summary: z19.string().min(5),
-  parent_summary: z19.string().optional()
+  teacher_summary: z20.string().min(5),
+  parent_summary: z20.string().optional()
 });
-var AIDraftedQuestionSchema = z19.object({
-  prompt: z19.string().min(5),
-  options: z19.array(z19.string()).length(4),
-  correctAnswer: z19.string().min(1),
-  explanation: z19.string().min(5)
+var AIDraftedQuestionSchema = z20.object({
+  prompt: z20.string().min(5),
+  options: z20.array(z20.string()).length(4),
+  correctAnswer: z20.string().min(1),
+  explanation: z20.string().min(5)
 });
 async function getGeminiClient(req) {
   if (req && resolveRequestEnv(req) === "test") {
@@ -14773,10 +15218,10 @@ function broadcastInstitutionUpdate(env, institutionId, eventType) {
   const payload = `data: ${JSON.stringify({ type: eventType, institutionId, timestamp: (/* @__PURE__ */ new Date()).toISOString() })}
 
 `;
-  for (const client of sseClients) {
-    if (client.env === env && client.institutionId === institutionId) {
+  for (const client2 of sseClients) {
+    if (client2.env === env && client2.institutionId === institutionId) {
       try {
-        client.res.write(payload);
+        client2.res.write(payload);
       } catch {
       }
     }
@@ -14793,8 +15238,7 @@ var apiRateLimiter = new SlidingWindowRateLimiter();
 var failedLoginCounter = /* @__PURE__ */ new Map();
 var deniedAdminCounter = /* @__PURE__ */ new Map();
 function getClientIpHash(req) {
-  const forwarded = String(req.headers["x-forwarded-for"] || req.socket.remoteAddress || "127.0.0.1").split(",")[0].trim();
-  return computeSimpleHash(`ip:${forwarded}`);
+  return clientIpFingerprint(req);
 }
 function getRequestId(req) {
   return String(req.requestId || req.headers["x-request-id"] || `req-${Date.now()}`);
@@ -14869,12 +15313,12 @@ app.use(canonicalProduction);
 async function startServer() {
   app.disable("x-powered-by");
   app.use((req, res, next) => {
-    const reqId = String(req.headers["x-request-id"] || "").trim() || `req-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    const reqId = String(req.headers["x-request-id"] || "").replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 80) || `req-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     req.requestId = reqId;
     res.setHeader("X-Request-Id", reqId);
     res.setHeader(
       "Content-Security-Policy",
-      "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://apis.google.com https://www.gstatic.com https://*.firebaseapp.com https://accounts.google.com https://*.vercel.app; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https:; frame-src 'self' https://*.firebaseapp.com https://accounts.google.com https://apis.google.com; connect-src 'self' ws: wss: https://*.googleapis.com https://*.firebaseio.com https://*.firebaseapp.com https://apis.google.com https://accounts.google.com https://*.google.com https://www.gstatic.com https://*.vercel.app wss://*.firebaseio.com; frame-ancestors 'self' https://*.google.com https://*.goog https://*.run.app https://*.ai.studio https://ai.studio https://*.vercel.app;"
+      process.env.NODE_ENV === "production" ? productionCsp : productionCsp.replace("script-src 'self'", "script-src 'self' 'unsafe-inline' 'unsafe-eval'").replace("connect-src 'self'", "connect-src 'self' ws: wss:")
     );
     res.setHeader("Cross-Origin-Opener-Policy", "same-origin-allow-popups");
     res.setHeader("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
@@ -14886,7 +15330,7 @@ async function startServer() {
     );
     const origin = req.headers.origin;
     if (origin) {
-      const requestHost = String(req.headers["x-forwarded-host"] || req.headers.host || "");
+      const requestHost = String(req.headers.host || "");
       const isAllowedOrigin = isTrustedCorsOrigin(origin, requestHost);
       if (!isAllowedOrigin && req.path.startsWith("/api/")) {
         return res.status(403).json({
@@ -14911,6 +15355,7 @@ async function startServer() {
     next();
   });
   app.get("/api/auth/diagnostics", (req, res) => {
+    if (process.env.AUTH_PROVIDER === "supabase") return res.json({ status: "ok", provider: "supabase", authDomain: new URL(process.env.SUPABASE_URL || "https://invalid.invalid").host, requestHost: String(req.headers.host || ""), googleProviderConfigured: process.env.SUPABASE_GOOGLE_ENABLED === "true" });
     const requestHost = String(req.headers["x-forwarded-host"] || req.headers.host || "").trim();
     const origin = String(req.headers.origin || "").trim();
     const appletCfg = loadFirebaseAppletConfig();
@@ -14932,11 +15377,14 @@ async function startServer() {
     });
   });
   app.use(createPrivateApiPreflight(verifySessionToken, extractRawTokenFromRequest));
+  app.use(authIngress);
   app.use(cloudStateMiddleware);
   app.use(localSessionResponse);
   const uploadJsonParser = express.json({ limit: "20mb" });
   const standardJsonParser = express.json({ limit: "2mb" });
+  const authJsonParser = express.json({ limit: "16kb" });
   app.use((req, res, next) => {
+    if (/^\/api\/(?:auth|account)\//.test(req.path)) return authJsonParser(req, res, next);
     if (req.path.startsWith("/api/topic-bank/") || req.path.startsWith("/api/exams/drafts") || /^\/api\/exams\/[^/]+\/draft$/.test(req.path) || req.path.startsWith("/api/students/import/") || req.path.startsWith("/api/work-plans/upload") || req.path.startsWith("/api/imports/") || req.path.startsWith("/api/questions/media") || req.path === "/api/content-imports/preview") {
       return uploadJsonParser(req, res, next);
     }
@@ -14944,7 +15392,7 @@ async function startServer() {
   });
   app.use("/api", (req, res, next) => {
     const c = authenticateRequest(req);
-    if (c?.user.mustChangePassword && !["/state", "/account/password", "/auth/logout", "/auth/login", "/auth/firebase-sync"].includes(req.path)) return res.status(403).json({ error: "Davom etish uchun parolni o\u2018zgartiring.", code: "PASSWORD_CHANGE_REQUIRED" });
+    if (c?.user.mustChangePassword && !["/state", "/account/password", "/auth/logout", "/auth/login", "/auth/firebase-sync", "/auth/provider-sync"].includes(req.path)) return res.status(403).json({ error: "Davom etish uchun parolni o\u2018zgartiring.", code: "PASSWORD_CHANGE_REQUIRED" });
     next();
   });
   registerAiAccessGuard(app, { authenticate: authenticateRequest });
@@ -14956,6 +15404,7 @@ async function startServer() {
   registerExamRoutes(app, { authenticate: authenticateRequest, save: saveDbState, notify: broadcastInstitutionUpdate });
   registerTopicRoutes(app, { authenticate: authenticateRequest, save: saveDbState });
   registerLearningDemoRoutes(app, { authenticate: authenticateRequest, save: saveDbState, hash: hashPassword, revoke: (uid) => revokeAllUserSessions(uid) });
+  registerSupabaseAuthRoutes(app, { database: getDbState, save: saveDbState, issue: issueSessionToken, authenticate: authenticateRequest, owner: (user) => isVerifiedPlatformOwner(user, CONFIGURED_OWNER_EMAIL) });
   registerAccountRoutes(app, { authenticate: authenticateRequest, save: saveDbState, hash: hashPassword, verify: verifyPassword, revoke: revokeAllUserSessions, issue: issueSessionToken });
   registerTeachingRoutes(app, { authenticate: authenticateRequest, save: saveDbState, hash: hashPassword, revoke: revokeAllUserSessions });
   registerDemoRoutes(app, { authenticate: authenticateRequest, save: saveDbState, hash: hashPassword, revoke: revokeAllUserSessions });
@@ -14970,7 +15419,7 @@ async function startServer() {
     const isTestEnv = resolveRequestEnv(req) === "test";
     const forceRateLimitInTest = req.headers["x-test-rate-limit"] === "enforce";
     const effectiveMax = isTestEnv && !forceRateLimitInTest ? maxRequests * 20 : maxRequests;
-    const key = `${scope}:${getClientIpHash(req)}:${String(req.headers["x-test-client-id"] || "")}`;
+    const key = authenticationBucket(req, scope);
     const check = apiRateLimiter.check(key, effectiveMax, windowMs);
     res.setHeader("X-RateLimit-Remaining", String(check.remaining));
     if (!check.allowed) {
@@ -15145,7 +15594,7 @@ async function startServer() {
       token
     });
   });
-  app.post("/api/auth/login", (req, res) => {
+  app.post("/api/auth/login", asyncRoute(async (req, res) => {
     if (!enforceRateLimit(req, res, "login", 10, 6e4)) return;
     const env = resolveRequestEnv(req);
     const db = getDbState(env);
@@ -15156,7 +15605,7 @@ async function startServer() {
     if (env === "prod" && !db.users.some((u) => u.login === email) && (isAuthorizedAdminEmail(String(email || ""), CONFIGURED_OWNER_EMAIL) || db.users.some((u) => u.email.toLowerCase() === String(email || "").trim().toLowerCase() && (u.role === "admin" || u.role === "platform_owner")))) {
       return res.status(403).json({ error: "Administrator Google orqali tasdiqlangan hisob bilan kirishi kerak." });
     }
-    if (!email || !password) {
+    if (!email || typeof password !== "string" || !password || password.length > 128 || email.length > 160) {
       return res.status(400).json({ error: "Login va parolni kiriting." });
     }
     const normalizedEmail = String(email).trim().toLowerCase();
@@ -15189,6 +15638,7 @@ async function startServer() {
       );
       saveDbState(env, db);
     };
+    const passwordValid = await verifyPasswordAsync(password, user?.status === "active" ? db.passwordHashes[user.uid] : void 0);
     if (!user) {
       recordFailedLogin("hisob topilmadi");
       return res.status(401).json({ error: "Login yoki parol noto\u2018g\u2018ri." });
@@ -15197,7 +15647,7 @@ async function startServer() {
       recordFailedLogin("hisob faol emas");
       return res.status(401).json({ error: "Login yoki parol noto\u2018g\u2018ri." });
     }
-    if (!verifyPassword(String(password), db.passwordHashes[user.uid])) {
+    if (!passwordValid) {
       recordFailedLogin("noto\u2018g\u2018ri parol");
       return res.status(401).json({ error: "Login yoki parol noto\u2018g\u2018ri." });
     }
@@ -15231,7 +15681,7 @@ async function startServer() {
     saveDbState(env, db);
     const token = issueSessionToken(user.uid, env);
     return res.json({ user, token });
-  });
+  }));
   app.post("/api/auth/logout", (req, res) => {
     clearSessionCookie(res);
     const authCtx = authenticateRequest(req);
@@ -15863,14 +16313,14 @@ async function startServer() {
     res.setHeader("Connection", "keep-alive");
     res.flushHeaders?.();
     const clientId = `sse-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
-    const client = {
+    const client2 = {
       id: clientId,
       uid: authCtx.user.uid,
       institutionId: authCtx.user.institutionId,
       env: authCtx.env,
       res
     };
-    sseClients.push(client);
+    sseClients.push(client2);
     res.write(`data: ${JSON.stringify({ type: "CONNECTED", timestamp: (/* @__PURE__ */ new Date()).toISOString() })}
 
 `);
@@ -23421,6 +23871,7 @@ MUHIM: Bu faqat administrator ko'rib chiqishi uchun dastlabki tavsiya. O'zbek ti
     saveDbState(env, db);
     return res.json({ event: ev });
   });
+  app.use(apiErrorHandler);
   if (process.env.VERCEL) {
     return;
   }

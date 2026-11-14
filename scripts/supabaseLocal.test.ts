@@ -10,7 +10,7 @@ test('local PostgreSQL migration: exact state roundtrip, server-only access, CAS
  const db=new PGlite();
  try{
   await db.exec("create role anon;create role authenticated;create role service_role bypassrls;create schema storage;create table storage.buckets(id text primary key,name text,public boolean,file_size_limit bigint,allowed_mime_types text[]);");
-  await db.exec(await fs.readFile('supabase/migrations/202611140001_private_runtime.sql','utf8'));
+  for(const file of (await fs.readdir('supabase/migrations')).filter(f=>f.endsWith('.sql')).sort())await db.exec(await fs.readFile('supabase/migrations/'+file,'utf8'));
   const rpc=async<T=any>(name:string,args:Record<string,unknown>):Promise<T>=>{
    assert.match(name,/^study_[a-z_]+$/);
    const entries=Object.entries(args);for(const [key]of entries)assert.match(key,/^p_[a-z_]+$/);
@@ -21,6 +21,8 @@ test('local PostgreSQL migration: exact state roundtrip, server-only access, CAS
   assert.deepEqual((await rpc('study_read_state',{p_namespace:namespace})).state,state);
   await assert.rejects(rpc('study_write_state',{p_namespace:namespace,p_expected_revision:null,p_layout:encoded.layout,p_changes:[]}),e=>(e as any).code==='40001');
   assert.equal(await rpc('study_state_version',{p_namespace:namespace}),revision);
+  const scoped=await rpc('study_read_exam_context',{p_namespace:namespace,p_user:'DEMO-only',p_exam:'missing'});assert.equal(scoped.readOnly,true);assert.equal(scoped.state.users.length,1);assert.deepEqual(scoped.state.passwordHashes,{});assert.ok(!('lessons' in scoped.state));
+  const bucket={p_namespace:namespace,p_key:'a'.repeat(64),p_limit:2,p_window_ms:60000};assert.equal(await rpc('study_auth_rate_limit',bucket),true);assert.equal(await rpc('study_auth_rate_limit',bucket),true);assert.equal(await rpc('study_auth_rate_limit',bucket),false);
   for(const role of ['anon','authenticated']){
    await db.exec('set role '+role);
    await assert.rejects(db.query('select * from study_private.runtime_records'),e=>(e as any).code==='42501');

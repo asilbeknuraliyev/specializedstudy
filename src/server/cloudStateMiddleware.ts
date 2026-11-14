@@ -3,16 +3,16 @@ import {sessionBody} from './sessionCookies';
 import type { RequestHandler } from 'express';
 import { requestDatabase } from './requestDatabase';
 import { readCloudState, writeCloudState, StateConflictError } from './cloudState';
-import {readSupabaseState,writeSupabaseState} from './supabaseState';
+import {readSupabaseState,readSupabaseExamContext,writeSupabaseState} from './supabaseState';
 import {supabaseEnabled} from './supabaseClient';
 
-export function createCloudStateMiddleware(store = { read: () => supabaseEnabled()?readSupabaseState():readCloudState(), write: (state:any,revision:string,base:string) => supabaseEnabled()?writeSupabaseState(state,revision,base):writeCloudState(state,revision,base) }): RequestHandler {
+export function createCloudStateMiddleware(store = { read: (req?:any,res?:any) => {const exam=/^\/api\/exams\/([a-zA-Z0-9_-]+)\/(?:session-v2|takeover-v2|exit-v2|explanation-v2)$/.exec(req?.path||'');return supabaseEnabled()?(exam&&res?.locals?.signedUid?readSupabaseExamContext(res.locals.signedUid,exam[1]):readSupabaseState()):readCloudState();}, write: (state:any,revision:string,base:string) => supabaseEnabled()?writeSupabaseState(state,revision,base):writeCloudState(state,revision,base) }): RequestHandler {
 return async (req,res,next) => {
  if(!['firestore','supabase'].includes(process.env.PERSISTENCE_DRIVER||'')||!req.path.startsWith('/api/')||req.path==='/api/health')return next();
  try {
    const began=performance.now();
-   const snapshot=await store.read();
-   if(snapshot.writesFrozen && !['GET','HEAD','OPTIONS'].includes(req.method))return res.status(503).set('Retry-After','30').json({code:'MIGRATION_IN_PROGRESS',error:'Ma’lumotlar xavfsiz ko‘chirilmoqda. Qurilmadagi javobni saqlang va birozdan keyin qayta urinib ko‘ring.'});
+   const snapshot=await store.read(req,res);
+   if((snapshot as any).writesFrozen && !['GET','HEAD','OPTIONS'].includes(req.method))return res.status(503).set('Retry-After','30').json({code:'MIGRATION_IN_PROGRESS',error:'Ma’lumotlar xavfsiz ko‘chirilmoqda. Qurilmadagi javobni saqlang va birozdan keyin qayta urinib ko‘ring.'});
    const readMs=performance.now()-began;
    const baseState=JSON.stringify(snapshot.state);
    const context={...snapshot,dirty:false,afterCommit:[] as Array<()=>void>};
@@ -24,7 +24,7 @@ return async (req,res,next) => {
      void (async()=>{
        try {
          const commitBegan=performance.now();
-         if(context.dirty) await store.write(context.state,context.revision,baseState);
+         if(context.dirty){if((snapshot as any).readOnly)throw Error('Scoped exam context cannot mutate school records');await store.write(context.state,context.revision,baseState);}
          for(const action of context.afterCommit)action();
          res.setHeader('Server-Timing',`state;dur=${readMs.toFixed(1)}, commit;dur=${(performance.now()-commitBegan).toFixed(1)}`);
          json(sessionBody(res,body));

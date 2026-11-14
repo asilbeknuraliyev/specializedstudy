@@ -31,6 +31,12 @@ export const readSupabaseState=coalescedRead(async()=>{
  cache={revision:snapshot.revision,serialized:JSON.stringify(snapshot.state)};
  return{state:structuredClone(snapshot.state),revision:snapshot.revision};
 });
+export async function readSupabaseExamContext(uid:string,exam:string){
+ const scope=await studyRpc<{state:Partial<PersistentDatabaseState>;revision:string;readOnly:true}|null>('study_read_exam_context',{p_namespace:runtimeNamespace(),p_user:uid,p_exam:exam});
+ if(!scope)return readSupabaseState();
+ const {createEmptyDatabaseState}=await import('./dbEngine');
+ return {...scope,state:{...createEmptyDatabaseState(),...scope.state} as PersistentDatabaseState};
+}
 export async function writeSupabaseState(state:PersistentDatabaseState,expectedRevision:string|null,baseState?:string,retry=0):Promise<string>{
  const before=stateRows(baseState?JSON.parse(baseState):{}),after=stateRows(state),old=new Map(before.rows.map(r=>[r.collection+'\0'+r.key,r])),next=new Map(after.rows.map(r=>[r.collection+'\0'+r.key,r]));
  const changes:any[]=[];

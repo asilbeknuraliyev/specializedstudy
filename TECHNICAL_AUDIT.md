@@ -1,5 +1,16 @@
 # Technical audit — 2026-11-05
 
+## Supabase migration and local AppSec validation — 2026-11-14
+
+- Private PostgreSQL schema stores domain records individually; server-only security-definer RPCs have fixed search paths and revoked browser execution. Independent exam rows use optimistic versions and bounded retry. General domain services still use a request-local compatibility state; this is not yet a full domain-query rewrite.
+- Google auth uses Supabase PKCE. Existing application IDs and approved grants are preserved through trusted migration metadata. Client user_metadata cannot assign roles. Native password hashes and HttpOnly signed sessions remain server-managed.
+- Emulator-only audit confirmed six legacy Firestore/Storage browser access flaws. Revised rules deny these operations, including browser admin writes. No production exploit or load traffic was sent. Rules deployment and release status must be checked separately from these local results.
+- Exact-origin CORS replaces hosting-provider wildcards. Static Vercel pages and API responses receive CSP and related browser headers. JSON errors return safe messages. Unsigned private API requests are rejected before database reads; hosted state cannot silently fall back to local files.
+- Shared PostgreSQL login ingress limits complement per-account throttles. Native login scrypt is asynchronous, including a dummy calculation for unknown accounts. Bulk credential creation still needs bounded asynchronous hashing before large-scale onboarding.
+- Validation: TypeScript and production build passed; 148 unit tests and 2 generated native-handler tests passed. Six targeted migration/perimeter tests passed, including real local PostgreSQL CAS and revoked browser SQL/RPC access. Dependency audit with dev packages omitted reports zero findings after the compatible Node 22 rimraf patch. A format-based scan of all 75 available commits found no private-key or Supabase-secret literals; this is not a guarantee that arbitrary credentials never existed.
+- Source backup and initial SQL copy compare equal after intentional trusted provider-link additions. All 26 formal exam media objects were copied to private Storage and compared; source has zero independent v2 session heads. Original Google identities and four native credential hashes are preserved. Firebase Storage inventory remains unverified until a credential with bucket read permission is available.
+- Free-tier quotas, single-project namespace isolation, large frontend chunks and compatibility-state reads remain capacity constraints. No 1,000-user cloud load certification is claimed. Production cutover must use a legacy write fence, final reconciliation and a fresh production build with production-scoped variables; never promote a preview build containing preview environment values.
+
 ## Baseline
 Existing substantial React/TypeScript/Vite application, Express API, Firebase SDKs, Tailwind, custom HMAC sessions, Gemini integration and spreadsheet import utilities. Admin/student pages, curriculum, assessment, attendance, assignments, materials and reporting have implementations. Presence of code is not proof of operational readiness; authenticated end-to-end flows remain unverified.
 

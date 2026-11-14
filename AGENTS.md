@@ -1,13 +1,13 @@
 # Specialized Study — development instructions
 
 ## Architecture
-React 19 + TypeScript + Vite + Tailwind frontend. React Router routes are in src/App.tsx. LearnOSContext currently owns authentication, API calls and shared state. Express routes are in server.ts; api/index.ts exposes the app for Vercel. Firebase Authentication and private Firestore runtime snapshots persist hosted academic records. Local JSON in src/server/dbEngine.ts is only for development and isolated tests; Firestore mode fails closed without a request context.
+React 19 + TypeScript + Vite + Tailwind frontend. React Router routes are in src/App.tsx. LearnOSContext owns authentication, API calls and shared state. Express routes are in server.ts; api/index.js is the generated Vercel entry. Supabase mode uses private PostgreSQL domain records, independent exam CAS rows, Supabase Google OAuth and a private Storage bucket. Native credentials retain salted scrypt hashes and server-issued HttpOnly sessions. Firebase modules remain for controlled migration/rollback. Local JSON is only for development and isolated tests; hosted persistence fails closed without a request context.
 
 ## Product constraints
 Platform Admin, Student and assigned-class Teacher are active roles (teacher role explicitly authorized by user). Preserve exactly 19 official classes and track defaults in src/constants/curriculum.ts. No demo students, invented metrics or curriculum topics. T-track mathematics requires explicit assignment. Curriculum publication is not evidence of mastery. Subjective grading requires human review. Only recorded attendance sessions count.
 
 ## Security
-Never authorize using frontend email matching. Require verified Firebase identity and server-issued platformAdmin custom claims. API handlers must independently check resource ownership and class scope. Admin SDK bypasses rules. Never weaken rules to make login work. No production test mode, fixed session signing secrets, or fallback local identities. Use server-only credentials; never put Admin SDK or AI secrets in VITE_* variables. Firebase web app configuration is public identification, not an admin credential.
+Never authorize using frontend email matching. Supabase Google admin login requires verified identity, server-only app_metadata grants and existing application profile/private claims. user_metadata is never an authority. Native admin login requires previously granted server privileges. API handlers independently check ownership and class scope. Service-role SDK bypasses RLS: never expose its key. Legacy Firebase browser rules deny all access. No production test mode, fixed signing secrets or fallback local identities. Never put server, service-role or AI secrets in VITE_* variables. Public provider configuration is identification, not an admin credential.
 
 ## Workflow
 Preserve existing functionality and data; make bounded, testable changes. Review TECHNICAL_AUDIT.md before production deployment. Do not reset production data. Keep Uzbek Latin UI copy concise, responsive and accessible. Do not add nonfunctional controls or claim unfinished modules work.

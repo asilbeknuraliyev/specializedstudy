@@ -36,6 +36,8 @@ test("unsigned private requests never read persistence; valid signatures still r
       401,
     );
     assert.equal(reads, 0);
+    for(const path of ['/api/unknown-new-route','/api/accounts','/api/assessments/score','/api/users'])assert.equal((await fetch(base+path,{method:'POST'})).status,401);
+    assert.equal(reads,0);
     assert.equal(
       (
         await fetch(base + "/api/exams/demo/session-v2", {

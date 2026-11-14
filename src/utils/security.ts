@@ -469,28 +469,19 @@ export function isTrustedCorsOrigin(
   origin: string | undefined,
   requestHost?: string
 ): boolean {
-  if (!origin || !origin.trim() || origin.trim().toLowerCase() === 'null') {
-    return true;
-  }
+  if (!origin || !origin.trim()) return true;
+  if (origin.trim().toLowerCase() === 'null') return false;
   try {
     const parsed = new URL(origin.trim());
     const hostname = parsed.hostname.toLowerCase();
     const hostWithPort = parsed.host.toLowerCase();
 
-    if (requestHost && requestHost.trim()) {
-      const candidateHosts = requestHost
-        .split(',')
-        .map((h) => h.trim().toLowerCase())
-        .filter(Boolean);
-      for (const normalizedReqHost of candidateHosts) {
-        if (hostWithPort === normalizedReqHost || hostname === normalizedReqHost.split(':')[0]) {
-          return true;
-        }
-      }
+    if (requestHost && hostWithPort === requestHost.trim().toLowerCase()) {
+      return parsed.protocol === 'https:' || ((hostname === 'localhost' || hostname === '127.0.0.1') && parsed.protocol === 'http:');
     }
 
     if (hostname === 'localhost' || hostname === '127.0.0.1') {
-      return parsed.protocol === 'http:' || parsed.protocol === 'https:';
+      return false;
     }
 
     if (parsed.protocol !== 'https:') {
@@ -511,7 +502,7 @@ export function isTrustedCorsOrigin(
       for (const rawUrl of configuredUrls) {
         try {
           const envParsed = new URL(rawUrl.startsWith('http') ? rawUrl : `https://${rawUrl}`);
-          if (envParsed.hostname.toLowerCase() === hostname) {
+          if (envParsed.origin === parsed.origin) {
             return true;
           }
         } catch {
@@ -520,22 +511,7 @@ export function isTrustedCorsOrigin(
       }
     }
 
-    return (
-      hostname.endsWith('.vercel.app') ||
-      hostname === 'vercel.app' ||
-      hostname.endsWith('.run.app') ||
-      hostname === 'ai.studio' ||
-      hostname.endsWith('.ai.studio') ||
-      hostname.endsWith('.firebaseapp.com') ||
-      hostname.endsWith('.web.app') ||
-      hostname === 'google.com' ||
-      hostname.endsWith('.google.com') ||
-      hostname.endsWith('.googleusercontent.com') ||
-      hostname.endsWith('.goog') ||
-      hostname.endsWith('.cloudworkstations.dev') ||
-      hostname.endsWith('.idx.dev') ||
-      hostname.endsWith('.appspot.com')
-    );
+    return false;
   } catch {
     return false;
   }

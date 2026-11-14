@@ -675,7 +675,7 @@ const memoryCache: Record<'prod' | 'test', PersistentDatabaseState | null> = {
 export function getDbState(env: 'prod' | 'test' = 'prod'): PersistentDatabaseState {
   const context = requestDatabase.getStore();
   if (env === 'prod' && context) return context.state;
-  if (env === 'prod' && ['firestore','supabase'].includes(process.env.PERSISTENCE_DRIVER||'')) {
+  if (env === 'prod' && (process.env.VERCEL || ['firestore','supabase'].includes(process.env.PERSISTENCE_DRIVER||''))) {
     throw new Error('Cloud persistence requires an isolated request context.');
   }
   if (memoryCache[env]) {
@@ -705,7 +705,7 @@ export function getDbState(env: 'prod' | 'test' = 'prod'): PersistentDatabaseSta
 export function saveDbState(env: 'prod' | 'test', state: PersistentDatabaseState): void {
   const context = requestDatabase.getStore();
   if (env === 'prod' && context) { context.state = state; context.dirty = true; return; }
-  if (env === 'prod' && ['firestore','supabase'].includes(process.env.PERSISTENCE_DRIVER||'')) {
+  if (env === 'prod' && (process.env.VERCEL || ['firestore','supabase'].includes(process.env.PERSISTENCE_DRIVER||''))) {
     throw new Error('Cloud persistence cannot fall back to a local file.');
   }
   memoryCache[env] = state;
@@ -773,6 +773,12 @@ export function verifyPassword(password: string, storedHash: string | undefined)
   const derivedBuf = Buffer.from(derived, 'hex');
   if (keyBuf.length !== derivedBuf.length) return false;
   return crypto.timingSafeEqual(keyBuf, derivedBuf);
+}
+export async function verifyPasswordAsync(password:string,storedHash:string|undefined):Promise<boolean>{
+ const valid=!!storedHash&&/^[a-f0-9]{32}:[a-f0-9]{128}$/.test(storedHash);
+ const [salt,key]=valid?storedHash!.split(':'):['missing-account-constant-work', '0'.repeat(128)];
+ const derived=await new Promise<Buffer>((resolve,reject)=>crypto.scrypt(password,salt,64,(error,value)=>error?reject(error):resolve(value)));
+ return crypto.timingSafeEqual(Buffer.from(key,'hex'),derived)&&valid;
 }
 
 export function revokeSessionToken(token: string | undefined): void {
