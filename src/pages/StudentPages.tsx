@@ -1,3 +1,4 @@
+import {SubmissionReceipt} from '../components/SubmissionReceipt';
 import {canTakeExam,examCanStart} from '../utils/examPolicy';
 import {ExamAnswerContent} from '../components/ExamAnswers';
 import { ExamRunner } from '../components/ExamRunner';
@@ -1439,7 +1440,7 @@ export const AssessmentResultPage: React.FC = () => {
     );
   }
 
-  if(attempt.status==='pending_manual_review'||attempt.gradingStatus==='pending_manual_review')return <div className="mx-auto max-w-3xl space-y-6 py-6"><section className="rounded-3xl bg-slate-950 p-8 text-white"><p className="text-sm text-blue-300">Ish qabul qilindi</p><h1 className="mt-3 text-2xl font-bold">{attempt.assessmentTitle}</h1><p className="mt-4 text-sm leading-7 text-slate-300">Yozma javoblaringiz tekshiruvda. Yakuniy baho o‘qituvchi baholaganidan keyin ko‘rinadi.</p></section><div className="ss-surface space-y-5 p-6">{attempt.answers.map((answer,i)=><div key={answer.questionId} className="border-b pb-4"><h2 className="mb-2 font-semibold">{i+1}-savolga javobingiz</h2><ExamAnswerContent answer={answer.selectedAnswer||''}/></div>)}</div><Link to="/student/assessments" className="ss-primary">Nazorat ishlariga qaytish</Link></div>;
+  if(attempt.status==='pending_manual_review'||attempt.gradingStatus==='pending_manual_review')return <div className="mx-auto max-w-3xl space-y-6 py-6"><SubmissionReceipt receipt={(attempt as any).receipt}/><section className="rounded-3xl bg-slate-950 p-8 text-white"><p className="text-sm text-blue-300">Ish qabul qilindi</p><h1 className="mt-3 text-2xl font-bold">{attempt.assessmentTitle}</h1><p className="mt-4 text-sm leading-7 text-slate-300">Yozma javoblaringiz tekshiruvda. Yakuniy baho o‘qituvchi baholaganidan keyin ko‘rinadi.</p></section><div className="ss-surface space-y-5 p-6">{attempt.answers.map((answer,i)=><div key={answer.questionId} className="border-b pb-4"><h2 className="mb-2 font-semibold">{i+1}-savolga javobingiz</h2><ExamAnswerContent answer={answer.selectedAnswer||''}/></div>)}</div><Link to="/student/assessments" className="ss-primary">Nazorat ishlariga qaytish</Link></div>;
 
   const handleRefreshAI = async () => {
     setAiLoading(true);
@@ -1456,7 +1457,7 @@ export const AssessmentResultPage: React.FC = () => {
   };
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-8"><SubmissionReceipt receipt={(attempt as any).receipt}/>
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 dark:border-slate-800 pb-5">
         <div>
           <p className="text-xs text-slate-500">

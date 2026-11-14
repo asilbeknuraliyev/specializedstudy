@@ -1,3 +1,4 @@
+const WorkflowHub=lazy(()=>import('./components/WorkflowHub').then(m=>({default:m.WorkflowHub})));
 import {previewEnabled} from './utils/previewUi';
 import React, { lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
@@ -93,6 +94,7 @@ export default function App() {
         <Suspense fallback={<main className="min-h-[60vh] grid place-items-center text-slate-500" role="status">Sahifa yuklanmoqda…</main>}>
         <Routes>
           <Route path="/account/security" element={<SecurityRoute/>}/><Route path="/admin/accounts" element={<ProtectedRoute allowedRole="admin"><AccountsCenter/></ProtectedRoute>}/><Route path="/help" element={<HelpPage/>}/>{/* Public Routes */}
+          <Route path="/admin/process" element={<ProtectedRoute allowedRole="admin"><WorkflowHub/></ProtectedRoute>}/><Route path="/teacher/content" element={<ProtectedRoute allowedRole="teacher"><WorkflowHub/></ProtectedRoute>}/>
           <Route path="/" element={<LandingPage />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />

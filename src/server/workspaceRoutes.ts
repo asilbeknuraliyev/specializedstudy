@@ -454,9 +454,9 @@ export function registerWorkspaceRoutes(app: Express, deps: any) {
           lessons: lessons.length,
           delivered: lessons.filter((l: any) => l.schoolDeliveredAt).length,
           assignments: assignments.length,
-          waiting: submissions.filter((s: any) =>
-            ["Topshirildi", "Tekshirilmoqda"].includes(s.status),
-          ).length,
+          waiting: submissions.filter((s:any)=>["Topshirildi","Tekshirilmoqda"].includes(s.status)).length
+            +(c.db.attempts||[]).filter((a:any)=>a.institutionId===c.user.institutionId&&a.status==='pending_manual_review'&&ids.has(a.classId)&&(admin||c.db.assessments.some((e:any)=>e.id===a.assessmentId&&e.teacherId===c.user.uid&&e.subject===c.user.subject))).length
+            +(c.db.topicSessions||[]).filter((s:any)=>s.schoolId===c.user.institutionId&&s.submittedAt&&s.pending&&ids.has(s.classId)&&(admin||s.subject===c.user.subject)).length,
           attendance: attendance.length,
           absent: attendance.filter(
             (a: any) => a.date === today && a.status === "ABSENT",

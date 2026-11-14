@@ -47,6 +47,7 @@ export function publicStudentAttempt(
     "submittedAt",
     "topicBreakdown",
     "revision",
+    "receipt",
   ];
   const answerFields = [
     "questionId",

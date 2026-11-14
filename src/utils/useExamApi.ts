@@ -28,6 +28,7 @@ export function useExamApi() {
       if (!response.ok)
         throw Object.assign(Error(data.error || "Amal bajarilmadi."), {
           status: response.status,
+          code: data.code,
           fields: data.fields,
           errors: data.errors,
         });

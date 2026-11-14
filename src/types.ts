@@ -827,6 +827,7 @@ export interface TopicBreakdownItem {
 }
 
 export interface AssessmentAttempt {
+  receipt?: import('./utils/examReliability').ExamReceipt;
   resultKeysHidden?: boolean;
   id: string;
   assessmentId: string;
@@ -2048,6 +2049,9 @@ export interface FeedbackComment {
 }
 
 export interface AISuggestedEvaluation {
+  source?: 'local_rules' | 'gemini';
+  model?: string;
+  inputRevision?: number;
   suggestedTotalPoints: number;
   maxPoints: number;
   criterionBreakdown: AssignmentCriterionScore[];

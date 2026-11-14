@@ -1,3 +1,4 @@
+import {roleNavigation} from '../utils/roleNavigation';
 import {previewEnabled} from '../utils/previewUi';
 import {PanelNavigation,ProfileMenu} from './PanelNavigation';
 import {useRouteScroll} from '../utils/useRouteScroll';
@@ -136,51 +137,13 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
 
   const isActiveTestRunner = /^\/student\/assessments\/[^/]+$/.test(location.pathname);
 
-  const allNavItems = isAdminAccount
-    ? [
-        { to: '/admin/dashboard', label: 'Bosh sahifa', icon: LayoutDashboard, end: true },
-        {to:'/admin/demo',label:'DEMO sinf',icon:GraduationCap},
-        { to: '/admin/content', label: 'Kontent markazi', icon: FileSpreadsheet },
-        {to:'/admin/accounts',label:'Hisoblar',icon:Users},
-        { to: '/admin/classes', label: 'Sinflar', icon: Users },
-        {to:'/admin/discipline',label:'Intizom va yordam',icon:HeartHandshake},
-        { to: '/admin/teachers', label: 'O‘qituvchilar', icon: Users },
-        { to: '/admin/students', label: "O'quvchilar", icon: GraduationCap },
-        { to: '/admin/timetable', label: 'Jadval', icon: Calendar },
-        { to: '/admin/assignments', label: 'Topshiriqlar', icon: FileText },
-        { to: '/admin/announcements', label: "E'lonlar", icon: Megaphone },
-        { to: '/admin/materials', label: 'Materiallar', icon: Library },
-        { to: '/admin/grading', label: 'Tekshiruv', icon: Award },
-        { to: '/admin/calendar', label: 'Kalendar', icon: CalendarCheck },
-        { to: '/admin/attendance', label: 'Davomat', icon: CalendarCheck },
-        { to: '/admin/subjects', label: 'Fanlar', icon: Layers },
-        { to: '/admin/work-plans', label: 'Ish rejalari', icon: FileSpreadsheet },
-        { to: '/admin/lessons', label: 'Darslar', icon: BookOpen },
-        { to: '/admin/curriculum-map', label: "O'quv xaritasi", icon: Compass },
-        {to:'/admin/learning-demo',label:'O‘quv tsikli DEMO',icon:ClipboardCheck},{to:'/admin/topic-bank',label:'Mavzu testlari',icon:ClipboardCheck},{to:'/admin/topic-review',label:'Mavzu yozma tekshiruv',icon:FileText},
-        { to: '/admin/assessments', label: 'Testlar', icon: ClipboardCheck },
-        { to: '/admin/results', label: 'Natijalar', icon: BarChart3 },
-        { to: '/admin/reports', label: 'Hisobotlar', icon: FileSpreadsheet },
-        { to: '/admin/alerts', label: 'Ogohlantirishlar', icon: AlertTriangle },
-        { to: '/admin/support-plans', label: 'Yordam rejalari', icon: HeartHandshake },
-        { to: '/admin/settings', label: 'Sozlamalar', icon: Settings },
-      ]
-    : currentUser.role==='teacher'?[{to:'/teacher/dashboard',label:'Bugungi ishlar',icon:Users,end:true},{to:'/teacher/discipline',label:'Intizom va yordam',icon:HeartHandshake},{to:'/teacher/topic-bank',label:'Mavzu testlari',icon:ClipboardCheck},{to:'/teacher/topic-review',label:'Yozma tekshiruv',icon:FileText},{to:'/teacher/workspace/attendance',label:'Davomat',icon:CalendarCheck},{to:'/teacher/workspace/assignments',label:'Vazifalar',icon:FileText},{to:'/teacher/workspace/materials',label:'Materiallar',icon:Library},{to:'/teacher/workspace/students',label:'O‘quvchi 360°',icon:Users},{to:'/teacher/workspace/support',label:'Yordam rejalari',icon:HeartHandshake}]:[
-        {to:'/student/dashboard',label:'Bosh sahifa',icon:LayoutDashboard,end:true},
-        {to:'/student/lessons',label:'Fanlar',icon:BookOpen},
-        {to:'/student/timetable',label:'Jadval',icon:Calendar},
-        {to:'/student/tasks',label:'Vazifalar',icon:ClipboardCheck},
-        {to:'/student/me',label:'Men',icon:UserIcon},
-      ];
+  const icons=isAdminAccount?[LayoutDashboard,BookOpen,Users,FileText,Settings]:currentUser.role==='teacher'?[Calendar,Users,ClipboardCheck,Library,FileText]:[LayoutDashboard,BookOpen,ClipboardCheck,FileText,UserIcon];
+  const allNavItems=roleNavigation(currentUser.role).map(([to,label],i)=>({to,label,icon:icons[i],end:true}));
   const navItems=allNavItems.filter(i=>previewEnabled||!/(?:^|\/)(?:demo|learning-demo)(?:$|\/)/.test(i.to));
   const studentMobileBottomItems=navItems;
 
   // Mobile drawer items (for Students includes secondary actions like Natijalar & Profil)
-  const mobileDrawerItems = (isAdminAccount || currentUser.role==='teacher')
-    ? navItems
-    : [
-        ...navItems,{to:'/student/discipline',label:'Intizom va yordam',icon:HeartHandshake},
-      ];
+  const mobileDrawerItems=navItems;
 
   // Clean section title for header
   const resolveSectionTitle = (): string => {
@@ -292,7 +255,7 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
           </div>
 
           <nav className="min-h-0 overflow-y-auto p-2.5 space-y-0.5">
-            <PanelNavigation items={navItems} grouped={currentUser.role!=='student'}/>
+            <PanelNavigation items={navItems} grouped={false}/>
           </nav>
         </div>
 
@@ -325,7 +288,7 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
                 </button>
               </div>
               <nav className="p-2.5 space-y-1 overflow-y-auto max-h-[calc(100dvh-56px)]">
-                <PanelNavigation items={mobileDrawerItems} grouped={currentUser.role!=='student'}/>
+                <PanelNavigation items={mobileDrawerItems} grouped={false}/>
               </nav>
             </div>
 

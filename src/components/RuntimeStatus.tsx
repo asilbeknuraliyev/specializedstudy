@@ -6,10 +6,11 @@ export function RuntimeStatus({ value }: { value: any }) {
     read_failed: "Snapshot o‘qilmadi",
     write_failed: "Snapshot saqlanmadi",
     internal: "Ichki xato",
+    quota_exhausted: "Firebase kvotasi tugagan",
   };
   return (
     <section className="mt-6 space-y-4 border-t pt-5">
-      <h3 className="font-semibold">Snapshot saqlash kuzatuvi</h3>
+      <h3 className="font-semibold">Ma’lumot saqlash kuzatuvi</h3>
       <p className="text-xs leading-6 text-slate-500">
         Faqat hozirgi server nusxasidagi hujjat o‘qish/yozish urinishlari. Nusxa
         yangilansa sanash qayta boshlanadi. Bu hisob-faktura yoki loyihaning

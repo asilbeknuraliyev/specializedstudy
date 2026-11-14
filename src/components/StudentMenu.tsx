@@ -1,2 +1,73 @@
-import React from 'react';import {Link} from 'react-router-dom';import {useLearnOS} from '../context/LearnOSContext';import {Card} from './DesignSystem';
-export function StudentMenu(){const {currentUser}=useLearnOS();return <main className="mx-auto max-w-4xl space-y-5"><header><p className="text-xs font-semibold uppercase tracking-widest text-blue-600">Mening shaxsiy bo‘limim</p><h1 className="mt-2 text-3xl font-bold">Men</h1><p className="mt-3 text-sm text-slate-500">{currentUser?.displayName} · {currentUser?.classCode?.toUpperCase()||'Sinf biriktirilmagan'}</p></header><div className="grid gap-3 sm:grid-cols-2">{[['/student/practice','Flashcards va o‘quv mashqlari','Sinf savollaridan qisqa, bosimsiz mashqlar.'],['/student/learning-privacy','O‘quv ma’lumotlarim','Ixtiyoriy pilot roziligi va ma’lumot so‘rovi.'],['/student/notifications','Bildirishnomalar','Menga tegishli shaxsiy xabarlar.'],['/student/workspace/attendance','Davomatim','Darslarga qatnashish tarixim.'],['/student/workspace/support','Yordam rejalari','Ustozimning shaxsiy o‘quv tavsiyalari.'],['/student/workspace/assignments','Yozma vazifalarim','Javob, qoralama va ustoz fikri.'],['/student/topic-tests','Mavzu testlari va tarixim','O‘z mashqlarim va izohli natijalar.'],['/student/topic-progress','Mening o‘sish xaritam','Rasmiy baho bo‘lmagan shaxsiy progress.'],['/student/mistakes','Xatolar daftari','Xatolarni tushunish va mustaqil qayta yechish.'],['/student/review','Bugungi takrorlash','Qisqa mashq, kunlik bosimsiz chegara.'],['/student/results','Natijalarim','Faqat o‘zimga tegishli ishlar.'],['/student/discipline','Intizom va yordam','Shaxsiy qaydlar, izoh va e’tirozlar.'],['/student/knowledge-map','O‘quv xaritasi','Mavzular bo‘yicha yo‘l-yo‘riq.'],['/student/profile','Profilim','Shaxsiy profil va maqsadlar.'],['/account/security','Hisob xavfsizligi','Parol va Google hisobini boshqarish.'],['/help','Yordam','Platformadan foydalanish bo‘yicha qo‘llanma.']].map(([to,title,description])=><Link to={to} key={to}><Card className="h-full"><h2 className="font-semibold">{title} →</h2><p className="mt-2 text-sm leading-6 text-slate-500">{description}</p></Card></Link>)}</div></main>;}
+import React from "react";
+import { Link } from "react-router-dom";
+import { useLearnOS } from "../context/LearnOSContext";
+import { Card } from "./DesignSystem";
+const learning = [
+  ["/student/review", "Takrorlash"],
+  ["/student/mistakes", "Xatolar daftari"],
+  ["/student/practice", "Fleshkarta va mashqlar"],
+  ["/student/topic-progress", "Shaxsiy o‘sish"],
+  ["/student/knowledge-map", "O‘quv xaritasi"],
+];
+const school = [
+  ["/student/timetable", "Dars jadvali"],
+  ["/student/workspace/attendance", "Davomat"],
+  ["/student/workspace/support", "Ustoz tavsiyalari"],
+  ["/student/discipline", "Intizom va apellyatsiya"],
+  ["/student/learning-privacy", "Rozilik va o‘quv ma’lumotlarim"],
+];
+export function StudentMenu() {
+  const { currentUser } = useLearnOS();
+  return (
+    <main className="mx-auto max-w-3xl space-y-5">
+      <header>
+        <p className="text-xs font-semibold text-blue-600">SHAXSIY BO‘LIM</p>
+        <h1 className="mt-2 text-3xl font-bold">Men</h1>
+        <p className="mt-3 text-sm text-slate-500">
+          {currentUser?.displayName} ·{" "}
+          {currentUser?.classCode?.toUpperCase() || "Sinf biriktirilmagan"}
+        </p>
+      </header>
+      <div className="grid grid-cols-2 gap-3">
+        {[
+          ["/student/profile", "Profil va maqsadlar"],
+          ["/student/notifications", "Bildirishnomalar"],
+          ["/account/security", "Hisob xavfsizligi"],
+          ["/help", "Yordam"],
+        ].map(([to, label]) => (
+          <Link key={to} to={to}>
+            <Card className="flex min-h-24 items-center text-sm font-semibold">
+              {label} →
+            </Card>
+          </Link>
+        ))}
+      </div>
+      {[
+        ["O‘qishim va rivojlanishim", learning],
+        ["Maktabdagi holatim", school],
+      ].map(([title, items]) => (
+        <details key={title as string} className="ss-surface p-4">
+          <summary className="min-h-11 cursor-pointer content-center font-semibold">
+            {title as string}
+          </summary>
+          <nav className="mt-3 space-y-2">
+            {(items as string[][]).map(([to, label]) => (
+              <Link
+                key={to}
+                to={to}
+                className="ss-secondary w-full justify-between"
+              >
+                {label}
+                <span aria-hidden>→</span>
+              </Link>
+            ))}
+          </nav>
+        </details>
+      ))}
+      <p className="text-sm leading-7 text-slate-500">
+        Bugungi ishlar — Bugun sahifasida. Topshiriqlar — Vazifalarda, ustoz
+        bahosi — Natijalarda.
+      </p>
+    </main>
+  );
+}

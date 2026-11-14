@@ -2,6 +2,8 @@ import {deliveredNotification} from './src/utils/notificationPolicy';
 import {schoolDay} from './src/server/spacedReviewEngine';
 import {registerAiAccessGuard} from './src/server/aiAccessGuard';
 import {registerDisciplineRoutes} from './src/server/disciplineRoutes';
+import {finiteScoreOrFallback} from './src/utils/examReliability';
+import {registerExamReliabilityRoutes} from './src/server/examReliabilityRoutes';
 import {registerWorkspaceRoutes} from './src/server/workspaceRoutes';
 import {registerReinforcementRoutes} from './src/server/reinforcementRoutes';
 import {registerSchoolAdminRoutes} from './src/server/schoolAdminRoutes';
@@ -528,6 +530,7 @@ async function startServer() {
   registerWorkspaceRoutes(app,{authenticate:authenticateRequest,save:saveDbState});
   registerReinforcementRoutes(app,{authenticate:authenticateRequest,save:saveDbState});
   registerSchoolAdminRoutes(app,{authenticate:authenticateRequest,save:saveDbState,revoke:revokeAllUserSessions});
+  registerExamReliabilityRoutes(app, {authenticate:authenticateRequest,save:saveDbState});
   registerExamRoutes(app, {authenticate: authenticateRequest, save: saveDbState, notify: broadcastInstitutionUpdate});
   registerTopicRoutes(app,{authenticate:authenticateRequest,save:saveDbState});
   registerLearningDemoRoutes(app,{authenticate:authenticateRequest,save:saveDbState,hash:hashPassword,revoke:(uid:string)=>revokeAllUserSessions(uid)});
@@ -10475,7 +10478,7 @@ Savollar va javoblar: ${JSON.stringify(anonymizedAnswers)}
     }
 
     const { submissionId, rubricId } = req.body;
-    const sub = (db.assignmentSubmissions || []).find((s) => s.id === submissionId);
+    const sub = (db.assignmentSubmissions || []).find((s) => s.id === submissionId && s.institutionId === user.institutionId);
     if (!sub) return res.status(404).json({ error: 'Topshiriq javobi topilmadi.' });
 
     const asg = (db.studentAssignments || []).find((a) => a.id === sub.assignmentId);
@@ -10519,6 +10522,7 @@ Savollar va javoblar: ${JSON.stringify(anonymizedAnswers)}
         confidence: hasFormulaOrSteps ? 'high' : 'medium',
         generatedAt: nowIso,
         approvalStatus: 'pending_admin_approval',
+        source: 'local_rules', inputRevision: (sub as any).revision || 0,
       };
     };
 
@@ -10557,7 +10561,8 @@ MUHIM: Bu faqat administrator ko'rib chiqishi uchun dastlabki tavsiya. O'zbek ti
         const baseFallback = buildDeterministicSuggestion();
         aiSuggestion = {
           ...baseFallback,
-          suggestedTotalPoints: Math.max(0, Math.min(sub.maxScore, Number(parsed.suggestedTotalPoints) || baseFallback.suggestedTotalPoints)),
+          source: 'gemini', model: 'gemini-3-flash-preview', inputRevision: (sub as any).revision || 0,
+          suggestedTotalPoints: finiteScoreOrFallback(parsed.suggestedTotalPoints, baseFallback.suggestedTotalPoints, sub.maxScore),
           suggestedFeedback: parsed.suggestedFeedback || baseFallback.suggestedFeedback,
           mistakeExplanation: parsed.mistakeExplanation || baseFallback.mistakeExplanation,
           recommendedLessonTitle: parsed.recommendedLessonTitle || baseFallback.recommendedLessonTitle,

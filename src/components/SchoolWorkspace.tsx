@@ -1,3 +1,4 @@
+import {ReviewDesk} from './ReviewDesk';
 import {FeedbackTemplates} from './FeedbackTemplates';
 import { StudentLearningSummary } from "./StudentLearningSummary";
 import { SchoolReport } from "./SchoolReport";
@@ -920,7 +921,7 @@ export function SchoolWorkspace() {
         </>
       )}
       {module === "grading" && (
-        <>
+        <ReviewDesk>
           {filtered(data.submissions).map((s: any) => (
             <Card key={s.id}>
               <h2 className="font-bold">
@@ -957,7 +958,7 @@ export function SchoolWorkspace() {
               O‘quvchilar vazifani topshirgach, shu yerda ko‘rasiz.
             </EmptyState>
           )}
-        </>
+        </ReviewDesk>
       )}
       {module === "materials" && (
         <>

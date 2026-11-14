@@ -14,7 +14,7 @@ export function createRuntimeMetrics(clock = () => Date.now()) {
     failure: (value: unknown) => {
       const kind =
         typeof value === "string" &&
-        ["conflict", "read_failed", "write_failed"].includes(value)
+        ["conflict", "read_failed", "write_failed", "quota_exhausted"].includes(value)
           ? value
           : "internal";
       if (kind === "conflict") conflicts++;
@@ -31,3 +31,4 @@ export function createRuntimeMetrics(clock = () => Date.now()) {
   };
 }
 export const runtimeMetrics = createRuntimeMetrics();
+export function quotaExhausted(error:any){return error?.code===8||error?.code==='resource-exhausted'||error?.status===429;}
