@@ -148,6 +148,7 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
   // Clean section title for header
   const resolveSectionTitle = (): string => {
     const p = location.pathname;
+    const primary=allNavItems.find(item=>item.to===p);if(primary)return primary.label;
     if (p === '/admin' || p === '/admin/dashboard' || p === '/student' || p === '/student/dashboard') {
       return 'Bosh sahifa';
     }

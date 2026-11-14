@@ -5114,7 +5114,14 @@ var FirestoreExamSessionStore = class {
   async deleteFixture(key) {
     if (!this.root().startsWith("_specialized_preview_") || !/^[a-f0-9]{64}$/.test(key))
       throw Error("Preview fixture cleanup only");
-    await this.db().recursiveDelete(this.db().doc(this.root() + "/" + key));
+    const db = this.db(), ref = db.doc(this.root() + "/" + key);
+    await db.runTransaction(async (tx) => {
+      await tx.get(ref);
+      const chunks = await tx.get(ref.collection("chunks").limit(351));
+      if (chunks.size > 350) throw Error("Preview fixture requires bounded operator cleanup");
+      for (const chunk of chunks.docs) tx.delete(chunk.ref);
+      tx.delete(ref);
+    });
   }
   db() {
     return this.provider ? this.provider() : getFirestore(

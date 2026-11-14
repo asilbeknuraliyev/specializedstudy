@@ -126,7 +126,16 @@ export class FirestoreExamSessionStore implements ExamSessionStore {
       !/^[a-f0-9]{64}$/.test(key)
     )
       throw Error("Preview fixture cleanup only");
-    await this.db().recursiveDelete(this.db().doc(this.root() + "/" + key));
+    const db = this.db(), ref = db.doc(this.root() + "/" + key);
+    // A bounded transaction avoids recursive bulk-writer retries in the HTTP cleanup path.
+    // Reading the head also fences any concurrent save before deleting its chunks.
+    await db.runTransaction(async (tx) => {
+      await tx.get(ref);
+      const chunks = await tx.get(ref.collection("chunks").limit(351));
+      if (chunks.size > 350) throw Error("Preview fixture requires bounded operator cleanup");
+      for (const chunk of chunks.docs) tx.delete(chunk.ref);
+      tx.delete(ref);
+    });
   }
   constructor(
     private provider?: () => Firestore,

@@ -162,6 +162,13 @@ test("actual Firestore adapter survives concurrent instances and >1MB payload ch
       .doc(restoredRoot + "/" + key + "/chunks/" + archived.chunks[0])
       .update({ bytes: Buffer.from("corrupted") });
     await assert.rejects(restored.read(key), /integrity/);
+    await assert.rejects(restored.deleteFixture("invalid"), /Preview fixture/);
+    const production = new FirestoreExamSessionStore(() => db, "_specialized_runtime");
+    await assert.rejects(production.deleteFixture(key), /Preview fixture/);
+    await restored.deleteFixture(key);
+    assert.equal(await restored.read(key), undefined);
+    assert.equal((await db.doc(restoredRoot + "/" + key).collection("chunks").get()).size, 0);
+    await restored.deleteFixture(key); // Idempotent even after an interrupted prior cleanup.
   } finally {
     await db.recursiveDelete(db.collection(root));
     await db.recursiveDelete(
