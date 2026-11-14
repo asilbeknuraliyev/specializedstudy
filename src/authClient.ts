@@ -15,7 +15,7 @@ export const getIdTokenResult=async(_user:User,_refresh=false)=>({claims:{provid
 export function onAuthStateChanged(_auth:typeof auth,listener:(user:User|null)=>unknown){const {data}=providerClient.auth.onAuthStateChange((_event,session)=>{if(session){mapped(session.user,session.access_token);void listener(auth.currentUser);}else{auth.currentUser=null;void listener(null);}});return()=>data.subscription.unsubscribe();}
 let redirectResult:Promise<{user:User}|null>|undefined;
 export function getRedirectResult(_auth:typeof auth){return redirectResult||=(async()=>{
- const url=new URL(window.location.href);if(window.opener||url.pathname!=='/auth/callback')return null;
+ const url=new URL(window.location.href);if(window.opener||window.sessionStorage.getItem('ss_oauth_popup_nonce')||url.pathname!=='/auth/callback')return null;
  const code=url.searchParams.get('code');if(!code)return null;
  window.history.replaceState({},'',url.pathname);
  const {data,error}=await providerClient.auth.exchangeCodeForSession(code);if(error||!data.session)throw Error('Google kirishini tasdiqlab bo‘lmadi.');
@@ -31,9 +31,13 @@ export async function signInWithPopup(_auth:typeof auth,_provider:GoogleAuthProv
  try{
   const url=await authorizeUrl(window.location.origin+'/auth/callback');
   const code=await new Promise<string>((resolve,reject)=>{
-   let done=false;const finish=(error?:Error,value?:string)=>{if(done)return;done=true;window.removeEventListener('message',received);clearInterval(poll);clearTimeout(timeout);if(error)reject(error);else resolve(value!);};
+   // OAuth providers may sever window.opener through COOP. The same-origin channel
+   // is scoped by a one-time random nonce; the resulting code still requires our PKCE verifier.
+   const channel=typeof BroadcastChannel==='undefined'?undefined:new BroadcastChannel('ss-oauth-'+nonce);
+   let done=false;const finish=(error?:Error,value?:string)=>{if(done)return;done=true;window.removeEventListener('message',received);channel?.close();clearInterval(poll);clearTimeout(timeout);if(error)reject(error);else resolve(value!);};
    const received=(event:MessageEvent)=>{if(event.origin!==window.location.origin||event.source!==popup||event.data?.type!=='ss-oauth-code'||event.data.nonce!==nonce)return;if(typeof event.data.code!=='string'||event.data.code.length>4000)return finish(Error('Kirish javobi rad etildi.'));finish(undefined,event.data.code);};
-   const poll=setInterval(()=>{if(popup.closed)finish(Object.assign(Error('Kirish oynasi yopildi.'),{code:'auth/popup-closed-by-user'}));},500),timeout=setTimeout(()=>finish(Error('Kirish vaqti tugadi.')),180000);
+   if(channel)channel.onmessage=(event)=>{if(event.origin!==window.location.origin||event.data?.type!=='ss-oauth-code'||event.data.nonce!==nonce)return;if(typeof event.data.code!=='string'||event.data.code.length>4000)return finish(Error('Kirish javobi rad etildi.'));finish(undefined,event.data.code);};
+   const poll=setInterval(()=>{if(!channel&&popup.closed)finish(Object.assign(Error('Kirish oynasi yopildi.'),{code:'auth/popup-closed-by-user'}));},500),timeout=setTimeout(()=>finish(Error('Kirish vaqti tugadi.')),180000);
    window.addEventListener('message',received);popup.location.assign(url);
   });
   const {data,error}=await providerClient.auth.exchangeCodeForSession(code);if(error||!data.session)throw Error('Google sessiyasini tekshirib bo‘lmadi.');return{user:mapped(data.user,data.session.access_token)};

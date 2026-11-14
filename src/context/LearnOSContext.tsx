@@ -1511,8 +1511,9 @@ export const LearnOSProvider: React.FC<{ children: React.ReactNode }> = ({ child
         options?.forceRedirect === true;
       try {
         const provider = createGoogleAuthProvider();
-        // External hosting uses Firebase's popup flow to avoid cross-site redirect storage.
-        const useRedirect = window.location.hostname !== 'specializedschool.vercel.app' && forceRedirect;
+        // Supabase PKCE keeps only the one-time verifier in this tab's sessionStorage.
+        // A top-level redirect works even when providers sever popup opener references.
+        const useRedirect = !((typeof inviteOrOptions === 'object' && inviteOrOptions.preferPopup) || options?.preferPopup) || forceRedirect;
 
         if (useRedirect) {
           if (inviteToken) {
