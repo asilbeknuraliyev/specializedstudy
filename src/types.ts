@@ -110,6 +110,7 @@ export interface UserProfile {
   login?: string;
   mustChangePassword?: boolean;
   linkedGoogleUid?: string;
+  linkedSupabaseUid?: string;
   loginAliases?: string[];
   uid: string;
   displayName: string;

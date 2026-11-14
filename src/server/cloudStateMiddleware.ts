@@ -3,10 +3,12 @@ import {sessionBody} from './sessionCookies';
 import type { RequestHandler } from 'express';
 import { requestDatabase } from './requestDatabase';
 import { readCloudState, writeCloudState, StateConflictError } from './cloudState';
+import {readSupabaseState,writeSupabaseState} from './supabaseState';
+import {supabaseEnabled} from './supabaseClient';
 
-export function createCloudStateMiddleware(store = { read: readCloudState, write: writeCloudState }): RequestHandler {
+export function createCloudStateMiddleware(store = { read: () => supabaseEnabled()?readSupabaseState():readCloudState(), write: (state:any,revision:string,base:string) => supabaseEnabled()?writeSupabaseState(state,revision,base):writeCloudState(state,revision,base) }): RequestHandler {
 return async (req,res,next) => {
- if(process.env.PERSISTENCE_DRIVER!=='firestore'||!req.path.startsWith('/api/')||req.path==='/api/health')return next();
+ if(!['firestore','supabase'].includes(process.env.PERSISTENCE_DRIVER||'')||!req.path.startsWith('/api/')||req.path==='/api/health')return next();
  try {
    const began=performance.now();
    const snapshot=await store.read();
@@ -26,8 +28,9 @@ return async (req,res,next) => {
          res.setHeader('Server-Timing',`state;dur=${readMs.toFixed(1)}, commit;dur=${(performance.now()-commitBegan).toFixed(1)}`);
          json(sessionBody(res,body));
        } catch(error) {runtimeMetrics.failure(quotaExhausted(error)?'quota_exhausted':error instanceof StateConflictError?'conflict':'write_failed');
-         res.status(error instanceof StateConflictError?409:503);
-         json({code:quotaExhausted(error)?'QUOTA_EXHAUSTED':error instanceof StateConflictError?'PERSISTENCE_CONFLICT':'TEMPORARY',error:error instanceof StateConflictError?'Ma’lumot yangilangan. Sahifani yangilab, qayta urinib ko‘ring.':'Ma’lumot saqlanmadi. Keyinroq qayta urinib ko‘ring.'});
+         const conflict=error instanceof StateConflictError||(error as any)?.code==='40001';
+         res.status(conflict?409:503);
+         json({code:quotaExhausted(error)?'QUOTA_EXHAUSTED':conflict?'PERSISTENCE_CONFLICT':'TEMPORARY',error:conflict?'Ma’lumot yangilangan. Sahifani yangilab, qayta urinib ko‘ring.':'Ma’lumot saqlanmadi. Keyinroq qayta urinib ko‘ring.'});
        }
      })();
      return res;

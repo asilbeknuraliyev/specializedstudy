@@ -11,6 +11,7 @@ import {
 import { runtimeNamespace } from "./runtimeScope";
 import { runtimeMetrics } from "./runtimeMetrics";
 import type { DurableExamSession } from "../utils/examReliability";
+import {SupabaseExamSessionStore} from './supabaseExamStore';
 const zip = promisify(gzip),
   unzip = promisify(gunzip);
 export const examSessionKey = (school: string, exam: string, student: string) =>
@@ -253,7 +254,7 @@ function digestScope(school: string, exam: string) {
 let store: ExamSessionStore | undefined;
 export function examSessionStore() {
   return (store ||=
-    process.env.PERSISTENCE_DRIVER === "firestore"
+    process.env.PERSISTENCE_DRIVER === "supabase" ? new SupabaseExamSessionStore() : process.env.PERSISTENCE_DRIVER === "firestore"
       ? new FirestoreExamSessionStore()
       : new LocalExamSessionStore(
           path.resolve(".data/exam-sessions", runtimeNamespace()),

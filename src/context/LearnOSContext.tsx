@@ -9,8 +9,8 @@ import {
   GoogleAuthProvider,
   signOut as firebaseSignOut,
   User as FirebaseUser,
-} from 'firebase/auth';
-import {auth,createGoogleAuthProvider} from '../firebase';
+} from '../authClient';
+import {auth,createGoogleAuthProvider} from '../authClient';
 import {
   mapFirebaseAuthError,
   SanitizedFirebaseAuthError,
@@ -1143,7 +1143,7 @@ export const LearnOSProvider: React.FC<{ children: React.ReactNode }> = ({ child
             try {
               const idToken = await getIdToken(auth.currentUser, false);
               const tokenResult = await getIdTokenResult(auth.currentUser, false);
-              const syncRes = await apiFetch('/api/auth/firebase-sync', {
+              const syncRes = await apiFetch('/api/auth/provider-sync', {
                 method: 'POST',
                 body: JSON.stringify({
                   idToken,
@@ -1227,7 +1227,7 @@ export const LearnOSProvider: React.FC<{ children: React.ReactNode }> = ({ child
       let resStatus = 0;
 
       try {
-        const res = await apiFetch('/api/auth/firebase-sync', {
+        const res = await apiFetch('/api/auth/provider-sync', {
           method: 'POST',
           body: JSON.stringify({
             idToken,
@@ -3825,3 +3825,4 @@ export function useLearnOS(): LearnOSContextValue {
   }
   return ctx;
 }
+

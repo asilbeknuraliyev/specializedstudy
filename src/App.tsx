@@ -8,6 +8,7 @@ const LandingPage = lazy(() => import('./pages/PublicPages').then(module => ({ d
 const AboutPage = lazy(() => import('./pages/PublicPages').then(module => ({ default: module.AboutPage })));
 const PrivacyPage = lazy(() => import('./pages/PublicPages').then(module => ({ default: module.PrivacyPage })));
 const TermsPage = lazy(() => import('./pages/PublicPages').then(module => ({ default: module.TermsPage })));
+const AuthCallback=lazy(()=>import('./components/AuthCallback'));
 const LoginPage = lazy(() => import('./pages/AuthPages').then(module => ({ default: module.LoginPage })));
 const RegisterPage = lazy(() => import('./pages/AuthPages').then(module => ({ default: module.RegisterPage })));
 const StudentMenu=lazy(()=>import('./components/StudentMenu').then(m=>({default:m.StudentMenu})));
@@ -96,7 +97,7 @@ export default function App() {
           <Route path="/account/security" element={<SecurityRoute/>}/><Route path="/admin/accounts" element={<ProtectedRoute allowedRole="admin"><AccountsCenter/></ProtectedRoute>}/><Route path="/help" element={<HelpPage/>}/>{/* Public Routes */}
           <Route path="/admin/process" element={<ProtectedRoute allowedRole="admin"><WorkflowHub/></ProtectedRoute>}/><Route path="/teacher/content" element={<ProtectedRoute allowedRole="teacher"><WorkflowHub/></ProtectedRoute>}/>
           <Route path="/" element={<LandingPage />} />
-          <Route path="/login" element={<LoginPage />} />
+          <Route path="/auth/callback" element={<AuthCallback/>}/><Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
           <Route path="/about" element={<AboutPage />} />
           <Route path="/privacy" element={<PrivacyPage />} />
@@ -504,3 +505,4 @@ export default function App() {
     </LearnOSProvider>
   );
 }
+

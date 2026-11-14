@@ -16,7 +16,7 @@ import {
 import { useLearnOS } from '../context/LearnOSContext';
 import { UserRole } from '../types';
 import { APP_NAME, APP_TAGLINE } from '../constants/curriculum';
-import { getRuntimeAuthDomainDiagnostics } from '../firebase';
+import { getRuntimeAuthDomainDiagnostics } from '../authClient';
 import {
   isMobileOrTouchRedirectPreferred,
   savePostLoginDestination,
@@ -574,3 +574,4 @@ export const RegisterPage: React.FC = () => {
     </div>
   );
 };
+
