@@ -16,13 +16,13 @@ test('local PostgreSQL migration: exact state roundtrip, server-only access, CAS
    const entries=Object.entries(args);for(const [key]of entries)assert.match(key,/^p_[a-z_]+$/);
    const result=await db.query<{result:T}>(`select public.${name}(${entries.map(([key],i)=>key+' => $'+(i+1)).join(',')}) as result`,entries.map(([,v])=>v&&typeof v==='object'?JSON.stringify(v):v));return result.rows[0].result;
   };
-  const namespace='_specialized_preview_supabase',state={users:[{uid:'DEMO-only',role:'student',institutionId:'DEMO-school'}],lessons:[{id:'DEMO-lesson',title:'Lokal sinov'}],passwordHashes:{'DEMO-only':'SYNTHETIC-NONCREDENTIAL'},empty:[],nullable:null,flag:false};
+  const namespace='_specialized_preview_supabase',state={users:[{uid:'DEMO-only',role:'student',institutionId:'DEMO-school'}],refreshSessions:[{id:'DEMO-session',userId:'DEMO-only',institutionId:'DEMO-school',expiresAt:9999999999999},{id:'DEMO-foreign-session',userId:'DEMO-foreign',institutionId:'DEMO-school',expiresAt:9999999999999}],lessons:[{id:'DEMO-lesson',title:'Lokal sinov'}],passwordHashes:{'DEMO-only':'SYNTHETIC-NONCREDENTIAL'},empty:[],nullable:null,flag:false};
   const encoded=stateRows(state),revision=await rpc('study_write_state',{p_namespace:namespace,p_expected_revision:null,p_layout:encoded.layout,p_changes:encoded.rows});
   assert.deepEqual((await rpc('study_read_state',{p_namespace:namespace})).state,state);
   await assert.rejects(rpc('study_write_state',{p_namespace:namespace,p_expected_revision:null,p_layout:encoded.layout,p_changes:[]}),e=>(e as any).code==='40001');
   assert.equal(await rpc('study_state_version',{p_namespace:namespace}),revision);
   const scoped=await rpc('study_read_exam_context',{p_namespace:namespace,p_user:'DEMO-only',p_exam:'missing'});assert.equal(scoped.readOnly,true);assert.equal(scoped.state.users.length,1);assert.deepEqual(scoped.state.passwordHashes,{});assert.ok(!('lessons' in scoped.state));
-  const academic=await rpc('study_read_academic_context',{p_namespace:namespace,p_user:'DEMO-only'});assert.equal(academic.readOnly,true);assert.ok(!('lessons' in academic.state));assert.ok(!('passwordHashes' in academic.state));assert.equal(academic.state.users.length,1);
+  const academic=await rpc('study_read_academic_context',{p_namespace:namespace,p_user:'DEMO-only'});assert.equal(academic.readOnly,true);assert.ok(!('lessons' in academic.state));assert.ok(!('passwordHashes' in academic.state));assert.equal(academic.state.users.length,1);assert.equal(academic.state.refreshSessions.length,1);assert.equal(academic.state.refreshSessions[0].id,'DEMO-session');
   const bucket={p_namespace:namespace,p_key:'a'.repeat(64),p_limit:2,p_window_ms:60000};assert.equal(await rpc('study_auth_rate_limit',bucket),true);assert.equal(await rpc('study_auth_rate_limit',bucket),true);assert.equal(await rpc('study_auth_rate_limit',bucket),false);
   for(const role of ['anon','authenticated']){
    await db.exec('set role '+role);
