@@ -22,6 +22,7 @@ test('local PostgreSQL migration: exact state roundtrip, server-only access, CAS
   await assert.rejects(rpc('study_write_state',{p_namespace:namespace,p_expected_revision:null,p_layout:encoded.layout,p_changes:[]}),e=>(e as any).code==='40001');
   assert.equal(await rpc('study_state_version',{p_namespace:namespace}),revision);
   const scoped=await rpc('study_read_exam_context',{p_namespace:namespace,p_user:'DEMO-only',p_exam:'missing'});assert.equal(scoped.readOnly,true);assert.equal(scoped.state.users.length,1);assert.deepEqual(scoped.state.passwordHashes,{});assert.ok(!('lessons' in scoped.state));
+  const academic=await rpc('study_read_academic_context',{p_namespace:namespace,p_user:'DEMO-only'});assert.equal(academic.readOnly,true);assert.ok(!('lessons' in academic.state));assert.ok(!('passwordHashes' in academic.state));assert.equal(academic.state.users.length,1);
   const bucket={p_namespace:namespace,p_key:'a'.repeat(64),p_limit:2,p_window_ms:60000};assert.equal(await rpc('study_auth_rate_limit',bucket),true);assert.equal(await rpc('study_auth_rate_limit',bucket),true);assert.equal(await rpc('study_auth_rate_limit',bucket),false);
   for(const role of ['anon','authenticated']){
    await db.exec('set role '+role);

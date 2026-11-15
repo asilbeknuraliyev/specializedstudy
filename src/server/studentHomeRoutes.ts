@@ -1,3 +1,4 @@
+import {studentAssignmentVisible} from '../utils/schoolAudience';
 import {reviewSummary} from './spacedReviewEngine';
 import type {Express} from 'express';
 import type {PersistentDatabaseState} from './dbEngine';
@@ -12,7 +13,7 @@ export function studentHomeData(db:PersistentDatabaseState,user:UserProfile,now=
  const selected=tables[0];
  const timetable=(db.timetableEntries||[]).filter(e=>selected&&e.timetableId===selected.id&&e.institutionId===user.institutionId&&e.weekdayIndex===weekday).sort((a,b)=>a.startTime.localeCompare(b.startTime));
  const tasks:Array<{id:string;title:string;subject:string;due:string;kind:'assignment'|'exam';href:string;ready:boolean}>=[];
- for(const a of db.studentAssignments||[]){if(a.institutionId!==user.institutionId||a.status!=='published')continue;const codes=a.targetClassCodes||[],ids=a.targetClassIds||[];if(codes.length||ids.length){if(!codes.includes(user.classCode as any)&&!ids.includes(user.classId||''))continue;}else if(!user.classId)continue;
+ for(const a of db.studentAssignments||[]){if(!studentAssignmentVisible(user,a)||a.status!=='published')continue;const codes=a.targetClassCodes||[],ids=a.targetClassIds||[];if(codes.length||ids.length){if(!codes.includes(user.classCode as any)&&!ids.includes(user.classId||''))continue;}else if(!user.classId)continue;
  const submitted=(db.assignmentSubmissions||[]).some(s=>s.studentId===user.uid&&s.assignmentId===a.id&&Boolean(s.submittedAt||s.submissionDate)&&s.status!=='Qaytarildi');if(!submitted)tasks.push({id:a.id,title:a.title,subject:a.subjectName||a.subject,due:a.dueDate,kind:'assignment',href:'/student/assignments',ready:true});}
  for(const e of db.assessments){if(e.status!=='published'||!canTakeExam(user,e)||!['open','scheduled','paused'].includes(e.examState||'')||Date.parse(e.dueDate)<now.getTime()||db.attempts.some(a=>a.studentId===user.uid&&a.assessmentId===e.id))continue;const ready=examCanStart(e,now.getTime());tasks.push({id:e.id,title:e.title,subject:e.subject||'',due:e.dueDate,kind:'exam',href:ready?`/student/assessments/${e.id}`:'/student/assessments',ready});}
  const demo=db.demoLabs?.find(l=>l.studentId===user.uid);if(demo)for(const e of demo.exams)if(Date.parse(e.due)>now.getTime()&&!demo.responses.some(r=>r.examId===e.id&&r.submittedAt))tasks.push({id:e.id,title:e.title,subject:e.subject,due:e.due,kind:'exam',href:'/student/demo?exam='+e.id,ready:true});

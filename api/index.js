@@ -693,7 +693,7 @@ var init_requestDatabase = __esm({
 });
 
 // src/utils/gamificationEngine.ts
-function getTashkentDateString(date4 = /* @__PURE__ */ new Date()) {
+function getTashkentDateString(date5 = /* @__PURE__ */ new Date()) {
   try {
     const formatter = new Intl.DateTimeFormat("en-CA", {
       timeZone: "Asia/Tashkent",
@@ -701,9 +701,9 @@ function getTashkentDateString(date4 = /* @__PURE__ */ new Date()) {
       month: "2-digit",
       day: "2-digit"
     });
-    return formatter.format(date4);
+    return formatter.format(date5);
   } catch {
-    return date4.toISOString().slice(0, 10);
+    return date5.toISOString().slice(0, 10);
   }
 }
 function getIsoWeekKey(dateStr) {
@@ -1541,7 +1541,7 @@ function buildUnifiedAcademicCalendarEvents(params) {
   }
   for (const lesson of lessons) {
     if (!lesson.scheduledDate || !/^\d{4}-\d{2}-\d{2}/.test(lesson.scheduledDate)) continue;
-    const dateOnly = lesson.scheduledDate.slice(0, 10);
+    const dateOnly2 = lesson.scheduledDate.slice(0, 10);
     const kind = (lesson.lessonKind || lesson.milestoneType || lesson.lessonType || "").toUpperCase();
     const category = kind === "BSB" ? "bsb" : kind === "CHSB" ? "chsb" : kind === "PROJECT" ? "project_work" : "published_lesson";
     const desc = lesson.learningObjective || (Array.isArray(lesson.learningObjectives) ? lesson.learningObjectives.join(", ") : lesson.learningObjectives);
@@ -1551,7 +1551,7 @@ function buildUnifiedAcademicCalendarEvents(params) {
       title: `${lesson.subject || lesson.subjectName}: ${lesson.topicTitle || lesson.topicName || lesson.title}`,
       description: desc,
       category,
-      date: dateOnly,
+      date: dateOnly2,
       classCode: lesson.classCode,
       subject: lesson.subject || lesson.subjectName,
       quarter: lesson.quarter,
@@ -1563,14 +1563,14 @@ function buildUnifiedAcademicCalendarEvents(params) {
   }
   for (const asgn of assignments) {
     if (asgn.status === "draft" || !asgn.dueDate || !/^\d{4}-\d{2}-\d{2}/.test(asgn.dueDate)) continue;
-    const dateOnly = asgn.dueDate.slice(0, 10);
+    const dateOnly2 = asgn.dueDate.slice(0, 10);
     events.push({
       id: `cal_asgn_${asgn.id}`,
       institutionId,
       title: `Topshiriq: ${asgn.title}`,
       description: asgn.description,
       category: "assignment",
-      date: dateOnly,
+      date: dateOnly2,
       classCode: asgn.classCode || asgn.targetClassCodes[0],
       targetClassCodes: asgn.targetClassCodes,
       subject: asgn.subject,
@@ -1582,7 +1582,7 @@ function buildUnifiedAcademicCalendarEvents(params) {
   }
   for (const asmt of assessments) {
     if (asmt.status === "archived" || !asmt.dueDate || !/^\d{4}-\d{2}-\d{2}/.test(asmt.dueDate)) continue;
-    const dateOnly = asmt.dueDate.slice(0, 10);
+    const dateOnly2 = asmt.dueDate.slice(0, 10);
     const upperTitle = asmt.title.toUpperCase();
     const category = upperTitle.includes("CHSB") ? "chsb" : upperTitle.includes("BSB") ? "bsb" : "assessment";
     events.push({
@@ -1591,7 +1591,7 @@ function buildUnifiedAcademicCalendarEvents(params) {
       title: `${category === "bsb" ? "BSB" : category === "chsb" ? "CHSB" : "Nazorat"}: ${asmt.title}`,
       description: asmt.description,
       category,
-      date: dateOnly,
+      date: dateOnly2,
       classCode: asmt.classCode || asmt.assignedClassCodes?.[0],
       targetClassCodes: asmt.assignedClassCodes,
       subject: asmt.subject,
@@ -1800,7 +1800,7 @@ __export(dbEngine_exports, {
 });
 import fs from "fs";
 import path from "path";
-import crypto6 from "crypto";
+import crypto9 from "crypto";
 function ensureSpecializedStudyStructure(state) {
   if (runtimeNamespace().startsWith("_specialized_preview_") && state.demoLabs?.length) {
     const labs = state.demoLabs;
@@ -2295,32 +2295,32 @@ function resetTestDbState() {
   saveDbState("test", empty);
 }
 function hashPassword(password) {
-  const salt2 = crypto6.randomBytes(16).toString("hex");
-  const derived = crypto6.scryptSync(password, salt2, 64).toString("hex");
+  const salt2 = crypto9.randomBytes(16).toString("hex");
+  const derived = crypto9.scryptSync(password, salt2, 64).toString("hex");
   return `${salt2}:${derived}`;
 }
 async function hashPasswordAsync(password) {
-  const salt2 = crypto6.randomBytes(16).toString("hex");
-  const derived = await new Promise((resolve, reject) => crypto6.scrypt(password, salt2, 64, (error, value) => error ? reject(error) : resolve(value)));
+  const salt2 = crypto9.randomBytes(16).toString("hex");
+  const derived = await new Promise((resolve, reject) => crypto9.scrypt(password, salt2, 64, (error, value) => error ? reject(error) : resolve(value)));
   return salt2 + ":" + derived.toString("hex");
 }
 function generateSecureRandomPassword() {
-  return `SS-${crypto6.randomBytes(16).toString("hex")}!9a`;
+  return `SS-${crypto9.randomBytes(16).toString("hex")}!9a`;
 }
 function verifyPassword(password, storedHash) {
   if (!storedHash || !storedHash.includes(":")) return false;
   const [salt2, key2] = storedHash.split(":");
-  const derived = crypto6.scryptSync(password, salt2, 64).toString("hex");
+  const derived = crypto9.scryptSync(password, salt2, 64).toString("hex");
   const keyBuf = Buffer.from(key2, "hex");
   const derivedBuf = Buffer.from(derived, "hex");
   if (keyBuf.length !== derivedBuf.length) return false;
-  return crypto6.timingSafeEqual(keyBuf, derivedBuf);
+  return crypto9.timingSafeEqual(keyBuf, derivedBuf);
 }
 async function verifyPasswordAsync(password, storedHash) {
   const valid = !!storedHash && /^[a-f0-9]{32}:[a-f0-9]{128}$/.test(storedHash);
   const [salt2, key2] = valid ? storedHash.split(":") : ["missing-account-constant-work", "0".repeat(128)];
-  const derived = await new Promise((resolve, reject) => crypto6.scrypt(password, salt2, 64, (error, value) => error ? reject(error) : resolve(value)));
-  return crypto6.timingSafeEqual(Buffer.from(key2, "hex"), derived) && valid;
+  const derived = await new Promise((resolve, reject) => crypto9.scrypt(password, salt2, 64, (error, value) => error ? reject(error) : resolve(value)));
+  return crypto9.timingSafeEqual(Buffer.from(key2, "hex"), derived) && valid;
 }
 function revokeSessionToken(token) {
   if (!token) return;
@@ -2330,7 +2330,7 @@ function revokeSessionToken(token) {
     context.state.revokedSessionHashes = Object.fromEntries(Object.entries(context.state.revokedSessionHashes || {}).filter(([, expiry]) => expiry > now));
     try {
       const payload = JSON.parse(Buffer.from(token.split(".")[0], "base64url").toString("utf8"));
-      context.state.revokedSessionHashes[crypto6.createHash("sha256").update(token.trim()).digest("hex")] = Number(payload.exp) || now + 6048e5;
+      context.state.revokedSessionHashes[crypto9.createHash("sha256").update(token.trim()).digest("hex")] = Number(payload.exp) || now + 6048e5;
       context.dirty = true;
     } catch {
     }
@@ -2354,13 +2354,13 @@ function issueSessionToken(uid, env, expiresInMs = 15 * 60 * 1e3, sessionId) {
   const payload = JSON.stringify({
     uid,
     env,
-    jti: crypto6.randomBytes(8).toString("hex"),
+    jti: crypto9.randomBytes(8).toString("hex"),
     iat: now,
     exp: now + expiresInMs,
     ...sessionId ? { sid: sessionId } : {}
   });
   const base64Payload = Buffer.from(payload, "utf-8").toString("base64url");
-  const signature = crypto6.createHmac("sha256", TOKEN_SECRET).update(base64Payload).digest("base64url");
+  const signature = crypto9.createHmac("sha256", TOKEN_SECRET).update(base64Payload).digest("base64url");
   return `${base64Payload}.${signature}`;
 }
 function verifySessionToken(token) {
@@ -2368,15 +2368,15 @@ function verifySessionToken(token) {
   const cleanToken = token.trim();
   if (revokedTokenSet.has(cleanToken)) return null;
   const durableRevocations = requestDatabase.getStore()?.state.revokedSessionHashes;
-  if (durableRevocations?.[crypto6.createHash("sha256").update(cleanToken).digest("hex")]) return null;
+  if (durableRevocations?.[crypto9.createHash("sha256").update(cleanToken).digest("hex")]) return null;
   const parts = cleanToken.split(".");
   if (parts.length !== 2) return null;
   const [base64Payload, signature] = parts;
   if (!base64Payload || !signature) return null;
-  const expectedSig = crypto6.createHmac("sha256", TOKEN_SECRET).update(base64Payload).digest("base64url");
+  const expectedSig = crypto9.createHmac("sha256", TOKEN_SECRET).update(base64Payload).digest("base64url");
   const sigBuf = Buffer.from(signature, "utf-8");
   const expectedBuf = Buffer.from(expectedSig, "utf-8");
-  if (sigBuf.length !== expectedBuf.length || !crypto6.timingSafeEqual(sigBuf, expectedBuf)) {
+  if (sigBuf.length !== expectedBuf.length || !crypto9.timingSafeEqual(sigBuf, expectedBuf)) {
     return null;
   }
   try {
@@ -2399,9 +2399,9 @@ function verifySessionToken(token) {
   }
 }
 function generateCryptographicInviteToken(rolePrefix) {
-  const rand = crypto6.randomBytes(24).toString("hex").toUpperCase();
+  const rand = crypto9.randomBytes(24).toString("hex").toUpperCase();
   const rawToken = `INV-${rolePrefix.slice(0, 3).toUpperCase()}-${rand}`;
-  const tokenHash = "sha256:" + crypto6.createHash("sha256").update(rawToken).digest("hex");
+  const tokenHash = "sha256:" + crypto9.createHash("sha256").update(rawToken).digest("hex");
   return { rawToken, tokenHash };
 }
 var DATA_DIR, PROD_DB_PATH, TEST_DB_PATH, configuredSessionSecret, baseSessionSecret, TOKEN_SECRET, memoryCache, revokedTokenSet, revokedBeforeTimestampByUser;
@@ -2420,8 +2420,8 @@ var init_dbEngine = __esm({
     if (process.env.NODE_ENV === "production" && (!configuredSessionSecret || configuredSessionSecret.length < 32 || configuredSessionSecret.includes("REPLACE_WITH"))) {
       throw new Error("Production requires a random SESSION_SECRET of at least 32 characters.");
     }
-    baseSessionSecret = configuredSessionSecret || crypto6.randomBytes(32).toString("hex");
-    TOKEN_SECRET = runtimeNamespace() === "_specialized_runtime" ? baseSessionSecret : crypto6.createHmac("sha256", baseSessionSecret).update(runtimeNamespace()).digest("hex");
+    baseSessionSecret = configuredSessionSecret || crypto9.randomBytes(32).toString("hex");
+    TOKEN_SECRET = runtimeNamespace() === "_specialized_runtime" ? baseSessionSecret : crypto9.createHmac("sha256", baseSessionSecret).update(runtimeNamespace()).digest("hex");
     memoryCache = {
       prod: null,
       test: null
@@ -2445,7 +2445,7 @@ __export(firebaseAdminAuth_exports, {
   provisionSingleAdminAccount: () => provisionSingleAdminAccount,
   verifyFirebaseIdToken: () => verifyFirebaseIdToken
 });
-import crypto7 from "crypto";
+import crypto10 from "crypto";
 import fs2 from "fs";
 import path2 from "path";
 import { initializeApp, getApps, cert } from "firebase-admin/app";
@@ -2484,7 +2484,7 @@ function createIsolatedTestFirebaseIdToken(payload) {
     aud: loadFirebaseAppletConfig().projectId
   };
   const encoded = Buffer.from(JSON.stringify(body), "utf-8").toString("base64url");
-  const sig = crypto7.createHmac("sha256", TEST_ID_TOKEN_SECRET).update(`test-fb-jwt.${encoded}`).digest("base64url");
+  const sig = crypto10.createHmac("sha256", TEST_ID_TOKEN_SECRET).update(`test-fb-jwt.${encoded}`).digest("base64url");
   return `test-fb-jwt.${encoded}.${sig}`;
 }
 async function verifyFirebaseIdToken(idToken, env, db) {
@@ -2506,10 +2506,10 @@ async function verifyFirebaseIdToken(idToken, env, db) {
       };
     }
     const [, encoded, sig] = parts;
-    const expectedSig = crypto7.createHmac("sha256", TEST_ID_TOKEN_SECRET).update(`test-fb-jwt.${encoded}`).digest("base64url");
+    const expectedSig = crypto10.createHmac("sha256", TEST_ID_TOKEN_SECRET).update(`test-fb-jwt.${encoded}`).digest("base64url");
     const sigBuf = Buffer.from(sig, "utf-8");
     const expBuf = Buffer.from(expectedSig, "utf-8");
-    if (sigBuf.length !== expBuf.length || !crypto7.timingSafeEqual(sigBuf, expBuf)) {
+    if (sigBuf.length !== expBuf.length || !crypto10.timingSafeEqual(sigBuf, expBuf)) {
       return {
         valid: false,
         errorCode: "auth/invalid-credential",
@@ -2755,50 +2755,347 @@ var init_firebaseAdminAuth = __esm({
   }
 });
 
-// src/server/studentLessonScope.ts
-function studentCanAccessLesson(user, lesson, classes) {
-  if (user.role !== "student" || user.status !== "active" || lesson.institutionId !== user.institutionId || !["published", "in_progress", "completed"].includes(lesson.status)) return false;
-  const own = classes.find((c) => c.institutionId === user.institutionId && c.status !== "archived" && (c.id === user.classId || !!user.classCode && c.code.toLowerCase() === user.classCode.toLowerCase()));
-  if (!own || lesson.additionalCurriculumAssignment && lesson.tTrackVisibilityApproved !== true) return false;
-  return lesson.classId === own.id || lesson.classIds?.includes(own.id) || lesson.classCode?.toLowerCase() === own.code.toLowerCase() || !!lesson.classCodes?.some((c) => c.toLowerCase() === own.code.toLowerCase());
-}
-
-// src/server/teachingIdentity.ts
-function projectTeachingIdentity(user, assignments, requested) {
-  if (user.role !== "teacher" || !user.sourceImport) return user;
-  const mine = assignments.filter((a) => a.teacherId === user.uid && a.institutionId === user.institutionId);
-  if (!mine.length) return requested ? void 0 : { ...user, assignedClassIds: [] };
-  const subject = requested || mine.find((a) => a.subject === user.subject)?.subject || mine[0].subject;
-  const approved = mine.filter((a) => a.subject === subject);
-  if (!approved.length) return void 0;
-  return { ...user, subject, subjects: [...new Set(mine.map((a) => a.subject))], assignedClassIds: [...new Set(approved.map((a) => a.classId))] };
-}
-
-// src/server/schoolImportRoutes.ts
-import crypto3 from "node:crypto";
-import { z } from "zod";
+// src/server/academicActivityRoutes.ts
+import crypto4 from "node:crypto";
+import { z as z2 } from "zod";
 
 // src/server/asyncRoute.ts
 var asyncRoute = (handler) => (req, res, next) => {
   Promise.resolve().then(() => handler(req, res, next)).catch(next);
 };
 
-// src/server/boundedMap.ts
-async function boundedMap(items, concurrency, fn) {
-  const result = new Array(items.length);
-  let cursor = 0;
-  await Promise.all(Array.from({ length: Math.min(concurrency, items.length) }, async () => {
-    for (; ; ) {
-      const i = cursor++;
-      if (i >= items.length) return;
-      result[i] = await fn(items[i], i);
-    }
-  }));
-  return result;
+// src/server/leadershipSecurity.ts
+import crypto2 from "node:crypto";
+import { z } from "zod";
+
+// src/server/secretEnvelope.ts
+import crypto from "node:crypto";
+var key = (purpose) => {
+  const secret = process.env.SESSION_SECRET;
+  if (!secret || secret.length < 32) throw Error("Server encryption configuration missing");
+  return crypto.createHmac("sha256", secret).update("specialized-study:envelope:v1:" + purpose).digest();
+};
+function sealSecret(value, purpose) {
+  const iv = crypto.randomBytes(12), cipher = crypto.createCipheriv("aes-256-gcm", key(purpose), iv);
+  cipher.setAAD(Buffer.from(purpose));
+  const bytes = Buffer.concat([cipher.update(JSON.stringify(value), "utf8"), cipher.final()]);
+  return ["v1", iv.toString("base64url"), cipher.getAuthTag().toString("base64url"), bytes.toString("base64url")].join(".");
+}
+function openSecret(sealed, purpose) {
+  const [version, iv, tag, value] = sealed.split(".");
+  if (version !== "v1" || !iv || !tag || !value) throw Error("Invalid envelope");
+  const decipher = crypto.createDecipheriv("aes-256-gcm", key(purpose), Buffer.from(iv, "base64url"));
+  decipher.setAAD(Buffer.from(purpose));
+  decipher.setAuthTag(Buffer.from(tag, "base64url"));
+  return JSON.parse(Buffer.concat([decipher.update(Buffer.from(value, "base64url")), decipher.final()]).toString("utf8"));
 }
 
-// src/server/schoolImportEngine.ts
-import crypto from "node:crypto";
+// src/server/leadershipSecurity.ts
+var LEADERSHIP_MATRIX = {
+  director: ["overview.read", "roster.read", "attendance.read", "results.read", "reports.read"],
+  academic_deputy: ["overview.read", "roster.read", "attendance.read", "results.read", "reports.read", "curriculum.manage", "timetable.manage"]
+};
+var hash = (value) => crypto2.createHash("sha256").update(value).digest("hex");
+function base32(bytes) {
+  const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
+  let bits = 0, value = 0, out = "";
+  for (const b of bytes) {
+    value = value << 8 | b;
+    bits += 8;
+    while (bits >= 5) {
+      out += chars[value >>> bits - 5 & 31];
+      bits -= 5;
+    }
+  }
+  if (bits) out += chars[value << 5 - bits & 31];
+  return out;
+}
+function decode32(secret) {
+  let bits = 0, value = 0;
+  const bytes = [];
+  for (const char of secret) {
+    const n = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567".indexOf(char);
+    if (n < 0) throw Error("Invalid MFA secret");
+    value = value << 5 | n;
+    bits += 5;
+    if (bits >= 8) {
+      bytes.push(value >>> bits - 8 & 255);
+      bits -= 8;
+    }
+  }
+  return Buffer.from(bytes);
+}
+function totp(secret, counter) {
+  const value = Buffer.alloc(8);
+  value.writeBigUInt64BE(BigInt(counter));
+  const bytes = crypto2.createHmac("sha1", decode32(secret)).update(value).digest();
+  const offset = bytes.at(-1) & 15;
+  return String((bytes.readUInt32BE(offset) & 2147483647) % 1e6).padStart(6, "0");
+}
+function validTotp(secret, code, lastCounter = -1, now = Date.now()) {
+  if (!/^\d{6}$/.test(code)) return void 0;
+  const current = Math.floor(now / 3e4);
+  for (const counter of [current, current - 1, current + 1]) if (counter > lastCounter && crypto2.timingSafeEqual(Buffer.from(totp(secret, counter)), Buffer.from(code))) return counter;
+  return void 0;
+}
+function sessionFamily(token) {
+  try {
+    return JSON.parse(Buffer.from(token.split(".")[0], "base64url").toString()).sid;
+  } catch {
+    return void 0;
+  }
+}
+var leadershipGrant = (c) => (c.db.leadershipGrants || []).find((g) => g.userId === c.user.uid && g.schoolId === c.user.institutionId && !g.revokedAt);
+var mfaVerified = (c) => {
+  const sid = sessionFamily(c.token || "");
+  return !!sid && (c.db.mfaVerifiedSessions || []).some((s) => s.id === sid && s.userId === c.user.uid && s.schoolId === c.user.institutionId && s.expiresAt > Date.now());
+};
+var hasLeadershipPermission = (c, permission) => !!c && mfaVerified(c) && !!leadershipGrant(c)?.permissions.includes(permission);
+function createMfaGuard(authenticate) {
+  return (req, res, next) => {
+    if (!req.path.startsWith("/api/") || req.path === "/api/health") return next();
+    const c = authenticate(req);
+    if (!c || !leadershipGrant(c)) return next();
+    if (/^\/api\/(?:auth\/(?:login|provider-sync|logout|refresh)$|account\/(?:password$|mfa(?:\/|$)|sessions(?:\/|$)))/.test(req.path)) return next();
+    if (mfaVerified(c)) return next();
+    return res.status(403).json({ code: "MFA_REQUIRED", error: "Boshqaruv uchun autentifikator tasdig\u2018i kerak.", user: { uid: c.user.uid, displayName: c.user.displayName, role: c.user.role, status: c.user.status, institutionId: c.user.institutionId, mustChangePassword: c.user.mustChangePassword, mfaRequired: true, leadershipDesignation: leadershipGrant(c).designation } });
+  };
+}
+function registerLeadershipSecurity(app2, deps) {
+  const access = (req, res) => {
+    const c = deps.authenticate(req);
+    if (!c || c.user.status !== "active") {
+      res.status(401).json({ error: "Hisobga kiring." });
+      return;
+    }
+    return c;
+  };
+  const audit = (c, action, target) => {
+    c.db.auditLogs.unshift({ id: crypto2.randomUUID(), institutionId: c.user.institutionId, actorUid: c.user.uid, actorName: c.user.displayName, actorRole: c.user.role, action, target: "Xavfsizlik", recordId: target, createdAt: (/* @__PURE__ */ new Date()).toISOString() });
+  };
+  const credential = (c) => (c.db.mfaCredentials || []).find((v) => v.userId === c.user.uid && v.schoolId === c.user.institutionId);
+  const stamp = (c) => {
+    const id = sessionFamily(c.token);
+    if (!id) throw Error("Session upgrade required");
+    c.db.mfaVerifiedSessions = (c.db.mfaVerifiedSessions || []).filter((v) => v.expiresAt > Date.now() && v.id !== id);
+    c.db.mfaVerifiedSessions.push({ id, userId: c.user.uid, schoolId: c.user.institutionId, verifiedAt: Date.now(), expiresAt: Date.now() + 60 * 6e4 });
+  };
+  const proof = async (c, body) => {
+    if (body.password && await deps.verify(body.password, c.db.passwordHashes[c.user.uid])) return true;
+    if (body.idToken) {
+      try {
+        const id = await deps.providerProof(String(body.idToken).slice(0, 16e3), c.db);
+        return id.uid === c.user.uid && id.email_verified && id.firebase?.sign_in_provider === "google.com" && Date.now() / 1e3 - id.auth_time <= 300;
+      } catch {
+        return false;
+      }
+    }
+    return false;
+  };
+  app2.get("/api/account/mfa/status", (req, res) => {
+    const c = access(req, res);
+    if (!c) return;
+    res.json({ enabled: !!credential(c)?.enabledAt, required: !!leadershipGrant(c), verified: mfaVerified(c) });
+  });
+  app2.post("/api/account/mfa/enroll", asyncRoute(async (req, res) => {
+    const c = access(req, res);
+    if (!c) return;
+    const p = z.object({ password: z.string().max(128).optional(), idToken: z.string().max(16e3).optional() }).safeParse(req.body);
+    if (!p.success || !await proof(c, p.data)) return res.status(403).json({ error: "Joriy parol yoki yangi Google tasdig\u2018i kerak." });
+    if (credential(c)?.enabledAt) return res.status(409).json({ error: "MFA allaqachon yoqilgan. Almashtirish uchun xavfsiz recovery kerak." });
+    if (!sessionFamily(c.token)) return res.status(409).json({ error: "Hisobdan chiqib, qayta kiring." });
+    const secret = base32(crypto2.randomBytes(20)), purpose = c.user.institutionId + ":mfa:" + c.user.uid;
+    c.db.mfaCredentials ||= [];
+    let current = credential(c);
+    if (!current) {
+      current = { id: c.user.uid, userId: c.user.uid, schoolId: c.user.institutionId, recoveryHashes: [] };
+      c.db.mfaCredentials.push(current);
+    }
+    current.pending = sealSecret(secret, purpose);
+    current.pendingUntil = Date.now() + 10 * 6e4;
+    audit(c, "MFA sozlash boshlandi", c.user.uid);
+    deps.save(c.env, c.db);
+    res.json({ secret, uri: "otpauth://totp/" + encodeURIComponent("Specialized Study:" + (c.user.login || c.user.uid)) + "?secret=" + secret + "&issuer=Specialized%20Study&algorithm=SHA1&digits=6&period=30", expiresAt: current.pendingUntil });
+  }));
+  app2.post("/api/account/mfa/confirm", (req, res) => {
+    const c = access(req, res);
+    if (!c) return;
+    const current = credential(c);
+    if (!current?.pending || !current.pendingUntil || current.pendingUntil < Date.now()) return res.status(400).json({ error: "Sozlash muddati tugagan. Qayta boshlang." });
+    const secret = openSecret(current.pending, c.user.institutionId + ":mfa:" + c.user.uid), counter = validTotp(secret, String(req.body.code || ""));
+    if (counter === void 0) return res.status(400).json({ error: "Autentifikator kodi noto\u2018g\u2018ri." });
+    const recoveryCodes = Array.from({ length: 8 }, () => crypto2.randomBytes(9).toString("hex"));
+    current.secret = current.pending;
+    delete current.pending;
+    delete current.pendingUntil;
+    current.enabledAt = (/* @__PURE__ */ new Date()).toISOString();
+    current.lastCounter = counter;
+    current.recoveryHashes = recoveryCodes.map(hash);
+    stamp(c);
+    audit(c, "MFA yoqildi", c.user.uid);
+    deps.save(c.env, c.db);
+    return res.json({ enabled: true, recoveryCodes });
+  });
+  app2.post("/api/account/mfa/challenge", (req, res) => {
+    const c = access(req, res);
+    if (!c) return;
+    const current = credential(c);
+    if (!current?.secret || !current.enabledAt) return res.status(400).json({ error: "Avval MFA sozlang." });
+    const code = String(req.body.code || "").trim();
+    let accepted = false;
+    if (/^[a-f0-9]{18}$/.test(code) && current.recoveryHashes.includes(hash(code))) {
+      current.recoveryHashes = current.recoveryHashes.filter((v) => v !== hash(code));
+      accepted = true;
+    } else {
+      const counter = validTotp(openSecret(current.secret, c.user.institutionId + ":mfa:" + c.user.uid), code, current.lastCounter);
+      if (counter !== void 0) {
+        current.lastCounter = counter;
+        accepted = true;
+      }
+    }
+    if (!accepted) {
+      audit(c, "MFA tasdig\u2018i rad etildi", c.user.uid);
+      deps.save(c.env, c.db);
+      return res.status(403).json({ error: "Kod noto\u2018g\u2018ri yoki ishlatilgan." });
+    }
+    stamp(c);
+    audit(c, "MFA orqali sessiya tasdiqlandi", c.user.uid);
+    deps.save(c.env, c.db);
+    return res.json({ verified: true });
+  });
+  app2.get("/api/leadership/permissions", (req, res) => {
+    const c = access(req, res);
+    if (!c) return;
+    const grant = leadershipGrant(c);
+    if (!grant) return res.status(403).json({ error: "Rahbariyat huquqi tasdiqlanmagan." });
+    return res.json({ designation: grant.designation, permissions: grant.permissions, mfaRequired: true });
+  });
+  app2.get("/api/admin/leadership", (req, res) => {
+    const c = access(req, res);
+    if (!c) return;
+    if (!deps.owner(c.user)) return res.status(403).json({ error: "Faqat platforma egasiga ruxsat." });
+    res.json({ matrix: LEADERSHIP_MATRIX, grants: (c.db.leadershipGrants || []).filter((g) => g.schoolId === c.user.institutionId), candidates: c.db.users.filter((u) => u.institutionId === c.user.institutionId && ["teacher", "staff"].includes(u.role)).map((u) => ({ uid: u.uid, displayName: u.displayName, position: u.position, status: u.status })) });
+  });
+  app2.post("/api/admin/leadership/:uid/approve", asyncRoute(async (req, res) => {
+    const c = access(req, res);
+    if (!c) return;
+    if (!deps.owner(c.user)) return res.status(403).json({ error: "Faqat platforma egasiga ruxsat." });
+    const p = z.object({ designation: z.enum(["director", "academic_deputy"]), identityVerified: z.literal(true), reason: z.string().trim().min(12).max(1e3), idToken: z.string().max(16e3) }).safeParse(req.body);
+    if (!p.success || !await proof(c, p.data)) return res.status(403).json({ error: "Shaxsni alohida tekshiring va yangi Google tasdig\u2018ini bering." });
+    const user = c.db.users.find((u) => u.uid === req.params.uid && u.institutionId === c.user.institutionId && ["teacher", "staff"].includes(u.role));
+    if (!user) return res.status(404).json({ error: "Hisob topilmadi." });
+    c.db.leadershipGrants ||= [];
+    const previous = c.db.leadershipGrants.find((g) => g.userId === user.uid && g.schoolId === c.user.institutionId && !g.revokedAt);
+    if (previous) return res.status(409).json({ error: "Huquq allaqachon tasdiqlangan." });
+    const now = (/* @__PURE__ */ new Date()).toISOString(), grant = { id: crypto2.randomUUID(), userId: user.uid, schoolId: c.user.institutionId, designation: p.data.designation, permissions: [...LEADERSHIP_MATRIX[p.data.designation]], approvedBy: c.user.uid, approvedAt: now, identityVerifiedAt: now };
+    c.db.leadershipGrants.push(grant);
+    user.leadershipDesignation = p.data.designation;
+    user.status = "active";
+    deps.revoke(user.uid);
+    audit(c, "Rahbariyat vakolati tasdiqlandi: " + p.data.reason, user.uid);
+    deps.save(c.env, c.db);
+    return res.json({ approved: true, grant, mfaRequired: true });
+  }));
+  app2.post("/api/admin/leadership/:uid/revoke", (req, res) => {
+    const c = access(req, res);
+    if (!c) return;
+    if (!deps.owner(c.user)) return res.status(403).json({ error: "Faqat platforma egasiga ruxsat." });
+    const grant = (c.db.leadershipGrants || []).find((g) => g.userId === req.params.uid && g.schoolId === c.user.institutionId && !g.revokedAt);
+    if (!grant) return res.status(404).json({ error: "Huquq topilmadi." });
+    grant.revokedAt = (/* @__PURE__ */ new Date()).toISOString();
+    deps.revoke(grant.userId);
+    audit(c, "Rahbariyat vakolati bekor qilindi", grant.userId);
+    deps.save(c.env, c.db);
+    return res.json({ revoked: true });
+  });
+  app2.post("/api/admin/leadership/:uid/mfa-recovery", asyncRoute(async (req, res) => {
+    const c = access(req, res);
+    if (!c) return;
+    if (!deps.owner(c.user) || req.body.identityVerified !== true || String(req.body.reason || "").length < 12 || !await proof(c, req.body)) return res.status(403).json({ error: "Shaxsni tekshirish, sabab va yangi Google tasdig\u2018i talab qilinadi." });
+    const record = (c.db.mfaCredentials || []).find((v) => v.userId === req.params.uid && v.schoolId === c.user.institutionId);
+    if (!record) return res.status(404).json({ error: "MFA hisobi topilmadi." });
+    c.db.mfaCredentials = c.db.mfaCredentials.filter((v) => v !== record);
+    c.db.mfaVerifiedSessions = (c.db.mfaVerifiedSessions || []).filter((v) => v.userId !== record.userId);
+    deps.revoke(record.userId);
+    audit(c, "Shaxs tekshirilgach MFA recovery: " + String(req.body.reason).slice(0, 1e3), record.userId);
+    deps.save(c.env, c.db);
+    return res.json({ reset: true, mfaEnrollmentRequired: true });
+  }));
+}
+
+// src/server/supabaseClient.ts
+import { createClient } from "@supabase/supabase-js";
+var client;
+var identityClient;
+var supabaseEnabled = () => process.env.PERSISTENCE_DRIVER === "supabase";
+function serverSupabase() {
+  if (client) return client;
+  const url = process.env.SUPABASE_URL, key2 = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !key2 || key2.length < 30) throw Error("Supabase server configuration missing");
+  if (!/^https:\/\/[a-z0-9]+\.supabase\.co$/.test(url)) throw Error("Invalid Supabase origin");
+  return client = createClient(url, key2, { auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false } });
+}
+function sharedIdentityProvider() {
+  return Boolean(process.env.SUPABASE_AUTH_URL && process.env.SUPABASE_AUTH_URL !== process.env.SUPABASE_URL);
+}
+function serverSupabaseIdentity() {
+  if (!sharedIdentityProvider()) return serverSupabase();
+  if (identityClient) return identityClient;
+  const url = process.env.SUPABASE_AUTH_URL, key2 = process.env.SUPABASE_AUTH_PUBLISHABLE_KEY;
+  if (!url || !/^https:\/\/[a-z0-9]+\.supabase\.co$/.test(url) || !key2 || !key2.startsWith("sb_publishable_")) throw Error("Identity provider configuration missing");
+  return identityClient = createClient(url, key2, { auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false } });
+}
+async function studyRpc(name, args) {
+  if (!/^study_[a-z_]+$/.test(name)) throw Error("Invalid RPC");
+  const { data, error } = await serverSupabase().rpc(name, args);
+  if (error) {
+    const e = Error(error.code === "40001" ? "PERSISTENCE_CONFLICT" : "Supabase operation failed");
+    Object.assign(e, { code: error.code });
+    throw e;
+  }
+  return data;
+}
+
+// src/server/academicStore.ts
+init_runtimeScope();
+var SupabaseAcademicStore = class {
+  list(q) {
+    return studyRpc("study_academic_list", { p_namespace: runtimeNamespace(), p_school: q.school, p_year: q.year, p_from: q.from, p_to: q.to, p_classes: q.classes ?? null, p_teacher: q.teacher ?? null, p_groups: q.groups ?? null, p_after: q.after || "", p_limit: q.limit || 100 });
+  }
+  get(school, year, id) {
+    return studyRpc("study_academic_get", { p_namespace: runtimeNamespace(), p_school: school, p_year: year, p_id: id });
+  }
+  stage(school, year, id, digest4, count, actor) {
+    return studyRpc("study_academic_stage", { p_namespace: runtimeNamespace(), p_school: school, p_year: year, p_id: id, p_digest: digest4, p_count: count, p_actor: actor });
+  }
+  write(school, batch, rows) {
+    return studyRpc("study_academic_write", { p_namespace: runtimeNamespace(), p_school: school, p_batch: batch, p_rows: rows });
+  }
+  activate(school, year, batch, previous, actor, previousRevision) {
+    return studyRpc("study_academic_activate", { p_namespace: runtimeNamespace(), p_school: school, p_year: year, p_batch: batch, p_previous: previous || null, p_actor: actor, p_previous_revision: previousRevision || 0 });
+  }
+  transition(school, year, id, revision, operation3, actor, patch) {
+    return studyRpc("study_academic_transition", { p_namespace: runtimeNamespace(), p_school: school, p_year: year, p_id: id, p_revision: revision, p_operation: operation3, p_actor: actor, p_patch: patch });
+  }
+  progress(q) {
+    return studyRpc("study_academic_progress", { p_namespace: runtimeNamespace(), p_school: q.school, p_year: q.year, p_classes: q.classes ?? null, p_teacher: q.teacher ?? null, p_groups: q.groups ?? null });
+  }
+  replan(school, year, operation3, actor, reason4, changes) {
+    return studyRpc("study_academic_replan", { p_namespace: runtimeNamespace(), p_school: school, p_year: year, p_operation: operation3, p_actor: actor, p_reason: reason4, p_changes: changes });
+  }
+  preview(school, batch, page, query2) {
+    return studyRpc("study_academic_preview", { p_namespace: runtimeNamespace(), p_school: school, p_batch: batch, p_page: page, p_query: query2 });
+  }
+  receipt(school, actor, operation3) {
+    return studyRpc("study_academic_receipt", { p_namespace: runtimeNamespace(), p_school: school, p_actor: actor, p_operation: operation3 });
+  }
+};
+function academicAudience(c) {
+  if (["platform_owner", "admin"].includes(c.user.role) || c.leadership) return {};
+  if (c.user.role === "teacher") return { classes: c.user.assignedClassIds || [], teacher: c.user.uid };
+  if (c.user.role === "student") return { classes: c.user.classId ? [c.user.classId] : [], groups: c.user.teachingGroupIds || [] };
+  return { classes: [] };
+}
 
 // src/utils/schoolSourceImport.ts
 var normalizedText = (value) => String(value ?? "").normalize("NFKC").replace(/[‘’ʻʼ`´]/g, "'").replace(/\s+/g, " ").trim();
@@ -2954,8 +3251,190 @@ function parseSchoolPlan(sheets) {
   return { lessons, issues, blankRows };
 }
 
+// src/utils/academicPlanning.ts
+var dateOnly = (v) => /^\d{4}-\d{2}-\d{2}$/.test(v) && Number.isFinite(Date.parse(v + "T00:00:00Z")) && (/* @__PURE__ */ new Date(v + "T00:00:00Z")).toISOString().slice(0, 10) === v;
+var weekdayOf = (v) => (/* @__PURE__ */ new Date(v + "T00:00:00Z")).getUTCDay();
+var addDays = (v, n) => new Date(Date.parse(v + "T00:00:00Z") + n * 864e5).toISOString().slice(0, 10);
+var timeMinute = (v) => /^(?:[01]\d|2[0-3]):[0-5]\d$/.test(v) ? Number(v.slice(0, 2)) * 60 + Number(v.slice(3)) : NaN;
+var dayNames = ["yakshanba", "dushanba", "seshanba", "chorshanba", "payshanba", "juma", "shanba"];
+var label = (v) => normalizedText(v).toLowerCase().replace(/[ʻʼ‘’`]/g, "'");
+function parseSchoolTimetable(sheets, sourceHash, classes, year = "2026-2027") {
+  const versions = [];
+  for (const sheet2 of sheets) {
+    const header = sheet2.rows.findIndex((r) => r.filter((v) => schoolClassCode(normalizedText(v))).length >= 10);
+    const issues = [], slots = [];
+    if (header < 0) {
+      issues.push({ code: "HEADER_MISSING", severity: "error", records: [], message: "Rasmiy sinflar sarlavhasi topilmadi." });
+      versions.push({ sheet: sheet2.name, slots, issues });
+      continue;
+    }
+    const columns = sheet2.rows[header].map((v, i) => ({ i, code: schoolClassCode(normalizedText(v)) })).filter((v) => v.code);
+    let weekday = -1, period = 0;
+    for (let r = header + 1; r < sheet2.rows.length; r++) {
+      const raw = sheet2.rows[r], day = dayNames.indexOf(label(raw[0]));
+      if (day >= 0) {
+        weekday = day;
+        period = 0;
+      }
+      const time = normalizedText(raw[1]).replace(/\s/g, "").match(/^(\d{1,2}:\d{2})[–—-](\d{1,2}:\d{2})$/);
+      if (!time || weekday < 0) continue;
+      period++;
+      for (const col of columns) {
+        const text2 = String(raw[col.i] ?? "").replace(/\r/g, "").trim();
+        if (!text2) continue;
+        const cls = classes.find((c) => c.code === col.code);
+        let letters = "", num = col.i + 1;
+        while (num) {
+          letters = String.fromCharCode(65 + (num - 1) % 26) + letters;
+          num = Math.floor((num - 1) / 26);
+        }
+        const cell = letters + (r + 1), lines = text2.split("\n").map((v) => v.trim()).filter(Boolean), chunks = [];
+        for (const line of lines) {
+          const group = line.match(/^(\d)\s*[-–]?\s*guruh\s+(.+)$/i);
+          if (group) chunks.push({ group: Number(group[1]), lines: [group[2]] });
+          else {
+            if (!chunks.length) chunks.push({ lines: [] });
+            chunks.at(-1).lines.push(line);
+          }
+        }
+        for (const chunk of chunks) {
+          const id = sourceHash + ":" + sheet2.name + ":" + cell + ":" + (chunk.group || 0), teacher = chunk.lines[1] || "", room = chunk.lines.slice(2).join(" / ");
+          const subject = normalizedText(chunk.lines[0]);
+          if (!cls || !subject || chunk.lines.length > 3) issues.push({ code: !cls ? "CLASS_UNKNOWN" : !subject ? "SUBJECT_MISSING" : "CELL_REVIEW", severity: "error", records: [id], message: cell + ": sinf yoki katak tarkibini tekshiring." });
+          if (!teacher || /vakant|bo.sh|вакан/i.test(teacher)) issues.push({ code: "TEACHER_UNASSIGNED", severity: "review", records: [id], message: cell + ": ustoz biriktirilmagan yoki vakant." });
+          slots.push({ id, academicYear: year, versionId: sourceHash + ":" + sheet2.name, weekday, classId: cls?.id || "", classCode: col.code, period, startTime: time[1].padStart(5, "0"), endTime: time[2].padStart(5, "0"), subject, teacherDisplayName: teacher, room: room || void 0, groupNumber: chunk.group, sourceSheet: sheet2.name, sourceCell: cell, sourceHash, sourceValue: text2, status: "draft", effectiveFrom: year.slice(0, 4) + "-09-01" });
+        }
+      }
+    }
+    versions.push({ sheet: sheet2.name, slots, issues });
+  }
+  const diffs = [];
+  if (versions.length >= 2) {
+    const key2 = (s) => [s.weekday, s.classCode, s.startTime, s.groupNumber || 0].join("|"), a = new Map(versions[0].slots.map((s) => [key2(s), s])), b = new Map(versions[1].slots.map((s) => [key2(s), s]));
+    for (const k of /* @__PURE__ */ new Set([...a.keys(), ...b.keys()])) {
+      const left = a.get(k), right = b.get(k), changed = left && right ? ["subject", "teacherDisplayName", "room", "endTime", "period"].filter((f) => label(left[f]) !== label(right[f])) : [left ? "missing" : "added"];
+      if (changed.length) diffs.push({ key: k, left, right, changed });
+    }
+  }
+  return { versions, diffs };
+}
+function validateCalendar(calendar) {
+  const errors = [];
+  if (!/^\d{4}-\d{4}$/.test(calendar.academicYear) || calendar.start < calendar.academicYear.slice(0, 4) + "-01-01" || calendar.end > calendar.academicYear.slice(-4) + "-12-31") errors.push("Sanalar o\u2018quv yiliga mos emas.");
+  if (!dateOnly(calendar.start) || !dateOnly(calendar.end) || calendar.start > calendar.end) errors.push("O\u2018quv yili sanalari noto\u2018g\u2018ri.");
+  if (!calendar.weekdays.length || calendar.weekdays.some((d) => !Number.isInteger(d) || d < 0 || d > 6)) errors.push("Hafta kunlarini tanlang.");
+  const sorted = [...calendar.terms].sort((a, b) => a.start.localeCompare(b.start));
+  for (let i = 0; i < sorted.length; i++) {
+    const t = sorted[i];
+    if (!dateOnly(t.start) || !dateOnly(t.end) || t.start > t.end || t.start < calendar.start || t.end > calendar.end || t.number < 1 || t.number > 4 || i && sorted[i - 1].end >= t.start) errors.push("Chorak chegarasi yoki ustma-ust kelishi noto\u2018g\u2018ri.");
+  }
+  if (new Set(sorted.map((t) => t.number)).size !== sorted.length) errors.push("Chorak raqami takrorlangan.");
+  for (const e of calendar.exceptions) if (!dateOnly(e.date) || !e.reason.trim() || e.date < calendar.start || e.date > calendar.end || e.replacementDate && !dateOnly(e.replacementDate)) errors.push("Istisno sanasi yoki asosi noto\u2018g\u2018ri.");
+  return errors;
+}
+function instructionalDate(calendar, date5, slot) {
+  const term = calendar.terms.find((t) => t.start <= date5 && t.end >= date5);
+  if (!term || date5 < calendar.start || date5 > calendar.end) return void 0;
+  const exceptions = calendar.exceptions.filter((e) => e.date === date5 && (!e.classId || e.classId === slot?.classId) && (!e.slotId || e.slotId === slot?.id));
+  if (exceptions.some((e) => e.kind === "closed" || e.kind === "cancelled")) return void 0;
+  const extra = exceptions.find((e) => e.kind === "extra_day");
+  const weekday = extra?.weekday ?? weekdayOf(date5);
+  if (!extra && !calendar.weekdays.includes(weekday)) return void 0;
+  return { quarter: term.number, weekday };
+}
+function timetableConflicts(slots) {
+  const issues = [];
+  for (let i = 0; i < slots.length; i++) {
+    const a = slots[i];
+    if (!Number.isFinite(timeMinute(a.startTime)) || !Number.isFinite(timeMinute(a.endTime)) || timeMinute(a.endTime) <= timeMinute(a.startTime)) issues.push({ code: "INVALID_TIME", severity: "error", records: [a.id], message: "Dars vaqti noto\u2018g\u2018ri." });
+    for (let n = 0; n < i; n++) {
+      const b = slots[n];
+      if (a.weekday !== b.weekday || a.effectiveTo && a.effectiveTo < b.effectiveFrom || b.effectiveTo && b.effectiveTo < a.effectiveFrom || timeMinute(a.startTime) >= timeMinute(b.endTime) || timeMinute(a.endTime) <= timeMinute(b.startTime)) continue;
+      const groupCompatible = a.classId === b.classId && a.groupNumber && b.groupNumber && a.groupNumber !== b.groupNumber;
+      if (a.classId === b.classId && !groupCompatible) issues.push({ code: "CLASS_OVERLAP", severity: "error", records: [a.id, b.id], message: "Sinf yoki bir guruh bir vaqtda ikkita darsga qo\u2018yilgan." });
+      if (a.teacherDisplayName && label(a.teacherDisplayName) === label(b.teacherDisplayName) && !/vakant/i.test(a.teacherDisplayName)) issues.push({ code: "TEACHER_OVERLAP", severity: "error", records: [a.id, b.id], message: "Ustoz bir vaqtda ikki mashg\u2018ulotga qo\u2018yilgan." });
+      if (a.room && b.room && label(a.room) === label(b.room)) issues.push({ code: "ROOM_OVERLAP", severity: "error", records: [a.id, b.id], message: "Xona bir vaqtda ikki mashg\u2018ulotga qo\u2018yilgan; birgalikdagi foydalanish alohida tasdiq talab qiladi." });
+    }
+  }
+  return issues;
+}
+function allocateAcademicLessons(calendar, slots, topics, schoolId, batchId, history) {
+  const errors = validateCalendar(calendar);
+  if (errors.length) throw Error(errors.join(" "));
+  const occurrences = [], issues = [];
+  if (Date.parse(calendar.end) - Date.parse(calendar.start) > 370 * 864e5) throw Error("Bitta o\u2018quv yili 370 kundan oshmasin.");
+  const protectedKeys = new Set((history?.rows || []).filter((r) => ["taught", "cancelled", "replaced"].includes(r.state)).map((r) => [r.date, r.classId, r.startTime, r.groupId || r.groupNumber || ""].join("|")));
+  for (let date5 = history?.from || calendar.start; date5 <= calendar.end; date5 = addDays(date5, 1)) for (const slot of slots) {
+    const day = instructionalDate(calendar, date5, slot);
+    if (!day || day.weekday !== slot.weekday || date5 < slot.effectiveFrom || slot.effectiveTo && date5 > slot.effectiveTo || protectedKeys.has([date5, slot.classId, slot.startTime, slot.groupId || slot.groupNumber || ""].join("|"))) continue;
+    occurrences.push({ id: schoolId + ":" + slot.id + ":" + date5, schoolId, batchId, slotId: slot.id, classId: slot.classId, classCode: slot.classCode, subject: slot.subject, curriculumArea: slot.curriculumArea, teacherId: slot.teacherId, teacherDisplayName: slot.teacherDisplayName, groupId: slot.groupId, groupNumber: slot.groupNumber, room: slot.room, date: date5, originalDate: date5, startTime: slot.startTime, endTime: slot.endTime, period: slot.period, quarter: day.quarter, state: calendar.status === "approved" && slot.status === "approved" ? "planned" : "awaiting_confirmation", allocatedHours: 0, revision: 1, source: { slotCell: slot.sourceCell, sheet: slot.sourceSheet } });
+  }
+  const lanes = /* @__PURE__ */ new Map();
+  for (const row2 of occurrences) {
+    const lane = [row2.classId, row2.subject, row2.curriculumArea || "", row2.groupId || row2.groupNumber || "", row2.quarter].join("|");
+    if (!lanes.has(lane)) lanes.set(lane, []);
+    lanes.get(lane).push(row2);
+  }
+  const preserved = (history?.rows || []).filter((r) => r.date < history.from || ["taught", "cancelled", "replaced"].includes(r.state));
+  const allocated = /* @__PURE__ */ new Set();
+  for (const rows of lanes.values()) {
+    rows.sort((a, b) => a.date.localeCompare(b.date) || a.startTime.localeCompare(b.startTime));
+    const sample = rows[0];
+    const prior2 = preserved.filter((r) => r.classId === sample.classId && r.subject === sample.subject && r.curriculumArea === sample.curriculumArea && (r.groupId || r.groupNumber) === (sample.groupId || sample.groupNumber) && r.quarter === sample.quarter);
+    const used = /* @__PURE__ */ new Map();
+    for (const r of prior2) for (const a of r.allocations || (r.topicId ? [{ topicId: r.topicId, hours: r.allocatedHours }] : [])) used.set(a.topicId, (used.get(a.topicId) || 0) + a.hours);
+    const plan2 = topics.filter((t) => t.classIds.includes(sample.classId) && t.subject === sample.subject && (t.curriculumArea || "") === (sample.curriculumArea || "") && t.quarter === sample.quarter).map((t) => ({ ...t, hours: Math.max(0, t.hours - (used.get(t.id) || 0)) })).filter((t) => t.hours > 1e-8).sort((a, b) => a.order - b.order || a.id.localeCompare(b.id));
+    let n = 0;
+    for (const topic of plan2) {
+      if (!Number.isFinite(topic.hours) || topic.hours <= 0 || topic.hours > 8) {
+        issues.push({ code: "HOURS_REVIEW", severity: "review", records: [topic.id], message: "Mavzu soatlari noto\u2018g\u2018ri." });
+        continue;
+      }
+      let remaining = topic.hours, part = 0;
+      while (remaining > 1e-8 && n < rows.length) {
+        const row2 = rows[n], take = Math.min(1 - row2.allocatedHours, remaining);
+        part += take;
+        remaining -= take;
+        row2.allocations ||= [];
+        row2.allocations.push({ topicId: topic.id, title: topic.title, hours: take, part, totalHours: topic.hours, planId: topic.workPlanId, sourceRow: topic.sourceRow });
+        if (!row2.topicId) Object.assign(row2, { topicId: topic.id, topicHours: topic.hours, source: { ...row2.source, planId: topic.workPlanId, topicRow: topic.sourceRow } });
+        row2.topicTitle = [...new Set(row2.allocations.map((v) => v.title))].join(" \xB7 ");
+        row2.topicPart = part;
+        row2.allocatedHours += take;
+        if (topic.homework && !row2.homework?.includes(topic.homework)) row2.homework = [row2.homework, topic.homework].filter(Boolean).join("\n");
+        allocated.add(topic.id);
+        if (row2.allocatedHours >= 1 - 1e-8) n++;
+      }
+      if (remaining > 1e-8) issues.push({ code: "INSUFFICIENT_SLOTS", severity: "error", records: [topic.id], message: "Mavzu soatlari uchun chorakdagi darslar yetmaydi." });
+    }
+    for (const row2 of rows.filter((r) => !r.topicId)) {
+      row2.state = "needs_review";
+      issues.push({ code: "CURRICULUM_MISSING", severity: "review", records: [row2.id], message: "Dars bor, tasdiqlangan o\u2018quv reja/mavzu biriktirilmagan." });
+    }
+  }
+  for (const r of preserved) for (const id of r.allocations?.map((a) => a.topicId) || (r.topicId ? [r.topicId] : [])) allocated.add(id);
+  for (const t of topics) if (!allocated.has(t.id)) issues.push({ code: "TOPIC_UNSCHEDULED", severity: "review", records: [t.id], message: "Mavzu uchun mos jadval yoki tasdiqlangan fan/soha mappingi topilmadi." });
+  if (history) {
+    const ids = new Set(preserved.map((r) => r.id));
+    const closedKeys = new Set(preserved.map((r) => [r.date, r.classId, r.startTime, r.groupId || r.groupNumber || ""].join("|")));
+    for (let i = occurrences.length - 1; i >= 0; i--) if (ids.has(occurrences[i].id) || closedKeys.has([occurrences[i].date, occurrences[i].classId, occurrences[i].startTime, occurrences[i].groupId || occurrences[i].groupNumber || ""].join("|"))) occurrences.splice(i, 1);
+    occurrences.push(...preserved.map((r) => ({ ...r, batchId })));
+  }
+  return { occurrences, issues, summary: { occurrences: occurrences.length, allocatedHours: occurrences.reduce((n, v) => n + v.allocatedHours, 0), unmappedSlots: occurrences.filter((v) => !v.topicId).length, topics: topics.length, scheduledTopics: new Set(occurrences.flatMap((r) => r.allocations?.map((a) => a.topicId) || (r.topicId ? [r.topicId] : []))).size, confirmedDates: calendar.status === "approved" ? occurrences.filter((v) => v.state === "planned").length : 0, taught: occurrences.filter((r) => r.state === "taught").length, preservedHistory: preserved.length, unconfirmedPast: preserved.filter((r) => r.date < (history?.from || "") && !["taught", "cancelled", "replaced"].includes(r.state)).length } };
+}
+function proposePostponement(rows, id, nextDate, reason4) {
+  if (!dateOnly(nextDate) || reason4.trim().length < 8) throw Error("Yangi sana va asos kerak.");
+  const target = rows.find((v) => v.id === id);
+  if (!target || nextDate <= target.date || !target.topicId || ["taught", "cancelled", "replaced"].includes(target.state)) throw Error("Ko\u2018chirish kelajakdagi sana uchun; o\u2018tilgan yoki mavzusiz dars tarixini o\u2018zgartirish mumkin emas.");
+  const lane = rows.filter((v) => v.classId === target.classId && v.subject === target.subject && v.curriculumArea === target.curriculumArea && (v.groupId || v.groupNumber) === (target.groupId || target.groupNumber) && v.quarter === target.quarter && v.date >= target.date && !["taught", "cancelled", "replaced"].includes(v.state)).sort((a, b) => a.date.localeCompare(b.date) || a.period - b.period);
+  const slots = lane.filter((v) => v.date >= nextDate);
+  if (slots.length < lane.filter((v) => v.topicId).length) throw Error("Ko\u2018chirish uchun yetarli bo\u2018sh dars yo\u2018q. Qo\u2018shimcha dars yoki reja tasdig\u2018i kerak.");
+  return { reason: reason4, originalId: id, changes: lane.filter((v) => v.topicId).map((v, i) => ({ fromId: v.id, toId: slots[i].id, fromDate: v.date, toDate: slots[i].date, topicId: v.topicId, revision: v.revision, targetRevision: slots[i].revision })), historyPreserved: true };
+}
+
 // src/server/schoolImportEngine.ts
-var schoolDigest = (value) => crypto.createHash("sha256").update(JSON.stringify(value)).digest("hex");
+import crypto3 from "node:crypto";
+var schoolDigest = (value) => crypto3.createHash("sha256").update(JSON.stringify(value)).digest("hex");
 function analyzeSchoolFiles(kind, files, users, institutionId) {
   const people = [], plans = [];
   for (const file of files) {
@@ -2972,7 +3451,7 @@ function analyzeSchoolFiles(kind, files, users, institutionId) {
       const sourceIssues = parsed.issues.filter((i) => !parsed.lessons.some((l) => l.sourceRow === i.row && l.sourceSheet === i.sheet && l.issues.some((e) => e.code === i.code)));
       const issues = [...suggestion.issues, ...sourceIssues.map((i) => i.sheet + " \xB7 " + i.row + "-qator: " + i.message)];
       if (!parsed.lessons.length) issues.push("Dars qatorlari topilmadi.");
-      plans.push({ id: schoolDigest([file.sourceHash, sheet2.name]), fileName: file.name, sourceHash: file.sourceHash, sheetName: sheet2.name, sourceIssues, lessons: parsed.lessons, suggestion, issues });
+      plans.push({ id: schoolDigest([file.sourceHash, sheet2.name]), fileName: file.name, sourceHash: file.sourceHash, sheetName: sheet2.name, sourceEvidence: sheet2.rows.slice(0, 5).map((r) => r.map(normalizedText).join(" | ").slice(0, 1200)), sourceIssues, lessons: parsed.lessons, suggestion, issues });
     }
   }
   const seen = /* @__PURE__ */ new Set();
@@ -3005,54 +3484,110 @@ function nextPersonLogin(row2, used) {
   return login;
 }
 
-// src/server/supabaseClient.ts
-import { createClient } from "@supabase/supabase-js";
-var client;
-var supabaseEnabled = () => process.env.PERSISTENCE_DRIVER === "supabase";
-function serverSupabase() {
-  if (client) return client;
-  const url = process.env.SUPABASE_URL, key2 = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!url || !key2 || key2.length < 30) throw Error("Supabase server configuration missing");
-  if (!/^https:\/\/[a-z0-9]+\.supabase\.co$/.test(url)) throw Error("Invalid Supabase origin");
-  return client = createClient(url, key2, { auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false } });
+// src/server/academicActivityRoutes.ts
+function registerAcademicActivityRoutes(app2, deps) {
+  const store2 = deps.store || new SupabaseAcademicStore();
+  const context = async (req, res) => {
+    const c = deps.authenticate(req);
+    if (!c) {
+      res.status(401).json({ error: "Hisobga kiring." });
+      return;
+    }
+    const row2 = await store2.get(c.user.institutionId, "2026-2027", req.params.id);
+    if (!row2 || !(deps.owner(c.user) || hasLeadershipPermission(c, "curriculum.manage") || c.user.role === "teacher" && row2.teacherId === c.user.uid && c.user.assignedClassIds?.includes(row2.classId) && row2.subject === c.user.subject)) {
+      res.status(403).json({ error: "Bu dars va guruhga ruxsat yo\u2018q." });
+      return;
+    }
+    const group = row2.groupId ? (c.db.academicGroups || []).find((g) => g.id === row2.groupId && g.schoolId === c.user.institutionId && g.classId === row2.classId) : void 0;
+    const roster = c.db.users.filter((u) => u.institutionId === c.user.institutionId && u.classId === row2.classId && u.role === "student" && u.status === "active" && (!row2.groupId || group?.members.includes(u.uid)));
+    return { ...c, row: row2, roster };
+  };
+  app2.get("/api/academic/occurrences/:id/roster", asyncRoute(async (req, res) => {
+    const c = await context(req, res);
+    if (!c) return;
+    const session = c.db.attendanceSessions.find((s) => s.occurrenceId === c.row.id);
+    res.json({ students: c.roster.map((u) => ({ id: u.uid, name: u.displayName })), groupId: c.row.groupId, revision: session?.revision || 0, records: session ? c.db.attendanceRecords.filter((r) => r.sessionId === session.id).map((r) => ({ studentId: r.studentId, status: r.status })) : [], groupMissing: !!c.row.groupId && !c.roster.length });
+  }));
+  app2.post("/api/academic/occurrences/:id/attendance", asyncRoute(async (req, res) => {
+    const c = await context(req, res);
+    if (!c) return;
+    const p = z2.object({ operationId: z2.uuid(), revision: z2.number().int().nonnegative(), records: z2.array(z2.object({ studentId: z2.string().max(160), status: z2.enum(["PRESENT", "ABSENT", "LATE", "EXCUSED_ABSENCE"]) })).min(1).max(50) }).safeParse(req.body);
+    if (!p.success) return res.status(400).json({ error: "Davomat yozuvlarini tekshiring." });
+    const today = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Tashkent" }).format(/* @__PURE__ */ new Date());
+    if (c.row.date > today || ["cancelled", "postponed", "replaced"].includes(c.row.state)) return res.status(409).json({ error: "Kelajakdagi yoki bekor qilingan darsga davomat yozilmaydi." });
+    const digest4 = schoolDigest(p.data.records), old = c.db.attendanceSessions.find((s) => s.occurrenceId === c.row.id);
+    if (old?.operations?.some((o) => o.id === p.data.operationId)) {
+      const receipt = old.operations.find((o) => o.id === p.data.operationId);
+      if (receipt.digest !== digest4) return res.status(409).json({ error: "Amal raqami boshqa mazmun uchun ishlatilgan." });
+      return res.json({ saved: true, duplicate: true, revision: old.revision });
+    }
+    if ((old?.revision || 0) !== p.data.revision) return res.status(409).json({ error: "Davomat boshqa oynada yangilangan." });
+    const ids = new Set(c.roster.map((u) => u.uid));
+    if (ids.size !== p.data.records.length || new Set(p.data.records.map((r) => r.studentId)).size !== ids.size || p.data.records.some((r) => !ids.has(r.studentId))) return res.status(400).json({ error: "Faqat ushbu darsning to\u2018liq tasdiqlangan guruh tarkibi uchun belgilang." });
+    const now = (/* @__PURE__ */ new Date()).toISOString(), id = old?.id || "attendance-" + schoolDigest(c.row.id).slice(0, 40), counts = (status) => p.data.records.filter((r) => r.status === status).length;
+    const session = { id, institutionId: c.user.institutionId, classId: c.row.classId, classCode: c.row.classCode, date: c.row.date, academicYear: "2026-2027", occurrenceId: c.row.id, groupId: c.row.groupId, subject: c.row.subject, recordedByUid: c.user.uid, recordedByName: c.user.displayName, totalEnrolled: ids.size, presentCount: counts("PRESENT"), absentCount: counts("ABSENT"), lateCount: counts("LATE"), excusedCount: counts("EXCUSED_ABSENCE"), attendancePercent: Math.round(100 * (counts("PRESENT") + counts("LATE")) / ids.size), createdAt: old?.createdAt || now, updatedAt: now, revision: (old?.revision || 0) + 1, operations: [...old?.operations || [], { id: p.data.operationId, digest: digest4 }] };
+    c.db.attendanceSessions = c.db.attendanceSessions.filter((s) => s.id !== id);
+    c.db.attendanceSessions.push(session);
+    c.db.attendanceRecords = c.db.attendanceRecords.filter((r) => r.sessionId !== id);
+    c.db.attendanceRecords.push(...p.data.records.map((r) => ({ id: id + ":" + r.studentId, sessionId: id, institutionId: c.user.institutionId, classId: c.row.classId, classCode: c.row.classCode, studentId: r.studentId, studentName: c.roster.find((u) => u.uid === r.studentId).displayName, date: c.row.date, status: r.status, recordedByUid: c.user.uid, recordedByName: c.user.displayName, recordedAt: now, updatedAt: now })));
+    c.db.auditLogs.unshift({ id: crypto4.randomUUID(), institutionId: c.user.institutionId, actorUid: c.user.uid, action: "Dars/guruh davomati saqlandi", recordId: id, createdAt: now });
+    deps.save(c.env, c.db);
+    res.json({ saved: true, revision: session.revision });
+  }));
+  app2.post("/api/academic/occurrences/:id/task", asyncRoute(async (req, res) => {
+    const c = await context(req, res);
+    if (!c) return;
+    const p = z2.object({ operationId: z2.uuid(), title: z2.string().trim().min(3).max(200), description: z2.string().trim().min(3).max(5e3), dueDate: z2.string().refine(dateOnly), maxScore: z2.number().min(0).max(100), publish: z2.boolean() }).safeParse(req.body);
+    if (!p.success || p.data.dueDate < c.row.date) return res.status(400).json({ error: "Vazifa matni, sana va ballni tekshiring." });
+    if (c.row.groupId && !c.roster.length) return res.status(409).json({ error: "Avval guruh a\u2019zolarini tasdiqlang." });
+    const id = "academic-task-" + schoolDigest([c.user.institutionId, c.user.uid, p.data.operationId]).slice(0, 40), digest4 = schoolDigest(p.data), old = c.db.studentAssignments.find((a) => a.id === id);
+    if (old) {
+      if (old.operationDigest !== digest4) return res.status(409).json({ error: "Amal raqami boshqa mazmun uchun ishlatilgan." });
+      return res.json({ assignmentId: id, duplicate: true });
+    }
+    const now = (/* @__PURE__ */ new Date()).toISOString();
+    c.db.studentAssignments.push({ id, institutionId: c.user.institutionId, title: p.data.title, description: p.data.description, subject: c.row.subject, subjectName: c.row.subject, classCode: c.row.classCode, targetClassCodes: [c.row.classCode], targetClassIds: [c.row.classId], groupIds: c.row.groupId ? [c.row.groupId] : [], relatedLessonId: c.row.topicId, relatedLessonTitle: c.row.topicTitle, occurrenceId: c.row.id, assignedDate: c.row.date, dueDate: p.data.dueDate, maxScore: p.data.maxScore, status: p.data.publish ? "published" : "draft", createdByUid: c.user.uid, createdByName: c.user.displayName, createdAt: now, updatedAt: now, revision: 1, operationDigest: digest4, submissionType: "text", allowResubmission: true });
+    c.db.auditLogs.unshift({ id: crypto4.randomUUID(), institutionId: c.user.institutionId, actorUid: c.user.uid, action: "Darsdan guruhga vazifa yaratildi", recordId: id, createdAt: now });
+    deps.save(c.env, c.db);
+    res.json({ assignmentId: id, published: p.data.publish });
+  }));
 }
-async function studyRpc(name, args) {
-  if (!/^study_[a-z_]+$/.test(name)) throw Error("Invalid RPC");
-  const { data, error } = await serverSupabase().rpc(name, args);
-  if (error) {
-    const e = Error(error.code === "40001" ? "PERSISTENCE_CONFLICT" : "Supabase operation failed");
-    Object.assign(e, { code: error.code });
-    throw e;
-  }
-  return data;
+
+// src/utils/schoolAudience.ts
+function studentAssignmentVisible(user, row2) {
+  if (user.role !== "student" || user.status !== "active" || row2.institutionId !== user.institutionId || row2.status === "draft" || !user.classId) return false;
+  const classes = row2.targetClassIds || [], codes = row2.targetClassCodes || [];
+  return (classes.length ? classes.includes(user.classId) : codes.some((code) => code.toLowerCase() === user.classCode?.toLowerCase())) && (!row2.groupIds?.length || row2.groupIds.some((id) => user.teachingGroupIds?.includes(id)));
 }
+
+// src/server/academicRoutes.ts
+init_runtimeScope();
+
+// src/server/academicIdentity.ts
+var normalize = (s) => normalizedText(s).toLowerCase().replace(/[ʻʼ‘’`']/g, "").replace(/[^\p{L}\p{N} ]/gu, "").trim();
+function teacherReferenceCandidates(reference, people) {
+  const parts = normalizedText(reference).split(/\s+/), surname = normalize(parts[0] || ""), initials = normalize(parts.slice(1).join("")).replace(/ /g, "");
+  return people.filter((p) => {
+    if (/vakant|вакан/i.test(p.displayName)) return false;
+    if (normalize(p.displayName) === normalize(reference)) return true;
+    const name = normalizedText(p.displayName).split(/\s+/);
+    return normalize(name[0] || "") === surname && name.slice(1, 3).map((v) => normalize(v)[0] || "").join("") === initials;
+  });
+}
+function proposedTeachingSubject(source2, declared) {
+  const value = standardSubject(source2), subjects = declared.map(standardSubject);
+  if (subjects.includes(value)) return value;
+  if (/^(?:algebra|geometriya)$/i.test(value) && subjects.includes("Matematika")) return "Matematika";
+  if (/^xorijiy til$/i.test(value) && subjects.length === 1 && subjects[0] === "Ingliz tili") return "Ingliz tili";
+  return void 0;
+}
+
+// src/server/academicRoutes.ts
+import { z as z3 } from "zod";
+import crypto5 from "node:crypto";
 
 // src/server/privateImportStore.ts
 init_runtimeScope();
-
-// src/server/secretEnvelope.ts
-import crypto2 from "node:crypto";
-var key = (purpose) => {
-  const secret = process.env.SESSION_SECRET;
-  if (!secret || secret.length < 32) throw Error("Server encryption configuration missing");
-  return crypto2.createHmac("sha256", secret).update("specialized-study:envelope:v1:" + purpose).digest();
-};
-function sealSecret(value, purpose) {
-  const iv = crypto2.randomBytes(12), cipher = crypto2.createCipheriv("aes-256-gcm", key(purpose), iv);
-  cipher.setAAD(Buffer.from(purpose));
-  const bytes = Buffer.concat([cipher.update(JSON.stringify(value), "utf8"), cipher.final()]);
-  return ["v1", iv.toString("base64url"), cipher.getAuthTag().toString("base64url"), bytes.toString("base64url")].join(".");
-}
-function openSecret(sealed, purpose) {
-  const [version, iv, tag, value] = sealed.split(".");
-  if (version !== "v1" || !iv || !tag || !value) throw Error("Invalid envelope");
-  const decipher = crypto2.createDecipheriv("aes-256-gcm", key(purpose), Buffer.from(iv, "base64url"));
-  decipher.setAAD(Buffer.from(purpose));
-  decipher.setAuthTag(Buffer.from(tag, "base64url"));
-  return JSON.parse(Buffer.concat([decipher.update(Buffer.from(value, "base64url")), decipher.final()]).toString("utf8"));
-}
-
-// src/server/privateImportStore.ts
 var importPurpose = (school, id, kind) => runtimeNamespace() + ":school-import:" + school + ":" + id + ":" + kind;
 async function putImportPayload(school, id, kind, value) {
   const path6 = runtimeNamespace() + "/imports/" + encodeURIComponent(school) + "/" + encodeURIComponent(id) + "/" + kind + ".enc", bytes = Buffer.from(sealSecret(value, importPurpose(school, id, kind)));
@@ -3073,17 +3608,615 @@ async function getImportPayload(school, id, kind, path6) {
   return openSecret(await data.text(), importPurpose(school, id, kind));
 }
 
+// src/server/academicRoutes.ts
+var schoolToday = () => new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Tashkent", year: "numeric", month: "2-digit", day: "2-digit" }).format(/* @__PURE__ */ new Date());
+var reason = z3.string().trim().min(12).max(1200);
+var date = z3.string().refine(dateOnly);
+var operation = z3.uuid();
+var calendarSchema = z3.object({ id: z3.string().max(120).optional(), expectedRevision: z3.number().int().nonnegative(), academicYear: z3.literal("2026-2027"), start: date, end: date, weekdays: z3.array(z3.number().int().min(0).max(6)).min(1).max(7), terms: z3.array(z3.object({ number: z3.number().int().min(1).max(4), start: date, end: date })).min(1).max(4), exceptions: z3.array(z3.object({ id: z3.string().max(150), date, kind: z3.enum(["closed", "extra_day", "cancelled", "replacement"]), reason: z3.string().trim().min(3).max(500), classId: z3.string().max(150).optional(), slotId: z3.string().max(250).optional(), weekday: z3.number().int().min(0).max(6).optional(), replacementDate: date.optional() })).max(200), approved: z3.boolean(), source: z3.string().trim().min(10).max(1e3), reason });
+var timeTableSchema = z3.object({ sourceHash: z3.string().regex(/^[a-f0-9]{64}$/), fileName: z3.string().max(180), sheets: z3.array(z3.object({ name: z3.string().min(1).max(100), rows: z3.array(z3.array(z3.union([z3.string().max(1200), z3.number(), z3.null()])).max(40)).max(100) })).min(1).max(3) });
+function registerAcademicRoutes(app2, deps) {
+  const store2 = deps.store || new SupabaseAcademicStore(), put = deps.put || putImportPayload, get = deps.get || getImportPayload;
+  const access = (req, res, manage = false) => {
+    const c = deps.authenticate(req);
+    if (!c) {
+      res.status(401).json({ error: "Hisobga kiring." });
+      return;
+    }
+    if (!["platform_owner", "admin", "teacher", "student", "staff"].includes(c.user.role)) {
+      res.status(403).json({ error: "Bu bo\u2018lim uchun ruxsat yo\u2018q." });
+      return;
+    }
+    c.leadership = hasLeadershipPermission(c, "overview.read");
+    c.canManage = deps.owner(c.user) || hasLeadershipPermission(c, "curriculum.manage");
+    if (manage && !c.canManage) {
+      res.status(403).json({ error: "Bu boshqaruv amaliga ruxsat yo\u2018q." });
+      return;
+    }
+    return c;
+  };
+  const audit = (c, action, id) => c.db.auditLogs.unshift({ id: crypto5.randomUUID(), institutionId: c.user.institutionId, actorUid: c.user.uid, actorName: c.user.displayName, actorRole: c.user.role, action, target: "Akademik taqvim", recordId: id, createdAt: (/* @__PURE__ */ new Date()).toISOString() });
+  const jobFor = (c, id) => (c.db.academicTimetables || []).find((t) => t.id === id && t.schoolId === c.user.institutionId);
+  const calendarFor = (c, id) => (c.db.academicCalendars || []).find((t) => t.schoolId === c.user.institutionId && (id ? t.id === id : t.status === "approved"));
+  const projectSlots = (c, job, version) => {
+    const corrected = version.slots.map((r) => ({ ...r, ...(job.slotCorrections || []).find((v) => v.slotId === r.id)?.patch })), conflicts = timetableConflicts(corrected);
+    return corrected.map((original) => {
+      const correction = (job.slotCorrections || []).find((v) => v.slotId === original.id);
+      const s = { ...original, ...correction?.patch };
+      const alias = (c.db.subjectAliasReviews || []).find((a) => a.schoolId === c.user.institutionId && a.alias.toLowerCase() === s.subject.toLowerCase()), subject = alias?.subject || s.subject, area = alias?.curriculumArea || subject;
+      const candidates = teacherReferenceCandidates(s.teacherDisplayName, c.db.users.filter((u) => u.institutionId === c.user.institutionId && u.role === "teacher" && u.status === "active")).filter((u) => (c.db.teacherAssignments || []).some((a) => a.teacherId === u.uid && a.classId === s.classId && a.subject === subject) || !u.sourceImport && u.subject === subject && u.assignedClassIds?.includes(s.classId));
+      const cls = c.db.classes.find((v) => v.id === s.classId), knownSubject = !!alias || cls?.subjectNames?.includes(subject), conflicted = conflicts.some((i) => i.records.includes(s.id));
+      return { ...s, id: c.user.institutionId + ":" + s.id, subject, curriculumArea: area, teacherId: candidates.length === 1 ? candidates[0].uid : void 0, groupId: s.groupNumber ? "group-" + schoolDigest([c.user.institutionId, s.classId, subject, s.groupNumber]).slice(0, 40) : void 0, status: knownSubject && !conflicted ? "approved" : "draft", effectiveFrom: job.effectiveFrom, effectiveTo: job.effectiveTo };
+    });
+  };
+  const teach = (c, row2) => c.canManage || c.user.role === "teacher" && row2.teacherId === c.user.uid && (c.user.assignedClassIds || []).includes(row2.classId) && ((c.db.teacherAssignments || []).some((a) => a.teacherId === c.user.uid && a.classId === row2.classId && a.subject === row2.subject) || !c.user.sourceImport && row2.subject === c.user.subject);
+  app2.get("/api/academic/config", (req, res) => {
+    const c = access(req, res);
+    if (!c) return;
+    res.json({ today: schoolToday(), year: "2026-2027", canManage: c.canManage, calendars: (c.db.academicCalendars || []).filter((v) => v.schoolId === c.user.institutionId && (c.canManage || v.status === "approved")).map((v) => c.user.role === "student" ? { ...v, exceptions: v.exceptions.filter((e) => !e.classId || e.classId === c.user.classId).map(({ reason: reason4, ...e }) => e) } : v), timetables: (c.db.academicTimetables || []).filter((v) => v.schoolId === c.user.institutionId).map(({ storagePath, slotCorrections, approvedBy, createdBy, ...v }) => c.canManage ? v : { id: v.id, fileName: v.fileName, status: v.status, officialSheet: v.officialSheet, academicYear: v.academicYear }), schedules: (c.db.academicSchedules || []).filter((v) => v.schoolId === c.user.institutionId).map(({ storagePath, slotCorrections, approvedBy, createdBy, ...v }) => c.canManage ? v : { id: v.id, fileName: v.fileName, status: v.status, officialSheet: v.officialSheet, academicYear: v.academicYear }), groups: (c.db.academicGroups || []).filter((g) => g.schoolId === c.user.institutionId && (c.canManage || c.leadership || c.user.role === "teacher" && c.user.assignedClassIds?.includes(g.classId) && g.subject === c.user.subject || g.members.includes(c.user.uid))).map(({ members, ...g }) => ({ ...g, ...c.canManage ? { members } : {}, memberCount: members.length })), aliases: c.canManage ? (c.db.subjectAliasReviews || []).filter((v) => v.schoolId === c.user.institutionId) : [], groupAssignmentMissing: c.user.role === "student" && !(c.user.teachingGroupIds || []).length });
+  });
+  app2.get("/api/academic/weekly", asyncRoute(async (req, res) => {
+    const c = access(req, res);
+    if (!c) return;
+    const jobs = (c.db.academicTimetables || []).filter((t) => t.schoolId === c.user.institutionId && t.officialSheet);
+    if (!jobs.length) return res.json({ rows: [], notice: "Rasmiy dars jadvali hali tanlanmagan." });
+    const scope = academicAudience(c), rows = [];
+    for (const job of jobs) {
+      const source2 = await get(c.user.institutionId, job.id, "timetable-source", job.storagePath), version = source2.versions.find((v) => v.sheet === job.officialSheet);
+      rows.push(...projectSlots(c, job, version).filter((s) => (!scope.classes || scope.classes.includes(s.classId)) && (!scope.teacher || scope.teacher === s.teacherId) && (!scope.groups || !s.groupId || scope.groups.includes(s.groupId))));
+    }
+    res.json({ rows, sourceOnly: true, groupNotice: c.user.role === "student" && !(c.user.teachingGroupIds || []).length ? "Guruh tasdiqlanmaguncha bo\u2018lingan darslar shaxsiy jadvalga qo\u2018shilmaydi." : void 0 });
+  }));
+  app2.get("/api/academic/progress", asyncRoute(async (req, res) => {
+    const c = access(req, res);
+    if (!c) return;
+    const rows = await store2.progress({ school: c.user.institutionId, year: "2026-2027", ...academicAudience(c) });
+    res.json({ rows, teachingProgressOnly: true, mastery: { status: "separate_evidence_required", message: "Dars o\u2018tilishi bilim o\u2018zlashtirilganini anglatmaydi." } });
+  }));
+  app2.get("/api/academic/teacher-proposals", asyncRoute(async (req, res) => {
+    const c = access(req, res, true);
+    if (!c) return;
+    const staff = (c.db.schoolImportJobs || []).find((j) => j.id === req.query.staffJobId && j.kind === "teachers" && j.institutionId === c.user.institutionId), job = (c.db.academicTimetables || []).find((j) => j.schoolId === c.user.institutionId && j.officialSheet);
+    if (!staff || !job) return res.json({ rows: [], notice: "Xodimlar manbasi va rasmiy jadval kerak." });
+    const people = await get(c.user.institutionId, staff.id, "source", staff.storagePath), table = await get(c.user.institutionId, job.id, "timetable-source", job.storagePath), version = table.versions.find((v) => v.sheet === job.officialSheet), mapped = /* @__PURE__ */ new Map();
+    for (const p of people.people) mapped.set(p.id, { personId: p.id, assignments: [], evidence: [], unresolvedSubjects: [] });
+    for (const slot of version.slots) {
+      const matches = teacherReferenceCandidates(slot.teacherDisplayName, people.people);
+      if (matches.length !== 1) continue;
+      const person2 = matches[0], subject = proposedTeachingSubject(slot.subject, person2.subjects), proposal = mapped.get(person2.id);
+      proposal.evidence.push({ sheet: slot.sourceSheet, cell: slot.sourceCell, classCode: slot.classCode, sourceSubject: slot.subject, confidence: "exact_surname_and_initials" });
+      if (subject && !proposal.assignments.some((a) => a.classCode === slot.classCode && a.subject === subject)) proposal.assignments.push({ classCode: slot.classCode, subject });
+      else if (!subject && !proposal.unresolvedSubjects.includes(slot.subject)) proposal.unresolvedSubjects.push(slot.subject);
+    }
+    res.json({ rows: [...mapped.values()], officialSheet: job.officialSheet, notPermissions: true });
+  }));
+  app2.get("/api/academic/agenda", asyncRoute(async (req, res) => {
+    const c = access(req, res);
+    if (!c) return;
+    const p = z3.object({ from: date, to: date, after: z3.string().max(700).optional(), classId: z3.string().max(160).optional(), subject: z3.string().max(100).optional(), teacher: z3.string().max(160).optional(), room: z3.string().max(100).optional() }).safeParse(req.query);
+    if (!p.success) return res.status(400).json({ error: "Sana oralig\u2018ini tekshiring." });
+    const days2 = (Date.parse(p.data.to) - Date.parse(p.data.from)) / 864e5;
+    if (days2 < 0 || days2 > (c.canManage || c.leadership ? 370 : 35)) return res.status(400).json({ error: "Kun/hafta/oy oralig\u2018ini tanlang." });
+    const scope = academicAudience(c);
+    if (p.data.classId && scope.classes && !scope.classes.includes(p.data.classId)) return res.status(403).json({ error: "Bu sinfga ruxsat yo\u2018q." });
+    const result = await store2.list({ school: c.user.institutionId, year: "2026-2027", from: p.data.from, to: p.data.to, ...scope, classes: p.data.classId ? [p.data.classId] : scope.classes, teacher: scope.teacher || (c.canManage || c.leadership ? p.data.teacher : void 0), after: p.data.after, limit: 100 });
+    let rows = result.rows.filter((r) => (!p.data.subject || r.subject === p.data.subject) && (!p.data.room || r.room === p.data.room));
+    if (c.user.role === "student") rows = rows.map(({ note, taughtBy, source: source2, ...row2 }) => {
+      if (row2.state === "awaiting_confirmation") for (const key2 of ["topicId", "topicTitle", "topicPart", "topicHours", "allocations", "actualTopic", "homework"]) delete row2[key2];
+      return row2;
+    });
+    res.json({ ...result, rows, notice: result.batchId ? void 0 : "Sanalashtirilgan dars rejasi hali tasdiqlanmagan.", groupNotice: c.user.role === "student" && !(c.user.teachingGroupIds || []).length ? "Bo\u2018lingan darslarni ko\u2018rish uchun guruhingizni administrator tasdiqlashi kerak." : void 0 });
+  }));
+  app2.post("/api/academic/calendars", (req, res) => {
+    const c = access(req, res, true);
+    if (!c) return;
+    const p = calendarSchema.safeParse(req.body);
+    if (!p.success) return res.status(400).json({ error: "Taqvim, istisno va tasdiqlash asosini tekshiring." });
+    const old = calendarFor(c, p.data.id || "new"), id = p.data.id || "calendar-" + crypto5.randomUUID();
+    if ((old?.revision || 0) !== p.data.expectedRevision) return res.status(409).json({ code: "REVISION_CONFLICT", error: "Taqvim boshqa oynada o\u2018zgargan." });
+    const calendar = { id, schoolId: c.user.institutionId, academicYear: p.data.academicYear, start: p.data.start, end: p.data.end, weekdays: p.data.weekdays, terms: p.data.terms, exceptions: p.data.exceptions, status: p.data.approved ? "approved" : "provisional", revision: (old?.revision || 0) + 1, source: p.data.source, approvedBy: p.data.approved ? c.user.uid : void 0, approvedAt: p.data.approved ? (/* @__PURE__ */ new Date()).toISOString() : void 0 };
+    const errors = validateCalendar(calendar);
+    if (errors.length) return res.status(400).json({ error: errors.join(" ") });
+    if (calendar.exceptions.some((e) => e.classId && !c.db.classes.some((cl) => cl.id === e.classId && cl.institutionId === c.user.institutionId))) return res.status(400).json({ error: "Istisno boshqa maktab sinfiga tegishli." });
+    c.db.academicCalendars ||= [];
+    if (old) {
+      c.db.academicCalendarHistory ||= [];
+      c.db.academicCalendarHistory.push({ ...old, supersededAt: (/* @__PURE__ */ new Date()).toISOString() });
+    }
+    if (old) c.db.academicCalendars = c.db.academicCalendars.filter((v) => v.id !== old.id);
+    c.db.academicCalendars.push(calendar);
+    audit(c, "Taqvim versiyasi saqlandi: " + p.data.reason, id);
+    deps.save(c.env, c.db);
+    res.json({ calendar, datesNotAutomaticallyPublished: true });
+  });
+  app2.post("/api/academic/timetables/preview", asyncRoute(async (req, res) => {
+    const c = access(req, res, true);
+    if (!c) return;
+    const p = timeTableSchema.safeParse(req.body);
+    if (!p.success) return res.status(400).json({ error: "Jadval faylining tuzilishi yoki hajmi noto\u2018g\u2018ri." });
+    const id = "timetable-" + schoolDigest([c.user.institutionId, p.data.sourceHash]).slice(0, 40), existing = jobFor(c, id);
+    if (existing) return res.json({ job: { ...existing, storagePath: void 0 }, duplicate: true });
+    const parsed = parseSchoolTimetable(p.data.sheets, p.data.sourceHash, c.db.classes.filter((cl) => cl.institutionId === c.user.institutionId)), payload = { ...parsed, versions: parsed.versions.map((v) => ({ ...v, conflicts: timetableConflicts(v.slots) })) }, storagePath = await put(c.user.institutionId, id, "timetable-source", payload);
+    const job = { id, schoolId: c.user.institutionId, fileName: p.data.fileName, sourceHash: p.data.sourceHash, storagePath, revision: 1, status: "review", createdAt: (/* @__PURE__ */ new Date()).toISOString(), sheets: payload.versions.map((v) => ({ name: v.sheet, slots: v.slots.length, classes: new Set(v.slots.map((s) => s.classId)).size, splitGroups: v.slots.filter((s) => s.groupNumber).length, issues: v.issues.length, conflicts: v.conflicts.length })), diffCount: payload.diffs.length };
+    c.db.academicTimetables ||= [];
+    c.db.academicTimetables.push(job);
+    audit(c, "Jadvalning ikki varag\u2018i solishtirildi", id);
+    deps.save(c.env, c.db);
+    res.json({ job: { ...job, storagePath: void 0 } });
+  }));
+  app2.get("/api/academic/timetables/:id/rows", asyncRoute(async (req, res) => {
+    const c = access(req, res, true);
+    if (!c) return;
+    const job = jobFor(c, req.params.id);
+    if (!job) return res.status(404).json({ error: "Jadval topilmadi." });
+    const payload = await get(c.user.institutionId, job.id, "timetable-source", job.storagePath);
+    for (const v of payload.versions) {
+      v.slots = v.slots.map((r) => ({ ...r, ...(job.slotCorrections || []).find((x) => x.slotId === r.id)?.patch }));
+      v.conflicts = timetableConflicts(v.slots);
+    }
+    const page = Math.max(0, Number(req.query.page) || 0), sheet2 = payload.versions.find((v) => v.sheet === req.query.sheet) || payload.versions[0], all = req.query.diff === "true" ? payload.diffs : req.query.conflictsOnly === "true" ? sheet2.slots.filter((r) => sheet2.conflicts.some((i) => i.records.includes(r.id))) : sheet2?.slots || [];
+    res.json({ total: all.length, rows: all.slice(page * 50, page * 50 + 50), issues: sheet2?.issues, conflicts: sheet2?.conflicts, corrections: job.slotCorrections || [], revision: job.revision });
+  }));
+  app2.post("/api/academic/timetables/:id/approve", asyncRoute(async (req, res) => {
+    const c = access(req, res, true);
+    if (!c) return;
+    const job = jobFor(c, req.params.id);
+    if (!job) return res.status(404).json({ error: "Jadval topilmadi." });
+    const p = z3.object({ sheet: z3.string().max(100), revision: z3.number().int(), reviewed: z3.literal(true), effectiveFrom: date, effectiveTo: date.optional(), reason }).safeParse(req.body);
+    if (!p.success) return res.status(400).json({ error: "Rasmiy varaq, amal sanasi va asosni tasdiqlang." });
+    if (job.revision !== p.data.revision) return res.status(409).json({ code: "REVISION_CONFLICT", error: "Jadval versiyasi o\u2018zgargan." });
+    const payload = await get(c.user.institutionId, job.id, "timetable-source", job.storagePath);
+    if (p.data.effectiveTo && p.data.effectiveTo < p.data.effectiveFrom) return res.status(400).json({ error: "Jadval amal sanalari noto\u2018g\u2018ri." });
+    if (!payload.versions.some((v) => v.sheet === p.data.sheet)) return res.status(400).json({ error: "Manbada bunday varaq yo\u2018q." });
+    Object.assign(job, { officialSheet: p.data.sheet, effectiveFrom: p.data.effectiveFrom, effectiveTo: p.data.effectiveTo, status: "approved_source", revision: job.revision + 1, approvedBy: c.user.uid, approvedAt: (/* @__PURE__ */ new Date()).toISOString() });
+    audit(c, "Rasmiy jadval manbasi tanlandi: " + p.data.reason, job.id);
+    deps.save(c.env, c.db);
+    res.json({ job: { ...job, storagePath: void 0 }, unresolvedAssignmentsPreserved: true });
+  }));
+  app2.post("/api/academic/timetables/:id/corrections", asyncRoute(async (req, res) => {
+    const c = access(req, res, true);
+    if (!c) return;
+    const job = jobFor(c, req.params.id);
+    if (!job) return res.status(404).json({ error: "Jadval topilmadi." });
+    const p = z3.object({ slotId: z3.string().max(512), revision: z3.number().int().positive(), reason, patch: z3.object({ room: z3.string().trim().min(1).max(80).optional(), teacherDisplayName: z3.string().trim().min(3).max(160).optional(), subject: z3.string().trim().min(2).max(100).optional(), startTime: z3.string().regex(/^(?:[01]\d|2[0-3]):[0-5]\d$/).optional(), endTime: z3.string().regex(/^(?:[01]\d|2[0-3]):[0-5]\d$/).optional() }).strict() }).safeParse(req.body);
+    if (!p.success || !Object.keys(p.data.patch).length) return res.status(400).json({ error: "Manba darsi va asosli tuzatishni tanlang." });
+    if (job.revision !== p.data.revision) return res.status(409).json({ error: "Jadval versiyasi o\u2018zgargan." });
+    const source2 = await get(c.user.institutionId, job.id, "timetable-source", job.storagePath), slot = source2.versions.flatMap((v) => v.slots).find((v) => v.id === p.data.slotId);
+    if (!slot) return res.status(400).json({ error: "Dars ushbu manbaga tegishli emas." });
+    const old = (job.slotCorrections || []).find((v) => v.slotId === slot.id), correction = { slotId: slot.id, patch: { ...old?.patch, ...p.data.patch }, reason: p.data.reason, by: c.user.uid, at: (/* @__PURE__ */ new Date()).toISOString(), revision: job.revision + 1 };
+    job.correctionHistory = [...job.correctionHistory || [], correction];
+    job.slotCorrections = [...(job.slotCorrections || []).filter((v) => v.slotId !== slot.id), correction];
+    job.revision++;
+    audit(c, "Jadval katagiga manbali tuzatish: " + p.data.reason, job.id);
+    deps.save(c.env, c.db);
+    res.json({ saved: true, revision: job.revision, sourceUnchanged: true, newPreviewRequired: true });
+  }));
+  app2.post("/api/academic/aliases", (req, res) => {
+    const c = access(req, res, true);
+    if (!c) return;
+    const p = z3.object({ alias: z3.string().trim().min(2).max(100), subjectId: z3.string().max(160), subject: z3.string().min(2).max(100), curriculumArea: z3.string().max(100).optional(), reason, expectedRevision: z3.number().int().nonnegative() }).safeParse(req.body);
+    if (!p.success) return res.status(400).json({ error: "Fan nomi, ID va tasdiqlash asosini tekshiring." });
+    const subject = c.db.subjects.find((s) => s.id === p.data.subjectId && [c.user.institutionId, "global"].includes(s.institutionId) && s.name === p.data.subject);
+    if (!subject) return res.status(400).json({ error: "Asosiy fan rasmiy ro\u2018yxatga mos emas." });
+    c.db.subjectAliasReviews ||= [];
+    const id = "alias-" + schoolDigest([c.user.institutionId, p.data.alias.toLowerCase()]).slice(0, 40), old = c.db.subjectAliasReviews.find((a) => a.id === id);
+    if ((old?.revision || 0) !== p.data.expectedRevision) return res.status(409).json({ error: "Fan mappingi o\u2018zgargan." });
+    const item = { ...p.data, id, schoolId: c.user.institutionId, revision: (old?.revision || 0) + 1, approvedBy: c.user.uid, approvedAt: (/* @__PURE__ */ new Date()).toISOString() };
+    c.db.subjectAliasReviews = c.db.subjectAliasReviews.filter((a) => a.id !== id);
+    c.db.subjectAliasReviews.push(item);
+    audit(c, "Fan aliasi tasdiqlandi: " + p.data.reason, id);
+    deps.save(c.env, c.db);
+    res.json({ alias: item });
+  });
+  app2.post("/api/academic/groups", (req, res) => {
+    const c = access(req, res, true);
+    if (!c) return;
+    const p = z3.object({ classId: z3.string().max(160), subject: z3.string().min(2).max(100), number: z3.number().int().min(1).max(4), memberIds: z3.array(z3.string().max(160)).max(50), expectedRevision: z3.number().int().nonnegative(), reason }).safeParse(req.body);
+    if (!p.success) return res.status(400).json({ error: "Sinf, guruh, a\u2019zolar va asosni tekshiring." });
+    const cls = c.db.classes.find((cl) => cl.id === p.data.classId && cl.institutionId === c.user.institutionId);
+    if (!cls || new Set(p.data.memberIds).size !== p.data.memberIds.length || p.data.memberIds.some((id2) => !c.db.users.some((u) => u.uid === id2 && u.role === "student" && u.institutionId === c.user.institutionId && u.classId === cls.id))) return res.status(400).json({ error: "Guruhga faqat shu maktab va sinf o\u2018quvchilari kiritiladi." });
+    c.db.academicGroups ||= [];
+    const id = "group-" + schoolDigest([c.user.institutionId, cls.id, p.data.subject, p.data.number]).slice(0, 40), old = c.db.academicGroups.find((g2) => g2.id === id);
+    if ((old?.revision || 0) !== p.data.expectedRevision) return res.status(409).json({ error: "Guruh boshqa oynada o\u2018zgargan." });
+    if (c.db.academicGroups.some((g2) => g2.id !== id && g2.schoolId === c.user.institutionId && g2.classId === cls.id && g2.subject === p.data.subject && g2.members.some((uid) => p.data.memberIds.includes(uid)))) return res.status(409).json({ error: "Bir fan uchun o\u2018quvchi bir nechta guruhga tushib qolmoqda." });
+    const g = { id, schoolId: c.user.institutionId, classId: cls.id, subject: p.data.subject, number: p.data.number, members: p.data.memberIds, revision: (old?.revision || 0) + 1, approvedBy: c.user.uid, approvedAt: (/* @__PURE__ */ new Date()).toISOString() };
+    c.db.academicGroups = c.db.academicGroups.filter((v) => v.id !== id);
+    c.db.academicGroups.push(g);
+    for (const u of c.db.users.filter((u2) => u2.institutionId === c.user.institutionId && u2.classId === cls.id && u2.role === "student")) u.teachingGroupIds = c.db.academicGroups.filter((v) => v.schoolId === c.user.institutionId && v.members.includes(u.uid)).map((v) => v.id);
+    audit(c, "Guruh a\u2019zolari tasdiqlandi: " + p.data.reason, id);
+    deps.save(c.env, c.db);
+    res.json({ group: g });
+  });
+  app2.post("/api/academic/schedules/preview", asyncRoute(async (req, res) => {
+    const c = access(req, res, true);
+    if (!c) return;
+    const p = z3.object({ timetableId: z3.string().max(160), calendarId: z3.string().max(160), operationId: operation }).safeParse(req.body);
+    if (!p.success) return res.status(400).json({ error: "Jadval va taqvimni tanlang." });
+    const timetable = jobFor(c, p.data.timetableId), calendar = calendarFor(c, p.data.calendarId);
+    if (!timetable?.officialSheet || !calendar) return res.status(409).json({ error: "Rasmiy jadval manbasi va taqvimni avval tasdiqlang." });
+    const source2 = await get(c.user.institutionId, timetable.id, "timetable-source", timetable.storagePath), version = source2.versions.find((v) => v.sheet === timetable.officialSheet);
+    const slots = projectSlots(c, timetable, version);
+    const topics = c.db.lessons.filter((l) => l.institutionId === c.user.institutionId && l.academicYear === calendar.academicYear && ["published", "in_progress", "completed"].includes(l.status)).map((l) => ({ id: l.id, workPlanId: l.workPlanId || "", classIds: l.classIds || [l.classId], subject: l.subjectName || l.subject, curriculumArea: l.curriculumArea || (l.subjectName || l.subject), quarter: l.quarter, order: l.lessonNumber || l.orderIndex, hours: Number(l.hours) || 1, title: l.title, homework: l.homework, sourceRow: l.sourceRow }));
+    const existing = [];
+    let cursor;
+    let previousBatch;
+    let previousRevision;
+    do {
+      const page = await store2.list({ school: c.user.institutionId, year: calendar.academicYear, from: calendar.start, to: calendar.end, after: cursor, limit: 500 });
+      if (previousRevision !== void 0 && (previousRevision !== page.mutationRevision || previousBatch !== page.batchId)) return res.status(409).json({ error: "Reja o\u2018qish vaqtida o\u2018zgardi. Qayta urinib ko\u2018ring." });
+      previousBatch = page.batchId;
+      previousRevision = page.mutationRevision;
+      existing.push(...page.rows);
+      cursor = page.rows.length === 500 ? page.next : void 0;
+    } while (cursor);
+    const fingerprint = schoolDigest([previousBatch, previousRevision, existing.filter((r) => r.state === "taught" || r.date < schoolToday()).map((r) => [r.id, r.revision]), timetable.id, timetable.revision, calendar.id, calendar.revision, slots, topics]), id = "schedule-" + fingerprint.slice(0, 40);
+    c.db.academicSchedules ||= [];
+    const old = c.db.academicSchedules.find((v) => v.id === id);
+    if (old) return res.json({ schedule: { ...old, storagePath: void 0 }, duplicate: true });
+    const generated = allocateAcademicLessons(calendar, slots, topics, c.user.institutionId, id, previousBatch ? { from: schoolToday(), rows: existing } : void 0);
+    const slotIssues = timetableConflicts(slots);
+    generated.issues.unshift(...slotIssues);
+    const priorRows = new Map(existing.map((r) => [r.id, r])), nextIds = new Set(generated.occurrences.map((r) => r.id));
+    const changed = generated.occurrences.filter((r) => {
+      const old2 = priorRows.get(r.id);
+      return !old2 || JSON.stringify({ ...old2, batchId: id }) !== JSON.stringify(r);
+    }).length;
+    const removed = existing.filter((r) => !nextIds.has(r.id)).length;
+    await store2.stage(c.user.institutionId, calendar.academicYear, id, fingerprint, generated.occurrences.length, c.user.uid);
+    for (let n = 0; n < generated.occurrences.length; n += 500) await store2.write(c.user.institutionId, id, generated.occurrences.slice(n, n + 500));
+    const storagePath = await put(c.user.institutionId, id, "dated-preview", { summary: generated.summary, issues: generated.issues, changeSummary: { previousBatch, changed, removed, preserved: generated.summary.preservedHistory } }), manifest = { id, schoolId: c.user.institutionId, timetableId: timetable.id, calendarId: calendar.id, calendarRevision: calendar.revision, timetableRevision: timetable.revision, academicYear: calendar.academicYear, sourceDigest: fingerprint, previousBatch, previousRevision, status: "review", storagePath, summary: generated.summary, issueCount: generated.issues.length, createdAt: (/* @__PURE__ */ new Date()).toISOString(), createdBy: c.user.uid };
+    c.db.academicSchedules.push(manifest);
+    audit(c, "Sanalashtirilgan reja sinov ko\u2018rinishi tayyorlandi", id);
+    deps.save(c.env, c.db);
+    res.json({ schedule: { ...manifest, storagePath: void 0 }, previewOnly: true });
+  }));
+  app2.get("/api/academic/schedules/:id/preview", asyncRoute(async (req, res) => {
+    const c = access(req, res, true);
+    if (!c) return;
+    const job = (c.db.academicSchedules || []).find((v) => v.id === req.params.id && v.schoolId === c.user.institutionId);
+    if (!job) return res.status(404).json({ error: "Reja topilmadi." });
+    const data = await get(c.user.institutionId, job.id, "dated-preview", job.storagePath), page = Math.max(0, Math.min(1200, Number(req.query.page) || 0)), q = String(req.query.q || "").slice(0, 100), result = await store2.preview(c.user.institutionId, job.id, page, q);
+    res.json({ ...result, issues: data.issues.slice(0, 100), issueCount: data.issues.length, summary: data.summary, changeSummary: data.changeSummary });
+  }));
+  app2.post("/api/academic/schedules/:id/publish", asyncRoute(async (req, res) => {
+    const c = access(req, res, true);
+    if (!c) return;
+    const p = z3.object({ reviewed: z3.literal(true), reason, allowMissingMappings: z3.boolean().default(false) }).safeParse(req.body);
+    if (!p.success) return res.status(400).json({ error: "Rejani ko\u2018rib chiqing va nashr asosini kiriting." });
+    const job = (c.db.academicSchedules || []).find((v) => v.id === req.params.id && v.schoolId === c.user.institutionId);
+    if (!job) return res.status(404).json({ error: "Reja topilmadi." });
+    const calendar = calendarFor(c, job.calendarId), timetable = jobFor(c, job.timetableId);
+    if (calendar?.status !== "approved" || calendar.revision !== job.calendarRevision || timetable?.revision !== job.timetableRevision) return res.status(409).json({ error: "Taqvim yoki jadval o\u2018zgargan. Yangi sinov ko\u2018rinishini yarating." });
+    const data = await get(c.user.institutionId, job.id, "dated-preview", job.storagePath);
+    if (data.issues.some((i) => i.severity === "error") || !p.data.allowMissingMappings && data.issues.length) return res.status(409).json({ error: "Rejadagi xatolar/noaniq mappinglarni ko\u2018rib chiqing." });
+    const prior2 = await store2.list({ school: c.user.institutionId, year: job.academicYear, from: calendar.start, to: calendar.end, limit: 1 });
+    if (prior2.batchId !== job.id && prior2.batchId !== job.previousBatch) return res.status(409).json({ error: "Oldingi reja o\u2018zgargan. Yangi sinov ko\u2018rinishini yarating." });
+    if (prior2.batchId === job.id) {
+      job.status = "published";
+      deps.save(c.env, c.db);
+      return res.json({ active: true, duplicate: true });
+    }
+    const result = await store2.activate(c.user.institutionId, job.academicYear, job.id, prior2.batchId, c.user.uid, job.previousRevision);
+    job.status = "published";
+    job.publishedAt = (/* @__PURE__ */ new Date()).toISOString();
+    audit(c, "Sanalashtirilgan reja nashr qilindi: " + p.data.reason, job.id);
+    deps.save(c.env, c.db);
+    res.json({ ...result, missingMappingsRemainReviewOnly: true });
+  }));
+  app2.patch("/api/academic/occurrences/:id", asyncRoute(async (req, res) => {
+    const c = access(req, res);
+    if (!c) return;
+    const p = z3.object({ operationId: operation, revision: z3.number().int().positive(), state: z3.enum(["confirmed", "taught", "postponed", "cancelled"]).optional(), actualTopic: z3.string().trim().min(3).max(1500).optional(), homework: z3.string().max(3e3).optional(), note: z3.string().max(1500).optional(), changeReason: reason.optional() }).safeParse(req.body);
+    if (!p.success) return res.status(400).json({ error: "Dars holati va versiyasini tekshiring." });
+    const row2 = await store2.get(c.user.institutionId, "2026-2027", req.params.id);
+    if (!row2 || !teach(c, row2)) return res.status(403).json({ error: "Faqat biriktirilgan ustoz darsni tasdiqlashi mumkin." });
+    if (p.data.state === "confirmed" && !row2.topicId && !p.data.actualTopic) return res.status(400).json({ error: "Tasdiqlash uchun mavzu kerak." });
+    if (p.data.state === "taught" && (row2.date > schoolToday() || !row2.topicId && !p.data.actualTopic)) return res.status(400).json({ error: "Kelajak darsi o\u2018tildi deb belgilanmaydi; haqiqiy mavzuni kiriting." });
+    if (["cancelled", "postponed"].includes(p.data.state || "") && !p.data.changeReason) return res.status(400).json({ error: "Bekor qilish yoki kechiktirish asosini kiriting." });
+    const { operationId, revision, ...patch } = p.data;
+    const result = await store2.transition(c.user.institutionId, "2026-2027", row2.id, revision, operationId, c.user.uid, { ...patch, ...patch.state === "taught" ? { taughtAt: (/* @__PURE__ */ new Date()).toISOString(), taughtBy: c.user.uid } : {} });
+    res.json({ row: result.row, masteryUnchanged: true });
+  }));
+  app2.post("/api/academic/occurrences/:id/postponement-preview", asyncRoute(async (req, res) => {
+    const c = access(req, res);
+    if (!c) return;
+    const p = z3.object({ date, reason }).safeParse(req.body);
+    if (!p.success) return res.status(400).json({ error: "Ko\u2018chirish sanasi va asosini kiriting." });
+    const row2 = await store2.get(c.user.institutionId, "2026-2027", req.params.id);
+    if (!row2 || !teach(c, row2)) return res.status(403).json({ error: "Bu darsga ruxsat yo\u2018q." });
+    if (p.data.date < schoolToday()) return res.status(400).json({ error: "Yangi ko\u2018chirish sanasi bugundan oldin bo\u2018lmasin." });
+    const calendar = calendarFor(c);
+    if (!calendar) return res.status(409).json({ error: "Tasdiqlangan taqvim kerak." });
+    const all = [];
+    let cursor;
+    do {
+      const page = await store2.list({ school: c.user.institutionId, year: "2026-2027", from: row2.date, to: calendar.end, classes: [row2.classId], teacher: c.canManage ? void 0 : c.user.uid, after: cursor, limit: 500 });
+      all.push(...page.rows);
+      cursor = page.rows.length === 500 ? page.next : void 0;
+    } while (cursor);
+    const proposal = { ...proposePostponement(all, row2.id, p.data.date, p.data.reason), id: "postpone-" + crypto5.randomUUID() }, sealed = { actorId: c.user.uid, schoolId: c.user.institutionId, expiresAt: Date.now() + 10 * 6e4, proposal };
+    await put(c.user.institutionId, proposal.id, "postpone-proposal", sealed);
+    res.json({ proposal, confirmationRequired: true });
+  }));
+  app2.post("/api/academic/occurrences/:id/postponement", asyncRoute(async (req, res) => {
+    const c = access(req, res);
+    if (!c) return;
+    const p = z3.object({ proposalId: z3.string().regex(/^postpone-[a-f0-9-]{36}$/), operationId: operation }).safeParse(req.body);
+    if (!p.success) return res.status(400).json({ error: "Tasdiqlanadigan ko\u2018chirish taklifini tanlang." });
+    const receipt = await store2.receipt(c.user.institutionId, c.user.uid, p.data.operationId);
+    if (receipt) return res.json({ changed: receipt.changed, duplicate: true, historyPreserved: true });
+    const path6 = runtimeNamespace() + "/imports/" + encodeURIComponent(c.user.institutionId) + "/" + encodeURIComponent(p.data.proposalId) + "/postpone-proposal.enc", proof = await get(c.user.institutionId, p.data.proposalId, "postpone-proposal", path6);
+    if (proof.actorId !== c.user.uid || proof.schoolId !== c.user.institutionId || proof.expiresAt < Date.now() || proof.proposal.originalId !== req.params.id) return res.status(403).json({ error: "Ko\u2018chirish taklifi muddati yoki egasi mos emas." });
+    const row2 = await store2.get(c.user.institutionId, "2026-2027", req.params.id);
+    if (!row2 || !teach(c, row2)) return res.status(403).json({ error: "Bu darsga ruxsat yo\u2018q." });
+    if (!c.canManage) {
+      const ids = new Set(proof.proposal.changes.flatMap((v) => [v.fromId, v.toId]));
+      for (const id of ids) {
+        const target = await store2.get(c.user.institutionId, "2026-2027", id);
+        if (!target || !teach(c, target)) return res.status(403).json({ error: "Taklif boshqa ustoz darsiga ta\u2019sir qiladi. Administrator tasdig\u2018i kerak." });
+      }
+    }
+    const result = await store2.replan(c.user.institutionId, "2026-2027", p.data.operationId, c.user.uid, proof.proposal.reason, proof.proposal.changes);
+    res.json({ changed: result.changed, historyPreserved: true });
+  }));
+}
+
+// src/server/staffPermissionGuard.ts
+function staffPermissionGuard(authenticate) {
+  return (req, res, next) => {
+    if (!req.path.startsWith("/api/")) return next();
+    const c = authenticate(req);
+    if (c?.user.role !== "staff") return next();
+    if (/^\/api\/(?:health$|state$|auth\/(?:login|provider-sync|logout|refresh)$|account\/(?:password|sessions|mfa|native-credentials|google-link)(?:\/|$))/.test(req.path)) return next();
+    if (req.path.startsWith("/api/leadership/") && hasLeadershipPermission(c, "overview.read")) return next();
+    if (req.path.startsWith("/api/content-imports") && hasLeadershipPermission(c, "curriculum.manage")) return next();
+    if (req.path.startsWith("/api/academic/") && hasLeadershipPermission(c, "overview.read") && (req.method === "GET" || hasLeadershipPermission(c, "curriculum.manage"))) return next();
+    return res.status(403).json({ error: "Bu amal maktab xodimi vakolatiga kirmaydi." });
+  };
+}
+
+// src/server/schoolDataRoutes.ts
+import crypto6 from "node:crypto";
+import { z as z4 } from "zod";
+
+// src/server/schoolDataReview.ts
+function proposedStaffCategory(position) {
+  const v = normalizedText(position).toLowerCase();
+  if (/o.?ibdo|ўибд|учебн/.test(v)) return "academic_deputy";
+  if (/mmibdo|ma.nav|zam|зам/.test(v)) return "leadership";
+  if (/direktor|директор/.test(v)) return "director";
+  if (/kadr|кадр|kutub|кутуб|psix|псих/.test(v)) return "staff";
+  if (/o.qituvchi|учител/.test(v)) return "teacher";
+  return "unresolved";
+}
+function currentSchoolReviews(db, jobId) {
+  const latest = /* @__PURE__ */ new Map();
+  for (const r of db.schoolDataReviews || []) if (r.jobId === jobId && (!latest.has(r.itemId) || latest.get(r.itemId).revision < r.revision)) latest.set(r.itemId, r);
+  return latest;
+}
+function reconcileSchoolPerson(row2, users, school) {
+  const eligible = users.filter((u) => u.institutionId === school && (row2.role === "student" ? u.role === "student" : ["teacher", "staff"].includes(u.role)) && u.status !== "archived");
+  const source2 = eligible.filter((u) => u.sourceImport?.sourceHash === row2.sourceHash && u.sourceImport?.sourceSheet === row2.sourceSheet && u.sourceImport?.sourceRow === row2.sourceRow);
+  const names = eligible.filter((u) => nameIdentity(u.displayName) === nameIdentity(row2.displayName));
+  const sameClass = names.filter((u) => row2.role !== "student" || u.classCode === row2.classCode);
+  const matches = source2.length ? source2 : sameClass;
+  const match = matches.length === 1 ? matches[0] : void 0;
+  return { source: 1, matchUid: match?.uid, existing: !!match, conflict: matches.length > 1 || !match && names.length > 0, candidates: [...new Set([...matches, ...names].map((u) => u.uid))], requiresUpdate: !!match && (match.displayName !== row2.displayName || row2.role === "student" && match.classCode !== row2.classCode), reason: source2.length ? "source_reference" : sameClass.length ? "normalized_name_and_class" : names.length ? "same_name_other_class" : "new_identity" };
+}
+function reviewedSchoolPayload(payload, db, jobId, school) {
+  const latest = currentSchoolReviews(db, jobId);
+  const identities = /* @__PURE__ */ new Map();
+  for (const original of payload.people) {
+    const r = latest.get(original.id);
+    if (r?.decision === "reject") continue;
+    const key2 = [original.role, schoolClassCode(r?.person?.classCode || original.classCode), nameIdentity(r?.person?.displayName || original.displayName)].join("|");
+    identities.set(key2, (identities.get(key2) || 0) + 1);
+  }
+  return {
+    people: payload.people.map((original) => {
+      const review = latest.get(original.id), row2 = structuredClone(original);
+      row2.original = { displayName: original.displayName, classCode: original.classCode, position: original.position, subjects: original.subjects };
+      row2.review = review;
+      row2.category = proposedStaffCategory(row2.position || "");
+      if (review?.person) {
+        const p = review.person;
+        row2.displayName = p.displayName || row2.displayName;
+        row2.position = p.position ?? row2.position;
+        row2.category = p.category || row2.category;
+        if (p.classCode) row2.classCode = schoolClassCode(p.classCode);
+        if (p.assignments?.length) row2.subjects = [...new Set(p.assignments.map((a) => standardSubject(a.subject)))];
+      }
+      row2.issues = row2.issues.filter((i) => !(i.code === "INVALID_NAME" && row2.displayName.length >= 5 && row2.displayName.split(/\s+/).length >= 2) && !(i.code === "SUBJECT_MISSING" && row2.subjects.length) && !(i.code === "CLASS_ASSIGNMENT_REQUIRED" && review?.person?.assignments?.length));
+      const key2 = [row2.role, row2.classCode, nameIdentity(row2.displayName)].join("|");
+      if ((identities.get(key2) || 0) === 1) row2.issues = row2.issues.filter((i) => i.code !== "DUPLICATE_SOURCE");
+      if ((identities.get(key2) || 0) > 1 && !row2.issues.some((i) => i.code === "DUPLICATE_SOURCE")) row2.issues.push({ code: "DUPLICATE_SOURCE", row: row2.sourceRow, sheet: row2.sourceSheet, message: "Tuzatilgan F.I.Sh./sinf boshqa manba qatori bilan takrorlanmoqda." });
+      row2.reconciliation = reconcileSchoolPerson(row2, db.users, school);
+      row2.existingCandidates = row2.reconciliation.candidates;
+      return row2;
+    }),
+    plans: payload.plans.map((p) => ({ ...p, review: latest.get(p.id) }))
+  };
+}
+function schoolReconciliation(payload, db, job) {
+  const counts = { source: payload.people.length, existing: 0, requiringCreation: 0, requiringUpdate: 0, conflicts: 0, created: 0, stillMissing: 0, rejected: 0, held: 0, validatedStaffIdentitiesCreated: 0, teachersFullyConfigured: 0 };
+  for (const row2 of payload.people) {
+    const r = row2.reconciliation;
+    const created = db.users.find((u) => u.sourceImport?.batchId === job.id && u.sourceImport?.sourceHash === row2.sourceHash && u.sourceImport?.sourceSheet === row2.sourceSheet && u.sourceImport?.sourceRow === row2.sourceRow && u.status !== "archived");
+    if (created) {
+      counts.created++;
+      if (row2.role === "teacher") {
+        counts.validatedStaffIdentitiesCreated++;
+        if (created.role === "teacher" && created.status === "active" && (db.teacherAssignments || []).some((a) => a.teacherId === created.uid)) counts.teachersFullyConfigured++;
+      }
+    } else if (r.existing) {
+      counts.existing++;
+      if (r.requiresUpdate) counts.requiringUpdate++;
+    } else if (r.conflict) counts.conflicts++;
+    else counts.requiringCreation++;
+    if (row2.review?.decision === "reject") counts.rejected++;
+    else if (row2.review?.decision === "hold" || !row2.review && row2.issues.length) counts.held++;
+    if (!created && !r.existing) counts.stillMissing++;
+  }
+  return counts;
+}
+function schoolCoverage(db, school, year) {
+  const classes = db.classes.filter((c) => c.institutionId === school && c.status !== "archived"), lessons = db.lessons.filter((l) => l.institutionId === school && l.academicYear === year && l.status !== "archived"), plans = db.workPlans.filter((p) => p.institutionId === school && p.academicYear === year && p.status !== "archived");
+  const rows = classes.flatMap((c) => (c.subjectNames || []).map((subject) => {
+    const mine = lessons.filter((l) => (l.classId === c.id || l.classIds?.includes(c.id)) && (l.subjectName || l.subject) === subject);
+    return { classId: c.id, classCode: c.code, subject, topics: mine.length, published: mine.filter((l) => ["published", "in_progress", "completed"].includes(l.status)).length, plannedHours: mine.reduce((n, l) => n + (Number(l.hours) || 0), 0), missing: mine.length === 0 };
+  }));
+  return { year, classes: classes.length, classesCovered: new Set(rows.filter((r) => r.topics).map((r) => r.classId)).size, workPlans: plans.length, topics: lessons.length, published: lessons.filter((l) => ["published", "in_progress", "completed"].includes(l.status)).length, awaitingReview: lessons.filter((l) => l.status === "draft").length, missingClassSubjects: rows.filter((r) => r.missing).length, subjectsImported: [...new Set(lessons.map((l) => l.subjectName || l.subject))].length, rows };
+}
+var reviewRecordId = (job, item, revision) => "review-" + schoolDigest([job, item, revision]).slice(0, 40);
+
+// src/server/schoolDataRoutes.ts
+var person = z4.object({ displayName: z4.string().trim().min(5).max(160).optional(), position: z4.string().max(160).optional(), category: z4.enum(["teacher", "director", "academic_deputy", "leadership", "staff", "unresolved"]).optional(), classCode: z4.string().max(10).optional(), assignments: z4.array(z4.object({ classCode: z4.string().max(10), subject: z4.string().trim().min(2).max(100) })).max(100).optional(), matchUid: z4.string().max(200).optional(), updateExisting: z4.boolean().optional(), replaceAssignments: z4.boolean().optional() });
+var plan = z4.object({ subject: z4.string().trim().min(2).max(100), classCodes: z4.array(z4.string().max(10)).min(1).max(19), confirmed: z4.literal(true), confirmAdditionalSubjects: z4.boolean().default(false) });
+var reviewInput = z4.object({ operationId: z4.uuid(), expectedRevision: z4.number().int().nonnegative(), reason: z4.string().trim().min(12).max(1500), automaticUnambiguous: z4.boolean().default(false), items: z4.array(z4.object({ id: z4.string().regex(/^[a-f0-9]{64}$/), decision: z4.enum(["approve", "hold", "reject"]), person: person.optional(), plan: plan.optional() })).min(1).max(600) });
+function registerSchoolDataRoutes(app2, deps) {
+  const get = deps.get || getImportPayload;
+  const access = (req, res) => {
+    const c = deps.authenticate(req);
+    if (!c) {
+      res.status(401).json({ error: "Hisobga kiring." });
+      return;
+    }
+    if (!deps.owner(c.user)) {
+      res.status(403).json({ error: "Faqat tasdiqlangan maktab administratori." });
+      return;
+    }
+    return c;
+  };
+  const jobFor = (c, id) => (c.db.schoolImportJobs || []).find((j) => j.id === id && j.institutionId === c.user.institutionId);
+  app2.get("/api/school-data", (req, res) => {
+    const c = access(req, res);
+    if (!c) return;
+    const users = c.db.users.filter((u) => u.institutionId === c.user.institutionId && u.status !== "archived"), staff = users.filter((u) => ["teacher", "staff"].includes(u.role)), jobs = (c.db.schoolImportJobs || []).filter((j) => j.institutionId === c.user.institutionId);
+    res.json({ year: "2026-2027", counts: { students: users.filter((u) => u.role === "student").length, staffIdentities: staff.length, configuredTeachers: staff.filter((u) => u.role === "teacher" && u.status === "active" && c.db.teacherAssignments.some((a) => a.teacherId === u.uid)).length, classes: c.db.classes.filter((cl) => cl.institutionId === c.user.institutionId).length, pendingReviews: jobs.reduce((n, j) => n + Math.max(0, (j.summary.people || j.summary.plans || 0) - [...currentSchoolReviews(c.db, j.id).values()].filter((r) => r.decision !== "hold").length), 0), imports: jobs.length }, coverage: schoolCoverage(c.db, c.user.institutionId, "2026-2027"), jobs: jobs.map((j) => ({ id: j.id, kind: j.kind, status: j.status, files: j.files, summary: j.summary, reviewRevision: j.reviewRevision || 0, createdAt: j.createdAt })), timetableProvided: (c.db.academicTimetables || []).some((v) => v.schoolId === c.user.institutionId), security: { leadershipGrants: (c.db.leadershipGrants || []).filter((g) => g.schoolId === c.user.institutionId && !g.revokedAt).length }, missingInformation: ["39-qator F.I.Sh. tasdig\u2018i", "Ustoz\u2013fan\u2013sinf biriktirishlarini rasmiy jadval bilan tasdiqlash", ...(c.db.academicTimetables || []).some((t) => t.schoolId === c.user.institutionId && t.officialSheet) ? [] : ["Ikki jadval varag\u2018idan rasmiy versiyani tanlash"], ...(c.db.academicCalendars || []).some((t) => t.schoolId === c.user.institutionId && t.status === "approved") ? [] : ["Chorak va dam olish sanalarini tasdiqlash"]] });
+  });
+  app2.get("/api/school-imports/:id/reconciliation", asyncRoute(async (req, res) => {
+    const c = access(req, res);
+    if (!c) return;
+    const job = jobFor(c, req.params.id);
+    if (!job) return res.status(404).json({ error: "Import topilmadi." });
+    const source2 = await get(c.user.institutionId, job.id, "source", job.storagePath), payload = reviewedSchoolPayload(source2, c.db, job.id, c.user.institutionId);
+    res.json({ jobId: job.id, reviewRevision: job.reviewRevision || 0, people: schoolReconciliation(payload, c.db, job), plans: { source: payload.plans.length, approved: payload.plans.filter((p) => p.review?.decision === "approve").length, rejected: payload.plans.filter((p) => p.review?.decision === "reject").length, unresolved: payload.plans.filter((p) => !p.review || p.review.decision === "hold").length, topics: payload.plans.reduce((n, p) => n + p.lessons.length, 0), drafted: job.createdLessons.filter((id) => c.db.lessons.some((l) => l.id === id && l.status === "draft")).length, published: job.createdLessons.filter((id) => c.db.lessons.some((l) => l.id === id && ["published", "in_progress", "completed"].includes(l.status))).length, invalidRows: payload.plans.reduce((n, p) => n + (p.sourceIssues?.length || 0) + p.lessons.filter((l) => l.issues.length).length, 0) }, history: (c.db.schoolDataReviews || []).filter((r) => r.jobId === job.id).slice(-100).reverse() });
+  }));
+  app2.post("/api/school-imports/:id/reviews", asyncRoute(async (req, res) => {
+    const c = access(req, res);
+    if (!c) return;
+    const job = jobFor(c, req.params.id);
+    if (!job) return res.status(404).json({ error: "Import topilmadi." });
+    const parsed = reviewInput.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ error: "Tuzatish, asos va versiyani tekshiring." });
+    const p = parsed.data;
+    if (new Set(p.items.map((i) => i.id)).size !== p.items.length) return res.status(400).json({ error: "Bir so\u2018rovda yozuv IDsi takrorlanmasin." });
+    if ((job.reviewOperations || []).includes(p.operationId) && job.reviewOperationDigests?.[p.operationId] !== schoolDigest(p)) return res.status(409).json({ error: "Amal raqami boshqa mazmun bilan qayta ishlatilgan." });
+    if ((job.reviewOperations || []).includes(p.operationId)) return res.json({ saved: true, duplicate: true, reviewRevision: job.reviewRevision || 0 });
+    if (job.status !== "review") return res.status(409).json({ error: "Kiritilgan import manbasini qayta yozmang. Hisob/darsni alohida boshqaring." });
+    if ((job.reviewRevision || 0) !== p.expectedRevision) return res.status(409).json({ code: "REVIEW_CONFLICT", error: "Boshqa oynada ko\u2018rib chiqish o\u2018zgargan. Yangilab, qayta tasdiqlang." });
+    const payload = await get(c.user.institutionId, job.id, "source", job.storagePath), pending = [], errors = [];
+    for (const item of p.items) {
+      const row2 = payload.people.find((v) => v.id === item.id), sheet2 = payload.plans.find((v) => v.id === item.id);
+      if (!row2 && !sheet2) {
+        errors.push({ id: item.id, error: "Yozuv ushbu importga tegishli emas." });
+        continue;
+      }
+      let proposed = item.plan;
+      if (sheet2 && p.automaticUnambiguous) {
+        if (item.decision !== "approve" || sheet2.suggestion.issues.length || sheet2.sourceIssues?.length || sheet2.lessons.some((l) => l.issues.length) || !sheet2.suggestion.classCodes.length) {
+          errors.push({ id: item.id, error: "Bu varaq noaniq; alohida tasdiqlang." });
+          continue;
+        }
+        proposed = { subject: sheet2.suggestion.subject, classCodes: sheet2.suggestion.classCodes, confirmed: true, confirmAdditionalSubjects: false };
+      }
+      if (item.decision === "approve") {
+        if (sheet2 && (!proposed || !proposed.confirmed)) {
+          errors.push({ id: item.id, error: "Fan va sinf mappingini tasdiqlang." });
+          continue;
+        }
+        const codes = sheet2 ? proposed.classCodes : row2?.role === "student" ? [item.person?.classCode || row2.classCode || ""] : (item.person?.assignments || []).map((a) => a.classCode);
+        if (codes.some((code) => !c.db.classes.some((cl) => cl.institutionId === c.user.institutionId && cl.code === schoolClassCode(code)))) {
+          errors.push({ id: item.id, error: "Rasmiy sinf mappingi noto\u2018g\u2018ri." });
+          continue;
+        }
+        const name = item.person?.displayName || row2?.displayName || "";
+        if (row2 && (name.split(/\s+/).length < 2 || /vakant|вакан|bo.sh o.rin/i.test(name))) {
+          errors.push({ id: item.id, error: "To\u2018liq F.I.Sh. talab qilinadi." });
+          continue;
+        }
+        if (row2?.role === "teacher" && (!item.person?.category || item.person.category === "unresolved")) {
+          errors.push({ id: item.id, error: "Xodim turini alohida tasdiqlang." });
+          continue;
+        }
+        if (item.person?.matchUid && !c.db.users.some((u) => u.uid === item.person.matchUid && u.institutionId === c.user.institutionId && (row2?.role === "student" ? u.role === "student" : ["teacher", "staff"].includes(u.role)))) {
+          errors.push({ id: item.id, error: "Birlashtiriladigan hisob maktab/rolga mos emas." });
+          continue;
+        }
+      }
+      const revision = (job.reviewRevision || 0) + 1;
+      pending.push({ id: reviewRecordId(job.id, item.id, revision), jobId: job.id, itemId: item.id, revision, operationId: p.operationId, decision: item.decision, reason: p.reason, by: c.user.uid, at: (/* @__PURE__ */ new Date()).toISOString(), person: item.person, plan: proposed });
+    }
+    if (!pending.length) return res.status(409).json({ error: "Tasdiqlashga tayyor yozuv yo\u2018q.", errors });
+    c.db.schoolDataReviews ||= [];
+    c.db.schoolDataReviews.push(...pending);
+    job.reviewRevision = (job.reviewRevision || 0) + 1;
+    job.reviewOperations = [...job.reviewOperations || [], p.operationId];
+    job.reviewOperationDigests = { ...job.reviewOperationDigests, [p.operationId]: schoolDigest(p) };
+    c.db.auditLogs.unshift({ id: crypto6.randomUUID(), institutionId: c.user.institutionId, actorUid: c.user.uid, actorName: c.user.displayName, actorRole: c.user.role, action: "Maktab manbasi ko\u2018rib chiqildi: " + p.reason, target: "Ma\u2019lumot sifati", recordId: job.id, createdAt: (/* @__PURE__ */ new Date()).toISOString() });
+    deps.save(c.env, c.db);
+    res.json({ saved: true, accepted: pending.length, errors, reviewRevision: job.reviewRevision });
+  }));
+}
+
+// src/server/studentLessonScope.ts
+function studentCanAccessLesson(user, lesson, classes) {
+  if (user.role !== "student" || user.status !== "active" || lesson.institutionId !== user.institutionId || !["published", "in_progress", "completed"].includes(lesson.status)) return false;
+  const own = classes.find((c) => c.institutionId === user.institutionId && c.status !== "archived" && (c.id === user.classId || !!user.classCode && c.code.toLowerCase() === user.classCode.toLowerCase()));
+  if (!own || lesson.additionalCurriculumAssignment && lesson.tTrackVisibilityApproved !== true) return false;
+  return lesson.classId === own.id || lesson.classIds?.includes(own.id) || lesson.classCode?.toLowerCase() === own.code.toLowerCase() || !!lesson.classCodes?.some((c) => c.toLowerCase() === own.code.toLowerCase());
+}
+
+// src/server/teachingIdentity.ts
+function projectTeachingIdentity(user, assignments, requested) {
+  if (user.role !== "teacher" || !user.sourceImport) return user;
+  const mine = assignments.filter((a) => a.teacherId === user.uid && a.institutionId === user.institutionId);
+  if (!mine.length) return requested ? void 0 : { ...user, assignedClassIds: [] };
+  const subject = requested || mine.find((a) => a.subject === user.subject)?.subject || mine[0].subject;
+  const approved = mine.filter((a) => a.subject === subject);
+  if (!approved.length) return void 0;
+  return { ...user, subject, subjects: [...new Set(mine.map((a) => a.subject))], assignedClassIds: [...new Set(approved.map((a) => a.classId))] };
+}
+
 // src/server/schoolImportRoutes.ts
-var sheet = z.object({ name: z.string().min(1).max(160), startRow: z.number().int().min(1).max(1e4).optional(), rows: z.array(z.array(z.union([z.string().max(4e3), z.number().finite(), z.null()])).max(40)).max(3e3) });
-var previewSchema = z.object({ kind: z.enum(["students", "teachers", "workplans"]), academicYear: z.literal("2026-2027"), files: z.array(z.object({ name: z.string().min(1).max(500).refine((v) => !v.split(/[\\/]/).includes("..") && !v.startsWith("/")), sourceHash: z.string().regex(/^[a-f0-9]{64}$/), sheets: z.array(sheet).min(1).max(20) })).min(1).max(150) });
-var commitSchema = z.object({
-  operationId: z.uuid(),
-  selected: z.array(z.string().regex(/^[a-f0-9]{64}$/)).max(1e3),
-  allowValidPart: z.literal(true),
-  mode: z.enum(["draft", "publish"]).default("draft"),
-  people: z.array(z.object({ id: z.string(), matchUid: z.string().max(200).optional(), pendingReview: z.boolean().default(false), assignments: z.array(z.object({ classCode: z.string().max(8), subject: z.string().min(2).max(100) })).max(100).default([]) })).max(600).default([]),
-  plans: z.array(z.object({ id: z.string(), subject: z.string().min(2).max(100), classCodes: z.array(z.string().max(8)).min(1).max(19), confirmed: z.literal(true), confirmAdditionalSubjects: z.boolean().default(false) })).max(150).default([]),
-  reason: z.string().trim().min(8).max(1e3)
+import crypto7 from "node:crypto";
+import { z as z5 } from "zod";
+
+// src/server/boundedMap.ts
+async function boundedMap(items, concurrency, fn) {
+  const result = new Array(items.length);
+  let cursor = 0;
+  await Promise.all(Array.from({ length: Math.min(concurrency, items.length) }, async () => {
+    for (; ; ) {
+      const i = cursor++;
+      if (i >= items.length) return;
+      result[i] = await fn(items[i], i);
+    }
+  }));
+  return result;
+}
+
+// src/server/schoolImportRoutes.ts
+var sheet = z5.object({ name: z5.string().min(1).max(160), startRow: z5.number().int().min(1).max(1e4).optional(), rows: z5.array(z5.array(z5.union([z5.string().max(4e3), z5.number().finite(), z5.null()])).max(40)).max(3e3) });
+var previewSchema = z5.object({ kind: z5.enum(["students", "teachers", "workplans"]), academicYear: z5.literal("2026-2027"), files: z5.array(z5.object({ name: z5.string().min(1).max(500).refine((v) => !v.split(/[\\/]/).includes("..") && !v.startsWith("/")), sourceHash: z5.string().regex(/^[a-f0-9]{64}$/), sheets: z5.array(sheet).min(1).max(20) })).min(1).max(150) });
+var commitSchema = z5.object({
+  operationId: z5.uuid(),
+  selected: z5.array(z5.string().regex(/^[a-f0-9]{64}$/)).max(1e3),
+  allowValidPart: z5.literal(true),
+  mode: z5.enum(["draft", "publish"]).default("draft"),
+  people: z5.array(z5.object({ id: z5.string(), matchUid: z5.string().max(200).optional(), pendingReview: z5.boolean().default(false), assignments: z5.array(z5.object({ classCode: z5.string().max(8), subject: z5.string().min(2).max(100) })).max(100).default([]) })).max(600).default([]),
+  plans: z5.array(z5.object({ id: z5.string(), subject: z5.string().min(2).max(100), classCodes: z5.array(z5.string().max(8)).min(1).max(19), confirmed: z5.literal(true), confirmAdditionalSubjects: z5.boolean().default(false) })).max(150).default([]),
+  reason: z5.string().trim().min(8).max(1e3)
 });
 function registerSchoolImportRoutes(app2, deps) {
   const put = deps.put || putImportPayload, get = deps.get || getImportPayload;
@@ -3100,7 +4233,7 @@ function registerSchoolImportRoutes(app2, deps) {
     return c;
   };
   const jobFor = (c, id) => (c.db.schoolImportJobs || []).find((j) => j.id === id && j.institutionId === c.user.institutionId);
-  const audit = (c, action, id) => c.db.auditLogs.unshift({ id: crypto3.randomUUID(), institutionId: c.user.institutionId, actorUid: c.user.uid, actorName: c.user.displayName, actorRole: c.user.role, action, target: "Maktab ma\u2019lumotlari importi", recordId: id, createdAt: (/* @__PURE__ */ new Date()).toISOString() });
+  const audit = (c, action, id) => c.db.auditLogs.unshift({ id: crypto7.randomUUID(), institutionId: c.user.institutionId, actorUid: c.user.uid, actorName: c.user.displayName, actorRole: c.user.role, action, target: "Maktab ma\u2019lumotlari importi", recordId: id, createdAt: (/* @__PURE__ */ new Date()).toISOString() });
   app2.get("/api/school-imports", (req, res) => {
     const c = access(req, res);
     if (!c) return;
@@ -3129,7 +4262,7 @@ function registerSchoolImportRoutes(app2, deps) {
     if (!c) return;
     const job = jobFor(c, req.params.id);
     if (!job) return res.status(404).json({ error: "Import topilmadi." });
-    const payload = await get(c.user.institutionId, job.id, "source", job.storagePath), page = Math.max(0, Math.min(1e3, Number(req.query.page) || 0));
+    const source2 = await get(c.user.institutionId, job.id, "source", job.storagePath), payload = reviewedSchoolPayload(source2, c.db, job.id, c.user.institutionId), page = Math.max(0, Math.min(1e3, Number(req.query.page) || 0));
     const selectedPlan = req.query.plan && payload.plans.find((p) => p.id === req.query.plan);
     if (req.query.plan && !selectedPlan) return res.status(404).json({ error: "Import varag\u2018i topilmadi." });
     const all = selectedPlan ? selectedPlan.lessons : job.kind === "workplans" ? payload.plans.map(({ lessons, ...p }) => ({ ...p, lessonCount: lessons.length, errorCount: lessons.filter((l) => l.issues.length).length + (p.sourceIssues || []).length })) : payload.people;
@@ -3145,7 +4278,7 @@ function registerSchoolImportRoutes(app2, deps) {
     if (job.status !== "review") return res.status(409).json({ error: "Import holati kiritishga mos emas." });
     const p = commitSchema.safeParse(req.body);
     if (!p.success || !p.data.selected.length) return res.status(400).json({ error: "To\u2018g\u2018ri qatorlarni tanlang, mapping va asosni tasdiqlang." });
-    const payload = await get(c.user.institutionId, job.id, "source", job.storagePath), selected = new Set(p.data.selected), now = (/* @__PURE__ */ new Date()).toISOString(), errors = [];
+    const source2 = await get(c.user.institutionId, job.id, "source", job.storagePath), payload = reviewedSchoolPayload(source2, c.db, job.id, c.user.institutionId), selected = new Set(p.data.selected), now = (/* @__PURE__ */ new Date()).toISOString(), errors = [];
     const allIds = new Set([...payload.people, ...payload.plans].map((v) => v.id));
     if ([...selected].some((id) => !allIds.has(id))) return res.status(400).json({ error: "Tanlangan qator ushbu importga tegishli emas." });
     const credentials = [], newUsers = [], newLessons = [], newPlans = [], newSubjects = [], newAssignments = [], additionalSubjects = [];
@@ -3153,17 +4286,58 @@ function registerSchoolImportRoutes(app2, deps) {
     const used = new Set(c.db.users.flatMap((u) => [u.login, ...u.loginAliases || []]).filter(Boolean));
     const hashRows = [];
     for (const row2 of payload.people.filter((v) => selected.has(v.id))) {
-      const decision = p.data.people.find((v) => v.id === row2.id);
+      if (row2.review && row2.review.decision !== "approve") {
+        errors.push({ row: row2.sourceRow, sheet: row2.sourceSheet, error: "Bu qator tasdiqlanmagan yoki rad etilgan." });
+        continue;
+      }
+      if (row2.role === "teacher" && row2.review?.decision !== "approve") {
+        errors.push({ row: row2.sourceRow, sheet: row2.sourceSheet, error: "Xodim shaxsi, lavozimi va tizim rolini ma\u2019lumot sifati oynasida tasdiqlang." });
+        continue;
+      }
+      const decision = { ...row2.review?.person || {}, ...p.data.people.find((v) => v.id === row2.id) || {} };
       const fatal = row2.issues.find((v) => ["INVALID_NAME", "UNKNOWN_CLASS", "DUPLICATE_SOURCE"].includes(v.code));
       if (fatal) {
         errors.push({ row: row2.sourceRow, sheet: row2.sourceSheet, error: fatal.message });
         continue;
       }
       if (row2.existingCandidates.length || decision?.matchUid) {
-        const uid2 = decision?.matchUid || (row2.existingCandidates.length === 1 ? row2.existingCandidates[0] : void 0), old = c.db.users.find((u) => u.uid === uid2 && u.institutionId === c.user.institutionId && u.role === row2.role);
+        const uid2 = decision?.matchUid || row2.reconciliation.matchUid, old = c.db.users.find((u) => u.uid === uid2 && u.institutionId === c.user.institutionId && (row2.role === "student" ? u.role === "student" : ["teacher", "staff"].includes(u.role)));
         if (!old) {
           errors.push({ row: row2.sourceRow, sheet: row2.sourceSheet, error: "Mavjud hisobni aniq tasdiqlang. Natija va parollar o\u2018zgarmaydi." });
           continue;
+        }
+        if (row2.review?.person?.updateExisting === true) {
+          if (row2.role === "student") {
+            const updatedClass = c.db.classes.find((cl) => cl.institutionId === c.user.institutionId && cl.code === row2.classCode);
+            if (!updatedClass) {
+              errors.push({ row: row2.sourceRow, sheet: row2.sourceSheet, error: "Mavjud hisobning yangi sinfi topilmadi." });
+              continue;
+            }
+            Object.assign(old, { classId: updatedClass.id, classCode: updatedClass.code, grade: updatedClass.grade, track: updatedClass.track });
+          } else {
+            const reviewed = row2.review.person, pairs = reviewed.assignments || [];
+            if (reviewed.replaceAssignments) {
+              if (pairs.some((a) => !c.db.classes.some((cl) => cl.code === schoolClassCode(a.classCode) && cl.institutionId === c.user.institutionId))) {
+                errors.push({ row: row2.sourceRow, sheet: row2.sourceSheet, error: "Yangilangan ustoz biriktirishi maktab sinfiga mos emas." });
+                continue;
+              }
+              c.db.teacherAssignments = c.db.teacherAssignments.filter((a) => a.teacherId !== old.uid || a.institutionId !== c.user.institutionId);
+              for (const a of pairs) {
+                const cl = c.db.classes.find((cl2) => cl2.code === schoolClassCode(a.classCode) && cl2.institutionId === c.user.institutionId);
+                c.db.teacherAssignments.push({ id: "assignment-" + schoolDigest([old.uid, cl.id, a.subject]).slice(0, 32), institutionId: c.user.institutionId, teacherId: old.uid, classId: cl.id, subject: standardSubject(a.subject), createdAt: now });
+              }
+              old.assignedClassIds = [...new Set(c.db.teacherAssignments.filter((a) => a.teacherId === old.uid).map((a) => a.classId))];
+              old.subjects = [...new Set(pairs.map((a) => standardSubject(a.subject)))];
+              old.subject = old.subjects[0];
+              old.role = row2.category === "teacher" || pairs.length ? "teacher" : "staff";
+              old.status = old.role === "teacher" && !pairs.length ? "pending_activation" : "active";
+            }
+            old.position = row2.position;
+            old.staffCategory = row2.category;
+          }
+          old.displayName = row2.displayName;
+          old.updatedAt = now;
+          deps.revoke(old.uid);
         }
         matched++;
         continue;
@@ -3174,7 +4348,7 @@ function registerSchoolImportRoutes(app2, deps) {
         continue;
       }
       const assignments = decision?.assignments || [];
-      if (row2.role === "teacher" && (!assignments.length || row2.issues.some((i) => i.code === "STAFF_ROLE_REVIEW")) && !decision?.pendingReview) {
+      if (row2.role === "teacher" && row2.category === "teacher" && !assignments.length && !decision?.pendingReview && row2.review?.decision !== "approve") {
         errors.push({ row: row2.sourceRow, sheet: row2.sourceSheet, error: "Sinf/fanni tanlang yoki biriktirish kutilayotgan hisob sifatida tayyorlashni tasdiqlang." });
         continue;
       }
@@ -3187,10 +4361,10 @@ function registerSchoolImportRoutes(app2, deps) {
         duplicates++;
         continue;
       }
-      const login = nextPersonLogin(row2, used), password = crypto3.randomBytes(18).toString("base64url") + "Aa7", subjectNames = [...new Set(assignments.map((a) => standardSubject(a.subject)))];
-      const user = { uid, login, email: "", emailVerified: false, platformAdmin: false, platformOwner: false, displayName: row2.displayName, role: row2.role, institutionId: c.user.institutionId, status: row2.role === "teacher" && (!assignments.length || row2.issues.some((i) => i.code === "STAFF_ROLE_REVIEW")) ? "pending_activation" : "active", mustChangePassword: true, academicYear: job.academicYear, createdAt: now, position: row2.position, subjects: subjectNames.length ? subjectNames : row2.subjects, subject: subjectNames[0] || row2.subjects[0], sourceImport: { batchId: job.id, sourceHash: row2.sourceHash, sourceSheet: row2.sourceSheet, sourceRow: row2.sourceRow, sourceClass: row2.sourceClass } };
+      const login = nextPersonLogin(row2, used), password = crypto7.randomBytes(18).toString("base64url") + "Aa7", subjectNames = [...new Set(assignments.map((a) => standardSubject(a.subject)))];
+      const user = { uid, login, email: "", emailVerified: false, platformAdmin: false, platformOwner: false, displayName: row2.displayName, role: row2.role === "teacher" && row2.category !== "teacher" && !assignments.length ? "staff" : row2.role, staffCategory: row2.role === "teacher" ? row2.category : void 0, institutionId: c.user.institutionId, status: row2.role === "teacher" && row2.category === "teacher" && !assignments.length ? "pending_activation" : "active", mustChangePassword: true, academicYear: job.academicYear, createdAt: now, position: row2.position, subjects: subjectNames.length ? subjectNames : row2.subjects, subject: subjectNames[0] || row2.subjects[0], sourceImport: { batchId: job.id, sourceHash: row2.sourceHash, sourceSheet: row2.sourceSheet, sourceRow: row2.sourceRow, sourceClass: row2.sourceClass } };
       if (cls) Object.assign(user, { classId: cls.id, classCode: cls.code, grade: cls.grade, track: cls.track, studentCode: "SS-" + uid.slice(-12).toUpperCase(), enrolledAt: now });
-      if (row2.role === "teacher") {
+      if (user.role === "teacher") {
         user.assignedClassIds = [...new Set(assignments.map((a) => c.db.classes.find((cl) => cl.code === schoolClassCode(a.classCode) && cl.institutionId === c.user.institutionId).id))];
         for (const assignment of assignments) {
           const classId = c.db.classes.find((cl) => cl.code === schoolClassCode(assignment.classCode) && cl.institutionId === c.user.institutionId).id;
@@ -3201,53 +4375,57 @@ function registerSchoolImportRoutes(app2, deps) {
       hashRows.push({ user, password });
       credentials.push({ uid, displayName: user.displayName, login, password, classCode: user.classCode, subject: user.subject, position: user.position, status: user.status, mustChangePassword: true });
     }
-    for (const plan of payload.plans.filter((v) => selected.has(v.id))) {
-      const decision = p.data.plans.find((v) => v.id === plan.id);
+    for (const plan2 of payload.plans.filter((v) => selected.has(v.id))) {
+      if (plan2.review && plan2.review.decision !== "approve") {
+        errors.push({ row: 0, sheet: plan2.sheetName, error: "Bu varaq tasdiqlanmagan yoki rad etilgan." });
+        continue;
+      }
+      const decision = p.data.plans.find((v) => v.id === plan2.id) || plan2.review?.plan;
       if (!decision) {
-        errors.push({ row: 0, sheet: plan.sheetName, error: "Sinf, fan va yo\u2018nalish mappingini alohida tasdiqlang." });
+        errors.push({ row: 0, sheet: plan2.sheetName, error: "Sinf, fan va yo\u2018nalish mappingini alohida tasdiqlang." });
         continue;
       }
       const classes = decision.classCodes.map((code) => c.db.classes.find((v) => v.institutionId === c.user.institutionId && v.code === schoolClassCode(code)));
       if (classes.some((v) => !v) || new Set(classes.map((v) => v.id)).size !== classes.length) {
-        errors.push({ row: 0, sheet: plan.sheetName, error: "Rasmiy sinflarni takrorsiz tanlang." });
+        errors.push({ row: 0, sheet: plan2.sheetName, error: "Rasmiy sinflarni takrorsiz tanlang." });
         continue;
       }
-      if (new Set(classes.map((cl) => cl.grade)).size !== 1 || plan.suggestion.grade && classes.some((cl) => cl.grade !== plan.suggestion.grade)) {
-        errors.push({ row: 0, sheet: plan.sheetName, error: "Bitta ish rejasiga bir xil, manbaga mos bosqichdagi sinflarni tanlang." });
+      if (new Set(classes.map((cl) => cl.grade)).size !== 1 || plan2.suggestion.grade && classes.some((cl) => cl.grade !== plan2.suggestion.grade)) {
+        errors.push({ row: 0, sheet: plan2.sheetName, error: "Bitta ish rejasiga bir xil, manbaga mos bosqichdagi sinflarni tanlang." });
         continue;
       }
       const subjectName = standardSubject(decision.subject);
       if (classes.some((cl) => !cl.subjectNames?.includes(subjectName)) && !decision.confirmAdditionalSubjects) {
-        errors.push({ row: 0, sheet: plan.sheetName, error: "Bu sinfga qo\u2018shimcha fan biriktirishni alohida tasdiqlang." });
+        errors.push({ row: 0, sheet: plan2.sheetName, error: "Bu sinfga qo\u2018shimcha fan biriktirishni alohida tasdiqlang." });
         continue;
       }
-      for (const issue2 of plan.sourceIssues || []) errors.push({ row: issue2.row, sheet: issue2.sheet, error: issue2.message });
-      const valid = plan.lessons.filter((v) => !v.issues.length);
-      for (const row2 of plan.lessons.filter((v) => v.issues.length)) errors.push({ row: row2.sourceRow, sheet: row2.sourceSheet, error: row2.issues.map((e) => e.message).join(" ") });
+      for (const issue2 of plan2.sourceIssues || []) errors.push({ row: issue2.row, sheet: issue2.sheet, error: issue2.message });
+      const valid = plan2.lessons.filter((v) => !v.issues.length);
+      for (const row2 of plan2.lessons.filter((v) => v.issues.length)) errors.push({ row: row2.sourceRow, sheet: row2.sourceSheet, error: row2.issues.map((e) => e.message).join(" ") });
       if (!valid.length) continue;
       let subject = c.db.subjects.find((s) => (s.institutionId === c.user.institutionId || s.institutionId === "global") && s.name === subjectName) || newSubjects.find((s) => s.name === subjectName);
       if (!subject) {
         subject = { id: "subject-" + schoolDigest([c.user.institutionId, subjectName]).slice(0, 30), institutionId: c.user.institutionId, name: subjectName, code: "additional-" + schoolDigest(subjectName).slice(0, 8), schoolImportOnly: true, grades: [...new Set(classes.map((cl) => cl.grade))], applicableClassCodes: classes.map((cl) => cl.code), trackTypes: [...new Set(classes.map((cl) => cl.track))], description: "Tasdiqlangan maktab ish rejasidan qo\u2018shimcha fan", createdAt: now };
         newSubjects.push(subject);
       }
-      const workPlanId = "workplan-" + schoolDigest([job.id, plan.id, decision.classCodes, subjectName]).slice(0, 40);
+      const workPlanId = "workplan-" + schoolDigest([job.id, plan2.id, decision.classCodes, subjectName]).slice(0, 40);
       if (c.db.workPlans.some((v) => v.id === workPlanId)) {
         duplicates += valid.length;
         continue;
       }
       const lessons = [];
       for (const row2 of valid) {
-        const conflict = c.db.lessons.find((l) => l.institutionId === c.user.institutionId && l.academicYear === job.academicYear && (l.subjectName || l.subject) === subjectName && (l.curriculumArea || l.subjectName) === (plan.suggestion.area || subjectName) && l.quarter === row2.quarter && l.lessonNumber === row2.order && classes.some((cl) => l.classId === cl.id || l.classIds?.includes(cl.id)));
+        const conflict = c.db.lessons.find((l) => l.institutionId === c.user.institutionId && l.academicYear === job.academicYear && (l.subjectName || l.subject) === subjectName && (l.curriculumArea || l.subjectName) === (plan2.suggestion.area || subjectName) && l.quarter === row2.quarter && l.lessonNumber === row2.order && classes.some((cl) => l.classId === cl.id || l.classIds?.includes(cl.id)));
         if (conflict && p.data.mode === "publish") {
           errors.push({ row: row2.sourceRow, sheet: row2.sourceSheet, error: "Shu fan/sinf/tartibdagi eski dars bor. Yangi versiyani qoralama saqlang; eskisini o\u2018chirishga yo\u2018l qo\u2018yilmadi." });
           continue;
         }
         const id = "lesson-" + schoolDigest([workPlanId, row2.sourceSheet, row2.sourceRow]).slice(0, 40);
-        lessons.push({ id, institutionId: c.user.institutionId, workPlanId, importJobId: job.id, academicYear: job.academicYear, classId: classes[0].id, classIds: classes.map((v) => v.id), classCode: classes[0].code, classCodes: classes.map((v) => v.code), grade: classes[0].grade, track: classes[0].track, subjectId: subject.id, subjectName, subject: subjectName, curriculumArea: plan.suggestion.area || subjectName, title: row2.title, topicTitle: row2.title, topicName: row2.title, topicId: "", unitTitle: "", quarter: row2.quarter, lessonNumber: row2.order, orderIndex: row2.order, hours: row2.hours, classwork: row2.classwork, content: row2.classwork, homework: row2.homework, learningObjectives: [], materials: [], relatedAssessmentIds: [], status: p.data.mode === "publish" ? "published" : "draft", sourceFileName: plan.fileName, sourceWorksheet: row2.sourceSheet, sourceRow: row2.sourceRow, sourceHash: plan.sourceHash, sourceVersion: job.sourceDigest, sourceRecordHash: schoolDigest([plan.sourceHash, row2.sourceSheet, row2.sourceRow, decision.classCodes, subjectName]), additionalCurriculumAssignment: subjectName === "Matematika" && classes.some((v) => v.track === "T"), tTrackVisibilityApproved: subjectName === "Matematika" && classes.some((v) => v.track === "T") ? true : void 0, createdAt: now });
+        lessons.push({ id, institutionId: c.user.institutionId, workPlanId, importJobId: job.id, academicYear: job.academicYear, classId: classes[0].id, classIds: classes.map((v) => v.id), classCode: classes[0].code, classCodes: classes.map((v) => v.code), grade: classes[0].grade, track: classes[0].track, subjectId: subject.id, subjectName, subject: subjectName, curriculumArea: plan2.suggestion.area || subjectName, title: row2.title, topicTitle: row2.title, topicName: row2.title, topicId: "", unitTitle: "", quarter: row2.quarter, lessonNumber: row2.order, orderIndex: row2.order, hours: row2.hours, classwork: row2.classwork, content: row2.classwork, homework: row2.homework, learningObjectives: [], materials: [], relatedAssessmentIds: [], status: p.data.mode === "publish" ? "published" : "draft", sourceFileName: plan2.fileName, sourceWorksheet: row2.sourceSheet, sourceRow: row2.sourceRow, sourceHash: plan2.sourceHash, sourceVersion: job.sourceDigest, sourceRecordHash: schoolDigest([plan2.sourceHash, row2.sourceSheet, row2.sourceRow, decision.classCodes, subjectName]), additionalCurriculumAssignment: subjectName === "Matematika" && classes.some((v) => v.track === "T"), tTrackVisibilityApproved: subjectName === "Matematika" && classes.some((v) => v.track === "T") ? true : void 0, createdAt: now });
       }
       if (lessons.length) {
         if (decision.confirmAdditionalSubjects && p.data.mode === "publish") for (const cl of classes) additionalSubjects.push({ classId: cl.id, subjectId: subject.id });
-        newPlans.push({ id: workPlanId, institutionId: c.user.institutionId, title: subjectName + " \xB7 " + classes.map((v) => v.code.toUpperCase()).join(", ") + " \xB7 " + job.academicYear, fileName: plan.fileName, classId: classes[0].id, classIds: classes.map((v) => v.id), classCode: classes[0].code, classCodes: classes.map((v) => v.code), grade: classes[0].grade, track: classes[0].track, academicYear: job.academicYear, subjectId: subject.id, subjectName, planType: "annual", status: p.data.mode === "publish" ? "published" : "draft", rows: [], warnings: plan.issues, importJobId: job.id, sourceWorksheet: plan.sheetName, sourceHash: plan.sourceHash, additionalCurriculumAssignment: subjectName === "Matematika" && classes.some((v) => v.track === "T"), tTrackVisibilityApproved: subjectName === "Matematika" && classes.some((v) => v.track === "T") ? true : void 0, version: job.sourceDigest, createdByUid: c.user.uid, createdByName: c.user.displayName, createdAt: now });
+        newPlans.push({ id: workPlanId, institutionId: c.user.institutionId, title: subjectName + " \xB7 " + classes.map((v) => v.code.toUpperCase()).join(", ") + " \xB7 " + job.academicYear, fileName: plan2.fileName, classId: classes[0].id, classIds: classes.map((v) => v.id), classCode: classes[0].code, classCodes: classes.map((v) => v.code), grade: classes[0].grade, track: classes[0].track, academicYear: job.academicYear, subjectId: subject.id, subjectName, planType: "annual", status: p.data.mode === "publish" ? "published" : "draft", rows: [], warnings: plan2.issues, importJobId: job.id, sourceWorksheet: plan2.sheetName, sourceHash: plan2.sourceHash, additionalCurriculumAssignment: subjectName === "Matematika" && classes.some((v) => v.track === "T"), tTrackVisibilityApproved: subjectName === "Matematika" && classes.some((v) => v.track === "T") ? true : void 0, version: job.sourceDigest, createdByUid: c.user.uid, createdByName: c.user.displayName, createdAt: now });
         newLessons.push(...lessons);
       }
     }
@@ -3311,8 +4489,8 @@ function registerSchoolImportRoutes(app2, deps) {
       published++;
     }
     for (const id of job.createdPlans) {
-      const plan = c.db.workPlans.find((p) => p.id === id);
-      if (plan && c.db.lessons.some((l) => l.workPlanId === id && l.status === "published")) plan.status = "published";
+      const plan2 = c.db.workPlans.find((p) => p.id === id);
+      if (plan2 && c.db.lessons.some((l) => l.workPlanId === id && l.status === "published")) plan2.status = "published";
     }
     job.publication = c.db.lessons.some((l) => job.createdLessons.includes(l.id) && l.status === "draft") ? "partial" : "published";
     if (published) {
@@ -3374,241 +4552,6 @@ function registerSchoolImportRoutes(app2, deps) {
   });
 }
 
-// src/server/leadershipSecurity.ts
-import crypto4 from "node:crypto";
-import { z as z2 } from "zod";
-var LEADERSHIP_MATRIX = {
-  director: ["overview.read", "roster.read", "attendance.read", "results.read", "reports.read"],
-  academic_deputy: ["overview.read", "roster.read", "attendance.read", "results.read", "reports.read", "curriculum.manage", "timetable.manage"]
-};
-var hash = (value) => crypto4.createHash("sha256").update(value).digest("hex");
-function base32(bytes) {
-  const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
-  let bits = 0, value = 0, out = "";
-  for (const b of bytes) {
-    value = value << 8 | b;
-    bits += 8;
-    while (bits >= 5) {
-      out += chars[value >>> bits - 5 & 31];
-      bits -= 5;
-    }
-  }
-  if (bits) out += chars[value << 5 - bits & 31];
-  return out;
-}
-function decode32(secret) {
-  let bits = 0, value = 0;
-  const bytes = [];
-  for (const char of secret) {
-    const n = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567".indexOf(char);
-    if (n < 0) throw Error("Invalid MFA secret");
-    value = value << 5 | n;
-    bits += 5;
-    if (bits >= 8) {
-      bytes.push(value >>> bits - 8 & 255);
-      bits -= 8;
-    }
-  }
-  return Buffer.from(bytes);
-}
-function totp(secret, counter) {
-  const value = Buffer.alloc(8);
-  value.writeBigUInt64BE(BigInt(counter));
-  const bytes = crypto4.createHmac("sha1", decode32(secret)).update(value).digest();
-  const offset = bytes.at(-1) & 15;
-  return String((bytes.readUInt32BE(offset) & 2147483647) % 1e6).padStart(6, "0");
-}
-function validTotp(secret, code, lastCounter = -1, now = Date.now()) {
-  if (!/^\d{6}$/.test(code)) return void 0;
-  const current = Math.floor(now / 3e4);
-  for (const counter of [current, current - 1, current + 1]) if (counter > lastCounter && crypto4.timingSafeEqual(Buffer.from(totp(secret, counter)), Buffer.from(code))) return counter;
-  return void 0;
-}
-function sessionFamily(token) {
-  try {
-    return JSON.parse(Buffer.from(token.split(".")[0], "base64url").toString()).sid;
-  } catch {
-    return void 0;
-  }
-}
-var leadershipGrant = (c) => (c.db.leadershipGrants || []).find((g) => g.userId === c.user.uid && g.schoolId === c.user.institutionId && !g.revokedAt);
-var mfaVerified = (c) => {
-  const sid = sessionFamily(c.token || "");
-  return !!sid && (c.db.mfaVerifiedSessions || []).some((s) => s.id === sid && s.userId === c.user.uid && s.schoolId === c.user.institutionId && s.expiresAt > Date.now());
-};
-var hasLeadershipPermission = (c, permission) => !!c && mfaVerified(c) && !!leadershipGrant(c)?.permissions.includes(permission);
-function createMfaGuard(authenticate) {
-  return (req, res, next) => {
-    if (!req.path.startsWith("/api/") || req.path === "/api/health") return next();
-    const c = authenticate(req);
-    if (!c || !leadershipGrant(c)) return next();
-    if (/^\/api\/(?:auth\/(?:login|provider-sync|logout|refresh)$|account\/(?:password$|mfa(?:\/|$)|sessions(?:\/|$)))/.test(req.path)) return next();
-    if (mfaVerified(c)) return next();
-    return res.status(403).json({ code: "MFA_REQUIRED", error: "Boshqaruv uchun autentifikator tasdig\u2018i kerak.", user: { uid: c.user.uid, displayName: c.user.displayName, role: c.user.role, status: c.user.status, institutionId: c.user.institutionId, mustChangePassword: c.user.mustChangePassword, mfaRequired: true, leadershipDesignation: leadershipGrant(c).designation } });
-  };
-}
-function registerLeadershipSecurity(app2, deps) {
-  const access = (req, res) => {
-    const c = deps.authenticate(req);
-    if (!c || c.user.status !== "active") {
-      res.status(401).json({ error: "Hisobga kiring." });
-      return;
-    }
-    return c;
-  };
-  const audit = (c, action, target) => {
-    c.db.auditLogs.unshift({ id: crypto4.randomUUID(), institutionId: c.user.institutionId, actorUid: c.user.uid, actorName: c.user.displayName, actorRole: c.user.role, action, target: "Xavfsizlik", recordId: target, createdAt: (/* @__PURE__ */ new Date()).toISOString() });
-  };
-  const credential = (c) => (c.db.mfaCredentials || []).find((v) => v.userId === c.user.uid && v.schoolId === c.user.institutionId);
-  const stamp = (c) => {
-    const id = sessionFamily(c.token);
-    if (!id) throw Error("Session upgrade required");
-    c.db.mfaVerifiedSessions = (c.db.mfaVerifiedSessions || []).filter((v) => v.expiresAt > Date.now() && v.id !== id);
-    c.db.mfaVerifiedSessions.push({ id, userId: c.user.uid, schoolId: c.user.institutionId, verifiedAt: Date.now(), expiresAt: Date.now() + 60 * 6e4 });
-  };
-  const proof = async (c, body) => {
-    if (body.password && await deps.verify(body.password, c.db.passwordHashes[c.user.uid])) return true;
-    if (body.idToken) {
-      try {
-        const id = await deps.providerProof(String(body.idToken).slice(0, 16e3), c.db);
-        return id.uid === c.user.uid && id.email_verified && id.firebase?.sign_in_provider === "google.com" && Date.now() / 1e3 - id.auth_time <= 300;
-      } catch {
-        return false;
-      }
-    }
-    return false;
-  };
-  app2.get("/api/account/mfa/status", (req, res) => {
-    const c = access(req, res);
-    if (!c) return;
-    res.json({ enabled: !!credential(c)?.enabledAt, required: !!leadershipGrant(c), verified: mfaVerified(c) });
-  });
-  app2.post("/api/account/mfa/enroll", asyncRoute(async (req, res) => {
-    const c = access(req, res);
-    if (!c) return;
-    const p = z2.object({ password: z2.string().max(128).optional(), idToken: z2.string().max(16e3).optional() }).safeParse(req.body);
-    if (!p.success || !await proof(c, p.data)) return res.status(403).json({ error: "Joriy parol yoki yangi Google tasdig\u2018i kerak." });
-    if (credential(c)?.enabledAt) return res.status(409).json({ error: "MFA allaqachon yoqilgan. Almashtirish uchun xavfsiz recovery kerak." });
-    if (!sessionFamily(c.token)) return res.status(409).json({ error: "Hisobdan chiqib, qayta kiring." });
-    const secret = base32(crypto4.randomBytes(20)), purpose = c.user.institutionId + ":mfa:" + c.user.uid;
-    c.db.mfaCredentials ||= [];
-    let current = credential(c);
-    if (!current) {
-      current = { id: c.user.uid, userId: c.user.uid, schoolId: c.user.institutionId, recoveryHashes: [] };
-      c.db.mfaCredentials.push(current);
-    }
-    current.pending = sealSecret(secret, purpose);
-    current.pendingUntil = Date.now() + 10 * 6e4;
-    audit(c, "MFA sozlash boshlandi", c.user.uid);
-    deps.save(c.env, c.db);
-    res.json({ secret, uri: "otpauth://totp/" + encodeURIComponent("Specialized Study:" + (c.user.login || c.user.uid)) + "?secret=" + secret + "&issuer=Specialized%20Study&algorithm=SHA1&digits=6&period=30", expiresAt: current.pendingUntil });
-  }));
-  app2.post("/api/account/mfa/confirm", (req, res) => {
-    const c = access(req, res);
-    if (!c) return;
-    const current = credential(c);
-    if (!current?.pending || !current.pendingUntil || current.pendingUntil < Date.now()) return res.status(400).json({ error: "Sozlash muddati tugagan. Qayta boshlang." });
-    const secret = openSecret(current.pending, c.user.institutionId + ":mfa:" + c.user.uid), counter = validTotp(secret, String(req.body.code || ""));
-    if (counter === void 0) return res.status(400).json({ error: "Autentifikator kodi noto\u2018g\u2018ri." });
-    const recoveryCodes = Array.from({ length: 8 }, () => crypto4.randomBytes(9).toString("hex"));
-    current.secret = current.pending;
-    delete current.pending;
-    delete current.pendingUntil;
-    current.enabledAt = (/* @__PURE__ */ new Date()).toISOString();
-    current.lastCounter = counter;
-    current.recoveryHashes = recoveryCodes.map(hash);
-    stamp(c);
-    audit(c, "MFA yoqildi", c.user.uid);
-    deps.save(c.env, c.db);
-    return res.json({ enabled: true, recoveryCodes });
-  });
-  app2.post("/api/account/mfa/challenge", (req, res) => {
-    const c = access(req, res);
-    if (!c) return;
-    const current = credential(c);
-    if (!current?.secret || !current.enabledAt) return res.status(400).json({ error: "Avval MFA sozlang." });
-    const code = String(req.body.code || "").trim();
-    let accepted = false;
-    if (/^[a-f0-9]{18}$/.test(code) && current.recoveryHashes.includes(hash(code))) {
-      current.recoveryHashes = current.recoveryHashes.filter((v) => v !== hash(code));
-      accepted = true;
-    } else {
-      const counter = validTotp(openSecret(current.secret, c.user.institutionId + ":mfa:" + c.user.uid), code, current.lastCounter);
-      if (counter !== void 0) {
-        current.lastCounter = counter;
-        accepted = true;
-      }
-    }
-    if (!accepted) {
-      audit(c, "MFA tasdig\u2018i rad etildi", c.user.uid);
-      deps.save(c.env, c.db);
-      return res.status(403).json({ error: "Kod noto\u2018g\u2018ri yoki ishlatilgan." });
-    }
-    stamp(c);
-    audit(c, "MFA orqali sessiya tasdiqlandi", c.user.uid);
-    deps.save(c.env, c.db);
-    return res.json({ verified: true });
-  });
-  app2.get("/api/leadership/permissions", (req, res) => {
-    const c = access(req, res);
-    if (!c) return;
-    const grant = leadershipGrant(c);
-    if (!grant) return res.status(403).json({ error: "Rahbariyat huquqi tasdiqlanmagan." });
-    return res.json({ designation: grant.designation, permissions: grant.permissions, mfaRequired: true });
-  });
-  app2.get("/api/admin/leadership", (req, res) => {
-    const c = access(req, res);
-    if (!c) return;
-    if (!deps.owner(c.user)) return res.status(403).json({ error: "Faqat platforma egasiga ruxsat." });
-    res.json({ matrix: LEADERSHIP_MATRIX, grants: (c.db.leadershipGrants || []).filter((g) => g.schoolId === c.user.institutionId), candidates: c.db.users.filter((u) => u.institutionId === c.user.institutionId && u.role === "teacher").map((u) => ({ uid: u.uid, displayName: u.displayName, position: u.position, status: u.status })) });
-  });
-  app2.post("/api/admin/leadership/:uid/approve", asyncRoute(async (req, res) => {
-    const c = access(req, res);
-    if (!c) return;
-    if (!deps.owner(c.user)) return res.status(403).json({ error: "Faqat platforma egasiga ruxsat." });
-    const p = z2.object({ designation: z2.enum(["director", "academic_deputy"]), identityVerified: z2.literal(true), reason: z2.string().trim().min(12).max(1e3), idToken: z2.string().max(16e3) }).safeParse(req.body);
-    if (!p.success || !await proof(c, p.data)) return res.status(403).json({ error: "Shaxsni alohida tekshiring va yangi Google tasdig\u2018ini bering." });
-    const user = c.db.users.find((u) => u.uid === req.params.uid && u.institutionId === c.user.institutionId && u.role === "teacher");
-    if (!user) return res.status(404).json({ error: "Hisob topilmadi." });
-    c.db.leadershipGrants ||= [];
-    const previous = c.db.leadershipGrants.find((g) => g.userId === user.uid && g.schoolId === c.user.institutionId && !g.revokedAt);
-    if (previous) return res.status(409).json({ error: "Huquq allaqachon tasdiqlangan." });
-    const now = (/* @__PURE__ */ new Date()).toISOString(), grant = { id: crypto4.randomUUID(), userId: user.uid, schoolId: c.user.institutionId, designation: p.data.designation, permissions: [...LEADERSHIP_MATRIX[p.data.designation]], approvedBy: c.user.uid, approvedAt: now, identityVerifiedAt: now };
-    c.db.leadershipGrants.push(grant);
-    user.leadershipDesignation = p.data.designation;
-    user.status = "active";
-    deps.revoke(user.uid);
-    audit(c, "Rahbariyat vakolati tasdiqlandi: " + p.data.reason, user.uid);
-    deps.save(c.env, c.db);
-    return res.json({ approved: true, grant, mfaRequired: true });
-  }));
-  app2.post("/api/admin/leadership/:uid/revoke", (req, res) => {
-    const c = access(req, res);
-    if (!c) return;
-    if (!deps.owner(c.user)) return res.status(403).json({ error: "Faqat platforma egasiga ruxsat." });
-    const grant = (c.db.leadershipGrants || []).find((g) => g.userId === req.params.uid && g.schoolId === c.user.institutionId && !g.revokedAt);
-    if (!grant) return res.status(404).json({ error: "Huquq topilmadi." });
-    grant.revokedAt = (/* @__PURE__ */ new Date()).toISOString();
-    deps.revoke(grant.userId);
-    audit(c, "Rahbariyat vakolati bekor qilindi", grant.userId);
-    deps.save(c.env, c.db);
-    return res.json({ revoked: true });
-  });
-  app2.post("/api/admin/leadership/:uid/mfa-recovery", asyncRoute(async (req, res) => {
-    const c = access(req, res);
-    if (!c) return;
-    if (!deps.owner(c.user) || req.body.identityVerified !== true || String(req.body.reason || "").length < 12 || !await proof(c, req.body)) return res.status(403).json({ error: "Shaxsni tekshirish, sabab va yangi Google tasdig\u2018i talab qilinadi." });
-    const record = (c.db.mfaCredentials || []).find((v) => v.userId === req.params.uid && v.schoolId === c.user.institutionId);
-    if (!record) return res.status(404).json({ error: "MFA hisobi topilmadi." });
-    c.db.mfaCredentials = c.db.mfaCredentials.filter((v) => v !== record);
-    c.db.mfaVerifiedSessions = (c.db.mfaVerifiedSessions || []).filter((v) => v.userId !== record.userId);
-    deps.revoke(record.userId);
-    audit(c, "Shaxs tekshirilgach MFA recovery: " + String(req.body.reason).slice(0, 1e3), record.userId);
-    deps.save(c.env, c.db);
-    return res.json({ reset: true, mfaEnrollmentRequired: true });
-  }));
-}
-
 // src/server/leadershipRoutes.ts
 var kinds = { roster: { permission: "roster.read", collection: "users" }, attendance: { permission: "attendance.read", collection: "attendanceRecords" }, results: { permission: "results.read", collection: "attempts" }, plans: { permission: "reports.read", collection: "workPlans" }, timetable: { permission: "reports.read", collection: "timetableEntries" } };
 function registerLeadershipRoutes(app2, deps) {
@@ -3642,26 +4585,27 @@ function registerLeadershipRoutes(app2, deps) {
 }
 
 // src/server/invitationSecurity.ts
-import crypto5 from "node:crypto";
+import crypto8 from "node:crypto";
 var secureInviteShape = (raw) => /^INV-[A-Z0-9]{1,3}-[A-F0-9]{48}$/.test(raw);
-var invitationDigest = (raw) => "sha256:" + crypto5.createHash("sha256").update(raw.trim().toUpperCase()).digest("hex");
+var INVITATION_TTL_MS = 72 * 60 * 60 * 1e3;
+var invitationDigest = (raw) => "sha256:" + crypto8.createHash("sha256").update(raw.trim().toUpperCase()).digest("hex");
 function findSecureInvitation(invitations, raw) {
   const token = raw.trim().toUpperCase();
   return secureInviteShape(token) ? invitations.find((v) => v.tokenHash === invitationDigest(token)) : void 0;
 }
 function validateSecureInvitation(raw, invitation, now = (/* @__PURE__ */ new Date()).toISOString()) {
-  const valid = !!invitation && secureInviteShape(raw) && invitation.tokenHash === invitationDigest(raw) && invitation.status === "pending" && Number.isFinite(Date.parse(invitation.expiresAt)) && Date.parse(invitation.expiresAt) > Date.parse(now) && Date.parse(invitation.expiresAt) <= Date.parse(invitation.createdAt) + 7 * 864e5 + 1e3;
+  const valid = !!invitation && secureInviteShape(raw) && invitation.tokenHash === invitationDigest(raw) && invitation.status === "pending" && Number.isFinite(Date.parse(invitation.expiresAt)) && Date.parse(invitation.expiresAt) > Date.parse(now) && Date.parse(invitation.expiresAt) <= Date.parse(invitation.createdAt) + INVITATION_TTL_MS + 1e3;
   return { valid, error: valid ? void 0 : "Taklif kodi yaroqsiz, ishlatilgan yoki muddati tugagan." };
 }
 
 // src/server/supabaseAuth.ts
-import crypto8 from "node:crypto";
-import { z as z3 } from "zod";
+import crypto11 from "node:crypto";
+import { z as z6 } from "zod";
 init_security();
 var supabaseAuthEnabled = () => process.env.AUTH_PROVIDER === "supabase";
 async function verifiedProviderUser(token) {
   if (token.length > 16e3 || !token.includes(".")) throw Error("Invalid provider token");
-  const { data, error } = await serverSupabase().auth.getUser(token);
+  const { data, error } = await serverSupabaseIdentity().auth.getUser(token);
   if (error || !data.user || !data.user.email || !data.user.email_confirmed_at) throw Error("Unverified provider identity");
   const claims = JSON.parse(Buffer.from(token.split(".")[1], "base64url").toString("utf8"));
   if (claims.sub !== data.user.id || claims.exp * 1e3 <= Date.now()) throw Error("Invalid provider token");
@@ -3686,6 +4630,7 @@ async function accountProviderProof(token, db) {
 function registerSupabaseAuthRoutes(app2, deps) {
   app2.post("/api/admin/provision-claims", async (req, res, next) => {
     if (!supabaseAuthEnabled()) return next();
+    if (sharedIdentityProvider()) return res.status(403).json({ error: "Preview muhiti asosiy kirish provayderining ruxsatlarini o\u2018zgartira olmaydi." });
     const actor = deps.authenticate?.(req);
     if (!actor || !deps.owner?.(actor.user)) return res.status(403).json({ error: "Faqat tasdiqlangan platforma egasiga ruxsat." });
     try {
@@ -3710,7 +4655,7 @@ function registerSupabaseAuthRoutes(app2, deps) {
   app2.use("/api/auth/firebase-sync", (_req, res, next) => supabaseAuthEnabled() ? res.status(410).json({ error: "Kirish sahifasini yangilang.", code: "AUTH_PROVIDER_CHANGED" }) : next());
   app2.post("/api/auth/provider-sync", async (req, res) => {
     if (!supabaseAuthEnabled()) return res.status(503).json({ error: "Kirish xizmati sozlanmoqda." });
-    const parsed = z3.object({ idToken: z3.string().min(20).max(16e3), inviteToken: z3.string().max(128).optional() }).safeParse(req.body);
+    const parsed = z6.object({ idToken: z6.string().min(20).max(16e3), inviteToken: z6.string().max(128).optional() }).safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ error: "Kirish javobini tekshiring." });
     try {
       const identity = await (deps.verifyIdentity || verifiedProviderUser)(parsed.data.idToken);
@@ -3746,7 +4691,7 @@ function registerSupabaseAuthRoutes(app2, deps) {
       }
       current.linkedSupabaseUid = provider.id;
       current.lastLoginAt = now;
-      db.auditLogs.unshift({ id: crypto8.randomUUID(), institutionId: current.institutionId, actorUid: current.uid, actorName: current.displayName, actorRole: current.role, action: "Supabase Google orqali kirish", target: "Hisob", recordId: current.uid, createdAt: now });
+      db.auditLogs.unshift({ id: crypto11.randomUUID(), institutionId: current.institutionId, actorUid: current.uid, actorName: current.displayName, actorRole: current.role, action: "Supabase Google orqali kirish", target: "Hisob", recordId: current.uid, createdAt: now });
       deps.save("prod", db);
       return res.json({ user: current, token: deps.issue(current.uid, "prod"), activationStatus: "active" });
     } catch {
@@ -3757,10 +4702,10 @@ function registerSupabaseAuthRoutes(app2, deps) {
 
 // src/server/refreshSessions.ts
 init_dbEngine();
-import crypto9 from "node:crypto";
+import crypto12 from "node:crypto";
 var refreshCookieName = () => process.env.NODE_ENV === "production" || process.env.VERCEL ? "__Host-ss_refresh" : "ss_refresh";
 var options = () => ({ httpOnly: true, secure: process.env.NODE_ENV === "production" || Boolean(process.env.VERCEL), sameSite: "strict", path: "/" });
-var refreshHash = (value) => crypto9.createHash("sha256").update(value).digest("hex");
+var refreshHash = (value) => crypto12.createHash("sha256").update(value).digest("hex");
 function rawRefresh(req) {
   const pair = String(req.headers.cookie || "").split(";").map((v) => v.trim()).find((v) => v.startsWith(refreshCookieName() + "="));
   if (!pair) return;
@@ -3775,8 +4720,8 @@ function validRefresh(db, raw, now = Date.now()) {
 function createRefreshSession(uid, env, res) {
   const db = getDbState(env), user = db.users.find((u) => u.uid === uid);
   if (!user) throw Error("Session identity missing");
-  const now = Math.max(Date.now(), (db.revokedBeforeByUser?.[uid] || 0) + 1), raw = crypto9.randomBytes(32).toString("hex");
-  const record = { id: crypto9.randomUUID(), userId: uid, institutionId: user.institutionId, tokenHash: refreshHash(raw), issuedAt: now, lastUsedAt: now, expiresAt: now + 7 * 864e5 };
+  const now = Math.max(Date.now(), (db.revokedBeforeByUser?.[uid] || 0) + 1), raw = crypto12.randomBytes(32).toString("hex");
+  const record = { id: crypto12.randomUUID(), userId: uid, institutionId: user.institutionId, tokenHash: refreshHash(raw), issuedAt: now, lastUsedAt: now, expiresAt: now + 7 * 864e5 };
   db.refreshSessions = (db.refreshSessions || []).filter((s) => s.expiresAt > now && !s.revokedAt);
   db.refreshSessions.push(record);
   saveDbState(env, db);
@@ -3822,17 +4767,17 @@ function registerRefreshRoutes(app2, deps) {
 }
 
 // src/server/authIngress.ts
-import crypto10 from "node:crypto";
+import crypto13 from "node:crypto";
 import { isIP } from "node:net";
 init_runtimeScope();
-var salt = process.env.SESSION_SECRET || crypto10.randomBytes(32).toString("hex");
+var salt = process.env.SESSION_SECRET || crypto13.randomBytes(32).toString("hex");
 function clientIpFingerprint(req) {
   const platform2 = process.env.VERCEL ? String(req.headers["x-vercel-forwarded-for"] || "").split(",")[0].trim() : "";
   const ip = isIP(platform2) ? platform2 : String(req.socket.remoteAddress || "unknown");
-  return crypto10.createHmac("sha256", salt).update(ip).digest("hex");
+  return crypto13.createHmac("sha256", salt).update(ip).digest("hex");
 }
 function authenticationBucket(req, scope) {
-  const account = scope === "login" ? crypto10.createHash("sha256").update(String(req.body?.login || req.body?.email || "").trim().toLowerCase()).digest("hex") : "";
+  const account = scope === "login" ? crypto13.createHash("sha256").update(String(req.body?.login || req.body?.email || "").trim().toLowerCase()).digest("hex") : "";
   const test = process.env.NODE_ENV === "test" ? String(req.headers["x-test-client-id"] || "").slice(0, 80) : "";
   return `${scope}:${clientIpFingerprint(req)}:${account}:${test}`;
 }
@@ -3843,11 +4788,11 @@ var authIngress = async (req, res, next) => {
   if ((invitationPreview || req.path === "/api/auth/register-with-invite") && !secureInviteShape(invite)) return res.status(400).json({ error: "Taklif kodi yaroqsiz yoki muddati tugagan." });
   if (req.method !== "POST" && !invitationPreview || !publicLogin && !sensitive && !invitationPreview || !supabaseEnabled()) return next();
   try {
-    const key2 = sensitive ? crypto10.createHmac("sha256", salt).update(req.path + ":" + String(res.locals.signedUid || "anonymous") + ":" + clientIpFingerprint(req)).digest("hex") : clientIpFingerprint(req);
+    const key2 = sensitive ? crypto13.createHmac("sha256", salt).update(req.path + ":" + String(res.locals.signedUid || "anonymous") + ":" + clientIpFingerprint(req)).digest("hex") : clientIpFingerprint(req);
     const allowed = await studyRpc("study_auth_rate_limit", { p_namespace: runtimeNamespace(), p_key: key2, p_limit: sensitive ? 10 : 600, p_window_ms: sensitive ? 9e5 : 6e4 });
     if (!allowed) return res.status(429).set("Retry-After", "60").json({ code: "RATE_LIMITED", error: "Kirish so\u2018rovlari ko\u2018paydi. Bir daqiqadan keyin qayta urining." });
     if (invitationPreview || req.path === "/api/auth/register-with-invite") {
-      const inviteKey = crypto10.createHmac("sha256", salt).update("invite:" + invite + ":" + clientIpFingerprint(req)).digest("hex");
+      const inviteKey = crypto13.createHmac("sha256", salt).update("invite:" + invite + ":" + clientIpFingerprint(req)).digest("hex");
       if (!await studyRpc("study_auth_rate_limit", { p_namespace: runtimeNamespace(), p_key: inviteKey, p_limit: 10, p_window_ms: 9e5 })) return res.status(429).set("Retry-After", "900").json({ code: "RATE_LIMITED", error: "Taklif urinishlari cheklangan. 15 daqiqadan keyin qayta urining." });
     }
     next();
@@ -3860,6 +4805,11 @@ var authIngress = async (req, res, next) => {
 var apiErrorHandler = (error, _req, res, _next) => {
   if (res.headersSent) {
     res.end();
+    return;
+  }
+  const conflict = error?.code === "40001" || error?.code === "P0001";
+  if (conflict) {
+    res.status(409).set("Cache-Control", "no-store").json({ code: "DATA_CONFLICT", error: "Ma\u2019lumot yoki dars holati o\u2018zgargan. Yangilab, taklif va tarixni tekshiring." });
     return;
   }
   const large = error?.type === "entity.too.large", invalid = error?.type === "entity.parse.failed";
@@ -3881,29 +4831,29 @@ function deliveredNotification(value, day) {
 }
 
 // src/server/spacedReviewEngine.ts
-import crypto12 from "node:crypto";
+import crypto15 from "node:crypto";
 
 // src/server/topicEngine.ts
-import crypto11 from "node:crypto";
-import { z as z4 } from "zod";
-var bankQuestion = z4.object({
-  id: z4.string().max(100).optional(),
-  revision: z4.number().int().optional(),
-  kind: z4.enum(["single", "multiple", "short", "matching", "ordering", "blank", "written"]),
-  prompt: z4.string().trim().min(3).max(12e3),
-  options: z4.array(z4.string().trim().min(1).max(1e3)).max(20).default([]),
-  labels: z4.array(z4.string().trim().max(1e3)).max(12).default([]),
-  key: z4.string().max(8e3),
-  accepted: z4.array(z4.string().max(1e3)).max(20).default([]),
-  explanation: z4.string().max(5e3).default(""),
-  hint: z4.string().max(2e3).default(""),
-  hints: z4.array(z4.string().trim().min(1).max(2e3)).max(3).default([]),
-  wrongFeedback: z4.record(z4.string().max(1e3), z4.string().max(1e3)).default({}),
-  source: z4.object({ title: z4.string().trim().max(300), page: z4.string().trim().max(40).default("") }).optional(),
-  points: z4.number().min(0.5).max(100),
-  difficulty: z4.enum(["easy", "medium", "hard"]).default("medium"),
-  sourceImages: z4.array(z4.string().max(7e5).regex(/^data:image\/(png|jpeg);base64,[a-zA-Z0-9+/=]+$/)).max(10).default([]),
-  image: z4.string().max(7e5).refine((s) => !s || /^data:image\/(png|jpeg);base64,[a-zA-Z0-9+/=]+$/.test(s)).default("")
+import crypto14 from "node:crypto";
+import { z as z7 } from "zod";
+var bankQuestion = z7.object({
+  id: z7.string().max(100).optional(),
+  revision: z7.number().int().optional(),
+  kind: z7.enum(["single", "multiple", "short", "matching", "ordering", "blank", "written"]),
+  prompt: z7.string().trim().min(3).max(12e3),
+  options: z7.array(z7.string().trim().min(1).max(1e3)).max(20).default([]),
+  labels: z7.array(z7.string().trim().max(1e3)).max(12).default([]),
+  key: z7.string().max(8e3),
+  accepted: z7.array(z7.string().max(1e3)).max(20).default([]),
+  explanation: z7.string().max(5e3).default(""),
+  hint: z7.string().max(2e3).default(""),
+  hints: z7.array(z7.string().trim().min(1).max(2e3)).max(3).default([]),
+  wrongFeedback: z7.record(z7.string().max(1e3), z7.string().max(1e3)).default({}),
+  source: z7.object({ title: z7.string().trim().max(300), page: z7.string().trim().max(40).default("") }).optional(),
+  points: z7.number().min(0.5).max(100),
+  difficulty: z7.enum(["easy", "medium", "hard"]).default("medium"),
+  sourceImages: z7.array(z7.string().max(7e5).regex(/^data:image\/(png|jpeg);base64,[a-zA-Z0-9+/=]+$/)).max(10).default([]),
+  image: z7.string().max(7e5).refine((s) => !s || /^data:image\/(png|jpeg);base64,[a-zA-Z0-9+/=]+$/.test(s)).default("")
 }).superRefine((q, c) => {
   const issue2 = (message) => c.addIssue({ code: "custom", message });
   if (q.options.some((o) => o.includes("|"))) issue2("Variant ichida | belgisi ishlatilmasin.");
@@ -3930,7 +4880,7 @@ function gradeQuestion(q, answer) {
 function shuffle(list) {
   const a = [...list];
   for (let i = a.length - 1; i > 0; i--) {
-    const j = crypto11.randomInt(i + 1);
+    const j = crypto14.randomInt(i + 1);
     [a[i], a[j]] = [a[j], a[i]];
   }
   return a;
@@ -4070,7 +5020,7 @@ function cachedProgress(db, user, catalog, lessonId, now) {
   else db.studentTopicProgress.push(record);
 }
 function catalogSignature(ids) {
-  return crypto12.createHash("sha256").update([...ids].sort().join("\n")).digest("hex");
+  return crypto15.createHash("sha256").update([...ids].sort().join("\n")).digest("hex");
 }
 function recordTopicLearning(db, user, session, now = /* @__PURE__ */ new Date()) {
   if (session.reviewRecordedAt || !session.submittedAt) return;
@@ -4241,12 +5191,12 @@ function publicStudentAttempt(attempt, assessments) {
   };
 }
 function canTakeExam(user, exam) {
-  if (user.role !== "student" || user.status !== "active" || user.institutionId !== exam.institutionId)
+  if (user.role !== "student" || user.status !== "active" || user.institutionId !== exam.institutionId || exam.groupIds?.length && !exam.groupIds.some((id) => user.teachingGroupIds?.includes(id)))
     return false;
   return Boolean(
     user.classId && [exam.classId, ...exam.assignedClassIds || []].includes(
       user.classId
-    ) || user.classCode && [exam.classCode, ...exam.assignedClassCodes || []].includes(
+    ) || !exam.classId && !exam.assignedClassIds?.length && user.classCode && [exam.classCode, ...exam.assignedClassCodes || []].includes(
       user.classCode
     )
   );
@@ -4713,7 +5663,7 @@ function generateLearningPathsFromAttempt(studentId, institutionId, topicBreakdo
 }
 
 // src/server/enterpriseCore.ts
-import crypto13 from "node:crypto";
+import crypto16 from "node:crypto";
 var SchoolError = class extends Error {
   constructor(status, message) {
     super(message);
@@ -4735,7 +5685,7 @@ function schoolStudent(c, id) {
   return s;
 }
 var schoolKey = (...values) => values.map((v) => encodeURIComponent(String(v))).join(":");
-var digest = (value) => crypto13.createHash("sha256").update(JSON.stringify(value)).digest("hex");
+var digest = (value) => crypto16.createHash("sha256").update(JSON.stringify(value)).digest("hex");
 function ensureRows(db, key2) {
   return db[key2] || (db[key2] = []);
 }
@@ -4761,7 +5711,7 @@ function auditValue(value) {
 function schoolAudit(c, action, entityId, before, after) {
   const rows = ensureRows(c.db, "schoolAuditEvents"), previous = rows.filter((a) => a.schoolId === c.user.institutionId).at(-1)?.hash || "genesis";
   const event = {
-    id: crypto13.randomUUID(),
+    id: crypto16.randomUUID(),
     schoolId: c.user.institutionId,
     actorId: c.user.uid,
     actorName: c.user.displayName,
@@ -4787,7 +5737,7 @@ function schoolAudit(c, action, entityId, before, after) {
   });
   return event.id;
 }
-function operation(c, id, kind, body) {
+function operation2(c, id, kind, body) {
   const existing = (c.db.schoolOperations || []).find(
     (v) => v.id === schoolKey(c.user.institutionId, c.user.uid, id)
   );
@@ -4909,12 +5859,12 @@ function registerAiAccessGuard(app2, deps) {
 }
 
 // src/server/disciplineRoutes.ts
-import crypto15 from "node:crypto";
-import { z as z6 } from "zod";
+import crypto18 from "node:crypto";
+import { z as z9 } from "zod";
 
 // src/server/disciplineEngine.ts
-import crypto14 from "node:crypto";
-import { z as z5 } from "zod";
+import crypto17 from "node:crypto";
+import { z as z8 } from "zod";
 var defaults = [
   ["late", "Darsga kechikish", false],
   ["homework", "Uy vazifasi bajarilmagan", true],
@@ -5020,59 +5970,59 @@ function disciplinePolicy(c) {
     directors: []
   };
 }
-var policySchema = z5.object({
-  revision: z5.number().int().min(0),
-  approved: z5.boolean(),
-  schoolApprovalAcknowledged: z5.boolean().default(false),
-  reason: z5.string().trim().min(5).max(2e3),
-  limit: z5.number().int().min(1).max(1e3),
-  editMinutes: z5.number().int().min(1).max(60),
-  positiveEnabled: z5.boolean(),
-  periodMode: z5.enum(["quarter", "semester", "year"]),
-  periods: z5.array(
-    z5.object({
-      id: z5.string().min(1).max(80),
-      name: z5.string().trim().min(2).max(100),
-      start: z5.string().refine(validDate),
-      end: z5.string().refine(validDate)
+var policySchema = z8.object({
+  revision: z8.number().int().min(0),
+  approved: z8.boolean(),
+  schoolApprovalAcknowledged: z8.boolean().default(false),
+  reason: z8.string().trim().min(5).max(2e3),
+  limit: z8.number().int().min(1).max(1e3),
+  editMinutes: z8.number().int().min(1).max(60),
+  positiveEnabled: z8.boolean(),
+  periodMode: z8.enum(["quarter", "semester", "year"]),
+  periods: z8.array(
+    z8.object({
+      id: z8.string().min(1).max(80),
+      name: z8.string().trim().min(2).max(100),
+      start: z8.string().refine(validDate),
+      end: z8.string().refine(validDate)
     })
   ).min(1).max(16),
-  stages: z5.array(
-    z5.object({
-      points: z5.number().int().min(1).max(1e3),
-      name: z5.string().trim().min(2).max(100),
-      template: z5.string().trim().min(5).max(2e3),
-      responsible: z5.enum(["homeroom", "admin", "deputy", "director"])
+  stages: z8.array(
+    z8.object({
+      points: z8.number().int().min(1).max(1e3),
+      name: z8.string().trim().min(2).max(100),
+      template: z8.string().trim().min(5).max(2e3),
+      responsible: z8.enum(["homeroom", "admin", "deputy", "director"])
     })
   ).min(1).max(10),
-  homeroom: z5.record(z5.string(), z5.string()).default({}),
-  deputies: z5.array(z5.string()).max(10).default([]),
-  directors: z5.array(z5.string()).max(10).default([])
+  homeroom: z8.record(z8.string(), z8.string()).default({}),
+  deputies: z8.array(z8.string()).max(10).default([]),
+  directors: z8.array(z8.string()).max(10).default([])
 });
-var typeSchema = z5.object({
-  id: z5.string().optional(),
-  revision: z5.number().int().min(0).default(0),
-  name: z5.string().trim().min(3).max(120),
-  description: z5.string().max(1e3).default(""),
-  points: z5.number().int().min(1).max(100).default(1),
-  category: z5.string().trim().max(100).default("kuzatilgan holat"),
-  quick: z5.boolean().default(false),
-  commentRequired: z5.boolean().default(false),
-  careOnly: z5.boolean().default(false),
-  active: z5.boolean().default(true),
-  order: z5.number().int().min(0).max(1e3).default(0)
+var typeSchema = z8.object({
+  id: z8.string().optional(),
+  revision: z8.number().int().min(0).default(0),
+  name: z8.string().trim().min(3).max(120),
+  description: z8.string().max(1e3).default(""),
+  points: z8.number().int().min(1).max(100).default(1),
+  category: z8.string().trim().max(100).default("kuzatilgan holat"),
+  quick: z8.boolean().default(false),
+  commentRequired: z8.boolean().default(false),
+  careOnly: z8.boolean().default(false),
+  active: z8.boolean().default(true),
+  order: z8.number().int().min(0).max(1e3).default(0)
 });
-var recordSchema = z5.object({
-  studentIds: z5.array(z5.string()).min(1).max(30),
-  typeId: z5.string(),
-  kind: z5.enum(["incident", "support", "reminder", "positive"]).default("incident"),
-  reason: z5.string().trim().max(3e3).default(""),
-  subject: z5.string().trim().max(120),
-  lessonId: z5.string().max(200).optional(),
-  happenedAt: z5.iso.datetime({ offset: true }),
-  evidenceText: z5.string().max(2e3).optional(),
-  evidence: z5.string().max(7e5).regex(/^data:image\/(png|jpeg);base64,[A-Za-z0-9+/=]+$/).optional(),
-  draft: z5.boolean().default(false)
+var recordSchema = z8.object({
+  studentIds: z8.array(z8.string()).min(1).max(30),
+  typeId: z8.string(),
+  kind: z8.enum(["incident", "support", "reminder", "positive"]).default("incident"),
+  reason: z8.string().trim().max(3e3).default(""),
+  subject: z8.string().trim().max(120),
+  lessonId: z8.string().max(200).optional(),
+  happenedAt: z8.iso.datetime({ offset: true }),
+  evidenceText: z8.string().max(2e3).optional(),
+  evidence: z8.string().max(7e5).regex(/^data:image\/(png|jpeg);base64,[A-Za-z0-9+/=]+$/).optional(),
+  draft: z8.boolean().default(false)
 });
 function currentDisciplinePeriod(c, at = c.now.toISOString()) {
   const day = localDate(new Date(at)), policy = disciplinePolicy(c), period = policy.periods.find((p) => p.start <= day && p.end >= day);
@@ -5198,7 +6148,7 @@ function saveDisciplineType(c, input) {
   if (old) checkRevision(old.revision, input.revision);
   const next = {
     ...input,
-    id: old ? old.id : crypto14.randomUUID(),
+    id: old ? old.id : crypto17.randomUUID(),
     schoolId: c.user.institutionId,
     revision: (old ? old.revision : 0) + 1
   };
@@ -5323,7 +6273,7 @@ function createDisciplineRecords(c, input) {
     );
   const created = students.map((s) => {
     const r = {
-      id: crypto14.randomUUID(),
+      id: crypto17.randomUUID(),
       schoolId: c.user.institutionId,
       studentId: s.uid,
       classId: s.classId,
@@ -5368,7 +6318,7 @@ function changeDisciplineRecord(c, id, input) {
     if (c.user.role !== "teacher" || r.teacherId !== c.user.uid)
       throw new SchoolError(403, "Faqat o\u2018z qaydingiz uchun so\u2018rov.");
     const row2 = {
-      id: crypto14.randomUUID(),
+      id: crypto17.randomUUID(),
       schoolId: r.schoolId,
       recordId: r.id,
       actorId: c.user.uid,
@@ -5446,7 +6396,7 @@ function changeDisciplineRecord(c, id, input) {
   );
   return r;
 }
-function appealDiscipline(c, recordId, reason3) {
+function appealDiscipline(c, recordId, reason4) {
   const r = (c.db.disciplineRecords || []).find(
     (v) => v.id === recordId && v.schoolId === c.user.institutionId && v.studentId === c.user.uid
   );
@@ -5457,11 +6407,11 @@ function appealDiscipline(c, recordId, reason3) {
   ))
     throw new SchoolError(409, "Bu qayd bo\u2018yicha e\u2019tiroz ko\u2018rilmoqda.");
   const a = {
-    id: crypto14.randomUUID(),
+    id: crypto17.randomUUID(),
     schoolId: r.schoolId,
     recordId,
     studentId: r.studentId,
-    reason: reason3,
+    reason: reason4,
     status: "pending",
     createdAt: c.now.toISOString(),
     revision: 1
@@ -5514,13 +6464,13 @@ function generateWarningLetter(c, k, total = disciplineTotal(c, k.studentId, k.p
   );
   if (existing && existing.status !== "draft") return existing;
   const letter = {
-    id: existing?.id || crypto14.randomUUID(),
+    id: existing?.id || crypto17.randomUUID(),
     schoolId: k.schoolId,
     studentId: k.studentId,
     classId: k.classId,
     periodId: k.periodId,
     caseId: k.id,
-    number: existing?.number || `INT-${localDate(c.now)}-${crypto14.randomBytes(3).toString("hex").toUpperCase()}`,
+    number: existing?.number || `INT-${localDate(c.now)}-${crypto17.randomBytes(3).toString("hex").toUpperCase()}`,
     body: `${inst?.officialName || inst?.name}
 HOLATLARNI KO\u2018RIB CHIQISH HUJJATI
 Sana: ${localDate(c.now)}
@@ -5552,9 +6502,9 @@ Bu hujjat loyihasi avtomatik jazo, chetlatish yoki imtihonga taqiq hisoblanmaydi
 }
 
 // src/server/disciplineRoutes.ts
-var common = z6.object({ operationId: z6.uuid() });
-var reason = z6.string().trim().min(3).max(4e3);
-var evidence = z6.string().max(7e5).regex(/^data:image\/(png|jpeg);base64,[A-Za-z0-9+/=]+$/).optional();
+var common = z9.object({ operationId: z9.uuid() });
+var reason2 = z9.string().trim().min(3).max(4e3);
+var evidence = z9.string().max(7e5).regex(/^data:image\/(png|jpeg);base64,[A-Za-z0-9+/=]+$/).optional();
 function registerDisciplineRoutes(app2, deps) {
   const rate = /* @__PURE__ */ new Map();
   const access = (req, res, write5 = false) => {
@@ -5607,7 +6557,7 @@ function registerDisciplineRoutes(app2, deps) {
       });
     const data = parsed.data;
     try {
-      const signature = { path: req.path, body: data }, previous = operation(c, data.operationId, kind, signature);
+      const signature = { path: req.path, body: data }, previous = operation2(c, data.operationId, kind, signature);
       if (previous) return res.json({ duplicate: true, refs: previous.refs });
       const result = fn(c, data, req);
       remember(
@@ -5631,20 +6581,20 @@ function registerDisciplineRoutes(app2, deps) {
   app2.get(
     "/api/discipline",
     read5((c, req, res) => {
-      const q = z6.object({
-        page: z6.coerce.number().int().min(0).max(1e4).default(0),
-        classId: z6.string().max(200).default(""),
-        studentId: z6.string().max(200).default(""),
-        teacherId: z6.string().max(200).default(""),
-        typeId: z6.string().max(200).default(""),
-        status: z6.string().max(30).default(""),
-        period: z6.string().max(100).default(""),
-        from: z6.string().max(10).default(""),
-        to: z6.string().max(10).default(""),
-        q: z6.string().max(100).default(""),
-        minPoints: z6.coerce.number().min(-1e3).max(1e3).default(-1e3),
-        maxPoints: z6.coerce.number().min(0).max(1e3).default(1e3),
-        view: z6.enum([
+      const q = z9.object({
+        page: z9.coerce.number().int().min(0).max(1e4).default(0),
+        classId: z9.string().max(200).default(""),
+        studentId: z9.string().max(200).default(""),
+        teacherId: z9.string().max(200).default(""),
+        typeId: z9.string().max(200).default(""),
+        status: z9.string().max(30).default(""),
+        period: z9.string().max(100).default(""),
+        from: z9.string().max(10).default(""),
+        to: z9.string().max(10).default(""),
+        q: z9.string().max(100).default(""),
+        minPoints: z9.coerce.number().min(-1e3).max(1e3).default(-1e3),
+        maxPoints: z9.coerce.number().min(0).max(1e3).default(1e3),
+        view: z9.enum([
           "records",
           "appeals",
           "cases",
@@ -5805,7 +6755,7 @@ function registerDisciplineRoutes(app2, deps) {
     "/api/discipline/policy",
     mutate(
       "discipline-policy",
-      policySchema.extend({ operationId: z6.uuid() }),
+      policySchema.extend({ operationId: z9.uuid() }),
       (c, d) => configureDiscipline(c, d)
     )
   );
@@ -5813,7 +6763,7 @@ function registerDisciplineRoutes(app2, deps) {
     "/api/discipline/types",
     mutate(
       "discipline-type",
-      typeSchema.extend({ operationId: z6.uuid() }),
+      typeSchema.extend({ operationId: z9.uuid() }),
       (c, d) => saveDisciplineType(c, d)
     )
   );
@@ -5821,7 +6771,7 @@ function registerDisciplineRoutes(app2, deps) {
     "/api/discipline/records",
     mutate(
       "discipline-create",
-      recordSchema.extend({ operationId: z6.uuid() }),
+      recordSchema.extend({ operationId: z9.uuid() }),
       (c, d) => createDisciplineRecords(c, d)
     )
   );
@@ -5830,8 +6780,8 @@ function registerDisciplineRoutes(app2, deps) {
     mutate(
       "discipline-change",
       common.extend({
-        revision: z6.number().int(),
-        action: z6.enum([
+        revision: z9.number().int(),
+        action: z9.enum([
           "approve",
           "review",
           "cancel",
@@ -5839,9 +6789,9 @@ function registerDisciplineRoutes(app2, deps) {
           "submit",
           "request_correction"
         ]),
-        reason,
-        typeId: z6.string().optional(),
-        evidenceText: z6.string().max(2e3).optional(),
+        reason: reason2,
+        typeId: z9.string().optional(),
+        evidenceText: z9.string().max(2e3).optional(),
         evidence
       }),
       (c, d, req) => changeDisciplineRecord(c, String(req.params.id), d)
@@ -5851,7 +6801,7 @@ function registerDisciplineRoutes(app2, deps) {
     "/api/discipline/records/:id/appeals",
     mutate(
       "discipline-appeal",
-      common.extend({ reason }),
+      common.extend({ reason: reason2 }),
       (c, d, req) => appealDiscipline(c, String(req.params.id), d.reason)
     )
   );
@@ -5860,9 +6810,9 @@ function registerDisciplineRoutes(app2, deps) {
     mutate(
       "discipline-appeal-decision",
       common.extend({
-        revision: z6.number().int(),
-        accepted: z6.boolean(),
-        reason
+        revision: z9.number().int(),
+        accepted: z9.boolean(),
+        reason: reason2
       }),
       (c, d, req) => decideDisciplineAppeal(c, String(req.params.id), d)
     )
@@ -5872,18 +6822,18 @@ function registerDisciplineRoutes(app2, deps) {
     mutate(
       "discipline-case",
       common.extend({
-        revision: z6.number().int(),
-        decision: z6.enum([
+        revision: z9.number().int(),
+        decision: z9.enum([
           "conversation",
           "letter",
           "referred",
           "no_action",
           "reduce_points"
         ]),
-        reason,
-        reduceBy: z6.number().int().positive().max(1e3).optional(),
-        meetingAt: z6.iso.datetime({ offset: true }).optional(),
-        parentContactStatus: z6.string().max(200).optional()
+        reason: reason2,
+        reduceBy: z9.number().int().positive().max(1e3).optional(),
+        meetingAt: z9.iso.datetime({ offset: true }).optional(),
+        parentContactStatus: z9.string().max(200).optional()
       }),
       (c, d, req) => {
         const k = (c.db.disciplineCases || []).find(
@@ -5903,7 +6853,7 @@ function registerDisciplineRoutes(app2, deps) {
           if (d.reduceBy > total.points)
             throw new SchoolError(400, "Kamaytirish joriy balldan oshmasin.");
           const adjustment = {
-            id: crypto15.randomUUID(),
+            id: crypto18.randomUUID(),
             schoolId: k.schoolId,
             studentId: k.studentId,
             classId: k.classId,
@@ -5964,10 +6914,10 @@ function registerDisciplineRoutes(app2, deps) {
     mutate(
       "discipline-letter-change",
       common.extend({
-        revision: z6.number().int(),
-        action: z6.enum(["save", "approve", "issue"]),
-        body: z6.string().trim().min(30).max(15e3).optional(),
-        reason
+        revision: z9.number().int(),
+        action: z9.enum(["save", "approve", "issue"]),
+        body: z9.string().trim().min(30).max(15e3).optional(),
+        reason: reason2
       }),
       (c, d, req) => {
         if (!schoolAdmin(c.user))
@@ -6037,18 +6987,18 @@ function registerDisciplineRoutes(app2, deps) {
     mutate(
       "discipline-export",
       common.extend({
-        kind: z6.enum(["records", "letters", "cases"]),
-        classId: z6.string().optional(),
-        studentId: z6.string().optional(),
-        period: z6.string().optional(),
-        typeId: z6.string().optional(),
-        teacherId: z6.string().optional(),
-        status: z6.string().optional(),
-        from: z6.string().optional(),
-        to: z6.string().optional(),
-        q: z6.string().max(100).optional(),
-        minPoints: z6.number().min(-1e3).max(1e3).optional(),
-        maxPoints: z6.number().min(0).max(1e3).optional()
+        kind: z9.enum(["records", "letters", "cases"]),
+        classId: z9.string().optional(),
+        studentId: z9.string().optional(),
+        period: z9.string().optional(),
+        typeId: z9.string().optional(),
+        teacherId: z9.string().optional(),
+        status: z9.string().optional(),
+        from: z9.string().optional(),
+        to: z9.string().optional(),
+        q: z9.string().max(100).optional(),
+        minPoints: z9.number().min(-1e3).max(1e3).optional(),
+        maxPoints: z9.number().min(0).max(1e3).optional()
       }),
       (c, d) => {
         if (!schoolAdmin(c.user))
@@ -6128,7 +7078,7 @@ function registerDisciplineRoutes(app2, deps) {
   );
   app2.post(
     "/api/discipline/corrections/:id/resolve",
-    mutate("discipline-correction", common.extend({ reason }), (c, d, req) => {
+    mutate("discipline-correction", common.extend({ reason: reason2 }), (c, d, req) => {
       if (!schoolAdmin(c.user))
         throw new SchoolError(403, "Faqat administrator.");
       const r = (c.db.disciplineCorrections || []).find(
@@ -6206,13 +7156,13 @@ function finiteScoreOrFallback(value, fallback, max) {
 }
 
 // src/server/examReliabilityRoutes.ts
-import crypto17 from "node:crypto";
-import { z as z7 } from "zod";
+import crypto20 from "node:crypto";
+import { z as z10 } from "zod";
 
 // src/server/examSessionStore.ts
 init_firebaseAdminAuth();
 init_runtimeScope();
-import crypto16 from "node:crypto";
+import crypto19 from "node:crypto";
 import { gzip, gunzip } from "node:zlib";
 import { promisify } from "node:util";
 import fs3 from "node:fs/promises";
@@ -6290,7 +7240,7 @@ var SupabaseExamSessionStore = class {
 // src/server/examSessionStore.ts
 var zip = promisify(gzip);
 var unzip = promisify(gunzip);
-var examSessionKey = (school, exam, student) => crypto16.createHash("sha256").update(JSON.stringify([school, exam, student])).digest("hex");
+var examSessionKey = (school, exam, student) => crypto19.createHash("sha256").update(JSON.stringify([school, exam, student])).digest("hex");
 var LocalExamSessionStore = class {
   constructor(directory) {
     this.directory = directory;
@@ -6328,7 +7278,7 @@ var LocalExamSessionStore = class {
       const { session, result } = fn(await this.read(key2));
       if (this.directory) {
         await fs3.mkdir(this.directory, { recursive: true });
-        const target = path3.join(this.directory, key2 + ".json"), temporary = target + "." + crypto16.randomUUID();
+        const target = path3.join(this.directory, key2 + ".json"), temporary = target + "." + crypto19.randomUUID();
         await fs3.writeFile(temporary, JSON.stringify(session), {
           mode: 384
         });
@@ -6400,7 +7350,7 @@ var FirestoreExamSessionStore = class {
     const chunks = docs.map((d) => {
       if (!d.exists) throw Error("Exam chunk missing");
       const bytes = Buffer.from(d.data().bytes);
-      if (crypto16.createHash("sha256").update(bytes).digest("hex") !== d.id)
+      if (crypto19.createHash("sha256").update(bytes).digest("hex") !== d.id)
         throw Error("Exam integrity mismatch");
       return bytes;
     });
@@ -6435,7 +7385,7 @@ var FirestoreExamSessionStore = class {
       const bytes = await zip(Buffer.from(raw));
       const chunks = [];
       for (let start = 0; start < bytes.length; start += 35e4) {
-        const part = bytes.subarray(start, start + 35e4), hash2 = crypto16.createHash("sha256").update(part).digest("hex");
+        const part = bytes.subarray(start, start + 35e4), hash2 = crypto19.createHash("sha256").update(part).digest("hex");
         chunks.push(hash2);
         if (!(head.data()?.chunks || []).includes(hash2))
           tx.set(ref.collection("chunks").doc(hash2), {
@@ -6471,7 +7421,7 @@ var FirestoreExamSessionStore = class {
   }
 };
 function digestScope(school, exam) {
-  return crypto16.createHash("sha256").update(JSON.stringify([school, exam])).digest("hex");
+  return crypto19.createHash("sha256").update(JSON.stringify([school, exam])).digest("hex");
 }
 var store;
 function examSessionStore() {
@@ -6481,13 +7431,13 @@ function examSessionStore() {
 }
 
 // src/server/examReliabilityRoutes.ts
-var packet = z7.object({
-  operationId: z7.uuid(),
-  clientId: z7.uuid(),
-  epoch: z7.number().int().nonnegative()
+var packet = z10.object({
+  operationId: z10.uuid(),
+  clientId: z10.uuid(),
+  epoch: z10.number().int().nonnegative()
 });
-var answers = z7.record(z7.string().max(200), z7.string().max(25e4));
-var digest3 = (value) => crypto17.createHash("sha256").update(JSON.stringify(value)).digest("hex");
+var answers = z10.record(z10.string().max(200), z10.string().max(25e4));
+var digest3 = (value) => crypto20.createHash("sha256").update(JSON.stringify(value)).digest("hex");
 var fail = (status, code, message) => {
   throw new ExamProtocolError(status, code, message);
 };
@@ -6627,9 +7577,9 @@ function registerExamReliabilityRoutes(app2, deps) {
     "/api/exams/:id/start-v2",
     route(async (c, req, res) => {
       const a = own(c, req.params.id), d = checked(
-        z7.object({ operationId: z7.uuid(), clientId: z7.uuid() }),
+        z10.object({ operationId: z10.uuid(), clientId: z10.uuid() }),
         req.body
-      ), candidate = crypto17.randomUUID();
+      ), candidate = crypto20.randomUUID();
       const result = await store2.change(key2(c, a), (old) => {
         let s = old;
         if (!s) {
@@ -6683,7 +7633,7 @@ function registerExamReliabilityRoutes(app2, deps) {
   app2.get(
     "/api/exams/:id/session-v2",
     route(async (c, req, res) => {
-      const a = own(c, req.params.id), d = checked(z7.object({ clientId: z7.uuid() }), req.query), s = session(await store2.read(key2(c, a)));
+      const a = own(c, req.params.id), d = checked(z10.object({ clientId: z10.uuid() }), req.query), s = session(await store2.read(key2(c, a)));
       res.json(dto(s, a, d.clientId, c.now));
     })
   );
@@ -6691,7 +7641,7 @@ function registerExamReliabilityRoutes(app2, deps) {
     "/api/exams/:id/session-v2",
     route(async (c, req, res) => {
       const a = own(c, req.params.id), d = checked(
-        packet.extend({ revision: z7.number().int().nonnegative(), answers }),
+        packet.extend({ revision: z10.number().int().nonnegative(), answers }),
         req.body
       );
       boundedAnswers(d.answers, a);
@@ -6738,7 +7688,7 @@ function registerExamReliabilityRoutes(app2, deps) {
     "/api/exams/:id/takeover-v2",
     route(async (c, req, res) => {
       const a = own(c, req.params.id), d = checked(
-        packet.extend({ revision: z7.number().int().nonnegative() }),
+        packet.extend({ revision: z10.number().int().nonnegative() }),
         req.body
       );
       res.json(
@@ -6774,12 +7724,12 @@ function registerExamReliabilityRoutes(app2, deps) {
     route(async (c, req, res) => {
       const a = own(c, req.params.id), d = checked(
         packet.extend({
-          kind: z7.enum([
+          kind: z10.enum([
             "tab_hidden",
             "fullscreen_exit",
             "fullscreen_unavailable"
           ]),
-          observedAt: z7.string().max(50).optional()
+          observedAt: z10.string().max(50).optional()
         }),
         req.body
       );
@@ -6818,7 +7768,7 @@ function registerExamReliabilityRoutes(app2, deps) {
     route(async (c, req, res) => {
       const a = own(c, req.params.id), d = checked(
         packet.extend({
-          reason: z7.string().trim().min(8).max(2e3),
+          reason: z10.string().trim().min(8).max(2e3),
           answers: answers.optional()
         }),
         req.body
@@ -6851,7 +7801,7 @@ function registerExamReliabilityRoutes(app2, deps) {
   app2.post(
     "/api/exams/:id/finish-v2",
     route(async (c, req, res) => {
-      const a = own(c, req.params.id), d = checked(packet, req.body), receiptId = "SS-" + crypto17.randomUUID().toUpperCase();
+      const a = own(c, req.params.id), d = checked(packet, req.body), receiptId = "SS-" + crypto20.randomUUID().toUpperCase();
       const result = await store2.change(key2(c, a), (old) => {
         const s = session(old);
         if (!s.receipt) {
@@ -6950,8 +7900,8 @@ function registerExamReliabilityRoutes(app2, deps) {
     "/api/exams/:id/monitor-v2",
     route(async (c, req, res) => {
       const a = teacher(c, req.params.id), d = checked(
-        z7.object({
-          after: z7.string().regex(/^[a-f0-9]{64}$/).optional()
+        z10.object({
+          after: z10.string().regex(/^[a-f0-9]{64}$/).optional()
         }),
         req.query
       ), rows = await store2.list(c.user.institutionId, a.id, d.after);
@@ -6982,12 +7932,12 @@ function registerExamReliabilityRoutes(app2, deps) {
     "/api/exams/:id/review-v2",
     route(async (c, req, res) => {
       const a = teacher(c, req.params.id), d = checked(
-        z7.object({
-          operationId: z7.uuid(),
-          studentId: z7.string().max(200),
-          revision: z7.number().int().nonnegative(),
-          reason: z7.string().trim().min(8).max(2e3),
-          minutes: z7.number().int().min(1).max(180)
+        z10.object({
+          operationId: z10.uuid(),
+          studentId: z10.string().max(200),
+          revision: z10.number().int().nonnegative(),
+          reason: z10.string().trim().min(8).max(2e3),
+          minutes: z10.number().int().min(1).max(180)
         }),
         req.body
       );
@@ -7071,12 +8021,12 @@ function feedbackTemplates(db, user) {
 }
 
 // src/server/workspaceRoutes.ts
-import crypto18 from "node:crypto";
-import { z as z8 } from "zod";
-var text = z8.string().trim().min(2).max(4e3);
-var date = z8.string().refine(validDate, "Sana noto\u2018g\u2018ri");
-var base = z8.object({ operationId: z8.uuid() });
-var link = z8.url().max(2e3).refine((v) => {
+import crypto21 from "node:crypto";
+import { z as z11 } from "zod";
+var text = z11.string().trim().min(2).max(4e3);
+var date2 = z11.string().refine(validDate, "Sana noto\u2018g\u2018ri");
+var base = z11.object({ operationId: z11.uuid() });
+var link = z11.url().max(2e3).refine((v) => {
   const u = new URL(v);
   return u.protocol === "https:" && !u.username && !u.password;
 }, "HTTPS havola kerak");
@@ -7130,7 +8080,7 @@ function registerWorkspaceRoutes(app2, deps) {
         }))
       });
     try {
-      const sig = { path: req.path, body: d.data }, prev = operation(c, d.data.operationId, kind, sig);
+      const sig = { path: req.path, body: d.data }, prev = operation2(c, d.data.operationId, kind, sig);
       if (prev) return res.json({ duplicate: true, refs: prev.refs });
       const result = fn(c, d.data, req);
       remember(
@@ -7163,7 +8113,7 @@ function registerWorkspaceRoutes(app2, deps) {
   const scoped = (c, row2) => row2.institutionId === c.user.institutionId;
   const visible = (c, row2) => scoped(c, row2) && (schoolAdmin(c.user) || c.user.role === "teacher" && row2.subject === c.user.subject && (row2.targetClassIds || []).some(
     (id) => schoolClasses(c).some((cl) => cl.id === id)
-  ) || c.user.role === "student" && row2.status !== "draft" && (row2.targetClassIds || []).includes(c.user.classId));
+  ) || c.user.role === "student" && studentAssignmentVisible(c.user, row2));
   const assignmentFor = (c, id) => {
     const a = (c.db.studentAssignments || []).find(
       (v) => v.id === id && visible(c, v)
@@ -7234,9 +8184,9 @@ function registerWorkspaceRoutes(app2, deps) {
         status: u.status,
         login: u.login
       }));
-      const lessonFilter = z8.object({
-        lessonPage: z8.coerce.number().int().min(0).max(1e4).default(0),
-        lessonQ: z8.string().max(100).default("")
+      const lessonFilter = z11.object({
+        lessonPage: z11.coerce.number().int().min(0).max(1e4).default(0),
+        lessonQ: z11.string().max(100).default("")
       }).safeParse(req.query);
       if (!lessonFilter.success)
         throw new SchoolError(400, "Dars qidiruvi yoki sahifasini tekshiring.");
@@ -7363,15 +8313,15 @@ function registerWorkspaceRoutes(app2, deps) {
   app2.get(
     "/api/workspace/attendance",
     read5((c, req, res) => {
-      const classId = String(req.query.classId || ""), date4 = String(req.query.date || ""), lessonNumber = Number(req.query.lessonNumber);
+      const classId = String(req.query.classId || ""), date5 = String(req.query.date || ""), lessonNumber = Number(req.query.lessonNumber);
       classFor(c, classId);
-      if (!validDate(date4) || !Number.isInteger(lessonNumber) || lessonNumber < 1 || lessonNumber > 12)
+      if (!validDate(date5) || !Number.isInteger(lessonNumber) || lessonNumber < 1 || lessonNumber > 12)
         throw new SchoolError(400, "Sana yoki dars raqamini tekshiring.");
       const id = schoolKey(
         "lesson",
         c.user.institutionId,
         classId,
-        date4,
+        date5,
         lessonNumber
       ), session = (c.db.attendanceSessions || []).find((s) => s.id === id);
       if (session && !schoolAdmin(c.user) && c.user.role === "teacher" && session.subject !== c.user.subject)
@@ -7389,17 +8339,17 @@ function registerWorkspaceRoutes(app2, deps) {
     write5(
       "lesson-attendance",
       base.extend({
-        classId: z8.string(),
-        date,
-        lessonId: z8.string().optional(),
-        lessonNumber: z8.number().int().min(1).max(12),
+        classId: z11.string(),
+        date: date2,
+        lessonId: z11.string().optional(),
+        lessonNumber: z11.number().int().min(1).max(12),
         subject: text,
-        revision: z8.number().int().min(0),
-        records: z8.array(
-          z8.object({
-            studentId: z8.string(),
-            status: z8.enum(["PRESENT", "ABSENT", "LATE", "EXCUSED_ABSENCE"]),
-            notes: z8.string().max(1e3).default("")
+        revision: z11.number().int().min(0),
+        records: z11.array(
+          z11.object({
+            studentId: z11.string(),
+            status: z11.enum(["PRESENT", "ABSENT", "LATE", "EXCUSED_ABSENCE"]),
+            notes: z11.string().max(1e3).default("")
           })
         ).min(1).max(100)
       }),
@@ -7490,17 +8440,17 @@ function registerWorkspaceRoutes(app2, deps) {
     )
   );
   const assignmentSchema = base.extend({
-    id: z8.string().optional(),
-    revision: z8.number().int().min(0),
+    id: z11.string().optional(),
+    revision: z11.number().int().min(0),
     title: text,
     description: text,
     subject: text,
-    classIds: z8.array(z8.string()).min(1).max(30),
-    dueDate: date,
-    maxScore: z8.number().positive().max(1e3),
-    status: z8.enum(["draft", "published", "closed"]),
-    allowResubmission: z8.boolean().default(true),
-    relatedLessonId: z8.string().optional()
+    classIds: z11.array(z11.string()).min(1).max(30),
+    dueDate: date2,
+    maxScore: z11.number().positive().max(1e3),
+    status: z11.enum(["draft", "published", "closed"]),
+    allowResubmission: z11.boolean().default(true),
+    relatedLessonId: z11.string().optional()
   });
   app2.post(
     "/api/workspace/assignments",
@@ -7526,7 +8476,7 @@ function registerWorkspaceRoutes(app2, deps) {
           );
         const now = c.now.toISOString(), row2 = {
           ...old,
-          id: old?.id || crypto18.randomUUID(),
+          id: old?.id || crypto21.randomUUID(),
           institutionId: c.user.institutionId,
           title: d.title,
           description: d.description,
@@ -7595,10 +8545,10 @@ function registerWorkspaceRoutes(app2, deps) {
     write5(
       "workspace-submission",
       base.extend({
-        assignmentId: z8.string(),
-        revision: z8.number().int().min(0),
-        content: z8.string().max(2e4),
-        submit: z8.boolean()
+        assignmentId: z11.string(),
+        revision: z11.number().int().min(0),
+        content: z11.string().max(2e4),
+        submit: z11.boolean()
       }),
       (c, d) => {
         if (c.user.role !== "student")
@@ -7618,7 +8568,7 @@ function registerWorkspaceRoutes(app2, deps) {
         if (old?.submittedAt && d.submit)
           ensureRows(c.db, "submissionRevisions").push({
             ...structuredClone(old),
-            id: crypto18.randomUUID(),
+            id: crypto21.randomUUID(),
             submissionId: old.id,
             revisionNumber: old.attemptCount,
             statusAtArchive: old.status
@@ -7678,11 +8628,11 @@ function registerWorkspaceRoutes(app2, deps) {
     write5(
       "workspace-grading",
       base.extend({
-        submissionId: z8.string(),
-        revision: z8.number().int(),
-        score: z8.number().min(0).max(1e3),
+        submissionId: z11.string(),
+        revision: z11.number().int(),
+        score: z11.number().min(0).max(1e3),
         feedback: text,
-        returnForRevision: z8.boolean().default(false)
+        returnForRevision: z11.boolean().default(false)
       }),
       (c, d) => {
         staff(c);
@@ -7726,17 +8676,17 @@ function registerWorkspaceRoutes(app2, deps) {
     write5(
       "workspace-support",
       base.extend({
-        id: z8.string().optional(),
-        revision: z8.number().int().min(0),
-        studentId: z8.string(),
+        id: z11.string().optional(),
+        revision: z11.number().int().min(0),
+        studentId: z11.string(),
         subject: text,
         topic: text,
         observedNeed: text,
         goal: text,
         recommendedActivity: text,
-        reviewDate: date,
-        status: z8.enum(["Yangi", "Jarayonda", "Yakunlandi"]),
-        progressNotes: z8.string().max(4e3).default("")
+        reviewDate: date2,
+        status: z11.enum(["Yangi", "Jarayonda", "Yakunlandi"]),
+        progressNotes: z11.string().max(4e3).default("")
       }),
       (c, d) => {
         staff(c);
@@ -7750,7 +8700,7 @@ function registerWorkspaceRoutes(app2, deps) {
         const before = old ? structuredClone(old) : null, now = c.now.toISOString(), row2 = {
           ...old,
           ...d,
-          id: old?.id || crypto18.randomUUID(),
+          id: old?.id || crypto21.randomUUID(),
           operationId: void 0,
           institutionId: c.user.institutionId,
           studentName: s.displayName,
@@ -7781,14 +8731,14 @@ function registerWorkspaceRoutes(app2, deps) {
     write5(
       "workspace-material",
       base.extend({
-        id: z8.string().optional(),
-        revision: z8.number().int().min(0),
+        id: z11.string().optional(),
+        revision: z11.number().int().min(0),
         title: text,
         description: text,
         subject: text,
-        classIds: z8.array(z8.string()).min(1).max(30),
+        classIds: z11.array(z11.string()).min(1).max(30),
         fileUrl: link,
-        materialType: z8.enum([
+        materialType: z11.enum([
           "pdf",
           "docx",
           "pptx",
@@ -7798,9 +8748,9 @@ function registerWorkspaceRoutes(app2, deps) {
           "webp",
           "video_link"
         ]),
-        quarter: z8.number().int().min(1).max(4),
+        quarter: z11.number().int().min(1).max(4),
         folder: text,
-        status: z8.enum(["published", "archived"])
+        status: z11.enum(["published", "archived"])
       }),
       (c, d) => {
         staff(c);
@@ -7810,7 +8760,7 @@ function registerWorkspaceRoutes(app2, deps) {
         checkRevision(old?.revision || 0, d.revision);
         const before = old ? structuredClone(old) : null, now = c.now.toISOString(), row2 = {
           ...old,
-          id: old?.id || crypto18.randomUUID(),
+          id: old?.id || crypto21.randomUUID(),
           institutionId: c.user.institutionId,
           title: d.title,
           description: d.description,
@@ -7841,13 +8791,13 @@ function registerWorkspaceRoutes(app2, deps) {
     write5(
       "workspace-announcement",
       base.extend({
-        id: z8.string().optional(),
-        revision: z8.number().int().min(0),
+        id: z11.string().optional(),
+        revision: z11.number().int().min(0),
         title: text,
         content: text,
-        classIds: z8.array(z8.string()).min(1).max(30),
-        priority: z8.enum(["normal", "high", "urgent"]),
-        status: z8.enum(["published", "archived"])
+        classIds: z11.array(z11.string()).min(1).max(30),
+        priority: z11.enum(["normal", "high", "urgent"]),
+        status: z11.enum(["published", "archived"])
       }),
       (c, d) => {
         staff(c);
@@ -7856,7 +8806,7 @@ function registerWorkspaceRoutes(app2, deps) {
         checkRevision(old?.revision || 0, d.revision);
         const before = old ? structuredClone(old) : null, now = c.now.toISOString(), row2 = {
           ...old,
-          id: old?.id || crypto18.randomUUID(),
+          id: old?.id || crypto21.randomUUID(),
           institutionId: c.user.institutionId,
           title: d.title,
           shortContent: d.content.slice(0, 200),
@@ -7999,8 +8949,8 @@ function registerWorkspaceRoutes(app2, deps) {
     write5(
       "notification-read",
       base.extend({
-        id: z8.string().optional(),
-        all: z8.boolean().default(false)
+        id: z11.string().optional(),
+        all: z11.boolean().default(false)
       }),
       (c, d) => {
         const day = localDate(c.now);
@@ -8031,8 +8981,8 @@ function registerWorkspaceRoutes(app2, deps) {
 }
 
 // src/server/reinforcementRoutes.ts
-import crypto19 from "node:crypto";
-import { z as z9 } from "zod";
+import crypto22 from "node:crypto";
+import { z as z12 } from "zod";
 var learningGames = [
   {
     id: "formula",
@@ -8133,7 +9083,7 @@ function registerReinforcementRoutes(app2, deps) {
     if (!parsed.success)
       return res.status(400).json({ error: "Javobni tekshiring." });
     try {
-      const d = parsed.data, sig = { path: req.path, body: d }, prev = operation(c, d.operationId, kind, sig);
+      const d = parsed.data, sig = { path: req.path, body: d }, prev = operation2(c, d.operationId, kind, sig);
       if (prev) {
         const s2 = own(c, prev.refs[0]);
         return res.json({ session: dto2(s2), duplicate: true });
@@ -8184,9 +9134,9 @@ function registerReinforcementRoutes(app2, deps) {
     "/api/reinforcement/start",
     write5(
       "reinforcement-start",
-      z9.object({
-        operationId: z9.uuid(),
-        game: z9.enum([
+      z12.object({
+        operationId: z12.uuid(),
+        game: z12.enum([
           "flashcards",
           "formula",
           "word",
@@ -8199,7 +9149,7 @@ function registerReinforcementRoutes(app2, deps) {
           "class",
           "daily"
         ]),
-        lessonId: z9.string().max(200).default("")
+        lessonId: z12.string().max(200).default("")
       }),
       (c, d) => {
         const rows = ensureRows(c.db, "reinforcementSessions"), active = rows.find(
@@ -8221,7 +9171,7 @@ function registerReinforcementRoutes(app2, deps) {
             "Bu usul uchun tasdiqlangan savollar hali yo\u2018q. Boshqa mavzu yoki mashqni tanlang."
           );
         const s = {
-          id: crypto19.randomUUID(),
+          id: crypto22.randomUUID(),
           schoolId: c.user.institutionId,
           studentId: c.user.uid,
           classId: c.user.classId,
@@ -8243,7 +9193,7 @@ function registerReinforcementRoutes(app2, deps) {
     "/api/reinforcement/:id/reveal",
     write5(
       "reinforcement-reveal",
-      z9.object({ operationId: z9.uuid(), revision: z9.number().int() }),
+      z12.object({ operationId: z12.uuid(), revision: z12.number().int() }),
       (c, d, req) => {
         const s = own(c, String(req.params.id));
         if (!["flashcards", "memory"].includes(s.game) || s.status !== "active")
@@ -8262,12 +9212,12 @@ function registerReinforcementRoutes(app2, deps) {
     "/api/reinforcement/:id/answer",
     write5(
       "reinforcement-answer",
-      z9.object({
-        operationId: z9.uuid(),
-        revision: z9.number().int(),
-        answer: z9.string().max(8e3).default(""),
-        remembered: z9.boolean().optional(),
-        finish: z9.boolean().default(false)
+      z12.object({
+        operationId: z12.uuid(),
+        revision: z12.number().int(),
+        answer: z12.string().max(8e3).default(""),
+        remembered: z12.boolean().optional(),
+        finish: z12.boolean().default(false)
       }),
       (c, d, req) => {
         const s = own(c, String(req.params.id));
@@ -8344,7 +9294,7 @@ var AnalysisCache = class {
 };
 
 // src/server/topicAnalysisEngine.ts
-import crypto20 from "node:crypto";
+import crypto23 from "node:crypto";
 var MIN_ANALYSIS_STUDENTS = 5;
 var cohortId = (f) => [f.schoolId, f.classId, f.testId, f.testVersion].map(String).map(encodeURIComponent).join(":");
 var itemId = (context, qid, revision) => [context, encodeURIComponent(qid), revision].join(":");
@@ -8371,9 +9321,9 @@ function calculateItems(facts, questions, context) {
     }
     const keys = q.key.split("|"), isChoice = ["single", "multiple"].includes(q.kind);
     if (isChoice) {
-      result.options = q.options.map((label) => {
-        const count = responses.filter((r) => r.answer.split("|").includes(label)).length;
-        return { label, count, rate: count / n, correct: keys.includes(label) };
+      result.options = q.options.map((label2) => {
+        const count = responses.filter((r) => r.answer.split("|").includes(label2)).length;
+        return { label: label2, count, rate: count / n, correct: keys.includes(label2) };
       });
       const wrong = result.options.filter((o) => !o.correct && o.count > 0).sort((a, b) => b.count - a.count || a.label.localeCompare(b.label));
       if (wrong[0]) {
@@ -8422,7 +9372,7 @@ var filteredCache = new AnalysisCache(4 * 1024 * 1024, 1024 * 1024, 40);
 function cachedAnalysisItems(cohort, facts, questions, from, to, salt2 = "") {
   const allInRange = facts.every((f) => inAnalysisRange(f.submittedAt, from, to));
   if (allInRange) return cohort.items;
-  const key2 = crypto20.createHash("sha256").update(JSON.stringify([process.env.PERSISTENCE_NAMESPACE, salt2, cohort.id, cohort.revision, from, to])).digest("hex"), old = filteredCache.get(key2);
+  const key2 = crypto23.createHash("sha256").update(JSON.stringify([process.env.PERSISTENCE_NAMESPACE, salt2, cohort.id, cohort.revision, from, to])).digest("hex"), old = filteredCache.get(key2);
   if (old) return old;
   const items = calculateItems(facts.filter((f) => inAnalysisRange(f.submittedAt, from, to)), questions, cohort.id);
   filteredCache.set(key2, items);
@@ -8434,12 +9384,12 @@ function inAnalysisRange(timestamp, from, to) {
 }
 
 // src/server/schoolAdminRoutes.ts
-import crypto21 from "node:crypto";
-import { z as z10 } from "zod";
+import crypto24 from "node:crypto";
+import { z as z13 } from "zod";
 init_runtimeScope();
-var base2 = z10.object({ operationId: z10.uuid() });
-var date2 = z10.string().refine(validDate);
-var reason2 = z10.string().trim().min(8).max(2e3);
+var base2 = z13.object({ operationId: z13.uuid() });
+var date3 = z13.string().refine(validDate);
+var reason3 = z13.string().trim().min(8).max(2e3);
 var CONSENT_VERSION = "learning-pilot-v1";
 var CONSENT_TEXT = "Ixtiyoriy ichki o\u2018quv sinovi: mavzu testlaridagi javoblar va takrorlash faolligi ta\u2019lim usulini yaxshilash uchun guruhlar bo\u2018yicha tahlil qilinadi. Qatnashmaslik baho, darsga kirish va intizomga ta\u2019sir qilmaydi. Ism-familiya tashqi hisobotga kiritilmaydi. Istalgan vaqtda rozilikni bekor qilish va o\u2018quv mashqlari ma\u2019lumotini o\u2018chirishni so\u2018rash mumkin. Rasmiy nazorat, davomat va tarbiyaviy hujjatlar alohida tartibda yuritiladi.";
 function pilotSummary(c, p) {
@@ -8535,7 +9485,7 @@ function registerSchoolAdminRoutes(app2, deps) {
         }))
       });
     try {
-      const d = parsed.data, sig = { path: req.path, body: d }, prev = operation(c, d.operationId, kind, sig);
+      const d = parsed.data, sig = { path: req.path, body: d }, prev = operation2(c, d.operationId, kind, sig);
       if (prev) return res.json({ duplicate: true, refs: prev.refs });
       const result = fn(c, d, req);
       remember(c, d.operationId, kind, sig, [result?.id].filter(Boolean));
@@ -8572,11 +9522,11 @@ function registerSchoolAdminRoutes(app2, deps) {
   app2.get(
     "/api/school-admin/coverage",
     read5((c, req, res) => {
-      const f = z10.object({
-        classId: z10.string().max(200).default(""),
-        subject: z10.string().max(100).default(""),
-        q: z10.string().max(100).default(""),
-        page: z10.coerce.number().int().min(0).max(1e4).default(0)
+      const f = z13.object({
+        classId: z13.string().max(200).default(""),
+        subject: z13.string().max(100).default(""),
+        q: z13.string().max(100).default(""),
+        page: z13.coerce.number().int().min(0).max(1e4).default(0)
       }).safeParse(req.query);
       if (!f.success) throw new SchoolError(400, "Filtrlarni tekshiring.");
       const classes = c.db.classes.filter(
@@ -8625,12 +9575,12 @@ function registerSchoolAdminRoutes(app2, deps) {
     write5(
       "account-assignment",
       base2.extend({
-        revision: z10.number().int().min(0),
-        name: z10.string().trim().min(3).max(120),
-        classId: z10.string().max(200).default(""),
-        classIds: z10.array(z10.string().max(200)).max(30).default([]),
-        subject: z10.string().trim().max(100).default(""),
-        reason: reason2
+        revision: z13.number().int().min(0),
+        name: z13.string().trim().min(3).max(120),
+        classId: z13.string().max(200).default(""),
+        classIds: z13.array(z13.string().max(200)).max(30).default([]),
+        subject: z13.string().trim().max(100).default(""),
+        reason: reason3
       }),
       (c, d, req) => {
         const u = account(c, String(req.params.id));
@@ -8769,20 +9719,20 @@ function registerSchoolAdminRoutes(app2, deps) {
     write5(
       "pilot-config",
       base2.extend({
-        id: z10.string().optional(),
-        revision: z10.number().int().min(0),
-        title: z10.string().trim().min(3).max(200),
-        testId: z10.string(),
-        testVersion: z10.number().int().positive(),
-        groupA: z10.array(z10.string()).min(5).max(100),
-        groupB: z10.array(z10.string()).min(5).max(100),
-        preFrom: date2,
-        preTo: date2,
-        postFrom: date2,
-        postTo: date2,
-        status: z10.enum(["draft", "active", "closed"]),
-        schoolPermissionAcknowledged: z10.boolean(),
-        reason: reason2
+        id: z13.string().optional(),
+        revision: z13.number().int().min(0),
+        title: z13.string().trim().min(3).max(200),
+        testId: z13.string(),
+        testVersion: z13.number().int().positive(),
+        groupA: z13.array(z13.string()).min(5).max(100),
+        groupB: z13.array(z13.string()).min(5).max(100),
+        preFrom: date3,
+        preTo: date3,
+        postFrom: date3,
+        postTo: date3,
+        status: z13.enum(["draft", "active", "closed"]),
+        schoolPermissionAcknowledged: z13.boolean(),
+        reason: reason3
       }),
       (c, d) => {
         const ids = [...d.groupA, ...d.groupB];
@@ -8838,7 +9788,7 @@ function registerSchoolAdminRoutes(app2, deps) {
         const before = old ? structuredClone(old) : null, now = c.now.toISOString(), row2 = {
           ...d,
           operationId: void 0,
-          id: old?.id || crypto21.randomUUID(),
+          id: old?.id || crypto24.randomUUID(),
           schoolId: c.user.institutionId,
           consentVersion: CONSENT_VERSION,
           revision: d.revision + 1,
@@ -8891,8 +9841,8 @@ function registerSchoolAdminRoutes(app2, deps) {
     write5(
       "learning-consent",
       base2.extend({
-        accepted: z10.boolean(),
-        version: z10.literal(CONSENT_VERSION)
+        accepted: z13.boolean(),
+        version: z13.literal(CONSENT_VERSION)
       }),
       (c, d) => {
         if (c.user.role !== "student")
@@ -8921,7 +9871,7 @@ function registerSchoolAdminRoutes(app2, deps) {
     "/api/learning-privacy/deletion",
     write5(
       "learning-deletion-request",
-      base2.extend({ reason: reason2 }),
+      base2.extend({ reason: reason3 }),
       (c, d) => {
         if (c.user.role !== "student")
           throw new SchoolError(
@@ -8934,7 +9884,7 @@ function registerSchoolAdminRoutes(app2, deps) {
         ))
           throw new SchoolError(409, "Ochiq so\u2018rovingiz bor.");
         const row2 = {
-          id: crypto21.randomUUID(),
+          id: crypto24.randomUUID(),
           schoolId: c.user.institutionId,
           studentId: c.user.uid,
           reason: d.reason,
@@ -8956,10 +9906,10 @@ function registerSchoolAdminRoutes(app2, deps) {
     write5(
       "learning-retention",
       base2.extend({
-        revision: z10.number().int().min(0),
-        days: z10.number().int().min(30).max(1825),
-        approved: z10.boolean(),
-        reason: reason2
+        revision: z13.number().int().min(0),
+        days: z13.number().int().min(30).max(1825),
+        approved: z13.boolean(),
+        reason: reason3
       }),
       (c, d) => {
         const rows = ensureRows(c.db, "schoolRetentionPolicies"), old = rows.find((r) => school(c, r));
@@ -8987,11 +9937,11 @@ function registerSchoolAdminRoutes(app2, deps) {
     write5(
       "learning-deletion-review",
       base2.extend({
-        revision: z10.number().int(),
-        action: z10.enum(["dry_run", "reject", "approve"]),
-        reason: reason2,
-        confirmation: z10.string().optional(),
-        previewId: z10.uuid().optional()
+        revision: z13.number().int(),
+        action: z13.enum(["dry_run", "reject", "approve"]),
+        reason: reason3,
+        confirmation: z13.string().optional(),
+        previewId: z13.uuid().optional()
       }),
       (c, d, req) => {
         const r = (c.db.dataDeletionRequests || []).find(
@@ -9022,7 +9972,7 @@ function registerSchoolAdminRoutes(app2, deps) {
         );
         if (d.action === "dry_run") {
           const preview = {
-            id: crypto21.randomUUID(),
+            id: crypto24.randomUUID(),
             schoolId: c.user.institutionId,
             studentId: r.studentId,
             requestId: r.id,
@@ -9119,7 +10069,7 @@ function registerSchoolAdminRoutes(app2, deps) {
     "/api/school-admin/backup",
     write5(
       "school-backup",
-      base2.extend({ reason: reason2 }),
+      base2.extend({ reason: reason3 }),
       (c, d) => {
         const keys = [
           "classes",
@@ -9176,8 +10126,8 @@ function registerSchoolAdminRoutes(app2, deps) {
 
 // src/server/demoRoutes.ts
 init_runtimeScope();
-import crypto22 from "node:crypto";
-import { z as z11 } from "zod";
+import crypto25 from "node:crypto";
+import { z as z14 } from "zod";
 
 // src/server/demoLabEngine.ts
 var normalizeDemo = (value) => value.trim().toLowerCase().replace(/\s+/g, " ");
@@ -9222,7 +10172,7 @@ function registerDemoRoutes(app2, deps) {
   };
   const audit = (c, lab, action) => {
     c.db.auditLogs ||= [];
-    c.db.auditLogs.push({ id: crypto22.randomUUID(), institutionId: c.user.institutionId, actorUid: c.user.uid, actorName: c.user.displayName, actorRole: c.user.role, action, target: "DEMO", recordId: lab.id, createdAt: (/* @__PURE__ */ new Date()).toISOString() });
+    c.db.auditLogs.push({ id: crypto25.randomUUID(), institutionId: c.user.institutionId, actorUid: c.user.uid, actorName: c.user.displayName, actorRole: c.user.role, action, target: "DEMO", recordId: lab.id, createdAt: (/* @__PURE__ */ new Date()).toISOString() });
   };
   const isAdmin = (c) => ["admin", "platform_owner"].includes(c.user.role) && c.user.platformAdmin && c.user.emailVerified;
   const find = (c) => (c.db.demoLabs || []).find((l) => l.ownerId === c.user.uid || [l.studentId, l.teacherId].includes(c.user.uid));
@@ -9238,7 +10188,7 @@ function registerDemoRoutes(app2, deps) {
     if (!c) return;
     if (!isAdmin(c)) return res.status(403).json({ error: "Faqat administrator." });
     if (find(c)) return res.status(409).json({ error: "DEMO mavjud. Hisob parolini qayta yaratish uchun avval DEMO\u2019ni o\u2018chiring." });
-    const id = "demo-" + crypto22.randomUUID(), institutionId = id + "-school", studentId = id + "-student", teacherId = id + "-teacher", password = crypto22.randomBytes(18).toString("base64url"), now = (/* @__PURE__ */ new Date()).toISOString();
+    const id = "demo-" + crypto25.randomUUID(), institutionId = id + "-school", studentId = id + "-student", teacherId = id + "-teacher", password = crypto25.randomBytes(18).toString("base64url"), now = (/* @__PURE__ */ new Date()).toISOString();
     const lab = { id, ownerId: c.user.uid, institutionId, studentId, teacherId, exams: buildDemoExams(), responses: [] };
     c.db.demoLabs ||= [];
     c.db.demoLabs.push(lab);
@@ -9274,7 +10224,7 @@ function registerDemoRoutes(app2, deps) {
     if (!isAdmin(c) || !lab || lab.ownerId !== c.user.uid) return res.status(403).json({ error: "Faqat DEMO egasi." });
     const accounts = [lab.studentId, lab.teacherId].map((uid) => {
       const u = c.db.users.find((u2) => u2.uid === uid);
-      const password = crypto22.randomBytes(18).toString("base64url");
+      const password = crypto25.randomBytes(18).toString("base64url");
       c.db.passwordHashes[uid] = deps.hash(password);
       deps.revoke(uid, c.env);
       return { email: u.email, role: u.role, password };
@@ -9307,7 +10257,7 @@ function registerDemoRoutes(app2, deps) {
     const c = context(req, res);
     if (!c) return;
     const lab = find(c);
-    const p = z11.object({ trackExits: z11.boolean(), durationMinutes: z11.number().int().min(0).max(120) }).safeParse(req.body);
+    const p = z14.object({ trackExits: z14.boolean(), durationMinutes: z14.number().int().min(0).max(120) }).safeParse(req.body);
     if (!lab || lab.ownerId !== c.user.uid || !isAdmin(c)) return res.status(403).json({ error: "Faqat DEMO egasi." });
     if (!p.success) return res.status(400).json({ error: "Sozlamalarni tekshiring." });
     lab.settings = p.data;
@@ -9338,7 +10288,7 @@ function registerDemoRoutes(app2, deps) {
     if (!exam || Date.parse(exam.due) <= Date.now()) return res.status(409).json({ error: "Mashq muddati tugagan." });
     let r = lab.responses.find((r2) => r2.examId === exam.id);
     if (!r) {
-      r = { id: crypto22.randomUUID(), examId: exam.id, studentId: c.user.uid, revision: 0, answers: {}, flags: [] };
+      r = { id: crypto25.randomUUID(), examId: exam.id, studentId: c.user.uid, revision: 0, answers: {}, flags: [] };
       lab.responses.push(r);
     }
     if (!r.startedAt) {
@@ -9353,7 +10303,7 @@ function registerDemoRoutes(app2, deps) {
     if (!c) return;
     const lab = find(c), exam = lab?.exams.find((e) => e.id === req.params.exam);
     if (!lab || c.user.uid !== lab.studentId || !exam) return res.status(403).json({ error: "Bu DEMO sizga biriktirilmagan." });
-    const parsed = z11.object({ revision: z11.number().int().min(0), answers: z11.record(z11.string(), z11.string().max(4e3)), submit: z11.boolean().optional(), flags: z11.array(z11.string()).max(60).optional(), event: z11.object({ id: z11.uuid(), type: z11.literal("tab_exit") }).optional() }).safeParse(req.body);
+    const parsed = z14.object({ revision: z14.number().int().min(0), answers: z14.record(z14.string(), z14.string().max(4e3)), submit: z14.boolean().optional(), flags: z14.array(z14.string()).max(60).optional(), event: z14.object({ id: z14.uuid(), type: z14.literal("tab_exit") }).optional() }).safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ error: "Javob shaklini tekshiring." });
     if ([...Object.keys(parsed.data.answers), ...parsed.data.flags || []].some((id) => !exam.questions.some((q) => q.id === id))) return res.status(400).json({ error: "Begona savol." });
     let response = lab.responses.find((r) => r.examId === exam.id);
@@ -9361,7 +10311,7 @@ function registerDemoRoutes(app2, deps) {
     if (Date.parse(exam.due) <= Date.now()) return res.status(409).json({ error: "DEMO mashq muddati tugagan. Administrator yangi DEMO yaratishi mumkin." });
     if ((response?.revision || 0) !== parsed.data.revision) return res.status(409).json({ error: "Boshqa qurilmada javob yangilangan. Qayta oching." });
     if (!response) {
-      response = { id: crypto22.randomUUID(), examId: exam.id, studentId: c.user.uid, revision: 0, answers: {} };
+      response = { id: crypto25.randomUUID(), examId: exam.id, studentId: c.user.uid, revision: 0, answers: {} };
       lab.responses.push(response);
     }
     const expired = response.deadlineAt && Date.parse(response.deadlineAt) <= Date.now();
@@ -9385,7 +10335,7 @@ function registerDemoRoutes(app2, deps) {
     const lab = find(c);
     if (!lab || c.user.uid !== lab.teacherId) return res.status(403).json({ error: "Faqat biriktirilgan DEMO ustoz." });
     const r = lab.responses.find((r2) => r2.id === req.params.id && r2.submittedAt);
-    const p = z11.object({ score: z11.number().min(0).max(2), feedback: z11.string().trim().min(3).max(2e3) }).safeParse(req.body);
+    const p = z14.object({ score: z14.number().min(0).max(2), feedback: z14.string().trim().min(3).max(2e3) }).safeParse(req.body);
     if (!r || !p.success) return res.status(400).json({ error: "0\u20132 ball va izoh kiriting." });
     r.writtenScore = p.data.score;
     r.feedback = p.data.feedback;
@@ -9465,10 +10415,10 @@ var localSessionResponse = (req, res, next) => {
 };
 
 // src/server/accountRoutes.ts
-import crypto23 from "node:crypto";
-import { z as z12 } from "zod";
-var loginSchema = z12.string().trim().regex(/^[a-z0-9._]{3,40}$/);
-var row = z12.object({ displayName: z12.string().trim().min(3).max(120), role: z12.enum(["student", "teacher"]), login: loginSchema.optional(), classCode: z12.string().max(12).optional(), subject: z12.string().max(100).optional(), password: z12.string().refine((v) => validPassword(v)).optional(), mustChangePassword: z12.boolean().default(true) });
+import crypto26 from "node:crypto";
+import { z as z15 } from "zod";
+var loginSchema = z15.string().trim().regex(/^[a-z0-9._]{3,40}$/);
+var row = z15.object({ displayName: z15.string().trim().min(3).max(120), role: z15.enum(["student", "teacher"]), login: loginSchema.optional(), classCode: z15.string().max(12).optional(), subject: z15.string().max(100).optional(), password: z15.string().refine((v) => validPassword(v)).optional(), mustChangePassword: z15.boolean().default(true) });
 function registerAccountRoutes(app2, deps) {
   const access = (req, res, admin = false) => {
     const c = deps.authenticate(req);
@@ -9483,7 +10433,7 @@ function registerAccountRoutes(app2, deps) {
     return c;
   };
   const audit = (c, action, id) => {
-    c.db.auditLogs.push({ id: crypto23.randomUUID(), institutionId: c.user.institutionId, actorUid: c.user.uid, actorName: c.user.displayName, actorRole: c.user.role, action, target: "Hisoblar", recordId: id, createdAt: (/* @__PURE__ */ new Date()).toISOString() });
+    c.db.auditLogs.push({ id: crypto26.randomUUID(), institutionId: c.user.institutionId, actorUid: c.user.uid, actorName: c.user.displayName, actorRole: c.user.role, action, target: "Hisoblar", recordId: id, createdAt: (/* @__PURE__ */ new Date()).toISOString() });
   };
   app2.get("/api/accounts", (req, res) => {
     const c = access(req, res, true);
@@ -9495,7 +10445,7 @@ function registerAccountRoutes(app2, deps) {
   app2.post("/api/accounts", asyncRoute(async (req, res) => {
     const c = access(req, res, true);
     if (!c) return;
-    const parsed = z12.object({ operationId: z12.uuid(), rows: z12.array(row).min(1).max(200) }).safeParse(req.body);
+    const parsed = z15.object({ operationId: z15.uuid(), rows: z15.array(row).min(1).max(200) }).safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ error: "F.I.Sh., rol, login yoki parol shaklini tekshiring." });
     c.db.accountOperations ||= [];
     if (c.db.accountOperations.includes(parsed.data.operationId)) return res.status(409).json({ error: "Bu paket avval yaratilgan. Kerak bo\u2018lsa parollarini tiklang." });
@@ -9513,10 +10463,10 @@ function registerAccountRoutes(app2, deps) {
     const accounts = await boundedMap(rows, 2, async (r) => {
       let login = r.login;
       if (!login) do {
-        login = `${r.role === "student" ? "st" : "tc"}${crypto23.randomInt(1e7, 99999999)}`;
+        login = `${r.role === "student" ? "st" : "tc"}${crypto26.randomInt(1e7, 99999999)}`;
       } while (names.has(login) || c.db.users.some((u) => u.login === login));
       names.add(login);
-      const password = r.password || crypto23.randomBytes(18).toString("base64url") + "Aa7", uid = crypto23.randomUUID();
+      const password = r.password || crypto26.randomBytes(18).toString("base64url") + "Aa7", uid = crypto26.randomUUID();
       const user = { uid, login, email: login + "@accounts.specialized.invalid", displayName: r.displayName, role: r.role, status: "active", institutionId: c.user.institutionId, classId: r.role === "student" ? r.cls?.id : void 0, classCode: r.role === "student" ? r.cls?.code : void 0, assignedClassIds: r.role === "teacher" ? [r.cls.id] : void 0, subject: r.subject, mustChangePassword: r.mustChangePassword, createdAt: (/* @__PURE__ */ new Date()).toISOString() };
       c.db.users.push(user);
       c.db.passwordHashes[uid] = await deps.hash(password);
@@ -9534,7 +10484,7 @@ function registerAccountRoutes(app2, deps) {
     if (!u) return res.status(404).json({ error: "Hisob topilmadi." });
     let password;
     if (req.body.resetPassword === true) {
-      password = crypto23.randomBytes(18).toString("base64url") + "Aa7";
+      password = crypto26.randomBytes(18).toString("base64url") + "Aa7";
       c.db.passwordHashes[u.uid] = await deps.hash(password);
       u.mustChangePassword = true;
     } else if (["active", "suspended"].includes(req.body.status)) u.status = req.body.status;
@@ -9547,7 +10497,7 @@ function registerAccountRoutes(app2, deps) {
   app2.post("/api/account/password", asyncRoute(async (req, res) => {
     const c = access(req, res);
     if (!c) return;
-    const parsed = z12.object({ oldPassword: z12.string().max(128), password: z12.string().min(12).max(128).refine((v) => validPassword(v, 12)) }).safeParse(req.body);
+    const parsed = z15.object({ oldPassword: z15.string().max(128), password: z15.string().min(12).max(128).refine((v) => validPassword(v, 12)) }).safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ error: "Yangi parol kamida 12 belgidan iborat bo\u2018lsin." });
     if (parsed.data.password === parsed.data.oldPassword) return res.status(400).json({ error: "Yangi parol joriy paroldan farq qilsin." });
     if (!await deps.verify(parsed.data.oldPassword, c.db.passwordHashes[c.user.uid])) return res.status(400).json({ error: "Joriy parol noto\u2018g\u2018ri." });
@@ -9561,7 +10511,7 @@ function registerAccountRoutes(app2, deps) {
   app2.post("/api/account/native-credentials", async (req, res) => {
     const c = access(req, res);
     if (!c) return;
-    const p = z12.object({ login: loginSchema, password: z12.string().min(12).max(128).refine((v) => validPassword(v, 12)), idToken: z12.string().max(1e4) }).safeParse(req.body);
+    const p = z15.object({ login: loginSchema, password: z15.string().min(12).max(128).refine((v) => validPassword(v, 12)), idToken: z15.string().max(1e4) }).safeParse(req.body);
     if (!p.success) return res.status(400).json({ error: "Login va kuchli parol kiriting." });
     try {
       const id = await accountProviderProof(p.data.idToken, c.db);
@@ -9642,14 +10592,14 @@ function cleanupDemoExams(db, schoolId, users) {
 }
 
 // src/server/learningDemoAnalysis.ts
-import crypto24 from "node:crypto";
+import crypto27 from "node:crypto";
 function seedLearningDemoAnalysis(db, d, now = /* @__PURE__ */ new Date()) {
   if (d.analysisSeededAt) return { created: false, students: 13, attempts: 62 };
   const lessons = db.lessons.filter((l) => d.lessonIds.includes(l.id) && l.institutionId === d.schoolId), tests = (db.topicTests || []).filter((t) => d.lessonIds.includes(t.lessonId) && t.institutionId === d.schoolId && t.status === "published");
   const primary = db.users.find((u) => d.userIds.includes(u.uid) && u.displayName === "DEMO O\u2018quvchi" && u.role === "student" && u.institutionId === d.schoolId);
   if (!primary || lessons.length !== 6 || tests.length !== 6 || new Set(tests.map((t) => t.lessonId)).size !== 6 || tests.some((t) => t.snapshot.length !== 12 || t.snapshot.some((q) => q.status !== "published" || q.approval?.revision !== q.revision))) throw Error("Avval yangi, tasdiqlangan DEMO yarating.");
   if (db.topicSessions?.some((s) => d.lessonIds.includes(s.lessonId || "") || d.userIds.includes(s.studentId))) throw Error("Bu DEMO\u2019da ish boshlangan. Uni tozalab, yangi DEMO yarating.");
-  const profiles = [primary, ...Array.from({ length: 11 }, (_, i) => ({ ...primary, uid: d.id + "-synthetic-" + crypto24.randomUUID(), login: "demo_st_" + crypto24.randomBytes(5).toString("hex"), email: "demo-synthetic-" + crypto24.randomUUID() + "@accounts.specialized.invalid", displayName: "DEMO O\u2018quvchi " + String(i + 2).padStart(2, "0"), createdAt: now.toISOString() }))];
+  const profiles = [primary, ...Array.from({ length: 11 }, (_, i) => ({ ...primary, uid: d.id + "-synthetic-" + crypto27.randomUUID(), login: "demo_st_" + crypto27.randomBytes(5).toString("hex"), email: "demo-synthetic-" + crypto27.randomUUID() + "@accounts.specialized.invalid", displayName: "DEMO O\u2018quvchi " + String(i + 2).padStart(2, "0"), createdAt: now.toISOString() }))];
   db.users.push(...profiles.slice(1));
   d.userIds.push(...profiles.slice(1).map((u) => u.uid));
   db.topicSessions ||= [];
@@ -9666,7 +10616,7 @@ function seedLearningDemoAnalysis(db, d, now = /* @__PURE__ */ new Date()) {
       answers2[q.id] = correct ? q.key : ["single", "multiple"].includes(q.kind) ? q.options.find((o) => !q.key.split("|").includes(o)) || "" : q.kind === "ordering" ? [...q.key.split("|")].reverse().join("|") : "DEMO xato";
     }
     const at = new Date(now.getTime() + (repeat ? 1 : 0)).toISOString();
-    const s = { id: crypto24.randomUUID(), institutionId: d.schoolId, schoolId: d.schoolId, studentId: profiles[i].uid, classId: primary.classId, lessonId: test.lessonId, testId: test.id, version: test.version, title: "DEMO \xB7 Sun\u2019iy tahlil \xB7 " + test.title, subject: lessons.find((l) => l.id === test.lessonId)?.subjectName, questions: structuredClone(test.snapshot), answers: answers2, flags: [], revision: 1, startedAt: at, submittedAt: at, maxScore: test.snapshot.reduce((n, q) => n + q.points, 0), pending: true, events: [], confidence: { [test.snapshot[0].id]: "high" }, hintsUsed: i === 5 ? { [test.snapshot[0].id]: 1 } : {}, release: "immediate" };
+    const s = { id: crypto27.randomUUID(), institutionId: d.schoolId, schoolId: d.schoolId, studentId: profiles[i].uid, classId: primary.classId, lessonId: test.lessonId, testId: test.id, version: test.version, title: "DEMO \xB7 Sun\u2019iy tahlil \xB7 " + test.title, subject: lessons.find((l) => l.id === test.lessonId)?.subjectName, questions: structuredClone(test.snapshot), answers: answers2, flags: [], revision: 1, startedAt: at, submittedAt: at, maxScore: test.snapshot.reduce((n, q) => n + q.points, 0), pending: true, events: [], confidence: { [test.snapshot[0].id]: "high" }, hintsUsed: i === 5 ? { [test.snapshot[0].id]: 1 } : {}, release: "immediate" };
     s.results = s.questions.map((q) => ({ id: q.id, earned: gradeQuestion(q, answers2[q.id]), points: q.points, explanation: q.explanation, pending: q.kind === "written" }));
     s.score = s.results.reduce((n, r) => n + r.earned, 0);
     s.pending = s.results.some((r) => r.pending);
@@ -9682,7 +10632,7 @@ function seedLearningDemoAnalysis(db, d, now = /* @__PURE__ */ new Date()) {
 
 // src/server/learningDemoRoutes.ts
 init_runtimeScope();
-import crypto25 from "node:crypto";
+import crypto28 from "node:crypto";
 
 // src/server/learningDemoContent.ts
 var learningDemoTopics = [
@@ -9779,12 +10729,12 @@ function registerLearningDemoRoutes(app2, deps) {
     if (own(c)) return res.status(409).json({ error: "DEMO mavjud. Parollarini tiklang yoki avval o\u2018chiring." });
     const cls = c.db.classes.find((cl) => cl.code === "8a2" && cl.institutionId === c.user.institutionId);
     if (!cls) return res.status(400).json({ error: "DEMO uchun 8A2 sinfi kerak." });
-    const id = "learning-demo-" + crypto25.randomUUID(), now = (/* @__PURE__ */ new Date()).toISOString(), schoolId = c.user.institutionId, inst = c.db.institutions.find((i) => i.id === schoolId);
+    const id = "learning-demo-" + crypto28.randomUUID(), now = (/* @__PURE__ */ new Date()).toISOString(), schoolId = c.user.institutionId, inst = c.db.institutions.find((i) => i.id === schoolId);
     const subjects = ["Matematika", "Fizika", "Ingliz tili"];
     const otherClass = c.db.classes.find((cl) => cl.code === "7a1" && cl.institutionId === c.user.institutionId);
     const definitions = [{ role: "student", displayName: "DEMO O\u2018quvchi", classId: cls.id, classCode: cls.code }, ...subjects.map((subject) => ({ role: "teacher", displayName: "DEMO Ustoz \xB7 " + subject, subject, assignedClassIds: [cls.id] })), ...otherClass ? [{ role: "student", displayName: "DEMO Boshqa sinf", classId: otherClass.id, classCode: otherClass.code }] : []];
     const accounts = definitions.map((d) => {
-      const uid = id + "-" + crypto25.randomUUID(), login = (d.role === "student" ? "demo_st_" : "demo_tc_") + crypto25.randomBytes(5).toString("hex"), password = crypto25.randomBytes(18).toString("base64url");
+      const uid = id + "-" + crypto28.randomUUID(), login = (d.role === "student" ? "demo_st_" : "demo_tc_") + crypto28.randomBytes(5).toString("hex"), password = crypto28.randomBytes(18).toString("base64url");
       const user = { ...d, uid, login, email: login + "@accounts.specialized.invalid", institutionId: schoolId, schoolId, status: "active", mustChangePassword: false, createdAt: now };
       c.db.users.push(user);
       c.db.passwordHashes[uid] = deps.hash(password);
@@ -9797,10 +10747,10 @@ function registerLearningDemoRoutes(app2, deps) {
     const lessonIds = learningDemoTopics.map((topic, n) => {
       const lessonId = id + "-lesson-" + n;
       c.db.lessons.push({ id: lessonId, institutionId: schoolId, schoolId, title: "DEMO \xB7 " + topic.title, topicTitle: "DEMO \xB7 " + topic.title, subjectName: topic.subject, subject: topic.subject, curriculumArea: topic.subject, classId: cls.id, classIds: [cls.id], classCode: cls.code, classCodes: [cls.code], academicYear: inst.academicYear, quarter: 2, orderIndex: n + 1, lessonNumber: n + 1, status: "published", classwork: topic.reading, homework: "Mavzu testini ishlang va izohni o\u2018z so\u2018zingiz bilan ayting.", schoolDeliveredAt: now, createdAt: now, updatedAt: now });
-      const questions = learningDemoQuestions(n).map((q) => ({ ...q, id: crypto25.randomUUID(), schoolId, institutionId: schoolId, lessonId, revision: 1, status: "published", approval: { by: c.user.uid, at: now, revision: 1 } }));
+      const questions = learningDemoQuestions(n).map((q) => ({ ...q, id: crypto28.randomUUID(), schoolId, institutionId: schoolId, lessonId, revision: 1, status: "published", approval: { by: c.user.uid, at: now, revision: 1 } }));
       c.db.topicQuestions.push(...questions);
       for (const q of questions) c.db.topicQuestionVersions.push({ id: q.id + ":1", schoolId, questionId: q.id, revision: 1, question: structuredClone(q), createdAt: now });
-      const test = { id: crypto25.randomUUID(), institutionId: schoolId, schoolId, lessonId, title: "DEMO \xB7 " + topic.title + " \xB7 mavzu testi", status: "published", version: 1, questionIds: questions.map((q) => q.id), snapshot: structuredClone(questions), count: 12, durationMinutes: 0, maxAttempts: 5, passPercent: 70, trackExits: true, release: "immediate", shuffle: true, confidenceEnabled: true, updatedAt: now, createdBy: c.user.uid };
+      const test = { id: crypto28.randomUUID(), institutionId: schoolId, schoolId, lessonId, title: "DEMO \xB7 " + topic.title + " \xB7 mavzu testi", status: "published", version: 1, questionIds: questions.map((q) => q.id), snapshot: structuredClone(questions), count: 12, durationMinutes: 0, maxAttempts: 5, passPercent: 70, trackExits: true, release: "immediate", shuffle: true, confidenceEnabled: true, updatedAt: now, createdBy: c.user.uid };
       c.db.topicTests.push(test);
       c.db.topicTestVersions.push({ id: test.id + ":1", schoolId, testId: test.id, version: 1, test: structuredClone(test), createdAt: now });
       return lessonId;
@@ -9830,7 +10780,7 @@ function registerLearningDemoRoutes(app2, deps) {
     const d = own(c);
     if (!d) return res.status(404).json({ error: "DEMO topilmadi." });
     const accounts = d.userIds.map((uid) => {
-      const u = c.db.users.find((u2) => u2.uid === uid), password = crypto25.randomBytes(18).toString("base64url");
+      const u = c.db.users.find((u2) => u2.uid === uid), password = crypto28.randomBytes(18).toString("base64url");
       c.db.passwordHashes[uid] = deps.hash(password);
       deps.revoke(uid, c.env);
       return { uid, login: u.login, password, displayName: u.displayName, role: u.role, subject: u.subject };
@@ -9883,14 +10833,14 @@ function registerLearningDemoRoutes(app2, deps) {
 }
 
 // src/server/topicAnalysisRoutes.ts
-import crypto26 from "node:crypto";
-import { z as z13 } from "zod";
+import crypto29 from "node:crypto";
+import { z as z16 } from "zod";
 var reportCache = new AnalysisCache();
-var date3 = z13.string().regex(/^\d{4}-\d{2}-\d{2}$/).refine((v) => {
+var date4 = z16.string().regex(/^\d{4}-\d{2}-\d{2}$/).refine((v) => {
   const d = /* @__PURE__ */ new Date(v + "T12:00:00Z");
   return Number.isFinite(d.getTime()) && d.toISOString().slice(0, 10) === v;
 });
-var query = z13.object({ subject: z13.string().max(200).default(""), classId: z13.string().max(200).default(""), lesson: z13.string().max(200).default(""), from: date3.optional(), to: date3.optional(), view: z13.enum(["items", "topics", "students"]).default("items"), page: z13.coerce.number().int().min(0).max(1e4).default(0) });
+var query = z16.object({ subject: z16.string().max(200).default(""), classId: z16.string().max(200).default(""), lesson: z16.string().max(200).default(""), from: date4.optional(), to: date4.optional(), view: z16.enum(["items", "topics", "students"]).default("items"), page: z16.coerce.number().int().min(0).max(1e4).default(0) });
 function registerTopicAnalysisRoutes(app2, deps, guards) {
   const context = (req, res) => {
     const c = guards.access(req, res, true);
@@ -9918,7 +10868,7 @@ function registerTopicAnalysisRoutes(app2, deps, guards) {
     return { ...c, schoolId, filters: { ...d, from, to }, classes, subjects, lessons, selectedClasses, selectedClassIds, selectedLessons, lessonIds, scoped };
   };
   const report = (c) => {
-    const fingerprint = crypto26.createHash("sha256").update(JSON.stringify([
+    const fingerprint = crypto29.createHash("sha256").update(JSON.stringify([
       process.env.PERSISTENCE_NAMESPACE,
       c.env,
       c.schoolId,
@@ -10002,7 +10952,7 @@ function registerTopicAnalysisRoutes(app2, deps, guards) {
   app2.post("/api/topic-analysis/rebuild", (req, res) => {
     const c = context(req, res);
     if (!c) return;
-    const p = z13.object({ operationId: z13.uuid(), sessionIds: z13.array(z13.string().min(1).max(200)).min(1).max(20) }).safeParse(req.body);
+    const p = z16.object({ operationId: z16.uuid(), sessionIds: z16.array(z16.string().min(1).max(200)).min(1).max(20) }).safeParse(req.body);
     if (!p.success) return res.status(400).json({ error: "Bir martada 20 tagacha aniq ishni tanlang." });
     const rows = p.data.sessionIds.map((id) => c.db.topicSessions?.find((s) => s.id === id && s.institutionId === c.schoolId && (!s.schoolId || s.schoolId === c.schoolId) && c.selectedClassIds.has(s.classId) && c.lessonIds.has(s.lessonId) && s.submittedAt && inAnalysisRange(s.submittedAt, c.filters.from, c.filters.to)));
     if (rows.some((r) => !r)) return res.status(403).json({ error: "Bir yoki bir nechta ishga ruxsat yo\u2018q." });
@@ -10017,8 +10967,8 @@ function registerTopicAnalysisRoutes(app2, deps, guards) {
 }
 
 // src/server/spacedReviewRoutes.ts
-import crypto27 from "node:crypto";
-import { z as z14 } from "zod";
+import crypto30 from "node:crypto";
+import { z as z17 } from "zod";
 function registerSpacedReviewRoutes(app2, deps) {
   const clock = () => deps.now ? new Date(deps.now()) : /* @__PURE__ */ new Date();
   const student = (req, res) => {
@@ -10091,7 +11041,7 @@ function registerSpacedReviewRoutes(app2, deps) {
     if (!c) return;
     const m = c.db.mistakeRecords?.find((m2) => m2.id === req.params.id && own(c, m2)), entry = allowedReviewCatalog(c.db, c.user).get(req.params.id);
     if (!m || !entry) return res.status(403).json({ error: "Bu xato yoki savolga ruxsat yo\u2018q." });
-    const p = z14.object({ operationId: z14.uuid() }).safeParse(req.body);
+    const p = z17.object({ operationId: z17.uuid() }).safeParse(req.body);
     if (!p.success) return res.status(400).json({ error: "So\u2018rov identifikatorini tekshiring." });
     const item = c.db.spacedReviewQueue?.find((q) => q.id === m.id && own(c, q)), day = schoolDay(clock());
     if (!item) return res.status(409).json({ error: "Takrorlash yozuvi yangilangan. Daftarni qayta oching." });
@@ -10104,7 +11054,7 @@ function registerSpacedReviewRoutes(app2, deps) {
   app2.post("/api/spaced-review/sessions", (req, res) => {
     const c = student(req, res);
     if (!c) return;
-    const p = z14.object({ operationId: z14.uuid(), mode: z14.enum(["review", "mistake"]).default("review"), subject: z14.string().max(100).optional(), limit: z14.union([z14.literal(5), z14.literal(10)]).default(5), mistakeId: z14.string().max(600).optional() }).safeParse(req.body);
+    const p = z17.object({ operationId: z17.uuid(), mode: z17.enum(["review", "mistake"]).default("review"), subject: z17.string().max(100).optional(), limit: z17.union([z17.literal(5), z17.literal(10)]).default(5), mistakeId: z17.string().max(600).optional() }).safeParse(req.body);
     if (!p.success) return res.status(400).json({ error: "5 yoki 10 savollik seansni tanlang." });
     const d = p.data, now = clock(), day = schoolDay(now), signature = JSON.stringify({ mode: d.mode, subject: d.subject, limit: d.limit, mistakeId: d.mistakeId });
     c.db.spacedReviewSessions ||= [];
@@ -10128,7 +11078,7 @@ function registerSpacedReviewRoutes(app2, deps) {
     } else chosen = selectReviewItems(queue, catalog, usage.seen, now, Math.min(d.limit, remaining), d.subject);
     if (!chosen.length) return res.json({ session: null, message: "Bugun uchun takrorlash yetarli. Yangi savollar muddatida ko\u2018rinadi.", summary: reviewSummary(c.db, c.user, now, catalog) });
     for (const old of c.db.spacedReviewSessions.filter((s2) => own(c, s2) && s2.status === "active")) Object.assign(old, { status: "stopped", closedAt: now.toISOString() });
-    const s = { id: crypto27.randomUUID(), schoolId: c.user.institutionId, studentId: c.user.uid, classId: c.user.classId, day, subject: d.subject, mode: d.mode, items: chosen.map((q) => q.id), index: 0, revision: 0, status: "active", startedAt: now.toISOString(), startOperationId: d.operationId, startSignature: signature, draft: { answer: "" }, hintsUsed: {}, operations: [] };
+    const s = { id: crypto30.randomUUID(), schoolId: c.user.institutionId, studentId: c.user.uid, classId: c.user.classId, day, subject: d.subject, mode: d.mode, items: chosen.map((q) => q.id), index: 0, revision: 0, status: "active", startedAt: now.toISOString(), startOperationId: d.operationId, startSignature: signature, draft: { answer: "" }, hintsUsed: {}, operations: [] };
     c.db.spacedReviewSessions.push(s);
     save(c);
     res.json({ session: sessionView(c, s), resumed: false });
@@ -10142,7 +11092,7 @@ function registerSpacedReviewRoutes(app2, deps) {
     if (!c) return;
     const a = active(c, res);
     if (!a) return;
-    const p = z14.object({ revision: z14.number().int(), operationId: z14.uuid(), queueId: z14.string().max(600), answer: z14.string().max(8e3), confidence: z14.enum(["low", "medium", "high"]).optional() }).safeParse(req.body);
+    const p = z17.object({ revision: z17.number().int(), operationId: z17.uuid(), queueId: z17.string().max(600), answer: z17.string().max(8e3), confidence: z17.enum(["low", "medium", "high"]).optional() }).safeParse(req.body);
     if (!p.success || p.data.queueId !== a.queueId) return res.status(400).json({ error: "Joriy savol shaklini tekshiring." });
     if (c.s.operations.includes(p.data.operationId)) return res.json({ session: sessionView(c, c.s) });
     if (c.s.revision !== p.data.revision) return res.status(409).json({ error: "Boshqa oynada yangi qoralama bor. Seansni serverdan tiklang." });
@@ -10157,7 +11107,7 @@ function registerSpacedReviewRoutes(app2, deps) {
     if (!c) return;
     const a = active(c, res);
     if (!a) return;
-    const p = z14.object({ operationId: z14.uuid(), queueId: z14.string().max(600), expectedLevel: z14.number().int().min(0).max(3) }).safeParse(req.body);
+    const p = z17.object({ operationId: z17.uuid(), queueId: z17.string().max(600), expectedLevel: z17.number().int().min(0).max(3) }).safeParse(req.body);
     if (!p.success || p.data.queueId !== a.queueId) return res.status(400).json({ error: "Maslahat so\u2018rovini tekshiring." });
     const used = c.s.hintsUsed[a.queueId] || 0;
     if (used === p.data.expectedLevel && !c.s.operations.includes(p.data.operationId) && used < questionHints(a.entry.question).length) {
@@ -10172,7 +11122,7 @@ function registerSpacedReviewRoutes(app2, deps) {
   app2.post("/api/spaced-review/sessions/:id/answers", (req, res) => {
     const c = session(req, res);
     if (!c) return;
-    const p = z14.object({ operationId: z14.uuid(), revision: z14.number().int(), queueId: z14.string().max(600), answer: z14.string().max(8e3), confidence: z14.enum(["low", "medium", "high"]).optional() }).safeParse(req.body);
+    const p = z17.object({ operationId: z17.uuid(), revision: z17.number().int(), queueId: z17.string().max(600), answer: z17.string().max(8e3), confidence: z17.enum(["low", "medium", "high"]).optional() }).safeParse(req.body);
     if (!p.success) return res.status(400).json({ error: "Javob shaklini tekshiring." });
     const existing = c.db.spacedReviewAnswers?.find((a2) => own(c, a2) && a2.sessionId === c.s.id && a2.operationId === p.data.operationId);
     if (existing) return res.json({ session: sessionView(c, c.s), feedback: feedback(c, existing), duplicate: true });
@@ -10199,7 +11149,7 @@ function registerSpacedReviewRoutes(app2, deps) {
   app2.post("/api/spaced-review/sessions/:id/finish", (req, res) => {
     const c = session(req, res);
     if (!c) return;
-    if (!z14.object({ operationId: z14.uuid() }).safeParse(req.body).success) return res.status(400).json({ error: "So\u2018rovni tekshiring." });
+    if (!z17.object({ operationId: z17.uuid() }).safeParse(req.body).success) return res.status(400).json({ error: "So\u2018rovni tekshiring." });
     if (c.s.status === "active") {
       c.s.status = "stopped";
       c.s.closedAt = clock().toISOString();
@@ -10230,19 +11180,19 @@ function registerSpacedReviewRoutes(app2, deps) {
 }
 
 // src/server/topicRoutes.ts
-import crypto29 from "node:crypto";
-import { z as z17 } from "zod";
+import crypto32 from "node:crypto";
+import { z as z20 } from "zod";
 
 // src/server/topicImportRoutes.ts
-import crypto28 from "node:crypto";
-import { z as z15 } from "zod";
+import crypto31 from "node:crypto";
+import { z as z18 } from "zod";
 function registerTopicImports(app2, deps, guards) {
   const { access, ownLesson: ownLesson2, audit } = guards;
   app2.post("/api/topic-bank/:lesson/import", (req, res) => {
     const c = access(req, res, true);
     if (!c) return;
     if (!ownLesson2(c, req.params.lesson)) return res.status(404).json({ error: "Mavzu topilmadi." });
-    const p = z15.object({ operationId: z15.uuid(), questions: z15.array(z15.unknown()).min(1).max(100), dryRun: z15.boolean(), validOnly: z15.boolean().default(false) }).safeParse(req.body);
+    const p = z18.object({ operationId: z18.uuid(), questions: z18.array(z18.unknown()).min(1).max(100), dryRun: z18.boolean(), validOnly: z18.boolean().default(false) }).safeParse(req.body);
     if (!p.success) return res.status(400).json({ error: "Import shaklini tekshiring." });
     const valid = [], errors = [];
     p.data.questions.forEach((raw, i) => {
@@ -10261,7 +11211,7 @@ function registerTopicImports(app2, deps, guards) {
     if (errors.length && !p.data.validOnly) return res.status(400).json({ error: "Xato qatorlarni tuzating yoki to\u2018g\u2018ri qismini alohida kiriting.", errors });
     if (!valid.length) return res.status(400).json({ error: "Kiritish uchun to\u2018g\u2018ri savol yo\u2018q.", errors });
     c.db.topicQuestions ||= [];
-    const questions = valid.map((q) => ({ ...q, id: crypto28.randomUUID(), institutionId: c.user.institutionId, schoolId: c.user.institutionId, lessonId: req.params.lesson, revision: 1, status: "draft" }));
+    const questions = valid.map((q) => ({ ...q, id: crypto31.randomUUID(), institutionId: c.user.institutionId, schoolId: c.user.institutionId, lessonId: req.params.lesson, revision: 1, status: "draft" }));
     c.db.topicQuestions.push(...questions);
     for (const q of questions) guards.questionVersion?.(c, q);
     const batch = { id: p.data.operationId, institutionId: c.user.institutionId, schoolId: c.user.institutionId, lessonId: req.params.lesson, questions: questions.map((q) => q.id), createdAt: (/* @__PURE__ */ new Date()).toISOString(), undone: false };
@@ -10288,7 +11238,7 @@ function registerTopicImports(app2, deps, guards) {
 }
 
 // src/server/topicGradingRoutes.ts
-import { z as z16 } from "zod";
+import { z as z19 } from "zod";
 function registerTopicGrading(app2, deps, guards) {
   const { access, ownLesson: ownLesson2, canAuthor, audit } = guards;
   const allowed = (c, s) => {
@@ -10309,7 +11259,7 @@ function registerTopicGrading(app2, deps, guards) {
     if (!c) return;
     const s = c.db.topicSessions?.find((s2) => s2.id === req.params.id);
     if (!s || !allowed(c, s)) return res.status(403).json({ error: "Bu sinf yoki fan yozma ishiga ruxsat yo\u2018q." });
-    const p = z16.object({ questionId: z16.string(), earned: z16.number().min(0).max(100), comment: z16.string().trim().min(3).max(4e3), revision: z16.number().int(), operationId: z16.uuid() }).safeParse(req.body);
+    const p = z19.object({ questionId: z19.string(), earned: z19.number().min(0).max(100), comment: z19.string().trim().min(3).max(4e3), revision: z19.number().int(), operationId: z19.uuid() }).safeParse(req.body);
     if (!p.success || !s.submittedAt) return res.status(400).json({ error: "Ball va asoslangan izoh kiriting." });
     if (s.operations?.includes(p.data.operationId)) return res.json({ row: dto2(c, s), duplicate: true });
     if (s.revision !== p.data.revision) return res.status(409).json({ error: "Yozma ish boshqa oynada tekshirilgan. Ro\u2018yxatni yangilang." });
@@ -10355,13 +11305,13 @@ function registerTopicRoutes(app2, deps) {
     return { ...c, lesson };
   };
   const canStudy = (c, l) => l && c.user.role === "student" && l.status === "published" && [l.classId, ...l.classIds || []].includes(c.user.classId) && (!l.additionalCurriculumAssignment || l.tTrackVisibilityApproved);
-  const audit = (c, action, id) => c.db.auditLogs.push({ id: crypto29.randomUUID(), institutionId: c.user.institutionId, actorUid: c.user.uid, actorName: c.user.displayName, actorRole: c.user.role, action, target: "Mavzu testi", recordId: id, createdAt: (/* @__PURE__ */ new Date()).toISOString() });
+  const audit = (c, action, id) => c.db.auditLogs.push({ id: crypto32.randomUUID(), institutionId: c.user.institutionId, actorUid: c.user.uid, actorName: c.user.displayName, actorRole: c.user.role, action, target: "Mavzu testi", recordId: id, createdAt: (/* @__PURE__ */ new Date()).toISOString() });
   const save = (c) => deps.save(c.env, c.db);
   const replay = (c, kind, body, res) => {
     if (!body.operationId) return false;
     const old = c.db.topicWriteOperations?.find((o) => o.id === body.operationId);
     if (!old) return false;
-    const signature = crypto29.createHash("sha256").update(JSON.stringify(body)).digest("hex");
+    const signature = crypto32.createHash("sha256").update(JSON.stringify(body)).digest("hex");
     if (old.schoolId !== c.user.institutionId || old.actorUid !== c.user.uid || old.kind !== kind || old.signature !== signature) {
       res.status(409).json({ error: "Bir so\u2018rov identifikatori boshqa amal uchun ishlatilgan." });
       return true;
@@ -10373,7 +11323,7 @@ function registerTopicRoutes(app2, deps) {
   const remember4 = (c, kind, body, refs) => {
     if (!body.operationId) return;
     c.db.topicWriteOperations ||= [];
-    c.db.topicWriteOperations.push({ id: body.operationId, schoolId: c.user.institutionId, actorUid: c.user.uid, kind, signature: crypto29.createHash("sha256").update(JSON.stringify(body)).digest("hex"), refs, createdAt: (/* @__PURE__ */ new Date()).toISOString() });
+    c.db.topicWriteOperations.push({ id: body.operationId, schoolId: c.user.institutionId, actorUid: c.user.uid, kind, signature: crypto32.createHash("sha256").update(JSON.stringify(body)).digest("hex"), refs, createdAt: (/* @__PURE__ */ new Date()).toISOString() });
   };
   const questionVersion = (c, q) => {
     c.db.topicQuestionVersions ||= [];
@@ -10397,7 +11347,7 @@ function registerTopicRoutes(app2, deps) {
   app2.post("/api/topic-bank/:lesson/questions", (req, res) => {
     const c = author(req, res);
     if (!c) return;
-    const p = z17.object({ questions: z17.array(bankQuestion).min(1).max(100), operationId: z17.uuid().optional() }).safeParse(req.body);
+    const p = z20.object({ questions: z20.array(bankQuestion).min(1).max(100), operationId: z20.uuid().optional() }).safeParse(req.body);
     if (!p.success) return res.status(400).json({ error: p.error.issues[0]?.message });
     if (replay(c, "questions", p.data, res)) return;
     const ids = p.data.questions.filter((q) => q.id).map((q) => q.id);
@@ -10411,7 +11361,7 @@ function registerTopicRoutes(app2, deps) {
     const records = p.data.questions.map((q) => {
       const old = q.id && c.db.topicQuestions.find((x) => x.id === q.id);
       if (old) questionVersion(c, old);
-      const record = { ...q, id: q.id || crypto29.randomUUID(), institutionId: c.user.institutionId, schoolId: c.user.institutionId, lessonId: c.lesson.id, revision: (old?.revision || 0) + 1, status: "draft", approval: void 0 };
+      const record = { ...q, id: q.id || crypto32.randomUUID(), institutionId: c.user.institutionId, schoolId: c.user.institutionId, lessonId: c.lesson.id, revision: (old?.revision || 0) + 1, status: "draft", approval: void 0 };
       if (old) Object.assign(old, record);
       else c.db.topicQuestions.push(record);
       questionVersion(c, record);
@@ -10425,7 +11375,7 @@ function registerTopicRoutes(app2, deps) {
   app2.post("/api/topic-bank/:lesson/approve", (req, res) => {
     const c = author(req, res);
     if (!c) return;
-    const p = z17.object({ questions: z17.array(z17.object({ id: z17.string(), revision: z17.number().int() })).min(1).max(100), acknowledgeWarnings: z17.boolean().default(false) }).safeParse(req.body);
+    const p = z20.object({ questions: z20.array(z20.object({ id: z20.string(), revision: z20.number().int() })).min(1).max(100), acknowledgeWarnings: z20.boolean().default(false) }).safeParse(req.body);
     if (!p.success) return res.status(400).json({ error: "Tasdiqlash shaklini tekshiring." });
     const rows = p.data.questions.map((r) => (c.db.topicQuestions || []).find((q) => q.id === r.id && q.lessonId === c.lesson.id && sameSchool(c, q) && q.revision === r.revision));
     if (rows.some((q) => !q)) return res.status(409).json({ error: "Savol versiyasi yangilangan. Bankni yangilang." });
@@ -10443,7 +11393,7 @@ function registerTopicRoutes(app2, deps) {
   app2.post("/api/topic-bank/:lesson/test", (req, res) => {
     const c = author(req, res);
     if (!c) return;
-    const p = z17.object({ id: z17.string().optional(), expectedVersion: z17.number().int().optional(), title: z17.string().trim().min(3).max(180), questionIds: z17.array(z17.string()).min(1).max(100), count: z17.number().int().min(1).max(60), durationMinutes: z17.number().int().min(0).max(180), maxAttempts: z17.number().int().min(1).max(10), passPercent: z17.number().min(0).max(100), trackExits: z17.boolean(), release: z17.enum(["immediate", "review"]), shuffle: z17.boolean(), publish: z17.boolean().optional(), status: z17.enum(["draft", "review", "published", "archived"]).optional(), confidenceEnabled: z17.boolean().default(false), operationId: z17.uuid().optional() }).safeParse(req.body);
+    const p = z20.object({ id: z20.string().optional(), expectedVersion: z20.number().int().optional(), title: z20.string().trim().min(3).max(180), questionIds: z20.array(z20.string()).min(1).max(100), count: z20.number().int().min(1).max(60), durationMinutes: z20.number().int().min(0).max(180), maxAttempts: z20.number().int().min(1).max(10), passPercent: z20.number().min(0).max(100), trackExits: z20.boolean(), release: z20.enum(["immediate", "review"]), shuffle: z20.boolean(), publish: z20.boolean().optional(), status: z20.enum(["draft", "review", "published", "archived"]).optional(), confidenceEnabled: z20.boolean().default(false), operationId: z20.uuid().optional() }).safeParse(req.body);
     if (!p.success) return res.status(400).json({ error: "Test sozlamalarini tekshiring." });
     if (replay(c, "test", p.data, res)) return;
     const d = p.data, status = d.publish === true ? "published" : d.publish === false ? "draft" : d.status || "draft";
@@ -10461,7 +11411,7 @@ function registerTopicRoutes(app2, deps) {
     };
     if (old) stamp(old);
     const { publish, expectedVersion, operationId, ...settings } = d;
-    const record = { ...settings, id: old?.id || crypto29.randomUUID(), institutionId: c.user.institutionId, schoolId: c.user.institutionId, lessonId: c.lesson.id, classIds: [.../* @__PURE__ */ new Set([c.lesson.classId, ...c.lesson.classIds || []])].filter((id) => c.admin || c.user.assignedClassIds?.includes(id)), status, version: (old?.version || 0) + 1, snapshot: structuredClone(questions), updatedAt: (/* @__PURE__ */ new Date()).toISOString(), createdBy: c.user.uid };
+    const record = { ...settings, id: old?.id || crypto32.randomUUID(), institutionId: c.user.institutionId, schoolId: c.user.institutionId, lessonId: c.lesson.id, classIds: [.../* @__PURE__ */ new Set([c.lesson.classId, ...c.lesson.classIds || []])].filter((id) => c.admin || c.user.assignedClassIds?.includes(id)), status, version: (old?.version || 0) + 1, snapshot: structuredClone(questions), updatedAt: (/* @__PURE__ */ new Date()).toISOString(), createdBy: c.user.uid };
     if (old) Object.assign(old, record);
     else c.db.topicTests.push(record);
     stamp(record);
@@ -10481,7 +11431,7 @@ function registerTopicRoutes(app2, deps) {
   app2.post("/api/topic-bank/:lesson/preview", (req, res) => {
     const c = author(req, res);
     if (!c) return;
-    const p = z17.object({ questionIds: z17.array(z17.string()).min(1).max(100), answers: z17.record(z17.string(), z17.string().max(8e3)) }).safeParse(req.body);
+    const p = z20.object({ questionIds: z20.array(z20.string()).min(1).max(100), answers: z20.record(z20.string(), z20.string().max(8e3)) }).safeParse(req.body);
     if (!p.success) return res.status(400).json({ error: "Sinov ma\u2019lumotlarini tekshiring." });
     const questions = (c.db.topicQuestions || []).filter((q) => sameSchool(c, q) && q.lessonId === c.lesson.id && p.data.questionIds.includes(q.id));
     res.json({ score: questions.reduce((n, q) => n + gradeQuestion(q, p.data.answers[q.id] || ""), 0), maxScore: questions.reduce((n, q) => n + q.points, 0), pending: questions.some((q) => q.kind === "written"), persisted: false });
@@ -10528,7 +11478,7 @@ function registerTopicRoutes(app2, deps) {
     if (c.db.topicSessions.filter((s2) => s2.studentId === c.user.uid && s2.testId === test.id).length >= test.maxAttempts) return res.status(409).json({ error: "Urinishlar tugagan." });
     let questions = structuredClone((test.shuffle ? shuffle(test.snapshot) : test.snapshot).slice(0, test.count));
     for (const q of questions) if (test.shuffle && ["single", "multiple"].includes(q.kind)) q.options = shuffle(q.options);
-    const now = Date.now(), s = { id: crypto29.randomUUID(), institutionId: c.user.institutionId, schoolId: c.user.institutionId, studentId: c.user.uid, classId: c.user.classId, testId: test.id, version: test.version, lessonId: test.lessonId, title: test.title, subject: ownLesson2(c, test.lessonId)?.subjectName, release: test.release, trackExits: test.trackExits, passPercent: test.passPercent, confidenceEnabled: test.confidenceEnabled, questions, answers: {}, flags: [], confidence: {}, hintsUsed: {}, timeSpentMs: {}, operations: [], revision: 0, startedAt: new Date(now).toISOString(), deadlineAt: test.durationMinutes ? new Date(now + test.durationMinutes * 6e4).toISOString() : void 0, maxScore: questions.reduce((n, q) => n + q.points, 0), pending: false, events: [] };
+    const now = Date.now(), s = { id: crypto32.randomUUID(), institutionId: c.user.institutionId, schoolId: c.user.institutionId, studentId: c.user.uid, classId: c.user.classId, testId: test.id, version: test.version, lessonId: test.lessonId, title: test.title, subject: ownLesson2(c, test.lessonId)?.subjectName, release: test.release, trackExits: test.trackExits, passPercent: test.passPercent, confidenceEnabled: test.confidenceEnabled, questions, answers: {}, flags: [], confidence: {}, hintsUsed: {}, timeSpentMs: {}, operations: [], revision: 0, startedAt: new Date(now).toISOString(), deadlineAt: test.durationMinutes ? new Date(now + test.durationMinutes * 6e4).toISOString() : void 0, maxScore: questions.reduce((n, q) => n + q.points, 0), pending: false, events: [] };
     c.db.topicSessions.push(s);
     save(c);
     res.json({ session: publicSession(s), serverNow: now });
@@ -10545,7 +11495,7 @@ function registerTopicRoutes(app2, deps) {
   app2.put("/api/topic-sessions/:id", (req, res) => {
     const c = sessionAccess(req, res);
     if (!c) return;
-    const p = z17.object({ revision: z17.number().int().min(0), answers: z17.record(z17.string(), z17.string().max(8e3)), flags: z17.array(z17.string()).max(100), submit: z17.boolean().optional(), operationId: z17.uuid().optional(), confidence: z17.record(z17.string(), z17.enum(["low", "medium", "high"])).optional(), timeSpentMs: z17.record(z17.string(), z17.number().int().min(0).max(108e5)).optional(), event: z17.object({ id: z17.uuid(), type: z17.literal("tab_exit") }).optional() }).safeParse(req.body);
+    const p = z20.object({ revision: z20.number().int().min(0), answers: z20.record(z20.string(), z20.string().max(8e3)), flags: z20.array(z20.string()).max(100), submit: z20.boolean().optional(), operationId: z20.uuid().optional(), confidence: z20.record(z20.string(), z20.enum(["low", "medium", "high"])).optional(), timeSpentMs: z20.record(z20.string(), z20.number().int().min(0).max(108e5)).optional(), event: z20.object({ id: z20.uuid(), type: z20.literal("tab_exit") }).optional() }).safeParse(req.body);
     if (!p.success) return res.status(400).json({ error: "Javob shaklini tekshiring." });
     const s = c.s, d = p.data;
     if (s.submittedAt || d.operationId && s.operations?.includes(d.operationId)) return res.json({ session: visible(c) });
@@ -10580,7 +11530,7 @@ function registerTopicRoutes(app2, deps) {
   app2.post("/api/topic-sessions/:id/hint", (req, res) => {
     const c = sessionAccess(req, res);
     if (!c) return;
-    const p = z17.object({ questionId: z17.string(), operationId: z17.uuid(), expectedLevel: z17.number().int().min(0).max(3) }).safeParse(req.body);
+    const p = z20.object({ questionId: z20.string(), operationId: z20.uuid(), expectedLevel: z20.number().int().min(0).max(3) }).safeParse(req.body);
     if (!p.success || c.s.submittedAt) return res.status(400).json({ error: "Maslahat so\u2018rovini tekshiring." });
     if (c.s.deadlineAt && Date.now() >= Date.parse(c.s.deadlineAt)) return res.status(409).json({ error: "Test vaqti tugagan." });
     const q = c.s.questions.find((q2) => q2.id === p.data.questionId);
@@ -10608,8 +11558,8 @@ var canonicalProduction = (req, res, next) => {
 import nodeCrypto from "node:crypto";
 
 // src/server/practiceRoutes.ts
-import crypto30 from "node:crypto";
-import { z as z18 } from "zod";
+import crypto33 from "node:crypto";
+import { z as z21 } from "zod";
 function registerPracticeRoutes(app2, deps) {
   const access = (req) => {
     const c = deps.authenticate(req), lesson = c?.db.lessons.find((l) => l.id === req.params.id);
@@ -10625,14 +11575,14 @@ function registerPracticeRoutes(app2, deps) {
   const write5 = (submit) => (req, res) => {
     const c = access(req);
     if (!c) return res.status(403).json({ error: "Darsga ruxsat yo\u2018q." });
-    const parsed = z18.array(z18.string().max(1e4)).length(2).safeParse(req.body.answers);
+    const parsed = z21.array(z21.string().max(1e4)).length(2).safeParse(req.body.answers);
     if (!parsed.success || submit && parsed.data.some((a) => a.trim().length < 3)) return res.status(400).json({ error: "Javoblar shakli yoki uzunligi noto\u2018g\u2018ri." });
     c.db.lessonPracticeResponses ||= [];
     let record = c.db.lessonPracticeResponses.find((r) => r.studentId === c.user.uid && r.lessonId === c.lesson.id);
     if (record && record.status !== "draft") return res.status(submit ? 200 : 409).json(submit ? { id: record.id, status: "received" } : { error: "Ish allaqachon topshirilgan." });
     if ((req.body.revision ?? 0) !== (record?.revision || 0)) return res.status(409).json({ error: "Qoralama boshqa oynada yangilangan. Mashqni qayta oching." });
     if (!record) {
-      record = { id: crypto30.randomUUID(), lessonId: c.lesson.id, studentId: c.user.uid, institutionId: c.user.institutionId, answers: [], status: "draft", revision: 0 };
+      record = { id: crypto33.randomUUID(), lessonId: c.lesson.id, studentId: c.user.uid, institutionId: c.user.institutionId, answers: [], status: "draft", revision: 0 };
       c.db.lessonPracticeResponses.push(record);
     }
     record.answers = parsed.data;
@@ -10648,14 +11598,14 @@ function registerPracticeRoutes(app2, deps) {
 }
 
 // src/server/teachingRoutes.ts
-import crypto31 from "node:crypto";
-import { z as z19 } from "zod";
+import crypto34 from "node:crypto";
+import { z as z22 } from "zod";
 var deliveredForClass = (lesson, classId) => !lesson.schoolUndeliveredClassIds?.includes(classId) && Boolean(lesson.schoolDeliveredAt || lesson.schoolDeliveredClassIds?.includes(classId));
 var teacherClasses = (user, db) => db.classes.filter((c) => c.institutionId === user.institutionId && user.assignedClassIds?.includes(c.id));
 function registerTeachingRoutes(app2, deps) {
   registerPracticeRoutes(app2, deps);
   const admin = (c) => c && ["admin", "platform_owner"].includes(c.user.role) && c.user.platformAdmin === true && c.user.emailVerified === true;
-  const schema = z19.object({ displayName: z19.string().trim().min(3).max(120), email: z19.email().max(180).transform((v) => v.toLowerCase()), password: z19.string().min(12).max(128).refine((v) => validPassword(v, 12)), subject: z19.string().min(2).max(100), classIds: z19.array(z19.string()).min(1).max(19) });
+  const schema = z22.object({ displayName: z22.string().trim().min(3).max(120), email: z22.email().max(180).transform((v) => v.toLowerCase()), password: z22.string().min(12).max(128).refine((v) => validPassword(v, 12)), subject: z22.string().min(2).max(100), classIds: z22.array(z22.string()).min(1).max(19) });
   app2.post("/api/teaching/accounts", asyncRoute(async (req, res) => {
     const c = deps.authenticate(req);
     if (!admin(c)) return res.status(403).json({ error: "Faqat administrator." });
@@ -10664,7 +11614,7 @@ function registerTeachingRoutes(app2, deps) {
     const p = parsed.data;
     if (c.db.users.some((u) => u.email.toLowerCase() === p.email)) return res.status(409).json({ error: "Bu email band." });
     if (p.classIds.some((id) => !c.db.classes.some((cls) => cls.id === id && cls.institutionId === c.user.institutionId))) return res.status(400).json({ error: "Sinf mos emas." });
-    const user = { uid: crypto31.randomUUID(), displayName: p.displayName, email: p.email, role: "teacher", status: "active", institutionId: c.user.institutionId, assignedClassIds: [...new Set(p.classIds)], subject: p.subject, createdAt: (/* @__PURE__ */ new Date()).toISOString(), platformAdmin: false, emailVerified: false };
+    const user = { uid: crypto34.randomUUID(), displayName: p.displayName, email: p.email, role: "teacher", status: "active", institutionId: c.user.institutionId, assignedClassIds: [...new Set(p.classIds)], subject: p.subject, createdAt: (/* @__PURE__ */ new Date()).toISOString(), platformAdmin: false, emailVerified: false };
     c.db.users.push(user);
     c.db.passwordHashes[user.uid] = await deps.hash(p.password);
     deps.save(c.env, c.db);
@@ -10676,7 +11626,7 @@ function registerTeachingRoutes(app2, deps) {
     const user = c.db.users.find((u) => u.uid === req.params.id && u.role === "teacher" && u.institutionId === c.user.institutionId);
     if (!user) return res.status(404).json({ error: "Hisob topilmadi." });
     if (req.body.password !== void 0) {
-      const parsed = z19.string().min(12).max(128).refine((v) => validPassword(v, 12)).safeParse(req.body.password);
+      const parsed = z22.string().min(12).max(128).refine((v) => validPassword(v, 12)).safeParse(req.body.password);
       if (!parsed.success) return res.status(400).json({ error: "Parol kamida 12 belgi bo\u2018lsin." });
       c.db.passwordHashes[user.uid] = await deps.hash(parsed.data);
       deps.revoke(user.uid, c.env);
@@ -10727,7 +11677,7 @@ function registerTeachingRoutes(app2, deps) {
 init_runtimeScope();
 init_firebaseAdminAuth();
 import { getFirestore as getFirestore2 } from "firebase-admin/firestore";
-import crypto32 from "node:crypto";
+import crypto35 from "node:crypto";
 
 // src/server/supabaseMedia.ts
 init_runtimeScope();
@@ -10754,7 +11704,7 @@ async function storeExamImage(institutionId, examId, dataUrl) {
   if (bytes.length > 5e5 || bytes.length < 8) throw Error("Image size rejected");
   const png = bytes[0] === 137 && bytes[1] === 80 && bytes[2] === 78 && bytes[3] === 71, jpeg = bytes[0] === 255 && bytes[1] === 216 && bytes[2] === 255;
   if (!(match[1] === "png" ? png : jpeg)) throw Error("Image signature rejected");
-  const hash2 = crypto32.createHash("sha256").update(institutionId).update(bytes).digest("hex");
+  const hash2 = crypto35.createHash("sha256").update(institutionId).update(bytes).digest("hex");
   if (supabaseEnabled()) {
     await storeSupabaseExamImage(hash2, institutionId, `image/${match[1]}`, bytes);
     return `/api/exams/${examId}/media/${hash2}`;
@@ -10771,53 +11721,54 @@ async function readExamImage(hash2) {
 }
 
 // src/server/examRoutes.ts
-import crypto33 from "node:crypto";
-import { z as z20 } from "zod";
-var image = z20.string().max(65e4).refine(
+import crypto36 from "node:crypto";
+import { z as z23 } from "zod";
+var image = z23.string().max(65e4).refine(
   (v) => /^data:image\/(jpeg|png);base64,[A-Za-z0-9+/=]+$/.test(v),
   "Faqat JPEG/PNG tasvirlari."
 );
-var question = z20.object({
-  sourceNumber: z20.number().int().positive(),
-  variant: z20.string().max(12),
-  prompt: z20.string().min(3).max(18e3),
-  sourcePages: z20.array(z20.number().int().positive()).max(20),
-  sourceImages: z20.array(image).max(20),
-  fields: z20.array(
-    z20.object({
-      id: z20.string().max(80),
-      label: z20.string().max(120),
-      imageIndex: z20.number().int().min(0),
-      x: z20.number().min(0).max(1),
-      y: z20.number().min(0).max(1),
-      width: z20.number().min(0.01).max(1),
-      height: z20.number().min(0.01).max(1)
+var question = z23.object({
+  sourceNumber: z23.number().int().positive(),
+  variant: z23.string().max(12),
+  prompt: z23.string().min(3).max(18e3),
+  sourcePages: z23.array(z23.number().int().positive()).max(20),
+  sourceImages: z23.array(image).max(20),
+  fields: z23.array(
+    z23.object({
+      id: z23.string().max(80),
+      label: z23.string().max(120),
+      imageIndex: z23.number().int().min(0),
+      x: z23.number().min(0).max(1),
+      y: z23.number().min(0).max(1),
+      width: z23.number().min(0.01).max(1),
+      height: z23.number().min(0.01).max(1)
     })
   ).max(40),
-  points: z20.number().min(0).max(100),
-  type: z20.enum(["written_open", "single_choice"]),
-  options: z20.array(z20.string().max(4e3)).max(8),
-  correctAnswer: z20.string().max(4e3),
-  rubricText: z20.string().max(12e3)
+  points: z23.number().min(0).max(100),
+  type: z23.enum(["written_open", "single_choice"]),
+  options: z23.array(z23.string().max(4e3)).max(8),
+  correctAnswer: z23.string().max(4e3),
+  rubricText: z23.string().max(12e3)
 });
-var draftSchema = z20.object({
-  sourceLayoutVersion: z20.literal(2, {
+var draftSchema = z23.object({
+  sourceLayoutVersion: z23.literal(2, {
     error: "Importni yangilash uchun sahifani qayta oching."
   }),
-  title: z20.string().min(3).max(200),
-  examKind: z20.enum(["BSB", "CHSB"]),
-  examNumber: z20.number().int().min(1).max(2),
-  quarter: z20.number().int().min(1).max(4),
-  academicYear: z20.string().regex(/^\d{4}-\d{4}$/),
-  subject: z20.string().min(2).max(100),
-  classCodes: z20.array(z20.string()).min(1).max(19),
-  durationMinutes: z20.number().int().min(1).max(180),
-  availableFrom: z20.string().datetime(),
-  dueDate: z20.string().datetime(),
-  sourceFileName: z20.string().max(200),
-  sourceHash: z20.string().regex(/^[a-f0-9]{64}$/),
-  contextImages: z20.array(image).max(20),
-  questions: z20.array(question).min(1).max(60)
+  title: z23.string().min(3).max(200),
+  examKind: z23.enum(["BSB", "CHSB"]),
+  examNumber: z23.number().int().min(1).max(2),
+  quarter: z23.number().int().min(1).max(4),
+  academicYear: z23.string().regex(/^\d{4}-\d{4}$/),
+  subject: z23.string().min(2).max(100),
+  classCodes: z23.array(z23.string()).min(1).max(19),
+  groupIds: z23.array(z23.string().max(160)).max(76).default([]),
+  durationMinutes: z23.number().int().min(1).max(180),
+  availableFrom: z23.string().datetime(),
+  dueDate: z23.string().datetime(),
+  sourceFileName: z23.string().max(200),
+  sourceHash: z23.string().regex(/^[a-f0-9]{64}$/),
+  contextImages: z23.array(image).max(20),
+  questions: z23.array(question).min(1).max(60)
 });
 function registerExamRoutes(app2, deps) {
   const limits = /* @__PURE__ */ new Map();
@@ -10865,18 +11816,18 @@ function registerExamRoutes(app2, deps) {
   app2.post("/api/exams/attempts/:id/grade", (req, res) => {
     const c = admin(req, res);
     if (!c) return;
-    const parsed = z20.object({
-      operationId: z20.uuid(),
-      questionId: z20.string().max(200),
-      revision: z20.number().int().min(0),
-      points: z20.number().finite().min(0).max(100),
-      feedback: z20.string().trim().min(3).max(4e3)
+    const parsed = z23.object({
+      operationId: z23.uuid(),
+      questionId: z23.string().max(200),
+      revision: z23.number().int().min(0),
+      points: z23.number().finite().min(0).max(100),
+      feedback: z23.string().trim().min(3).max(4e3)
     }).safeParse(req.body);
     if (!parsed.success)
       return res.status(400).json({ error: "Ball va ustoz fikrini tekshiring." });
     const d = parsed.data, ctx = { ...c, now: /* @__PURE__ */ new Date() }, sig = { path: req.path, body: d };
     try {
-      const prev = operation(ctx, d.operationId, "exam-grade", sig);
+      const prev = operation2(ctx, d.operationId, "exam-grade", sig);
       if (prev) return res.json({ duplicate: true });
     } catch {
       return res.status(409).json({ error: "So\u2018rov identifikatori mos emas." });
@@ -10910,7 +11861,7 @@ function registerExamRoutes(app2, deps) {
     updated.revision = d.revision + 1;
     c.db.attempts[c.db.attempts.indexOf(attempt)] = updated;
     c.db.gradingRecords.push({
-      id: crypto33.randomUUID(),
+      id: crypto36.randomUUID(),
       institutionId: c.user.institutionId,
       attemptId: attempt.id,
       questionId: d.questionId,
@@ -10972,11 +11923,12 @@ function registerExamRoutes(app2, deps) {
       return res.status(400).json({ error: "Javob maydoni manba sahifasiga mos emas." });
     if (Date.parse(data.availableFrom) >= Date.parse(data.dueDate))
       return res.status(400).json({ error: "Vaqt oralig\u2018ini tekshiring." });
+    if (data.groupIds.some((id2) => !(c.db.academicGroups || []).some((g) => g.id === id2 && g.schoolId === c.user.institutionId && classes.some((cl) => cl.id === g.classId) && g.subject === data.subject))) return res.status(400).json({ error: "Imtihon guruhi sinf yoki fanga mos emas." });
     const existing = c.db.assessments.find(
-      (a) => a.institutionId === c.user.institutionId && manages2(c, a) && a.sourceHash === data.sourceHash && a.sourceLayoutVersion === data.sourceLayoutVersion && a.title === data.title && a.examKind === data.examKind && a.academicYear === data.academicYear && a.examNumber === data.examNumber && a.quarter === data.quarter && JSON.stringify(a.assignedClassCodes) === JSON.stringify(data.classCodes)
+      (a) => a.institutionId === c.user.institutionId && manages2(c, a) && a.sourceHash === data.sourceHash && JSON.stringify(a.groupIds || []) === JSON.stringify(data.groupIds) && a.sourceLayoutVersion === data.sourceLayoutVersion && a.title === data.title && a.examKind === data.examKind && a.academicYear === data.academicYear && a.examNumber === data.examNumber && a.quarter === data.quarter && JSON.stringify(a.assignedClassCodes) === JSON.stringify(data.classCodes)
     );
     if (existing) return res.json({ assessment: existing, replayed: true });
-    const now = (/* @__PURE__ */ new Date()).toISOString(), id = "exam-" + crypto33.randomUUID();
+    const now = (/* @__PURE__ */ new Date()).toISOString(), id = "exam-" + crypto36.randomUUID();
     try {
       for (const q of data.questions)
         q.sourceImages = await Promise.all(
@@ -11029,6 +11981,7 @@ function registerExamRoutes(app2, deps) {
       classId: classes[0].id,
       classCode: classes[0].code,
       assignedClassIds: classes.map((c2) => c2.id),
+      groupIds: data.groupIds,
       assignedClassCodes: classes.map((c2) => c2.code),
       durationMinutes: data.durationMinutes,
       availableFrom: data.availableFrom,
@@ -11083,12 +12036,12 @@ function registerExamRoutes(app2, deps) {
       contextImages: true,
       questions: true
     }).extend({
-      questions: z20.array(
+      questions: z23.array(
         question.omit({ sourceImages: true }).extend({
-          sourceImages: z20.array(z20.union([image, z20.string().max(180)])).max(20)
+          sourceImages: z23.array(z23.union([image, z23.string().max(180)])).max(20)
         })
       ).min(1).max(60),
-      contextImages: z20.array(z20.union([image, z20.string().max(180)])).max(20).optional()
+      contextImages: z23.array(z23.union([image, z23.string().max(180)])).max(20).optional()
     }).safeParse(req.body);
     if (!edit.success)
       return res.status(400).json({ error: edit.error.issues[0]?.message });
@@ -11104,6 +12057,7 @@ function registerExamRoutes(app2, deps) {
       return res.status(400).json({ error: "Sinf, nazorat raqami yoki vaqtni tekshiring." });
     if (Buffer.byteLength(JSON.stringify(d)) > 32e5)
       return res.status(413).json({ error: "Tasvirlar hajmi 3 MB dan oshdi." });
+    if (d.groupIds.some((id) => !(c.db.academicGroups || []).some((g) => g.id === id && g.schoolId === c.user.institutionId && classes.some((cl) => cl.id === g.classId) && g.subject === d.subject))) return res.status(400).json({ error: "Guruh sinf yoki fanga mos emas." });
     const allowed = [
       ...exam.contextImages || [],
       ...(exam.questionSnapshot || []).flatMap((q) => q.sourceImages || [])
@@ -11186,6 +12140,7 @@ function registerExamRoutes(app2, deps) {
       grade: classes[0].grade,
       classId: classes[0].id,
       classCode: classes[0].code,
+      groupIds: d.groupIds,
       assignedClassIds: classes.map((cls) => cls.id),
       assignedClassCodes: classes.map((cls) => cls.code),
       questionSnapshot: qs,
@@ -11359,7 +12314,7 @@ function registerExamRoutes(app2, deps) {
       ))
         return res.status(409).json({ error: "Nazorat ishi allaqachon topshirilgan." });
       session = {
-        id: crypto33.randomUUID(),
+        id: crypto36.randomUUID(),
         assessmentId: exam.id,
         studentId: c.user.uid,
         institutionId: c.user.institutionId,
@@ -11411,7 +12366,7 @@ function registerExamRoutes(app2, deps) {
     );
     if (!exam || !session || !canTakeExam(c.user, exam))
       return res.status(403).json({ error: "Ruxsat yo\u2018q." });
-    const id = z20.string().uuid().safeParse(req.body.eventId);
+    const id = z23.string().uuid().safeParse(req.body.eventId);
     if (!id.success)
       return res.status(400).json({ error: "Hodisa noto\u2018g\u2018ri." });
     session.exitIds ||= [];
@@ -11448,7 +12403,7 @@ function registerExamRoutes(app2, deps) {
       });
     if (exam.examState === "paused" || exam.examState === "closed" || Date.now() > examDeadline(exam, session))
       return res.status(409).json({ error: "Nazorat to\u2018xtatilgan yoki vaqti tugagan." });
-    const incoming = z20.record(z20.string(), z20.string().max(25e4)).safeParse(req.body.answers);
+    const incoming = z23.record(z23.string(), z23.string().max(25e4)).safeParse(req.body.answers);
     if (!incoming.success || Buffer.byteLength(JSON.stringify(incoming.data)) > 18e5)
       return res.status(400).json({ error: "Javoblar hajmi yoki shakli noto\u2018g\u2018ri." });
     if (Object.keys(incoming.data).some((id) => !exam.questionIds.includes(id)))
@@ -11473,12 +12428,12 @@ function registerExamRoutes(app2, deps) {
 }
 
 // src/server/contentRoutes.ts
-import crypto35 from "node:crypto";
-import { z as z21 } from "zod";
+import crypto38 from "node:crypto";
+import { z as z24 } from "zod";
 
 // src/server/contentImportEngine.ts
-import crypto34 from "node:crypto";
-var contentHash = (value) => crypto34.createHash("sha256").update(JSON.stringify(value)).digest("hex");
+import crypto37 from "node:crypto";
+var contentHash = (value) => crypto37.createHash("sha256").update(JSON.stringify(value)).digest("hex");
 var days = ["", "Dushanba", "Seshanba", "Chorshanba", "Payshanba", "Juma", "Shanba"];
 var templates = { workplan: ["sinf", "fan", "chorak", "tartib", "mavzu", "soat", "sinf_ishi", "uy_vazifasi"], timetable: ["sinf", "kun", "dars", "boshlanish", "tugash", "fan", "oqituvchi", "xona"], questions: ["sinf", "fan", "chorak", "mavzu", "tur", "savol", "A", "B", "C", "D", "javob", "ball", "izoh"] };
 var minute = (s) => /^([01]\d|2[0-3]):[0-5]\d$/.test(s) ? Number(s.slice(0, 2)) * 60 + Number(s.slice(3)) : NaN;
@@ -11540,7 +12495,7 @@ function registerContentRoutes(app2, deps) {
     }
     return c;
   };
-  const audit = (c, job, action) => c.db.auditLogs.push({ id: crypto35.randomUUID(), institutionId: c.user.institutionId, actorUid: c.user.uid, actorName: c.user.displayName, actorRole: c.user.role, action, target: job.fileName, recordId: job.id, createdAt: (/* @__PURE__ */ new Date()).toISOString() });
+  const audit = (c, job, action) => c.db.auditLogs.push({ id: crypto38.randomUUID(), institutionId: c.user.institutionId, actorUid: c.user.uid, actorName: c.user.displayName, actorRole: c.user.role, action, target: job.fileName, recordId: job.id, createdAt: (/* @__PURE__ */ new Date()).toISOString() });
   app2.get("/api/content-imports/templates/:kind", async (req, res) => {
     const c = admin(req, res);
     if (!c) return;
@@ -11569,7 +12524,7 @@ function registerContentRoutes(app2, deps) {
   app2.post("/api/content-imports/preview", async (req, res) => {
     const c = admin(req, res);
     if (!c) return;
-    const parsed = z21.object({ kind: z21.enum(["workplan", "timetable"]), fileName: z21.string().max(180).regex(/\.(xlsx|csv)$/i), base64: z21.string().max(42e5), year: z21.string().regex(/^\d{4}-\d{4}$/) }).safeParse(req.body);
+    const parsed = z24.object({ kind: z24.enum(["workplan", "timetable"]), fileName: z24.string().max(180).regex(/\.(xlsx|csv)$/i), base64: z24.string().max(42e5), year: z24.string().regex(/^\d{4}-\d{4}$/) }).safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ error: "Excel/CSV fayli va o\u2018quv yilini tekshiring." });
     const p = parsed.data, bytes = Buffer.from(p.base64, "base64");
     if (!bytes.length || bytes.length > 3 * 1024 * 1024) return res.status(413).json({ error: "Fayl 3 MB dan oshmasin." });
@@ -11593,7 +12548,7 @@ function registerContentRoutes(app2, deps) {
       const raw = matrix.slice(1).map((row2, i) => Object.fromEntries([...headers.map((h, n) => [h, String(row2[n] ?? "").trim()]), ["__row", String(i + 2)]]));
       const rows = validateContentRows(p.kind, raw.filter((r) => headers.some((h) => r[h])), c.db, c.user.institutionId, p.year);
       if (!rows.length) return res.status(400).json({ error: "Faylda ma\u2019lumot qatori yo\u2018q." });
-      const job = { id: crypto35.randomUUID(), institutionId: c.user.institutionId, actorId: c.user.uid, kind: p.kind, year: p.year, fileName: p.fileName, createdAt: (/* @__PURE__ */ new Date()).toISOString(), status: "review", rows };
+      const job = { id: crypto38.randomUUID(), institutionId: c.user.institutionId, actorId: c.user.uid, kind: p.kind, year: p.year, fileName: p.fileName, createdAt: (/* @__PURE__ */ new Date()).toISOString(), status: "review", rows };
       c.db.contentImports ||= [];
       c.db.contentImports.push(job);
       audit(c, job, "Kontent importi tekshirildi");
@@ -11634,22 +12589,22 @@ function registerContentRoutes(app2, deps) {
       if (job.kind === "workplan") {
         let subject = c.db.subjects.find((s) => s.institutionId === c.user.institutionId && s.name === r.fan);
         if (!subject) {
-          subject = { id: crypto35.randomUUID(), institutionId: c.user.institutionId, name: r.fan, code: r.fan.toUpperCase().slice(0, 8), description: "", status: "active", createdAt: now };
+          subject = { id: crypto38.randomUUID(), institutionId: c.user.institutionId, name: r.fan, code: r.fan.toUpperCase().slice(0, 8), description: "", status: "active", createdAt: now };
           add("subjects", subject);
         }
         const group = `${cls.id}:${r.fan}:${r.chorak}`;
-        let plan = c.db.workPlans.find((p) => p.importJobId === job.id && p.sourceWorksheet === group);
-        if (!plan) {
-          plan = { id: crypto35.randomUUID(), institutionId: c.user.institutionId, title: `${cls.code.toUpperCase()} \xB7 ${r.fan} \xB7 ${r.chorak}-chorak`, fileName: job.fileName, classId: cls.id, classIds: [cls.id], classCode: cls.code, classCodes: [cls.code], grade: cls.grade, track: cls.track, subjectId: subject.id, subjectName: r.fan, academicYear: job.year, quarter: Number(r.chorak), planType: "quarterly", status: req.body.mode === "publish" ? "published" : "draft", rows: [], warnings: [], importJobId: job.id, sourceWorksheet: group, createdByUid: c.user.uid, createdByName: c.user.displayName, createdAt: now };
-          add("workPlans", plan);
+        let plan2 = c.db.workPlans.find((p) => p.importJobId === job.id && p.sourceWorksheet === group);
+        if (!plan2) {
+          plan2 = { id: crypto38.randomUUID(), institutionId: c.user.institutionId, title: `${cls.code.toUpperCase()} \xB7 ${r.fan} \xB7 ${r.chorak}-chorak`, fileName: job.fileName, classId: cls.id, classIds: [cls.id], classCode: cls.code, classCodes: [cls.code], grade: cls.grade, track: cls.track, subjectId: subject.id, subjectName: r.fan, academicYear: job.year, quarter: Number(r.chorak), planType: "quarterly", status: req.body.mode === "publish" ? "published" : "draft", rows: [], warnings: [], importJobId: job.id, sourceWorksheet: group, createdByUid: c.user.uid, createdByName: c.user.displayName, createdAt: now };
+          add("workPlans", plan2);
         }
-        add("lessons", { id: "content-" + row2.key, institutionId: c.user.institutionId, workPlanId: plan.id, importJobId: job.id, classId: cls.id, classIds: [cls.id], classCode: cls.code, classCodes: [cls.code], grade: cls.grade, track: cls.track, subjectId: subject.id, subjectName: r.fan, subject: r.fan, academicYear: job.year, quarter: Number(r.chorak), lessonNumber: Number(r.tartib), orderIndex: Number(r.tartib), title: r.mavzu, topicTitle: r.mavzu, topicName: r.mavzu, topicId: "", unitTitle: "", learningObjectives: [], content: r.sinf_ishi, classwork: r.sinf_ishi, homework: r.uy_vazifasi, hours: Number(r.soat), materials: [], relatedAssessmentIds: [], status: req.body.mode === "publish" ? "published" : "draft", additionalCurriculumAssignment: cls.track === "T" && r.fan === "Matematika", tTrackVisibilityApproved: cls.track === "T" && r.fan === "Matematika" ? true : void 0, sourceRecordHash: row2.key, sourceFileName: job.fileName, sourceRow: row2.rowNumber, createdAt: now });
+        add("lessons", { id: "content-" + row2.key, institutionId: c.user.institutionId, workPlanId: plan2.id, importJobId: job.id, classId: cls.id, classIds: [cls.id], classCode: cls.code, classCodes: [cls.code], grade: cls.grade, track: cls.track, subjectId: subject.id, subjectName: r.fan, subject: r.fan, academicYear: job.year, quarter: Number(r.chorak), lessonNumber: Number(r.tartib), orderIndex: Number(r.tartib), title: r.mavzu, topicTitle: r.mavzu, topicName: r.mavzu, topicId: "", unitTitle: "", learningObjectives: [], content: r.sinf_ishi, classwork: r.sinf_ishi, homework: r.uy_vazifasi, hours: Number(r.soat), materials: [], relatedAssessmentIds: [], status: req.body.mode === "publish" ? "published" : "draft", additionalCurriculumAssignment: cls.track === "T" && r.fan === "Matematika", tTrackVisibilityApproved: cls.track === "T" && r.fan === "Matematika" ? true : void 0, sourceRecordHash: row2.key, sourceFileName: job.fileName, sourceRow: row2.rowNumber, createdAt: now });
       } else {
         c.db.timetables ||= [];
         const mode = req.body.mode === "publish" ? "active" : "draft";
         let timetable = c.db.timetables.find((t) => t.institutionId === c.user.institutionId && t.classId === cls.id && t.status === mode && (mode === "active" || job.created.some((r2) => r2.collection === "timetables" && r2.id === t.id)) && (t.academicYear || c.db.institutions.find((i) => i.id === c.user.institutionId)?.academicYear) === job.year);
         if (!timetable) {
-          timetable = { id: crypto35.randomUUID(), institutionId: c.user.institutionId, classId: cls.id, classCode: cls.code, title: cls.code.toUpperCase() + " dars jadvali", academicYear: job.year, effectiveFrom: now.slice(0, 10), version: 1, status: mode, createdByUid: c.user.uid, createdByName: c.user.displayName, createdAt: now, updatedAt: now };
+          timetable = { id: crypto38.randomUUID(), institutionId: c.user.institutionId, classId: cls.id, classCode: cls.code, title: cls.code.toUpperCase() + " dars jadvali", academicYear: job.year, effectiveFrom: now.slice(0, 10), version: 1, status: mode, createdByUid: c.user.uid, createdByName: c.user.displayName, createdAt: now, updatedAt: now };
           add("timetables", timetable);
         }
         add("timetableEntries", { id: "content-" + row2.key, institutionId: c.user.institutionId, timetableId: timetable.id, classCode: cls.code, classId: cls.id, weekday: days[Number(r.__day)], weekdayIndex: Number(r.__day), lessonNumber: Number(r.dars), subject: r.fan, startTime: r.boshlanish, endTime: r.tugash, teacherId: r.__teacherId, teacherName: r.__teacherName, room: r.xona, sourceRecordHash: row2.key, createdAt: now, updatedAt: now });
@@ -11734,15 +12689,15 @@ function ownLesson(user, lesson, year) {
   return lesson.institutionId === user.institutionId && lesson.status === "published" && lesson.academicYear === year && Boolean(user.classId && [lesson.classId, ...lesson.classIds || []].includes(user.classId) || user.classCode && [lesson.classCode, ...lesson.classCodes || []].includes(user.classCode)) && (!lesson.additionalCurriculumAssignment || lesson.tTrackVisibilityApproved === true);
 }
 function studentHomeData(db, user, now = /* @__PURE__ */ new Date()) {
-  const date4 = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Tashkent", year: "numeric", month: "2-digit", day: "2-digit" }).format(now);
+  const date5 = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Tashkent", year: "numeric", month: "2-digit", day: "2-digit" }).format(now);
   const weekday = new Date(now.getTime() + 5 * 36e5).getUTCDay();
   const inst = db.institutions.find((i) => i.id === user.institutionId);
-  const tables = (db.timetables || []).filter((t) => t.institutionId === user.institutionId && t.status === "active" && (!t.academicYear || t.academicYear === inst?.academicYear) && (t.classId === user.classId || t.classCode === user.classCode) && t.effectiveFrom <= date4 && (!t.effectiveTo || t.effectiveTo >= date4)).sort((a, b) => b.effectiveFrom.localeCompare(a.effectiveFrom) || b.version - a.version);
+  const tables = (db.timetables || []).filter((t) => t.institutionId === user.institutionId && t.status === "active" && (!t.academicYear || t.academicYear === inst?.academicYear) && (t.classId === user.classId || t.classCode === user.classCode) && t.effectiveFrom <= date5 && (!t.effectiveTo || t.effectiveTo >= date5)).sort((a, b) => b.effectiveFrom.localeCompare(a.effectiveFrom) || b.version - a.version);
   const selected = tables[0];
   const timetable = (db.timetableEntries || []).filter((e) => selected && e.timetableId === selected.id && e.institutionId === user.institutionId && e.weekdayIndex === weekday).sort((a, b) => a.startTime.localeCompare(b.startTime));
   const tasks = [];
   for (const a of db.studentAssignments || []) {
-    if (a.institutionId !== user.institutionId || a.status !== "published") continue;
+    if (!studentAssignmentVisible(user, a) || a.status !== "published") continue;
     const codes = a.targetClassCodes || [], ids = a.targetClassIds || [];
     if (codes.length || ids.length) {
       if (!codes.includes(user.classCode) && !ids.includes(user.classId || "")) continue;
@@ -11759,11 +12714,11 @@ function studentHomeData(db, user, now = /* @__PURE__ */ new Date()) {
   if (demo) {
     for (const e of demo.exams) if (Date.parse(e.due) > now.getTime() && !demo.responses.some((r) => r.examId === e.id && r.submittedAt)) tasks.push({ id: e.id, title: e.title, subject: e.subject, due: e.due, kind: "exam", href: "/student/demo?exam=" + e.id, ready: true });
   }
-  for (const t of db.topicTests || []) if (t.institutionId === user.institutionId && t.status === "published" && (!t.classIds || t.classIds.includes(user.classId || "")) && db.lessons.some((l) => l.id === t.lessonId && ownLesson(user, l, inst?.academicYear || "")) && !(db.topicSessions || []).some((s) => s.testId === t.id && s.studentId === user.uid && s.submittedAt)) tasks.push({ id: t.id, title: t.title, subject: "Mavzu testi", due: date4, kind: "exam", href: "/student/topic-tests", ready: true });
+  for (const t of db.topicTests || []) if (t.institutionId === user.institutionId && t.status === "published" && (!t.classIds || t.classIds.includes(user.classId || "")) && db.lessons.some((l) => l.id === t.lessonId && ownLesson(user, l, inst?.academicYear || "")) && !(db.topicSessions || []).some((s) => s.testId === t.id && s.studentId === user.uid && s.submittedAt)) tasks.push({ id: t.id, title: t.title, subject: "Mavzu testi", due: date5, kind: "exam", href: "/student/topic-tests", ready: true });
   tasks.sort((a, b) => a.due.localeCompare(b.due));
   const last = (db.studentLastLessons || []).find((r) => r.studentId === user.uid && r.institutionId === user.institutionId);
   const lesson = last && db.lessons.find((l) => l.id === last.lessonId && ownLesson(user, l, inst?.academicYear || ""));
-  return { date: date4, weekday, timetable, tasks, learning: reviewSummary(db, user, now), lastLesson: lesson ? { id: lesson.id, title: lesson.topicTitle || lesson.title, subject: lesson.subjectName, quarter: lesson.quarter } : null };
+  return { date: date5, weekday, timetable, tasks, learning: reviewSummary(db, user, now), lastLesson: lesson ? { id: lesson.id, title: lesson.topicTitle || lesson.title, subject: lesson.subjectName, quarter: lesson.quarter } : null };
 }
 function registerStudentHomeRoutes(app2, deps) {
   const student = (req, res) => {
@@ -11817,12 +12772,12 @@ function coalescedRead(read5) {
 // src/server/cloudState.ts
 init_firebaseAdminAuth();
 init_runtimeScope();
-import crypto37 from "node:crypto";
+import crypto40 from "node:crypto";
 import { gzipSync, gunzipSync } from "node:zlib";
 import { getFirestore as getFirestore3 } from "firebase-admin/firestore";
 
 // src/server/mergeState.ts
-import crypto36 from "node:crypto";
+import crypto39 from "node:crypto";
 var same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 var MergeConflictError = class extends Error {
 };
@@ -11876,7 +12831,7 @@ function mergeState(base4, local, remote) {
           const { hash: hash2, ...unsigned } = { ...event, previous };
           merged.push({
             ...unsigned,
-            hash: crypto36.createHash("sha256").update(JSON.stringify(unsigned)).digest("hex")
+            hash: crypto39.createHash("sha256").update(JSON.stringify(unsigned)).digest("hex")
           });
         }
         result[key2] = merged;
@@ -12064,19 +13019,19 @@ function encodeState(value) {
     const compressed = gzipSync(Buffer.from(part));
     for (let offset = 0; offset < compressed.length; offset += CHUNK_BYTES) {
       const bytes = compressed.subarray(offset, offset + CHUNK_BYTES);
-      chunks.push({ id: crypto37.createHash("sha256").update(bytes).digest("hex"), data: bytes.toString("base64") });
+      chunks.push({ id: crypto40.createHash("sha256").update(bytes).digest("hex"), data: bytes.toString("base64") });
     }
   }
-  return { chunks, digest: crypto37.createHash("sha256").update(raw).digest("hex") };
+  return { chunks, digest: crypto40.createHash("sha256").update(raw).digest("hex") };
 }
 function decodeState(chunks, digest4) {
   const compressed = Buffer.concat(chunks.map((c) => {
     const b = Buffer.from(c.data, "base64");
-    if (crypto37.createHash("sha256").update(b).digest("hex") !== c.id) throw Error("Snapshot chunk integrity failure");
+    if (crypto40.createHash("sha256").update(b).digest("hex") !== c.id) throw Error("Snapshot chunk integrity failure");
     return b;
   }));
   const raw = gunzipSync(compressed, { maxOutputLength: MAX_STATE_BYTES });
-  if (crypto37.createHash("sha256").update(raw).digest("hex") !== digest4) throw Error("Snapshot integrity failure");
+  if (crypto40.createHash("sha256").update(raw).digest("hex") !== digest4) throw Error("Snapshot integrity failure");
   return JSON.parse(raw.toString("utf8"));
 }
 var cache = null;
@@ -12158,7 +13113,7 @@ var readCloudState = coalescedRead(readCloudStateOnce);
 async function writeCloudState(state, expectedRevision, baseState, retry = 0) {
   const db = database();
   const encoded = encodeState(state);
-  const revision = crypto37.randomUUID();
+  const revision = crypto40.randomUUID();
   const previous = cache?.revision === expectedRevision ? cache.chunks : [];
   const reused = new Set(previous);
   const changed = encoded.chunks.filter((chunk, i, all) => !reused.has(chunk.id) && all.findIndex((c) => c.id === chunk.id) === i);
@@ -12207,7 +13162,7 @@ async function writeCloudState(state, expectedRevision, baseState, retry = 0) {
 
 // src/server/supabaseState.ts
 init_runtimeScope();
-import crypto38 from "node:crypto";
+import crypto41 from "node:crypto";
 function stateRows(state) {
   const rows = [], layout = {};
   for (const [collection, value] of Object.entries(state)) {
@@ -12220,7 +13175,7 @@ function stateRows(state) {
       let key2, data;
       if (Array.isArray(value)) {
         data = entry;
-        key2 = String(entry?.id || entry?.uid || "h:" + crypto38.createHash("sha256").update(JSON.stringify(entry)).digest("hex"));
+        key2 = String(entry?.id || entry?.uid || "h:" + crypto41.createHash("sha256").update(JSON.stringify(entry)).digest("hex"));
         if (used.has(key2)) key2 += ":duplicate:" + position;
       } else [key2, data] = entry;
       if (key2.length > 256 || !key2) throw Error("Invalid state key");
@@ -12242,6 +13197,12 @@ var readSupabaseState = coalescedRead(async () => {
 async function readSupabaseExamContext(uid, exam) {
   const scope = await studyRpc("study_read_exam_context", { p_namespace: runtimeNamespace(), p_user: uid, p_exam: exam });
   if (!scope) return readSupabaseState();
+  const { createEmptyDatabaseState: createEmptyDatabaseState2 } = await Promise.resolve().then(() => (init_dbEngine(), dbEngine_exports));
+  return { ...scope, state: { ...createEmptyDatabaseState2(), ...scope.state } };
+}
+async function readSupabaseAcademicContext(uid) {
+  const scope = await studyRpc("study_read_academic_context", { p_namespace: runtimeNamespace(), p_user: uid });
+  if (!scope) throw Error("Academic actor not found");
   const { createEmptyDatabaseState: createEmptyDatabaseState2 } = await Promise.resolve().then(() => (init_dbEngine(), dbEngine_exports));
   return { ...scope, state: { ...createEmptyDatabaseState2(), ...scope.state } };
 }
@@ -12277,7 +13238,8 @@ async function writeSupabaseState(state, expectedRevision, baseState, retry = 0)
 // src/server/cloudStateMiddleware.ts
 function createCloudStateMiddleware(store2 = { read: (req, res) => {
   const exam = /^\/api\/exams\/([a-zA-Z0-9_-]+)\/(?:session-v2|takeover-v2|exit-v2|explanation-v2)$/.exec(req?.path || "");
-  return supabaseEnabled() ? exam && res?.locals?.signedUid ? readSupabaseExamContext(res.locals.signedUid, exam[1]) : readSupabaseState() : readCloudState();
+  const academic = req?.method === "GET" && /^\/api\/academic\/(?:config|agenda|weekly|progress)$/.test(req?.path || "");
+  return supabaseEnabled() ? academic && res?.locals?.signedUid ? readSupabaseAcademicContext(res.locals.signedUid) : exam && res?.locals?.signedUid ? readSupabaseExamContext(res.locals.signedUid, exam[1]) : readSupabaseState() : readCloudState();
 }, write: (state, revision, base4) => supabaseEnabled() ? writeSupabaseState(state, revision, base4) : writeCloudState(state, revision, base4) }) {
   return async (req, res, next) => {
     if (!["firestore", "supabase"].includes(process.env.PERSISTENCE_DRIVER || "") || !req.path.startsWith("/api/") || req.path === "/api/health") return next();
@@ -12329,7 +13291,7 @@ import "dotenv/config";
 import express from "express";
 import path5 from "path";
 import { fileURLToPath } from "url";
-import { z as z22 } from "zod";
+import { z as z25 } from "zod";
 init_security();
 init_firebaseAdminAuth();
 
@@ -14538,7 +15500,7 @@ function generateStudentExportBuffer(students) {
 init_curriculum();
 import fs4 from "fs";
 import path4 from "path";
-import crypto39 from "crypto";
+import crypto42 from "crypto";
 import JSZip2 from "jszip";
 import * as XLSX4 from "xlsx";
 var OFFICIAL_MATH_ARCHIVE_DISPLAY_NAME = "Matematika  elektron jurnal uchun ish reja.zip";
@@ -14547,7 +15509,7 @@ var MAX_ZIP_SIZE_BYTES = 25 * 1024 * 1024;
 var MAX_ZIP_ENTRIES = 100;
 var MAX_UNCOMPRESSED_BYTES = 50 * 1024 * 1024;
 function computeSha256Hex(input) {
-  return crypto39.createHash("sha256").update(input).digest("hex");
+  return crypto42.createHash("sha256").update(input).digest("hex");
 }
 function resolveOfficialMathArchivePath() {
   const candidates = [
@@ -16120,34 +17082,34 @@ init_academicOsEngine();
 var CONFIGURED_OWNER_EMAIL = (process.env.PLATFORM_OWNER_EMAIL || PLATFORM_OWNER_EMAIL).trim().toLowerCase();
 var __filename = fileURLToPath(import.meta.url);
 var __dirname = path5.dirname(__filename);
-var AIAnalysisSchema = z22.object({
-  summary: z22.string().min(5),
-  topic_analysis: z22.array(
-    z22.object({
-      topic_id: z22.string(),
-      observed_performance: z22.string(),
-      possible_error_pattern: z22.string(),
-      evidence_count: z22.number(),
-      confidence: z22.enum(["low", "medium", "high"]),
-      recommendation: z22.string()
+var AIAnalysisSchema = z25.object({
+  summary: z25.string().min(5),
+  topic_analysis: z25.array(
+    z25.object({
+      topic_id: z25.string(),
+      observed_performance: z25.string(),
+      possible_error_pattern: z25.string(),
+      evidence_count: z25.number(),
+      confidence: z25.enum(["low", "medium", "high"]),
+      recommendation: z25.string()
     })
   ),
-  next_steps: z22.array(
-    z22.object({
-      topic_id: z22.string(),
-      activity: z22.string(),
-      reason: z22.string(),
-      priority: z22.enum(["low", "medium", "high"])
+  next_steps: z25.array(
+    z25.object({
+      topic_id: z25.string(),
+      activity: z25.string(),
+      reason: z25.string(),
+      priority: z25.enum(["low", "medium", "high"])
     })
   ),
-  teacher_summary: z22.string().min(5),
-  parent_summary: z22.string().optional()
+  teacher_summary: z25.string().min(5),
+  parent_summary: z25.string().optional()
 });
-var AIDraftedQuestionSchema = z22.object({
-  prompt: z22.string().min(5),
-  options: z22.array(z22.string()).length(4),
-  correctAnswer: z22.string().min(1),
-  explanation: z22.string().min(5)
+var AIDraftedQuestionSchema = z25.object({
+  prompt: z25.string().min(5),
+  options: z25.array(z25.string()).length(4),
+  correctAnswer: z25.string().min(1),
+  explanation: z25.string().min(5)
 });
 async function getGeminiClient(req) {
   if (req && resolveRequestEnv(req) === "test") {
@@ -16342,9 +17304,13 @@ async function startServer() {
     next();
   });
   app.use(createMfaGuard(authenticateRequest));
+  app.use(staffPermissionGuard(authenticateRequest));
   registerLeadershipSecurity(app, { authenticate: authenticateRequest, save: saveDbState, verify: verifyPasswordAsync, providerProof: accountProviderProof, owner: (user) => isVerifiedPlatformOwner(user, CONFIGURED_OWNER_EMAIL), revoke: revokeAllUserSessions });
   registerLeadershipRoutes(app, { authenticate: authenticateRequest });
   registerSchoolImportRoutes(app, { authenticate: authenticateRequest, save: saveDbState, hash: hashPasswordAsync, providerProof: accountProviderProof, owner: (user) => isVerifiedPlatformOwner(user, CONFIGURED_OWNER_EMAIL), revoke: revokeAllUserSessions });
+  registerSchoolDataRoutes(app, { authenticate: authenticateRequest, save: saveDbState, hash: hashPasswordAsync, providerProof: accountProviderProof, owner: (user) => isVerifiedPlatformOwner(user, CONFIGURED_OWNER_EMAIL), revoke: revokeAllUserSessions });
+  registerAcademicRoutes(app, { authenticate: authenticateRequest, save: saveDbState, hash: hashPasswordAsync, providerProof: accountProviderProof, owner: (user) => isVerifiedPlatformOwner(user, CONFIGURED_OWNER_EMAIL), revoke: revokeAllUserSessions });
+  registerAcademicActivityRoutes(app, { authenticate: authenticateRequest, save: saveDbState, hash: hashPasswordAsync, providerProof: accountProviderProof, owner: (user) => isVerifiedPlatformOwner(user, CONFIGURED_OWNER_EMAIL), revoke: revokeAllUserSessions });
   registerAiAccessGuard(app, { authenticate: authenticateRequest });
   registerDisciplineRoutes(app, { authenticate: authenticateRequest, save: saveDbState });
   registerWorkspaceRoutes(app, { authenticate: authenticateRequest, save: saveDbState });
@@ -16580,7 +17546,7 @@ async function startServer() {
     const throttleKey = nodeCrypto.createHash("sha256").update(normalizedEmail + ":" + ipHash).digest("hex");
     db.loginThrottles ||= {};
     if ((db.loginThrottles[throttleKey]?.until || 0) > Date.now()) return res.status(429).json({ error: "Ko\u2018p noto\u2018g\u2018ri urinish. 15 daqiqadan keyin qayta urining." });
-    const recordFailedLogin = (reason3) => {
+    const recordFailedLogin = (reason4) => {
       const previous = db.loginThrottles[throttleKey];
       const attempts = previous && previous.until > Date.now() - 15 * 60 * 1e3 ? previous.attempts + 1 : 1;
       db.loginThrottles[throttleKey] = { attempts, until: attempts >= 5 ? Date.now() + 15 * 60 * 1e3 : Date.now() };
@@ -16591,7 +17557,7 @@ async function startServer() {
         db,
         instId,
         { uid: user?.uid || "anonymous", displayName: normalizedEmail, role: user?.role || "student" },
-        `Muvaffaqiyatsiz kirish urinishi (${reason3})`,
+        `Muvaffaqiyatsiz kirish urinishi (${reason4})`,
         normalizedEmail,
         user?.uid,
         {
@@ -17327,6 +18293,7 @@ async function startServer() {
     const isOwner = isVerifiedPlatformOwner(user, CONFIGURED_OWNER_EMAIL);
     const grant = leadershipGrant({ user, db });
     if (grant) return res.json({ user: { ...user, mfaRequired: false }, institution, institutions: [institution], academicYears: db.academicYears.filter((y) => y.institutionId === instId), classes: db.classes.filter((cl) => cl.institutionId === instId), subjects: instSubjects, topics: [], lessons: [], workPlans: [], users: [], questions: [], assessments: [], attempts: [], notifications: myNotifications, teacherAssignments: db.teacherAssignments.filter((v) => v.institutionId === instId) });
+    if (user.role === "staff") return res.json({ user, institution, classes: [], subjects: [], lessons: [], workPlans: [], users: [], questions: [], assessments: [], attempts: [], notifications: myNotifications });
     if (isOwner) {
       return res.json({
         user,
@@ -17525,7 +18492,7 @@ async function startServer() {
         ),
         attendanceRecords: (db.attendanceRecords || []).filter((r) => r.studentId === user.uid),
         studentAssignments: (db.studentAssignments || []).filter(
-          (a) => a.status !== "draft" && (!myClass || a.targetClassCodes.length === 0 || a.targetClassCodes.some((tc) => tc.toLowerCase() === myClass.code.toLowerCase()))
+          (a) => studentAssignmentVisible(user, a)
         ),
         assignmentSubmissions: (db.assignmentSubmissions || []).filter((s) => s.studentId === user.uid),
         studentAlerts: [],
@@ -17939,7 +18906,7 @@ async function startServer() {
     const { user, env, db } = ctx;
     const inst = db.institutions.find((i) => i.id === req.params.id);
     if (!inst) return res.status(404).json({ error: "Muassasa topilmadi." });
-    const { status, reason: reason3 } = req.body;
+    const { status, reason: reason4 } = req.body;
     if (!status || !["active", "suspended", "archived", "onboarding"].includes(status)) {
       return res.status(400).json({ error: "Yaroqsiz holat (status)." });
     }
@@ -17950,7 +18917,7 @@ async function startServer() {
       db,
       inst.id,
       user,
-      `Muassasa holati o'zgartirildi: ${previousStatus} -> ${status}${reason3 ? ` (${reason3})` : ""}`,
+      `Muassasa holati o'zgartirildi: ${previousStatus} -> ${status}${reason4 ? ` (${reason4})` : ""}`,
       inst.name,
       inst.id
     );
@@ -18245,7 +19212,7 @@ async function startServer() {
     ) : void 0;
     const { rawToken, tokenHash } = generateCryptographicInviteToken(targetRole);
     const nowIso = (/* @__PURE__ */ new Date()).toISOString();
-    const expiresIso = new Date(Date.now() + 1e3 * 60 * 60 * 24 * 7).toISOString();
+    const expiresIso = new Date(Date.now() + 1e3 * 60 * 60 * 72).toISOString();
     const newInvite = {
       id: `inv-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
       institutionId: user.institutionId,
@@ -18315,7 +19282,7 @@ async function startServer() {
     }
     const inst = db.institutions.find((i) => i.id === user.institutionId) || db.institutions[0];
     const nowIso = (/* @__PURE__ */ new Date()).toISOString();
-    const expiresIso = new Date(Date.now() + 1e3 * 60 * 60 * 24 * 7).toISOString();
+    const expiresIso = new Date(Date.now() + 1e3 * 60 * 60 * 72).toISOString();
     const createdInvites = [];
     for (const row2 of validation.validRows) {
       const matchedClass = db.classes.find(
@@ -22959,12 +23926,12 @@ Ushbu javobni mezon asosida tahlil qilib, tavsiya etilgan ball (0 dan ${numericM
     if (user.role !== "admin" && user.role !== "platform_owner") {
       return res.status(403).json({ error: "Faqat vakolatli administrator davomatni qayd eta oladi." });
     }
-    const { classCode, date: date4, records } = req.body;
-    if (!classCode || !date4 || !Array.isArray(records)) {
+    const { classCode, date: date5, records } = req.body;
+    if (!classCode || !date5 || !Array.isArray(records)) {
       return res.status(400).json({ error: "Sinf, sana va davomat ro\u2018yxatini kiriting." });
     }
     const normClass = String(classCode).toLowerCase();
-    const normDate = String(date4).slice(0, 10);
+    const normDate = String(date5).slice(0, 10);
     const inst = db.institutions.find((i) => i.id === user.institutionId);
     const instId = inst?.id || "inst-spec-study";
     const cls = db.classes.find((c) => c.institutionId === user.institutionId && (c.code || c.name).toLowerCase() === normClass);
@@ -23259,7 +24226,7 @@ Ushbu javobni mezon asosida tahlil qilib, tavsiya etilgan ball (0 dan ${numericM
     if (user.role === "student") {
       const classCode = (user.classCode || "").toLowerCase();
       const visibleAssignments = db.studentAssignments.filter(
-        (a) => a.targetClassCodes.some((c) => c.toLowerCase() === classCode)
+        (a) => studentAssignmentVisible(user, a)
       );
       const mySubmissions = db.assignmentSubmissions.filter((s) => s.studentId === user.uid);
       return res.json({ assignments: visibleAssignments, submissions: mySubmissions });
@@ -23382,6 +24349,7 @@ Ushbu javobni mezon asosida tahlil qilib, tavsiya etilgan ball (0 dan ${numericM
     }
     const asg = db.studentAssignments?.find((a) => a.id === req.params.id);
     if (!asg) return res.status(404).json({ error: "Topshiriq topilmadi." });
+    if (asg.institutionId !== user.institutionId) return res.status(403).json({ error: "Ushbu vazifa uchun ruxsat yo\u2018q." });
     const wasDraft = asg.status === "draft";
     if (req.body.title) asg.title = String(req.body.title).trim();
     if (req.body.description !== void 0) asg.description = String(req.body.description).trim();
@@ -23431,6 +24399,7 @@ Ushbu javobni mezon asosida tahlil qilib, tavsiya etilgan ball (0 dan ${numericM
     if (!Array.isArray(db.assignmentSubmissions)) db.assignmentSubmissions = [];
     const asg = db.studentAssignments?.find((a) => a.id === assignmentId);
     if (!asg) return res.status(404).json({ error: "Topshiriq topilmadi." });
+    if (!studentAssignmentVisible(user, asg) || asg.status !== "published") return res.status(403).json({ error: "Ushbu vazifa uchun ruxsat yo\u2018q." });
     const nowIso = (/* @__PURE__ */ new Date()).toISOString();
     let sub = db.assignmentSubmissions.find((s) => s.assignmentId === assignmentId && s.studentId === user.uid);
     if (!sub) {
@@ -23477,6 +24446,7 @@ Ushbu javobni mezon asosida tahlil qilib, tavsiya etilgan ball (0 dan ${numericM
     if (!Array.isArray(db.submissionRevisions)) db.submissionRevisions = [];
     const asg = db.studentAssignments?.find((a) => a.id === assignmentId);
     if (!asg) return res.status(404).json({ error: "Topshiriq topilmadi." });
+    if (!studentAssignmentVisible(user, asg) || asg.status !== "published") return res.status(403).json({ error: "Ushbu vazifa uchun ruxsat yo\u2018q." });
     if (user.role === "student" && user.classCode && asg.targetClassCodes.length > 0 && !asg.targetClassCodes.some((c) => c.toLowerCase() === user.classCode.toLowerCase())) {
       return res.status(403).json({ error: "Ushbu topshiriq sizning sinfingiz uchun mo\u2018ljallanmagan." });
     }
@@ -23718,7 +24688,7 @@ Ushbu javobni mezon asosida tahlil qilib, tavsiya etilgan ball (0 dan ${numericM
     if (!Array.isArray(db.studentSupportPlans)) db.studentSupportPlans = [];
     const nowIso = (/* @__PURE__ */ new Date()).toISOString();
     const planId = `plan_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
-    const plan = {
+    const plan2 = {
       id: planId,
       institutionId: db.institutions[0]?.id || "inst-spec-study",
       studentId: stu.uid,
@@ -23738,9 +24708,9 @@ Ushbu javobni mezon asosida tahlil qilib, tavsiya etilgan ball (0 dan ${numericM
       createdAt: nowIso,
       updatedAt: nowIso
     };
-    db.studentSupportPlans.unshift(plan);
+    db.studentSupportPlans.unshift(plan2);
     saveDbState(env, db);
-    return res.json({ supportPlan: plan });
+    return res.json({ supportPlan: plan2 });
   });
   app.put("/api/support-plans/:id", (req, res) => {
     const authCtx = authenticateRequest(req);
@@ -23749,16 +24719,16 @@ Ushbu javobni mezon asosida tahlil qilib, tavsiya etilgan ball (0 dan ${numericM
     if (user.role !== "admin" && user.role !== "platform_owner") {
       return res.status(403).json({ error: "Ruxsat yo\u2018q." });
     }
-    const plan = db.studentSupportPlans?.find((p) => p.id === req.params.id);
-    if (!plan) return res.status(404).json({ error: "Yordam rejasi topilmadi." });
-    if (req.body.status) plan.status = req.body.status;
-    if (req.body.progressNotes !== void 0) plan.progressNotes = String(req.body.progressNotes).trim();
-    if (req.body.reviewDate) plan.reviewDate = req.body.reviewDate;
-    if (req.body.goal) plan.goal = String(req.body.goal).trim();
-    if (req.body.recommendedActivity) plan.recommendedActivity = String(req.body.recommendedActivity).trim();
-    plan.updatedAt = (/* @__PURE__ */ new Date()).toISOString();
+    const plan2 = db.studentSupportPlans?.find((p) => p.id === req.params.id);
+    if (!plan2) return res.status(404).json({ error: "Yordam rejasi topilmadi." });
+    if (req.body.status) plan2.status = req.body.status;
+    if (req.body.progressNotes !== void 0) plan2.progressNotes = String(req.body.progressNotes).trim();
+    if (req.body.reviewDate) plan2.reviewDate = req.body.reviewDate;
+    if (req.body.goal) plan2.goal = String(req.body.goal).trim();
+    if (req.body.recommendedActivity) plan2.recommendedActivity = String(req.body.recommendedActivity).trim();
+    plan2.updatedAt = (/* @__PURE__ */ new Date()).toISOString();
     saveDbState(env, db);
-    return res.json({ supportPlan: plan });
+    return res.json({ supportPlan: plan2 });
   });
   app.get("/api/academic-calendar", (req, res) => {
     const authCtx = authenticateRequest(req);
@@ -24813,8 +25783,8 @@ MUHIM: Bu faqat administrator ko'rib chiqishi uchun dastlabki tavsiya. O'zbek ti
     if (user.role !== "admin" && user.role !== "platform_owner") {
       return res.status(403).json({ error: "Faqat administrator akademik sana qo\u2018sha oladi." });
     }
-    const { title, description, category, date: date4, startTime, endTime, classCode, subject } = req.body;
-    if (!title || !date4) {
+    const { title, description, category, date: date5, startTime, endTime, classCode, subject } = req.body;
+    if (!title || !date5) {
       return res.status(400).json({ error: "Tadbir nomi va haqiqiy sanasini kiriting." });
     }
     if (!Array.isArray(db.academicEvents)) db.academicEvents = [];
@@ -24826,7 +25796,7 @@ MUHIM: Bu faqat administrator ko'rib chiqishi uchun dastlabki tavsiya. O'zbek ti
       title: String(title).trim(),
       description: description ? String(description).trim() : void 0,
       category: category || "academic_date",
-      date: String(date4).slice(0, 10),
+      date: String(date5).slice(0, 10),
       startTime: startTime || void 0,
       endTime: endTime || void 0,
       classCode: classCode && classCode !== "ALL" ? String(classCode).toLowerCase() : void 0,
@@ -24883,8 +25853,8 @@ MUHIM: Bu faqat administrator ko'rib chiqishi uchun dastlabki tavsiya. O'zbek ti
 process.on("uncaughtException", (err) => {
   console.error("Uncaught Exception:", err);
 });
-process.on("unhandledRejection", (reason3) => {
-  console.error("Unhandled Rejection:", reason3);
+process.on("unhandledRejection", (reason4) => {
+  console.error("Unhandled Rejection:", reason4);
 });
 startServer().catch((err) => {
   console.error("Failed to start server:", err);

@@ -1,4 +1,4 @@
-export type UserRole = 'platform_owner' | 'admin' | 'teacher' | 'student' | 'parent';
+export type UserRole = 'platform_owner' | 'admin' | 'teacher' | 'student' | 'parent' | 'staff';
 
 export type ClassTrack = 'A' | 'T';
 
@@ -122,6 +122,8 @@ export interface UserProfile {
   displayName: string;
   firstName?: string;
   lastName?: string;
+  staffCategory?: import('./server/schoolDataReview').StaffCategory;
+  teachingGroupIds?: string[];
   patronymic?: string;
   email: string;
   emailVerified?: boolean;
@@ -702,6 +704,7 @@ export interface QuestionRevision {
 }
 
 export interface Assessment {
+  groupIds?:string[];
   closedAt?: string;
   examKind?: import('./examTypes').ExamKind;
   examNumber?: number;
@@ -1498,6 +1501,7 @@ export interface SmartLearningRecommendation {
 export type AttendanceStatus = 'PRESENT' | 'ABSENT' | 'LATE' | 'EXCUSED_ABSENCE';
 
 export interface AttendanceSession {
+  occurrenceId?:string;groupId?:string;subject?:string;revision?:number;operations?:Array<{id:string;digest:string}>;
   id: string; // e.g. `${classId}_${date}`
   institutionId: string;
   classId: string;
@@ -1602,6 +1606,7 @@ export type AssignmentSourceType =
   | 'custom';
 
 export interface StudentAssignment {
+  groupIds?:string[];occurrenceId?:string;operationDigest?:string;
   id: string;
   institutionId: string;
   title: string;

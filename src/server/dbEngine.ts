@@ -122,6 +122,13 @@ export interface PersistentDatabaseState {
   topicSessions?: import('./topicEngine').TopicSession[];
   topicReviews?: import('./topicEngine').ReviewRecord[];
   accountOperations?: string[];
+  schoolDataReviews?: import('./schoolDataReview').SchoolReview[];
+  academicCalendarHistory?: any[];
+  academicCalendars?: import('../utils/academicPlanning').AcademicCalendar[];
+  academicTimetables?: any[];
+  academicSchedules?: any[];
+  academicGroups?: any[];
+  subjectAliasReviews?: any[];
   schoolImportJobs?: import('./schoolImportEngine').SchoolImportJob[];
   refreshSessions?: import('./refreshSessions').RefreshSession[];
   leadershipGrants?: import('./leadershipSecurity').LeadershipGrant[];

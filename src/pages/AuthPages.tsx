@@ -63,7 +63,7 @@ export const LoginPage: React.FC = () => {
         return;
       }
     }
-    const path = role === 'teacher' ? '/teacher/dashboard' : role === 'student' ? '/student/dashboard' : '/admin/dashboard';
+    const path = role==='staff'?'/account/security':role === 'teacher' ? '/teacher/dashboard' : role === 'student' ? '/student/dashboard' : '/admin/dashboard';
     navigate(path, { replace: true });
   };
 

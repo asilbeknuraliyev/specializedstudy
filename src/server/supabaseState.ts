@@ -37,6 +37,12 @@ export async function readSupabaseExamContext(uid:string,exam:string){
  const {createEmptyDatabaseState}=await import('./dbEngine');
  return {...scope,state:{...createEmptyDatabaseState(),...scope.state} as PersistentDatabaseState};
 }
+export async function readSupabaseAcademicContext(uid:string){
+ const scope=await studyRpc<{state:Partial<PersistentDatabaseState>;revision:string;readOnly:true}|null>('study_read_academic_context',{p_namespace:runtimeNamespace(),p_user:uid});
+ if(!scope)throw Error('Academic actor not found');
+ const {createEmptyDatabaseState}=await import('./dbEngine');
+ return {...scope,state:{...createEmptyDatabaseState(),...scope.state} as PersistentDatabaseState};
+}
 export async function writeSupabaseState(state:PersistentDatabaseState,expectedRevision:string|null,baseState?:string,retry=0):Promise<string>{
  const before=stateRows(baseState?JSON.parse(baseState):{}),after=stateRows(state),old=new Map(before.rows.map(r=>[r.collection+'\0'+r.key,r])),next=new Map(after.rows.map(r=>[r.collection+'\0'+r.key,r]));
  const changes:any[]=[];

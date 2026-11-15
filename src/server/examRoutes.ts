@@ -61,6 +61,7 @@ const draftSchema = z.object({
   academicYear: z.string().regex(/^\d{4}-\d{4}$/),
   subject: z.string().min(2).max(100),
   classCodes: z.array(z.string()).min(1).max(19),
+  groupIds:z.array(z.string().max(160)).max(76).default([]),
   durationMinutes: z.number().int().min(1).max(180),
   availableFrom: z.string().datetime(),
   dueDate: z.string().datetime(),
@@ -313,11 +314,12 @@ export function registerExamRoutes(
         .json({ error: "Javob maydoni manba sahifasiga mos emas." });
     if (Date.parse(data.availableFrom) >= Date.parse(data.dueDate))
       return res.status(400).json({ error: "Vaqt oralig‘ini tekshiring." });
+    if(data.groupIds.some(id=>!(c.db.academicGroups||[]).some((g:any)=>g.id===id&&g.schoolId===c.user.institutionId&&classes.some(cl=>cl.id===g.classId)&&g.subject===data.subject)))return res.status(400).json({error:'Imtihon guruhi sinf yoki fanga mos emas.'});
     const existing = c.db.assessments.find(
       (a) =>
         a.institutionId === c.user.institutionId &&
         manages(c, a) &&
-        a.sourceHash === data.sourceHash &&
+        a.sourceHash === data.sourceHash && JSON.stringify(a.groupIds||[])===JSON.stringify(data.groupIds) &&
         a.sourceLayoutVersion === data.sourceLayoutVersion &&
         a.title === data.title &&
         a.examKind === data.examKind &&
@@ -386,6 +388,7 @@ export function registerExamRoutes(
       classId: classes[0].id,
       classCode: classes[0].code,
       assignedClassIds: classes.map((c) => c.id),
+      groupIds:data.groupIds,
       assignedClassCodes: classes.map((c) => c.code as any),
       durationMinutes: data.durationMinutes,
       availableFrom: data.availableFrom,
@@ -491,6 +494,7 @@ export function registerExamRoutes(
         .json({ error: "Sinf, nazorat raqami yoki vaqtni tekshiring." });
     if (Buffer.byteLength(JSON.stringify(d)) > 3200000)
       return res.status(413).json({ error: "Tasvirlar hajmi 3 MB dan oshdi." });
+    if(d.groupIds.some(id=>!(c.db.academicGroups||[]).some((g:any)=>g.id===id&&g.schoolId===c.user.institutionId&&classes.some(cl=>cl.id===g.classId)&&g.subject===d.subject)))return res.status(400).json({error:'Guruh sinf yoki fanga mos emas.'});
     const allowed = [
       ...(exam.contextImages || []),
       ...(exam.questionSnapshot || []).flatMap((q) => q.sourceImages || []),
@@ -589,6 +593,7 @@ export function registerExamRoutes(
       grade: classes[0].grade,
       classId: classes[0].id,
       classCode: classes[0].code,
+      groupIds:d.groupIds,
       assignedClassIds: classes.map((cls) => cls.id),
       assignedClassCodes: classes.map((cls) => cls.code),
       questionSnapshot: qs,

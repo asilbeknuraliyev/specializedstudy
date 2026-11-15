@@ -1,3 +1,4 @@
+import {studentAssignmentVisible} from '../utils/schoolAudience';
 import {feedbackTemplates} from './feedbackTemplates';
 import { deliveredNotification } from "../utils/notificationPolicy";
 import crypto from "node:crypto";
@@ -139,8 +140,7 @@ export function registerWorkspaceRoutes(app: Express, deps: any) {
           schoolClasses(c).some((cl: any) => cl.id === id),
         )) ||
       (c.user.role === "student" &&
-        row.status !== "draft" &&
-        (row.targetClassIds || []).includes(c.user.classId)));
+        studentAssignmentVisible(c.user,row)));
   const assignmentFor = (c: SchoolContext, id: string) => {
     const a = (c.db.studentAssignments || []).find(
       (v: any) => v.id === id && visible(c, v),

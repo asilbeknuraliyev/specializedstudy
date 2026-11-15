@@ -477,18 +477,16 @@ export const PrivacyPage: React.FC = () => (
         <h1 className="text-3xl font-bold">Maxfiylik siyosati</h1>
       </div>
       <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-8 space-y-4 text-sm text-slate-600 dark:text-slate-300 leading-relaxed">
-        <h2 className="text-base font-bold text-slate-900 dark:text-white">
-          1. Sinf va rolga asoslangan qat’iy izolyatsiya
-        </h2>
-        <p>
-          {APP_NAME} platformasida har bir o‘quvchi faqat o‘z sinfi (masalan, 7a1 yoki 9t) uchun nashr qilingan darslar va testlarni hamda faqat o‘zining shaxsiy natijalarini ko‘ra oladi.
-        </p>
-        <h2 className="text-base font-bold text-slate-900 dark:text-white">
-          2. Sun’iy intellekt maxfiyligi
-        </h2>
-        <p>
-          Test natijalarini AI orqali tahlil qilishda o‘quvchining shaxsiy ma’lumotlari uzatilmaydi; faqat anonim savol va mavzu ko‘rsatkichlari tahlil qilinadi.
-        </p>
+        <h2 className="text-base font-bold">Qanday ma’lumot ishlatiladi?</h2>
+        <p>Specialized Study maktabdagi hisob, F.I.Sh., sinf va guruh, topshiriq, davomat va natijalarni o‘quv jarayonini yuritish uchun saqlaydi. Maktab administratori hisoblarni boshqaradi; ustoz o‘ziga biriktirilgan sinf va fan bilan ishlaydi, o‘quvchi o‘ziga tegishli natijalarni ko‘radi.</p>
+        <h2 className="text-base font-bold">Google orqali kirish</h2>
+        <p>Google tanlanganda hisobni aniqlash uchun asosiy profil va tasdiqlangan elektron pochta olinadi. Google parolingiz platformaga berilmaydi. Kirish Google va Supabase Authentication orqali tekshiriladi; maktabdagi vakolatni server alohida belgilaydi.</p>
+        <h2 className="text-base font-bold">Saqlash va xizmatlar</h2>
+        <p>Ilova Vercel’da joylashadi. Faol versiyaga qarab maktab ma’lumotlari Firebase yoki Supabase’da saqlanadi; tasdiqlangan migratsiyada eski ma’lumotlar himoyalangan zaxira sifatida saqlanishi mumkin. Tashqi xizmatlarning o‘z maxfiylik qoidalari ham amal qiladi. Kirish sessiyasi uchun zarur cookie ishlatiladi.</p>
+        <h2 className="text-base font-bold">Yozma javoblar va AI</h2>
+        <p>Yoqilgan AI vositasiga yuborilgan so‘rov yoki yozma javob tegishli provayderda qayta ishlanishi mumkin. Javobingizga keraksiz shaxsiy yoki maxfiy ma’lumot kiritmang. AI tavsiyasi ustozning yakuniy tekshiruvi o‘rnini bosmaydi; hujjat importining lokal tahlili o‘z-o‘zidan AI provayderiga yuborilmaydi.</p>
+        <h2 className="text-base font-bold">Tuzatish, saqlash muddati va murojaat</h2>
+        <p>Noto‘g‘ri sinf yoki profil ma’lumoti, kirishni bekor qilish, ma’lumot nusxasi va o‘chirish bo‘yicha maktab administratoriga murojaat qiling. Akademik tarix va zaxira nusxalari bo‘yicha saqlash muddati maktab tartibi bilan belgilanadi; so‘rov bajarilishi oldidan hisob egasi tekshiriladi. Imtihondan boshqa oynaga o‘tish hodisasi o‘z-o‘zidan ko‘chirish isboti hisoblanmaydi.</p>
       </div>
     </main>
     <PublicFooter />

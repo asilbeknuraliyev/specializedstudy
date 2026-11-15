@@ -3,10 +3,10 @@ import {prepareSessionBody} from './sessionCookies';
 import type { RequestHandler } from 'express';
 import { requestDatabase } from './requestDatabase';
 import { readCloudState, writeCloudState, StateConflictError } from './cloudState';
-import {readSupabaseState,readSupabaseExamContext,writeSupabaseState} from './supabaseState';
+import {readSupabaseState,readSupabaseExamContext,readSupabaseAcademicContext,writeSupabaseState} from './supabaseState';
 import {supabaseEnabled} from './supabaseClient';
 
-export function createCloudStateMiddleware(store = { read: (req?:any,res?:any) => {const exam=/^\/api\/exams\/([a-zA-Z0-9_-]+)\/(?:session-v2|takeover-v2|exit-v2|explanation-v2)$/.exec(req?.path||'');return supabaseEnabled()?(exam&&res?.locals?.signedUid?readSupabaseExamContext(res.locals.signedUid,exam[1]):readSupabaseState()):readCloudState();}, write: (state:any,revision:string,base:string) => supabaseEnabled()?writeSupabaseState(state,revision,base):writeCloudState(state,revision,base) }): RequestHandler {
+export function createCloudStateMiddleware(store = { read: (req?:any,res?:any) => {const exam=/^\/api\/exams\/([a-zA-Z0-9_-]+)\/(?:session-v2|takeover-v2|exit-v2|explanation-v2)$/.exec(req?.path||'');const academic=req?.method==='GET'&&/^\/api\/academic\/(?:config|agenda|weekly|progress)$/.test(req?.path||'');return supabaseEnabled()?(academic&&res?.locals?.signedUid?readSupabaseAcademicContext(res.locals.signedUid):exam&&res?.locals?.signedUid?readSupabaseExamContext(res.locals.signedUid,exam[1]):readSupabaseState()):readCloudState();}, write: (state:any,revision:string,base:string) => supabaseEnabled()?writeSupabaseState(state,revision,base):writeCloudState(state,revision,base) }): RequestHandler {
 return async (req,res,next) => {
  if(!['firestore','supabase'].includes(process.env.PERSISTENCE_DRIVER||'')||!req.path.startsWith('/api/')||req.path==='/api/health')return next();
  try {

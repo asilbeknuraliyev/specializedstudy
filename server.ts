@@ -1,3 +1,8 @@
+import {registerAcademicActivityRoutes} from './src/server/academicActivityRoutes';
+import {studentAssignmentVisible} from './src/utils/schoolAudience';
+import {registerAcademicRoutes} from './src/server/academicRoutes';
+import {staffPermissionGuard} from './src/server/staffPermissionGuard';
+import {registerSchoolDataRoutes} from './src/server/schoolDataRoutes';
 import {studentCanAccessLesson} from './src/server/studentLessonScope';
 import {projectTeachingIdentity} from './src/server/teachingIdentity';
 import {registerSchoolImportRoutes} from './src/server/schoolImportRoutes';
@@ -521,9 +526,13 @@ async function startServer() {
   app.use(localSessionResponse);
   app.use('/api',(req,res,next)=>{if(req.path==='/health')return next();const c=authenticateRequest(req);if(c?.user.mustChangePassword&&!['/state','/account/password','/auth/logout','/auth/login','/auth/firebase-sync','/auth/provider-sync'].includes(req.path))return res.status(403).json({error:'Davom etish uchun parolni o‘zgartiring.',code:'PASSWORD_CHANGE_REQUIRED'});next();});
   app.use(createMfaGuard(authenticateRequest));
+app.use(staffPermissionGuard(authenticateRequest));
   registerLeadershipSecurity(app,{authenticate:authenticateRequest,save:saveDbState,verify:verifyPasswordAsync,providerProof:accountProviderProof,owner:(user:UserProfile)=>isVerifiedPlatformOwner(user,CONFIGURED_OWNER_EMAIL),revoke:revokeAllUserSessions});
   registerLeadershipRoutes(app,{authenticate:authenticateRequest});
   registerSchoolImportRoutes(app,{authenticate:authenticateRequest,save:saveDbState,hash:hashPasswordAsync,providerProof:accountProviderProof,owner:(user:UserProfile)=>isVerifiedPlatformOwner(user,CONFIGURED_OWNER_EMAIL),revoke:revokeAllUserSessions});
+registerSchoolDataRoutes(app,{authenticate:authenticateRequest,save:saveDbState,hash:hashPasswordAsync,providerProof:accountProviderProof,owner:(user:UserProfile)=>isVerifiedPlatformOwner(user,CONFIGURED_OWNER_EMAIL),revoke:revokeAllUserSessions});
+registerAcademicRoutes(app,{authenticate:authenticateRequest,save:saveDbState,hash:hashPasswordAsync,providerProof:accountProviderProof,owner:(user:UserProfile)=>isVerifiedPlatformOwner(user,CONFIGURED_OWNER_EMAIL),revoke:revokeAllUserSessions});
+registerAcademicActivityRoutes(app,{authenticate:authenticateRequest,save:saveDbState,hash:hashPasswordAsync,providerProof:accountProviderProof,owner:(user:UserProfile)=>isVerifiedPlatformOwner(user,CONFIGURED_OWNER_EMAIL),revoke:revokeAllUserSessions});
   registerAiAccessGuard(app,{authenticate:authenticateRequest});
   registerDisciplineRoutes(app,{authenticate:authenticateRequest,save:saveDbState});
   registerWorkspaceRoutes(app,{authenticate:authenticateRequest,save:saveDbState});
@@ -1655,6 +1664,8 @@ async function startServer() {
     if(grant)return res.json({user:{...user,mfaRequired:false},institution,institutions:[institution],academicYears:db.academicYears.filter(y=>y.institutionId===instId),classes:db.classes.filter(cl=>cl.institutionId===instId),subjects:instSubjects,topics:[],lessons:[],workPlans:[],users:[],questions:[],assessments:[],attempts:[],notifications:myNotifications,teacherAssignments:db.teacherAssignments.filter(v=>v.institutionId===instId)});
 
 
+    if(user.role==='staff')return res.json({user,institution,classes:[],subjects:[],lessons:[],workPlans:[],users:[],questions:[],assessments:[],attempts:[],notifications:myNotifications});
+
     if (isOwner) {
       return res.json({
         user,
@@ -1907,10 +1918,7 @@ async function startServer() {
         attendanceRecords: (db.attendanceRecords || []).filter((r) => r.studentId === user.uid),
         studentAssignments: (db.studentAssignments || []).filter(
           (a) =>
-            a.status !== 'draft' &&
-            (!myClass ||
-              a.targetClassCodes.length === 0 ||
-              a.targetClassCodes.some((tc: string) => tc.toLowerCase() === myClass.code.toLowerCase()))
+            studentAssignmentVisible(user,a)
         ),
         assignmentSubmissions: (db.assignmentSubmissions || []).filter((s) => s.studentId === user.uid),
         studentAlerts: [], // Strictly confidential
@@ -2755,7 +2763,7 @@ async function startServer() {
 
     const { rawToken, tokenHash } = generateCryptographicInviteToken(targetRole);
     const nowIso = new Date().toISOString();
-    const expiresIso = new Date(Date.now() + 1000 * 60 * 60 * 24 * 7).toISOString(); // 7 days
+    const expiresIso = new Date(Date.now() + 1000 * 60 * 60 * 72).toISOString(); // 72 hours
 
     const newInvite: Invitation = {
       id: `inv-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
@@ -2843,7 +2851,7 @@ async function startServer() {
 
     const inst = db.institutions.find((i) => i.id === user.institutionId) || db.institutions[0];
     const nowIso = new Date().toISOString();
-    const expiresIso = new Date(Date.now() + 1000 * 60 * 60 * 24 * 7).toISOString();
+    const expiresIso = new Date(Date.now() + 1000 * 60 * 60 * 72).toISOString();
 
     const createdInvites: Array<{ inviteeName: string; email: string; rawToken: string }> = [];
 
@@ -8935,7 +8943,7 @@ Savollar va javoblar: ${JSON.stringify(anonymizedAnswers)}
     if (user.role === 'student') {
       const classCode = (user.classCode || '').toLowerCase();
       const visibleAssignments = db.studentAssignments.filter(
-        (a) => a.targetClassCodes.some((c) => c.toLowerCase() === classCode)
+        (a) => studentAssignmentVisible(user,a)
       );
       const mySubmissions = db.assignmentSubmissions.filter((s) => s.studentId === user.uid);
       return res.json({ assignments: visibleAssignments, submissions: mySubmissions });
@@ -9073,6 +9081,7 @@ Savollar va javoblar: ${JSON.stringify(anonymizedAnswers)}
     }
     const asg = db.studentAssignments?.find((a) => a.id === req.params.id);
     if (!asg) return res.status(404).json({ error: 'Topshiriq topilmadi.' });
+    if(asg.institutionId!==user.institutionId)return res.status(403).json({error:'Ushbu vazifa uchun ruxsat yo‘q.'});
 
     const wasDraft = asg.status === 'draft';
     if (req.body.title) asg.title = String(req.body.title).trim();
@@ -9129,6 +9138,7 @@ Savollar va javoblar: ${JSON.stringify(anonymizedAnswers)}
     if (!Array.isArray(db.assignmentSubmissions)) db.assignmentSubmissions = [];
     const asg = db.studentAssignments?.find((a) => a.id === assignmentId);
     if (!asg) return res.status(404).json({ error: 'Topshiriq topilmadi.' });
+    if(!studentAssignmentVisible(user,asg)||asg.status!=='published')return res.status(403).json({error:'Ushbu vazifa uchun ruxsat yo‘q.'});
 
     const nowIso = new Date().toISOString();
     let sub = db.assignmentSubmissions.find((s) => s.assignmentId === assignmentId && s.studentId === user.uid);
@@ -9180,6 +9190,7 @@ Savollar va javoblar: ${JSON.stringify(anonymizedAnswers)}
     if (!Array.isArray(db.submissionRevisions)) db.submissionRevisions = [];
     const asg = db.studentAssignments?.find((a) => a.id === assignmentId);
     if (!asg) return res.status(404).json({ error: 'Topshiriq topilmadi.' });
+    if(!studentAssignmentVisible(user,asg)||asg.status!=='published')return res.status(403).json({error:'Ushbu vazifa uchun ruxsat yo‘q.'});
 
     if (
       user.role === 'student' &&

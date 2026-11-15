@@ -1,4 +1,5 @@
 export function roleNavigation(role: string) {
+  if(role==="staff")return [["/account/security","Mening hisobim"]];
   return role === "student"
     ? [
         ["/student/dashboard", "Bugun"],

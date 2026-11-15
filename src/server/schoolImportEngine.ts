@@ -4,9 +4,9 @@ export const schoolDigest=(value:unknown)=>crypto.createHash('sha256').update(JS
 export type SchoolImportKind='students'|'teachers'|'workplans';
 export type SchoolSourceFile={name:string;sourceHash:string;sheets:SourceSheet[]};
 export type PersonImportItem=SchoolPersonRow&{id:string;sourceHash:string;existingCandidates:string[]};
-export type PlanImportItem={id:string;fileName:string;sourceHash:string;sheetName:string;sourceIssues?:SourceIssue[];lessons:SchoolPlanRow[];suggestion:ReturnType<typeof inferSchoolPlanTarget>;issues:string[]};
+export type PlanImportItem={id:string;fileName:string;sourceHash:string;sheetName:string;sourceEvidence?:string[];sourceIssues?:SourceIssue[];lessons:SchoolPlanRow[];suggestion:ReturnType<typeof inferSchoolPlanTarget>;issues:string[]};
 export type SchoolImportPayload={people:PersonImportItem[];plans:PlanImportItem[]};
-export type SchoolImportJob={id:string;institutionId:string;actorId:string;kind:SchoolImportKind;academicYear:string;sourceDigest:string;files:Array<{name:string;sourceHash:string}>;createdAt:string;status:'review'|'committed'|'undone';publication?:'draft'|'partial'|'published';addedSubjectAssignments?:Array<{classId:string;subjectId:string}>;storagePath:string;summary:{people:number;plans:number;lessons:number;issues:number;duplicates:number};createdUsers:string[];createdLessons:string[];createdPlans:string[];credentialPath?:string;credentialExpiresAt?:number;credentialsClaimedAt?:string;committedAt?:string;undoneAt?:string};
+export type SchoolImportJob={id:string;institutionId:string;actorId:string;kind:SchoolImportKind;academicYear:string;sourceDigest:string;files:Array<{name:string;sourceHash:string}>;createdAt:string;status:'review'|'committed'|'undone';publication?:'draft'|'partial'|'published';addedSubjectAssignments?:Array<{classId:string;subjectId:string}>;storagePath:string;summary:{people:number;plans:number;lessons:number;issues:number;duplicates:number};createdUsers:string[];createdLessons:string[];createdPlans:string[];credentialPath?:string;credentialExpiresAt?:number;credentialsClaimedAt?:string;reviewRevision?:number;reviewOperations?:string[];reviewOperationDigests?:Record<string,string>;committedAt?:string;undoneAt?:string};
 export function analyzeSchoolFiles(kind:SchoolImportKind,files:SchoolSourceFile[],users:any[],institutionId:string):SchoolImportPayload{
  const people:PersonImportItem[]=[],plans:PlanImportItem[]=[];
  for(const file of files){
@@ -21,7 +21,7 @@ export function analyzeSchoolFiles(kind:SchoolImportKind,files:SchoolSourceFile[
    if(!sheet.rows.some(r=>r.some(v=>normalizedText(v))))continue;
    const parsed=parseSchoolPlan([sheet]),suggestion=inferSchoolPlanTarget(file.name,sheet);
    const sourceIssues=parsed.issues.filter(i=>!parsed.lessons.some(l=>l.sourceRow===i.row&&l.sourceSheet===i.sheet&&l.issues.some(e=>e.code===i.code)));const issues=[...suggestion.issues,...sourceIssues.map(i=>i.sheet+' · '+i.row+'-qator: '+i.message)];if(!parsed.lessons.length)issues.push('Dars qatorlari topilmadi.');
-   plans.push({id:schoolDigest([file.sourceHash,sheet.name]),fileName:file.name,sourceHash:file.sourceHash,sheetName:sheet.name,sourceIssues,lessons:parsed.lessons,suggestion,issues});
+   plans.push({id:schoolDigest([file.sourceHash,sheet.name]),fileName:file.name,sourceHash:file.sourceHash,sheetName:sheet.name,sourceEvidence:sheet.rows.slice(0,5).map(r=>r.map(normalizedText).join(' | ').slice(0,1200)),sourceIssues,lessons:parsed.lessons,suggestion,issues});
   }
  }
  const seen=new Set<string>();for(const p of people){const key=p.role+'|'+p.classCode+'|'+nameIdentity(p.displayName);if(seen.has(key)&&!p.issues.some(i=>i.code==='DUPLICATE_SOURCE'))p.issues.push({sheet:p.sourceSheet,row:p.sourceRow,code:'DUPLICATE_SOURCE',message:'Fayllar ichida takroriy shaxs qatori.'});seen.add(key);}

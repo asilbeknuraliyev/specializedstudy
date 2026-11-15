@@ -2,14 +2,14 @@ import {findSecureInvitation,validateSecureInvitation} from './invitationSecurit
 import crypto from 'node:crypto';
 import type {Express} from 'express';
 import {z} from 'zod';
-import {serverSupabase} from './supabaseClient';
+import {serverSupabase,serverSupabaseIdentity,sharedIdentityProvider} from './supabaseClient';
 import {isAuthorizedAdminEmail} from '../utils/security';
 import type {PersistentDatabaseState} from './dbEngine';
 
 export const supabaseAuthEnabled=()=>process.env.AUTH_PROVIDER==='supabase';
 export async function verifiedProviderUser(token:string){
  if(token.length>16000||!token.includes('.'))throw Error('Invalid provider token');
- const {data,error}=await serverSupabase().auth.getUser(token);
+ const {data,error}=await serverSupabaseIdentity().auth.getUser(token);
  if(error||!data.user||!data.user.email||!data.user.email_confirmed_at)throw Error('Unverified provider identity');
  const claims=JSON.parse(Buffer.from(token.split('.')[1],'base64url').toString('utf8'));
  if(claims.sub!==data.user.id||claims.exp*1000<=Date.now())throw Error('Invalid provider token');
@@ -34,6 +34,7 @@ export async function accountProviderProof(token:string,db:PersistentDatabaseSta
 export function registerSupabaseAuthRoutes(app:Express,deps:any){
  app.post('/api/admin/provision-claims',async(req,res,next)=>{
   if(!supabaseAuthEnabled())return next();
+  if(sharedIdentityProvider())return res.status(403).json({error:'Preview muhiti asosiy kirish provayderining ruxsatlarini o‘zgartira olmaydi.'});
   const actor=deps.authenticate?.(req);
   if(!actor||!deps.owner?.(actor.user))return res.status(403).json({error:'Faqat tasdiqlangan platforma egasiga ruxsat.'});
   try{

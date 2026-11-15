@@ -91,7 +91,7 @@ export function canTakeExam(user: UserProfile, exam: Assessment): boolean {
   if (
     user.role !== "student" ||
     user.status !== "active" ||
-    user.institutionId !== exam.institutionId
+    user.institutionId !== exam.institutionId || (exam.groupIds?.length && !exam.groupIds.some(id=>user.teachingGroupIds?.includes(id)))
   )
     return false;
   return Boolean(
@@ -99,7 +99,7 @@ export function canTakeExam(user: UserProfile, exam: Assessment): boolean {
       [exam.classId, ...(exam.assignedClassIds || [])].includes(
         user.classId,
       )) ||
-      (user.classCode &&
+      (!exam.classId && !exam.assignedClassIds?.length && user.classCode &&
         [exam.classCode, ...(exam.assignedClassCodes || [])].includes(
           user.classCode as any,
         )),
