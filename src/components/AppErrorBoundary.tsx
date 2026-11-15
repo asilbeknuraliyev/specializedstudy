@@ -2,7 +2,7 @@ import React from 'react';
 import {claimChunkRecovery} from '../utils/chunkRecovery';
 
 /** Recover from failed page chunks and render errors without exposing internals. */
-export class AppErrorBoundary extends React.Component<React.PropsWithChildren, { failed: boolean }> {
+export class AppErrorBoundary extends React.Component<React.PropsWithChildren<{scope?:'page'|'application'}>, { failed: boolean }> {
   state = { failed: false };
   static getDerivedStateFromError() { return { failed: true }; }
   componentDidCatch(error: Error) {
@@ -12,12 +12,13 @@ export class AppErrorBoundary extends React.Component<React.PropsWithChildren, {
   }
   render() {
     if (!this.state.failed) return this.props.children;
-    return <main className="min-h-screen grid place-items-center bg-slate-50 px-5 text-slate-900">
+    return <main className={`${this.props.scope==='page'?'min-h-[65vh]':'min-h-screen'} grid place-items-center bg-slate-50 px-5 text-slate-900`}>
       <section role="alert" className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">
         <p className="text-sm font-semibold text-blue-600">Specialized Study</p>
         <h1 className="mt-3 text-2xl font-bold">Sahifani ochib bo‘lmadi</h1>
-        <p className="mt-3 text-sm leading-6 text-slate-600">Internet aloqasini tekshiring va sahifani qayta yuklang. Muammo davom etsa, administratorga murojaat qiling.</p>
+        <p className="mt-3 text-sm leading-6 text-slate-600">Sahifa yuklanishi yakunlanmadi. Aloqani tekshirib qayta yuklang. Muammo takrorlansa, administratorga xabar bering.</p>
         <button type="button" onClick={() => window.location.reload()} className="mt-6 min-h-11 rounded-xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white hover:bg-blue-700">Qayta yuklash</button>
+        <a href="/login" className="ml-3 inline-flex min-h-11 items-center text-sm text-blue-600">Kirish sahifasi</a>
       </section>
     </main>;
   }

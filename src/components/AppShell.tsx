@@ -46,6 +46,7 @@ import { OFFICIAL_19_CLASS_CODES } from '../constants/curriculum';
 export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const {
     currentUser,
+    refreshState,
     theme,
     toggleTheme,
     logout,
@@ -138,7 +139,7 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
   const isActiveTestRunner = /^\/student\/assessments\/[^/]+$/.test(location.pathname);
 
   const icons=isAdminAccount?[LayoutDashboard,BookOpen,Users,FileText,Settings]:currentUser.role==='teacher'?[Calendar,Users,ClipboardCheck,Library,FileText]:[LayoutDashboard,BookOpen,ClipboardCheck,FileText,UserIcon];
-  const allNavItems=roleNavigation(currentUser.role).map(([to,label],i)=>({to,label,icon:icons[i],end:true}));
+  const allNavItems=(currentUser.leadershipDesignation?[['/leadership/dashboard','Maktab holati'],...(currentUser.leadershipDesignation==='academic_deputy'?[['/leadership/content','O‘quv jarayoni']]:[]),['/account/security','Xavfsizlik']]:roleNavigation(currentUser.role)).map(([to,label],i)=>({to,label,icon:icons[i],end:true}));
   const navItems=allNavItems.filter(i=>previewEnabled||!/(?:^|\/)(?:demo|learning-demo)(?:$|\/)/.test(i.to));
   const studentMobileBottomItems=navItems;
 
@@ -156,6 +157,7 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
     if (p.startsWith('/student/tasks')) return 'Vazifalar';
     if (p.startsWith('/admin/classes')) return 'Sinflar';
       if (p.startsWith('/admin/teachers')) return 'O‘qituvchilar';
+      if (p.startsWith('/leadership/')) return 'Maktab boshqaruvi';
       if (p.startsWith('/teacher/')) return 'O‘qituvchi kabineti';
     if (p.startsWith('/admin/students')) return "O'quvchilar";
     if (p.startsWith('/admin/subjects')) return 'Fanlar';
@@ -406,7 +408,7 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
           }`}
         >
           {previewEnabled&&<p className="mb-4 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-xs leading-5 text-amber-950">PREVIEW · sinov muhiti. Bu yerdagi namoyish ma’lumotlarini rasmiy maktab natijasi sifatida ishlatmang.</p>}
-          <Suspense fallback={<div role="status" className="ss-surface p-6 animate-pulse">Sahifa yuklanmoqda…</div>}>{children}</Suspense>
+          <Suspense fallback={<div role="status" className="ss-surface p-6 animate-pulse">Sahifa yuklanmoqda…</div>}>{currentUser.role==='teacher'&&!currentUser.leadershipDesignation&&(currentUser.subjects?.length||0)>1&&<label className="mb-5 flex flex-wrap items-center gap-3 rounded-xl border border-blue-200 bg-blue-50/50 p-3 text-sm dark:bg-blue-950/20">Faol fan<select aria-label="Faol o‘qitish fani" className="min-h-11 rounded-lg border bg-white px-3 dark:bg-slate-900" value={currentUser.subject} onChange={e=>{localStorage.setItem('ss_teaching_subject:'+currentUser.uid,e.target.value);void refreshState().then(()=>navigate('/teacher/dashboard'));}}>{currentUser.subjects?.map(subject=><option key={subject}>{subject}</option>)}</select></label>}{children}</Suspense>
         </main>
 
         {/* Student Mobile Bottom Navigation Bar (< 1024px) */}

@@ -1,7 +1,11 @@
+import {AppErrorBoundary} from './components/AppErrorBoundary';
+const SchoolImportCenter=lazy(()=>import('./components/SchoolImportCenter').then(m=>({default:m.SchoolImportCenter})));
+const LeadershipDashboard=lazy(()=>import('./components/LeadershipCenter').then(m=>({default:m.LeadershipDashboard})));
+const LeadershipAdmin=lazy(()=>import('./components/LeadershipCenter').then(m=>({default:m.LeadershipAdmin})));
 const WorkflowHub=lazy(()=>import('./components/WorkflowHub').then(m=>({default:m.WorkflowHub})));
 import {previewEnabled} from './utils/previewUi';
 import React, { lazy, Suspense } from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { LearnOSProvider, useLearnOS } from './context/LearnOSContext';
 import { AppShell, ToastContainer } from './components/AppShell';
 const LandingPage = lazy(() => import('./pages/PublicPages').then(module => ({ default: module.LandingPage })));
@@ -79,6 +83,8 @@ const ProtectedRoute: React.FC<{ allowedRole: 'admin' | 'student' | 'teacher'; c
   const { currentUser, authReady, isPlatformOwner } = useLearnOS();
   if (!authReady) return <main className="min-h-screen grid place-items-center bg-slate-50 text-slate-600" role="status" aria-live="polite">Hisob tekshirilmoqda…</main>;
   if (!currentUser) return <Navigate to="/login" replace />;
+  if(currentUser.leadershipDesignation&&!currentUser.mfaRequired&&!currentUser.mustChangePassword)return <Navigate to="/leadership/dashboard" replace/>;
+  if(currentUser.mfaRequired)return <Navigate to="/account/security" replace/>;
   if(currentUser.mustChangePassword)return <Navigate to="/account/security" replace/>;
   if (currentUser.status !== 'active') return <Navigate to="/login" replace />;
   if (allowedRole === 'admin' && !isPlatformOwner) return <Navigate to={currentUser.role === 'student' ? '/student/dashboard' : '/login'} replace />;
@@ -88,12 +94,16 @@ const ProtectedRoute: React.FC<{ allowedRole: 'admin' | 'student' | 'teacher'; c
 };
 
 function SecurityRoute(){const {currentUser,authReady}=useLearnOS();if(!authReady)return <p role="status">Hisob tekshirilmoqda…</p>;return currentUser?<AppShell><AccountSecurity/></AppShell>:<Navigate to="/login" replace/>;}
+function LeadershipRoute({content=false}:{content?:boolean}){const {currentUser,authReady}=useLearnOS();if(!authReady)return <p role="status">Hisob tekshirilmoqda…</p>;if(!currentUser)return <Navigate to="/login" replace/>;if(currentUser.mustChangePassword||currentUser.mfaRequired)return <Navigate to="/account/security" replace/>;if(!currentUser.leadershipDesignation)return <Navigate to="/login" replace/>;return <AppShell>{content?<ContentCenter/>:<LeadershipDashboard/>}</AppShell>;}
+function RouteErrorBoundary({children}:{children:React.ReactNode}){const location=useLocation();return <AppErrorBoundary key={location.pathname} scope="page">{children}</AppErrorBoundary>;}
 export default function App() {
   return (
     <LearnOSProvider>
       <BrowserRouter>
         <Suspense fallback={<main className="min-h-[60vh] grid place-items-center text-slate-500" role="status">Sahifa yuklanmoqda…</main>}>
-        <Routes>
+        <RouteErrorBoundary><Routes>
+          <Route path="/admin/school-imports" element={<ProtectedRoute allowedRole="admin"><SchoolImportCenter/></ProtectedRoute>}/>
+          <Route path="/leadership/dashboard" element={<LeadershipRoute/>}/><Route path="/leadership/content" element={<LeadershipRoute content/>}/><Route path="/admin/leadership" element={<ProtectedRoute allowedRole="admin"><LeadershipAdmin/></ProtectedRoute>}/>
           <Route path="/account/security" element={<SecurityRoute/>}/><Route path="/admin/accounts" element={<ProtectedRoute allowedRole="admin"><AccountsCenter/></ProtectedRoute>}/><Route path="/help" element={<HelpPage/>}/>{/* Public Routes */}
           <Route path="/admin/process" element={<ProtectedRoute allowedRole="admin"><WorkflowHub/></ProtectedRoute>}/><Route path="/teacher/content" element={<ProtectedRoute allowedRole="teacher"><WorkflowHub/></ProtectedRoute>}/>
           <Route path="/" element={<LandingPage />} />
@@ -498,7 +508,7 @@ export default function App() {
 
           {/* Fallback */}
           <Route path="*" element={<MissingPage/>}/>
-        </Routes>
+        </Routes></RouteErrorBoundary>
         </Suspense>
         <ToastContainer />
       </BrowserRouter>

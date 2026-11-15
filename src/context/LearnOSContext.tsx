@@ -1,3 +1,4 @@
+import {sessionFetch} from '../utils/sessionFetch';
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import {
   onAuthStateChanged,
@@ -114,7 +115,6 @@ import {
   DEFAULT_SUBJECTS,
   DEFAULT_CURRICULUM_TOPICS,
   DEFAULT_ACADEMIC_YEARS,
-  PLATFORM_OWNER_EMAIL,
   buildOfficial19Classes,
 } from '../constants/curriculum';
 import {
@@ -125,7 +125,7 @@ import {
   DEFAULT_GRADING_RUBRICS,
   DEFAULT_FEEDBACK_COMMENTS,
 } from '../utils/academicOsEngine';
-import { canAccessPlatformAdminConsole, isAuthorizedAdminEmail } from '../utils/security';
+import {canShowAdminUi} from '../utils/uiPermissions';
 import { LanguageCode } from '../i18n/translations';
 
 export interface ToastMessage {
@@ -976,7 +976,7 @@ export const LearnOSProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [academicEvents, setAcademicEvents] = useState<AcademicCalendarEvent[]>([]);
   const [lessonDeliveryRecords, setLessonDeliveryRecords] = useState<LessonDeliveryRecord[]>([]);
 
-  const isPlatformOwner = canAccessPlatformAdminConsole(currentUser, PLATFORM_OWNER_EMAIL);
+  const isPlatformOwner = canShowAdminUi(currentUser);
 
   // Remove any legacy demo state cache from browser storage on mount
   useEffect(() => {
@@ -1027,7 +1027,7 @@ export const LearnOSProvider: React.FC<{ children: React.ReactNode }> = ({ child
       if (isIsolatedTestMode()) {
         headers['X-LearnOS-Env'] = 'test';
       }
-      return fetch(url, {
+      return sessionFetch(url, {
         ...options,
         headers,
       });
@@ -1137,6 +1137,8 @@ export const LearnOSProvider: React.FC<{ children: React.ReactNode }> = ({ child
           }
           applyServerState(data);
         } else if (res.status === 401 || res.status === 403) {
+          const denied=isJson?await res.clone().json().catch(()=>null):null;
+          if(denied?.code==='MFA_REQUIRED'&&denied.user){setCurrentUser(denied.user);return;}
           // If Firebase Auth has a live signed-in user (e.g. Vercel serverless cold-start),
           // re-hydrate backend state using the verified Firebase user instead of logging out.
           if (auth.currentUser) {

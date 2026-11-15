@@ -1,3 +1,4 @@
+import {validPassword,passwordPolicyMessage} from '../utils/passwordPolicy';
 import React, { useState, useEffect, useMemo } from 'react';
 import { Link, useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import {
@@ -411,8 +412,8 @@ export const RegisterPage: React.FC = () => {
       setErrorMsg("Iltimos, to'g'ri elektron pochta manzilini kiriting.");
       return;
     }
-    if (password.length < 6) {
-      setErrorMsg("Parol kamida 6 ta belgidan iborat bo'lishi shart.");
+    if (!validPassword(password)) {
+      setErrorMsg(passwordPolicyMessage);
       return;
     }
 

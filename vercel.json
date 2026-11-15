@@ -2,6 +2,17 @@
   "version": 2,
   "redirects": [
     {
+      "source": "/api/:path*",
+      "has": [
+        {
+          "type": "host",
+          "value": "specializedstudy.vercel.app"
+        }
+      ],
+      "destination": "https://specializedschool.vercel.app/api/:path*",
+      "statusCode": 308
+    },
+    {
       "source": "/:path*",
       "has": [
         {
@@ -10,18 +21,10 @@
         }
       ],
       "destination": "https://specializedschool.vercel.app/:path*",
-      "permanent": false
+      "statusCode": 301
     }
   ],
   "rewrites": [
-    {
-      "source": "/__/auth/:path*",
-      "destination": "https://specialized-study.firebaseapp.com/__/auth/:path*"
-    },
-    {
-      "source": "/__/firebase/:path*",
-      "destination": "https://specialized-study.firebaseapp.com/__/firebase/:path*"
-    },
     {
       "source": "/api/:path*",
       "destination": "/api/index"
@@ -67,6 +70,28 @@
         {
           "key": "Permissions-Policy",
           "value": "camera=(), microphone=(), geolocation=(), payment=()"
+        },
+        {
+          "key": "X-Frame-Options",
+          "value": "SAMEORIGIN"
+        }
+      ]
+    },
+    {
+      "source": "/((?!assets/).*)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=0, must-revalidate"
+        }
+      ]
+    },
+    {
+      "source": "/api/:path*",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-store"
         }
       ]
     }
