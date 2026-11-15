@@ -2969,9 +2969,10 @@ function analyzeSchoolFiles(kind, files, users, institutionId) {
     } else for (const sheet2 of file.sheets) {
       if (!sheet2.rows.some((r) => r.some((v) => normalizedText(v)))) continue;
       const parsed = parseSchoolPlan([sheet2]), suggestion = inferSchoolPlanTarget(file.name, sheet2);
-      const issues = [...suggestion.issues];
+      const sourceIssues = parsed.issues.filter((i) => !parsed.lessons.some((l) => l.sourceRow === i.row && l.sourceSheet === i.sheet && l.issues.some((e) => e.code === i.code)));
+      const issues = [...suggestion.issues, ...sourceIssues.map((i) => i.sheet + " \xB7 " + i.row + "-qator: " + i.message)];
       if (!parsed.lessons.length) issues.push("Dars qatorlari topilmadi.");
-      plans.push({ id: schoolDigest([file.sourceHash, sheet2.name]), fileName: file.name, sourceHash: file.sourceHash, sheetName: sheet2.name, lessons: parsed.lessons, suggestion, issues });
+      plans.push({ id: schoolDigest([file.sourceHash, sheet2.name]), fileName: file.name, sourceHash: file.sourceHash, sheetName: sheet2.name, sourceIssues, lessons: parsed.lessons, suggestion, issues });
     }
   }
   const seen = /* @__PURE__ */ new Set();
@@ -3131,7 +3132,7 @@ function registerSchoolImportRoutes(app2, deps) {
     const payload = await get(c.user.institutionId, job.id, "source", job.storagePath), page = Math.max(0, Math.min(1e3, Number(req.query.page) || 0));
     const selectedPlan = req.query.plan && payload.plans.find((p) => p.id === req.query.plan);
     if (req.query.plan && !selectedPlan) return res.status(404).json({ error: "Import varag\u2018i topilmadi." });
-    const all = selectedPlan ? selectedPlan.lessons : job.kind === "workplans" ? payload.plans.map(({ lessons, ...p }) => ({ ...p, lessonCount: lessons.length, errorCount: lessons.filter((l) => l.issues.length).length })) : payload.people;
+    const all = selectedPlan ? selectedPlan.lessons : job.kind === "workplans" ? payload.plans.map(({ lessons, ...p }) => ({ ...p, lessonCount: lessons.length, errorCount: lessons.filter((l) => l.issues.length).length + (p.sourceIssues || []).length })) : payload.people;
     const limit = Math.min(600, Math.max(1, Math.floor(Number(req.query.limit) || 25)));
     res.json({ total: all.length, rows: all.slice(page * limit, page * limit + limit), page, jobStatus: job.status });
   }));
@@ -3220,6 +3221,7 @@ function registerSchoolImportRoutes(app2, deps) {
         errors.push({ row: 0, sheet: plan.sheetName, error: "Bu sinfga qo\u2018shimcha fan biriktirishni alohida tasdiqlang." });
         continue;
       }
+      for (const issue2 of plan.sourceIssues || []) errors.push({ row: issue2.row, sheet: issue2.sheet, error: issue2.message });
       const valid = plan.lessons.filter((v) => !v.issues.length);
       for (const row2 of plan.lessons.filter((v) => v.issues.length)) errors.push({ row: row2.sourceRow, sheet: row2.sourceSheet, error: row2.issues.map((e) => e.message).join(" ") });
       if (!valid.length) continue;
