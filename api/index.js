@@ -3050,9 +3050,10 @@ async function studyRpc(name, args) {
   const { data, error } = await serverSupabase().rpc(name, args);
   if (error) {
     const e = Error(error.code === "40001" ? "PERSISTENCE_CONFLICT" : "Supabase operation failed");
-    Object.assign(e, { code: error.code });
+    Object.assign(e, { code: error.code || "UPSTREAM_UNAVAILABLE" });
     throw e;
   }
+  if (data && typeof data === "object" && typeof data._studyError === "string") throw Object.assign(Error("PERSISTENCE_CONFLICT"), { code: "40001" });
   return data;
 }
 
@@ -3910,6 +3911,7 @@ function registerAcademicRoutes(app2, deps) {
     if (!p.success) return res.status(400).json({ error: "Dars holati va versiyasini tekshiring." });
     const row2 = await store2.get(c.user.institutionId, "2026-2027", req.params.id);
     if (!row2 || !teach(c, row2)) return res.status(403).json({ error: "Faqat biriktirilgan ustoz darsni tasdiqlashi mumkin." });
+    if (row2.revision !== p.data.revision) return res.status(409).json({ code: "REVISION_CONFLICT", error: "Dars boshqa oynada yangilangan. Sahifani yangilang." });
     if (p.data.state === "confirmed" && !row2.topicId && !p.data.actualTopic) return res.status(400).json({ error: "Tasdiqlash uchun mavzu kerak." });
     if (p.data.state === "taught" && (row2.date > schoolToday() || !row2.topicId && !p.data.actualTopic)) return res.status(400).json({ error: "Kelajak darsi o\u2018tildi deb belgilanmaydi; haqiqiy mavzuni kiriting." });
     if (["cancelled", "postponed"].includes(p.data.state || "") && !p.data.changeReason) return res.status(400).json({ error: "Bekor qilish yoki kechiktirish asosini kiriting." });
@@ -4807,9 +4809,15 @@ var apiErrorHandler = (error, _req, res, _next) => {
     res.end();
     return;
   }
+  const safeCode = typeof error?.code === "string" && /^[A-Z0-9_]{1,24}$/.test(error.code) ? error.code : "UNEXPECTED";
+  console.warn(JSON.stringify({ event: "api_request_failed", code: safeCode, route: _req.route?.path || "api" }));
   const conflict = error?.code === "40001" || error?.code === "P0001";
   if (conflict) {
     res.status(409).set("Cache-Control", "no-store").json({ code: "DATA_CONFLICT", error: "Ma\u2019lumot yoki dars holati o\u2018zgargan. Yangilab, taklif va tarixni tekshiring." });
+    return;
+  }
+  if (safeCode === "UPSTREAM_UNAVAILABLE") {
+    res.status(503).set("Retry-After", "3").json({ code: "TEMPORARY", error: "Server aloqasi vaqtincha uzildi. Javobingizni saqlab, qayta urinib ko\u2018ring." });
     return;
   }
   const large = error?.type === "entity.too.large", invalid = error?.type === "entity.parse.failed";
