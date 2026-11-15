@@ -22,6 +22,7 @@ export function serverSupabaseIdentity(){
 export async function studyRpc<T=any>(name:string,args:Record<string,unknown>):Promise<T>{
  if(!/^study_[a-z_]+$/.test(name))throw Error('Invalid RPC');
  const {data,error}=await serverSupabase().rpc(name,args);
- if(error){const e=Error(error.code==='40001'?'PERSISTENCE_CONFLICT':'Supabase operation failed');Object.assign(e,{code:error.code});throw e;}
+ if(error){const e=Error(error.code==='40001'?'PERSISTENCE_CONFLICT':'Supabase operation failed');Object.assign(e,{code:error.code||'UPSTREAM_UNAVAILABLE'});throw e;}
+ if(data&&typeof data==='object'&&typeof data._studyError==='string')throw Object.assign(Error('PERSISTENCE_CONFLICT'),{code:'40001'});
  return data as T;
 }
