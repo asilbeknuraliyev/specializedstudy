@@ -21,7 +21,7 @@ The password-free account proposal and original row data remain local under igno
 - Leadership is a private school-scoped grant, not a name/email rule or automatic superadmin role. Grant/recovery requires an owner's fresh Google proof, explicit identity verification and an audit reason. TOTP secrets are encrypted; recovery codes are hashed and one-use. Leadership APIs require a fresh MFA-verified session family.
 - Existing Firebase client rules default-deny sensitive data. Supabase private tables have RLS with no browser policies and service-only RPC grants. Media and encrypted imports use a private bucket. Server secrets never enter the frontend configuration.
 - CSP permits scripts only from the same origin: no `unsafe-eval` or inline scripts. Inline styles remain for existing React/motion components; removing them requires a separate style migration. Security headers also set HSTS, nosniff, frame protection, referrer and permission restrictions.
-- HTML revalidates; API responses are no-store; production source maps are disabled. Canonical HTML redirects use 301 and API redirects use 308 to preserve methods. Frontend APIs use relative same-origin URLs.
+- HTML revalidates; API responses are no-store; production source maps are disabled. Canonical HTML redirects use 301 and API redirects use 308 to preserve methods. Frontend APIs use relative same-origin URLs. Public static files explicitly restrict CORS to the canonical origin, overriding the hosting default wildcard; private API origin checks remain independent.
 
 ## Import operation and credentials
 

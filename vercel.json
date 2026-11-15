@@ -78,6 +78,15 @@
       ]
     },
     {
+      "source": "/((?!api/).*)",
+      "headers": [
+        {
+          "key": "Access-Control-Allow-Origin",
+          "value": "https://specializedschool.vercel.app"
+        }
+      ]
+    },
+    {
       "source": "/((?!assets/).*)",
       "headers": [
         {
