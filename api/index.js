@@ -3325,7 +3325,12 @@ function registerSchoolImportRoutes(app2, deps) {
     const job = jobFor(c, req.params.id);
     if (!job || job.actorId !== c.user.uid || job.status !== "committed" || !job.credentialPath) return res.status(403).json({ error: "Bu kirish paketini olishga ruxsat yo\u2018q." });
     if (job.credentialsClaimedAt || !job.credentialExpiresAt || job.credentialExpiresAt < Date.now()) return res.status(410).json({ error: "Bir martalik ko\u2018rish tugagan. Kerak bo\u2018lsa hisob parolini xavfsiz tiklang." });
-    const proof = await deps.providerProof(String(req.body.idToken || "").slice(0, 16e3), c.db);
+    let proof;
+    try {
+      proof = await deps.providerProof(String(req.body.idToken || "").slice(0, 16e3), c.db);
+    } catch {
+      return res.status(403).json({ error: "Yangi Google tasdig\u2018i kerak." });
+    }
     if (proof.uid !== c.user.uid || !proof.email_verified || proof.firebase?.sign_in_provider !== "google.com" || Date.now() / 1e3 - proof.auth_time > 300) return res.status(403).json({ error: "Yangi Google tasdig\u2018i kerak." });
     const kind = job.credentialPath.split("/").at(-1).replace(/\.enc$/, "");
     const credentials = await get(c.user.institutionId, job.id, kind, job.credentialPath);

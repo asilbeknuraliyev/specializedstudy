@@ -85,7 +85,7 @@ export function registerSchoolImportRoutes(app:Express,deps:any){
  });
  app.post('/api/school-imports/:id/credentials/claim',asyncRoute(async(req,res)=>{
   const c=access(req,res);if(!c)return;const job=jobFor(c,req.params.id);if(!job||job.actorId!==c.user.uid||job.status!=='committed'||!job.credentialPath)return res.status(403).json({error:'Bu kirish paketini olishga ruxsat yo‘q.'});if(job.credentialsClaimedAt||!job.credentialExpiresAt||job.credentialExpiresAt<Date.now())return res.status(410).json({error:'Bir martalik ko‘rish tugagan. Kerak bo‘lsa hisob parolini xavfsiz tiklang.'});
-  const proof=await deps.providerProof(String(req.body.idToken||'').slice(0,16000),c.db);if(proof.uid!==c.user.uid||!proof.email_verified||proof.firebase?.sign_in_provider!=='google.com'||Date.now()/1000-proof.auth_time>300)return res.status(403).json({error:'Yangi Google tasdig‘i kerak.'});
+  let proof:any;try{proof=await deps.providerProof(String(req.body.idToken||'').slice(0,16000),c.db);}catch{return res.status(403).json({error:'Yangi Google tasdig‘i kerak.'});}if(proof.uid!==c.user.uid||!proof.email_verified||proof.firebase?.sign_in_provider!=='google.com'||Date.now()/1000-proof.auth_time>300)return res.status(403).json({error:'Yangi Google tasdig‘i kerak.'});
   const kind=job.credentialPath.split('/').at(-1)!.replace(/\.enc$/,'');const credentials=await get(c.user.institutionId,job.id,kind,job.credentialPath);job.credentialsClaimedAt=new Date().toISOString();audit(c,'Boshlang‘ich kirishlar bir marta ko‘rsatildi',job.id);deps.save(c.env,c.db);return res.json({credentials,oneTime:true,expiresAt:job.credentialExpiresAt});
  }));
  app.post('/api/school-imports/:id/undo',(req,res)=>{
