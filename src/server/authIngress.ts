@@ -3,6 +3,7 @@ import {isIP} from 'node:net';
 import type {Request,RequestHandler} from 'express';
 import {studyRpc,supabaseEnabled} from './supabaseClient';
 import {runtimeNamespace} from './runtimeScope';
+import {secureInviteShape} from './invitationSecurity';
 const salt=process.env.SESSION_SECRET||crypto.randomBytes(32).toString('hex');
 export function clientIpFingerprint(req:Pick<Request,'headers'|'socket'>){
  const platform=process.env.VERCEL?String(req.headers['x-vercel-forwarded-for']||'').split(',')[0].trim():'';
@@ -15,12 +16,19 @@ export function authenticationBucket(req:Request,scope:string){
  return `${scope}:${clientIpFingerprint(req)}:${account}:${test}`;
 }
 export const authIngress:RequestHandler=async(req,res,next)=>{
- const publicLogin=['/api/auth/login','/api/auth/provider-sync','/api/auth/firebase-sync','/api/auth/register-with-invite'].includes(req.path),sensitive=['/api/account/password','/api/account/native-credentials','/api/account/google-link'].includes(req.path);
- if(req.method!=='POST'||(!publicLogin&&!sensitive)||!supabaseEnabled())return next();
+ const publicLogin=['/api/auth/login','/api/auth/refresh','/api/auth/provider-sync','/api/auth/firebase-sync','/api/auth/register-with-invite'].includes(req.path),sensitive=['/api/account/password','/api/account/native-credentials','/api/account/google-link'].includes(req.path)||req.path.startsWith('/api/account/mfa/');
+ const invitationPreview=req.method==='GET'&&req.path.startsWith('/api/invitations/preview/');
+ const invite=invitationPreview?req.path.split('/').at(-1)||'':String(req.body?.inviteToken||'').trim().toUpperCase();
+ if((invitationPreview||req.path==='/api/auth/register-with-invite')&&!secureInviteShape(invite))return res.status(400).json({error:'Taklif kodi yaroqsiz yoki muddati tugagan.'});
+ if((req.method!=='POST'&&!invitationPreview)||(!publicLogin&&!sensitive&&!invitationPreview)||!supabaseEnabled())return next();
  try{
   const key=sensitive?crypto.createHmac('sha256',salt).update(req.path+':'+String(res.locals.signedUid||'anonymous')+':'+clientIpFingerprint(req)).digest('hex'):clientIpFingerprint(req);
   const allowed=await studyRpc<boolean>('study_auth_rate_limit',{p_namespace:runtimeNamespace(),p_key:key,p_limit:sensitive?10:600,p_window_ms:sensitive?900000:60000});
   if(!allowed)return res.status(429).set('Retry-After','60').json({code:'RATE_LIMITED',error:'Kirish so‘rovlari ko‘paydi. Bir daqiqadan keyin qayta urining.'});
+  if(invitationPreview||req.path==='/api/auth/register-with-invite'){
+   const inviteKey=crypto.createHmac('sha256',salt).update('invite:'+invite+':'+clientIpFingerprint(req)).digest('hex');
+   if(!await studyRpc<boolean>('study_auth_rate_limit',{p_namespace:runtimeNamespace(),p_key:inviteKey,p_limit:10,p_window_ms:900000}))return res.status(429).set('Retry-After','900').json({code:'RATE_LIMITED',error:'Taklif urinishlari cheklangan. 15 daqiqadan keyin qayta urining.'});
+  }
   next();
  }catch{return res.status(503).json({code:'TEMPORARY',error:'Kirish xizmati vaqtincha tayyor emas.'});}
 };

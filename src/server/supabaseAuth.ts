@@ -1,8 +1,9 @@
+import {findSecureInvitation,validateSecureInvitation} from './invitationSecurity';
 import crypto from 'node:crypto';
 import type {Express} from 'express';
 import {z} from 'zod';
 import {serverSupabase} from './supabaseClient';
-import {isAuthorizedAdminEmail,computeSimpleHash,validateInvitationToken} from '../utils/security';
+import {isAuthorizedAdminEmail} from '../utils/security';
 import type {PersistentDatabaseState} from './dbEngine';
 
 export const supabaseAuthEnabled=()=>process.env.AUTH_PROVIDER==='supabase';
@@ -60,6 +61,7 @@ export function registerSupabaseAuthRoutes(app:Express,deps:any){
    let user=resolveProviderProfile(db,provider);
    if(user&&user.status!=='active')return res.status(403).json({error:'Hisob faol emas.'});
    if(!user){
+    if(!parsed.data.inviteToken)return res.status(403).json({error:'Maktab hisobiga ulanish uchun administrator taklifi kerak.'});
     // Never attach a Google login to an existing password account by an untrusted client-supplied email.
     if(db.users.some(u=>u.email.toLowerCase()===provider.email!.toLowerCase()))return res.status(409).json({error:'Avval mavjud hisobga kirib, Google hisobingizni biriktiring.'});
     if(isAuthorizedAdminEmail(provider.email))return res.status(403).json({error:'Administrator hisobi migratsiya reyestrida tasdiqlanishi kerak.'});
@@ -67,12 +69,12 @@ export function registerSupabaseAuthRoutes(app:Express,deps:any){
     let classroom:any,invitation:any;
     if(parsed.data.inviteToken){
      const raw=parsed.data.inviteToken.trim().toUpperCase();
-     invitation=(db.invitations||[]).find(v=>v.tokenHash===computeSimpleHash(raw));
+     invitation=findSecureInvitation(db.invitations||[],raw);
      if(invitation){
-      const valid=validateInvitationToken(raw,invitation,now);
+      const valid=validateSecureInvitation(raw,invitation,now);
       if(!valid.valid||invitation.role!=='student'||(invitation.email&&invitation.email.toLowerCase()!==provider.email!.toLowerCase()))return res.status(400).json({error:'Taklif kodi bu hisob uchun yaroqsiz.'});
       classroom=db.classes.find(c=>c.id===invitation.classId&&c.institutionId===invitation.institutionId&&c.status!=='archived');
-     }else classroom=(db.classes||[]).find(c=>c.inviteCode?.toUpperCase()===raw&&c.status!=='archived');
+     }
      if(!classroom)return res.status(400).json({error:'Taklif kodi topilmadi yoki muddati tugagan.'});
     }
     user={uid:provider.id,linkedSupabaseUid:provider.id,email:provider.email!,emailVerified:true,displayName:String(provider.user_metadata?.full_name||'O‘quvchi').slice(0,120),role:'student',institutionId:school.id,status:'active',createdAt:now} as any;db.users.push(user!);

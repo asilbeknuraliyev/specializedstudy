@@ -219,6 +219,7 @@ export function isSubjectCompatibleWithClass(
   if (!parsed || !subjObj) {
     return { compatible: true };
   }
+  if(typeof classCodeOrRoom!=='string'&&classCodeOrRoom.additionalSubjectIds?.includes(subjObj.id))return{compatible:true};
 
   if (
     Array.isArray(subjObj.applicableClassCodes) &&

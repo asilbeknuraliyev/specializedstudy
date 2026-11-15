@@ -1,8 +1,17 @@
+import {studentCanAccessLesson} from './src/server/studentLessonScope';
+import {projectTeachingIdentity} from './src/server/teachingIdentity';
+import {registerSchoolImportRoutes} from './src/server/schoolImportRoutes';
+import {registerLeadershipRoutes} from './src/server/leadershipRoutes';
+import {createMfaGuard,registerLeadershipSecurity,leadershipGrant,hasLeadershipPermission} from './src/server/leadershipSecurity';
+import {accountProviderProof} from './src/server/supabaseAuth';
+import {registerRefreshRoutes,revokeCurrentRefresh} from './src/server/refreshSessions';
 import {authIngress,authenticationBucket,clientIpFingerprint} from './src/server/authIngress';
 import {registerSupabaseAuthRoutes} from './src/server/supabaseAuth';
 import {apiErrorHandler} from './src/server/apiErrorHandler';
 import {productionCsp} from './src/server/securityHeaders';
 import {asyncRoute} from './src/server/asyncRoute';
+import {validPassword,passwordPolicyMessage} from './src/utils/passwordPolicy';
+import {findSecureInvitation,validateSecureInvitation} from './src/server/invitationSecurity';
 import {deliveredNotification} from './src/utils/notificationPolicy';
 import {schoolDay} from './src/server/spacedReviewEngine';
 import {registerAiAccessGuard} from './src/server/aiAccessGuard';
@@ -76,6 +85,7 @@ import {
   resetTestDbState,
   ensureSpecializedStudyStructure,
   hashPassword,
+  hashPasswordAsync,
   generateSecureRandomPassword,
   verifyPassword,
   verifyPasswordAsync,
@@ -352,10 +362,11 @@ function authenticateRequest(
 
   const db = getDbState(verified.env);
   const user = db.users.find((u) => u.uid === verified.uid);
-  if (!user || user.status === 'suspended' || user.status === 'archived') return null;
+  if (!user || user.status !== 'active') return null;
 
   const normalizedEmail = String(user.email || '').trim().toLowerCase();
   const isAuthAdmin = isAuthorizedAdminEmail(normalizedEmail, CONFIGURED_OWNER_EMAIL);
+  if((['platform_owner','admin'].includes(user.role)||user.platformAdmin)&&!(isAuthAdmin&&user.emailVerified===true&&user.platformAdmin===true&&db.customClaims?.[user.uid]?.platformAdmin===true))return null;
   if (isAuthAdmin && user.emailVerified === true && user.platformAdmin === true && db.customClaims?.[user.uid]?.platformAdmin === true) {
     user.role = 'platform_owner';
     user.platformOwner = true;
@@ -366,7 +377,11 @@ function authenticateRequest(
     user.platformAdmin = false;
   }
 
-  return { user, env: verified.env, db, token };
+  const requestedSubject=req.headers['x-teaching-subject'];
+  if(requestedSubject!==undefined&&(typeof requestedSubject!=='string'||requestedSubject.length>100))return null;
+  const effectiveUser=projectTeachingIdentity(user,db.teacherAssignments||[],requestedSubject as string|undefined);
+  if(!effectiveUser)return null;
+  return { user:effectiveUser, env: verified.env, db, token };
 }
 
 function appendAuditLog(
@@ -437,6 +452,8 @@ async function startServer() {
       `req-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     (req as any).requestId = reqId;
     res.setHeader('X-Request-Id', reqId);
+    if(req.path.startsWith('/api/'))res.setHeader('Cache-Control','no-store');
+    res.setHeader('X-Frame-Options','SAMEORIGIN');
 
     res.setHeader(
       'Content-Security-Policy',
@@ -468,7 +485,7 @@ async function startServer() {
         res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS');
         res.setHeader(
           'Access-Control-Allow-Headers',
-          'Content-Type, Authorization, X-LearnOS-Env, X-Request-Id, X-Test-Rate-Limit, X-Test-Client-Id'
+          'Content-Type, Authorization, X-LearnOS-Env, X-Request-Id, X-Test-Rate-Limit, X-Test-Client-Id, X-Teaching-Subject'
         );
       }
     }
@@ -478,7 +495,49 @@ async function startServer() {
     next();
   });
 
+  app.use(createPrivateApiPreflight(verifySessionToken,extractRawTokenFromRequest));
+  const uploadJsonParser = express.json({ limit: '20mb' });
+  const standardJsonParser = express.json({ limit: '2mb' });
+  const authJsonParser = express.json({limit:'16kb'});
+  app.use((req, res, next) => {
+    if(/^\/api\/(?:auth|account)\//.test(req.path))return authJsonParser(req,res,next);
+    if (
+      req.path.startsWith('/api/school-imports/') || req.path.startsWith('/api/topic-bank/') ||
+      req.path.startsWith('/api/exams/drafts') ||
+      /^\/api\/exams\/[^/]+\/draft$/.test(req.path) ||
+      req.path.startsWith('/api/students/import/') ||
+      req.path.startsWith('/api/work-plans/upload') ||
+      req.path.startsWith('/api/imports/') ||
+      req.path.startsWith('/api/questions/media')
+      || req.path === '/api/content-imports/preview'
+    ) {
+      return uploadJsonParser(req, res, next);
+    }
+    return standardJsonParser(req, res, next);
+  });
+
+  app.use(authIngress);
+  app.use(cloudStateMiddleware);
+  app.use(localSessionResponse);
+  app.use('/api',(req,res,next)=>{if(req.path==='/health')return next();const c=authenticateRequest(req);if(c?.user.mustChangePassword&&!['/state','/account/password','/auth/logout','/auth/login','/auth/firebase-sync','/auth/provider-sync'].includes(req.path))return res.status(403).json({error:'Davom etish uchun parolni o‘zgartiring.',code:'PASSWORD_CHANGE_REQUIRED'});next();});
+  app.use(createMfaGuard(authenticateRequest));
+  registerLeadershipSecurity(app,{authenticate:authenticateRequest,save:saveDbState,verify:verifyPasswordAsync,providerProof:accountProviderProof,owner:(user:UserProfile)=>isVerifiedPlatformOwner(user,CONFIGURED_OWNER_EMAIL),revoke:revokeAllUserSessions});
+  registerLeadershipRoutes(app,{authenticate:authenticateRequest});
+  registerSchoolImportRoutes(app,{authenticate:authenticateRequest,save:saveDbState,hash:hashPasswordAsync,providerProof:accountProviderProof,owner:(user:UserProfile)=>isVerifiedPlatformOwner(user,CONFIGURED_OWNER_EMAIL),revoke:revokeAllUserSessions});
+  registerAiAccessGuard(app,{authenticate:authenticateRequest});
+  registerDisciplineRoutes(app,{authenticate:authenticateRequest,save:saveDbState});
+  registerWorkspaceRoutes(app,{authenticate:authenticateRequest,save:saveDbState});
+  registerReinforcementRoutes(app,{authenticate:authenticateRequest,save:saveDbState});
+  registerSchoolAdminRoutes(app,{authenticate:authenticateRequest,save:saveDbState,revoke:revokeAllUserSessions});
+  registerExamReliabilityRoutes(app, {authenticate:authenticateRequest,save:saveDbState});
+  registerExamRoutes(app, {authenticate: authenticateRequest, save: saveDbState, notify: broadcastInstitutionUpdate});
+  registerTopicRoutes(app,{authenticate:authenticateRequest,save:saveDbState});
+  registerLearningDemoRoutes(app,{authenticate:authenticateRequest,save:saveDbState,hash:hashPassword,revoke:(uid:string)=>revokeAllUserSessions(uid)});
+  registerSupabaseAuthRoutes(app,{database:getDbState,save:saveDbState,issue:issueSessionToken,authenticate:authenticateRequest,owner:(user:UserProfile)=>isVerifiedPlatformOwner(user,CONFIGURED_OWNER_EMAIL)});
+  registerRefreshRoutes(app,{database:getDbState,save:saveDbState,issue:issueSessionToken,authenticate:authenticateRequest});
+  registerAccountRoutes(app,{authenticate:authenticateRequest,save:saveDbState,hash:hashPasswordAsync,verify:verifyPasswordAsync,revoke:revokeAllUserSessions,issue:issueSessionToken});
   app.get('/api/auth/diagnostics', (req, res) => {
+    const actor=authenticateRequest(req);if(!actor||!isVerifiedPlatformOwner(actor.user,CONFIGURED_OWNER_EMAIL))return res.status(403).json({error:'Ruxsat yo‘q.'});
     if(process.env.AUTH_PROVIDER==='supabase')return res.json({status:'ok',provider:'supabase',authDomain:new URL(process.env.SUPABASE_URL||'https://invalid.invalid').host,requestHost:String(req.headers.host||''),googleProviderConfigured:process.env.SUPABASE_GOOGLE_ENABLED==='true'});
     const requestHost = String(req.headers['x-forwarded-host'] || req.headers.host || '').trim();
     const origin = String(req.headers.origin || '').trim();
@@ -507,47 +566,11 @@ async function startServer() {
     });
   });
 
-  app.use(createPrivateApiPreflight(verifySessionToken,extractRawTokenFromRequest));
-  app.use(authIngress);
-  app.use(cloudStateMiddleware);
-  app.use(localSessionResponse);
-  const uploadJsonParser = express.json({ limit: '20mb' });
-  const standardJsonParser = express.json({ limit: '2mb' });
-  const authJsonParser = express.json({limit:'16kb'});
-  app.use((req, res, next) => {
-    if(/^\/api\/(?:auth|account)\//.test(req.path))return authJsonParser(req,res,next);
-    if (
-      req.path.startsWith('/api/topic-bank/') ||
-      req.path.startsWith('/api/exams/drafts') ||
-      /^\/api\/exams\/[^/]+\/draft$/.test(req.path) ||
-      req.path.startsWith('/api/students/import/') ||
-      req.path.startsWith('/api/work-plans/upload') ||
-      req.path.startsWith('/api/imports/') ||
-      req.path.startsWith('/api/questions/media')
-      || req.path === '/api/content-imports/preview'
-    ) {
-      return uploadJsonParser(req, res, next);
-    }
-    return standardJsonParser(req, res, next);
-  });
-
-  app.use('/api',(req,res,next)=>{const c=authenticateRequest(req);if(c?.user.mustChangePassword&&!['/state','/account/password','/auth/logout','/auth/login','/auth/firebase-sync','/auth/provider-sync'].includes(req.path))return res.status(403).json({error:'Davom etish uchun parolni o‘zgartiring.',code:'PASSWORD_CHANGE_REQUIRED'});next();});
-  registerAiAccessGuard(app,{authenticate:authenticateRequest});
-  registerDisciplineRoutes(app,{authenticate:authenticateRequest,save:saveDbState});
-  registerWorkspaceRoutes(app,{authenticate:authenticateRequest,save:saveDbState});
-  registerReinforcementRoutes(app,{authenticate:authenticateRequest,save:saveDbState});
-  registerSchoolAdminRoutes(app,{authenticate:authenticateRequest,save:saveDbState,revoke:revokeAllUserSessions});
-  registerExamReliabilityRoutes(app, {authenticate:authenticateRequest,save:saveDbState});
-  registerExamRoutes(app, {authenticate: authenticateRequest, save: saveDbState, notify: broadcastInstitutionUpdate});
-  registerTopicRoutes(app,{authenticate:authenticateRequest,save:saveDbState});
-  registerLearningDemoRoutes(app,{authenticate:authenticateRequest,save:saveDbState,hash:hashPassword,revoke:(uid:string)=>revokeAllUserSessions(uid)});
-  registerSupabaseAuthRoutes(app,{database:getDbState,save:saveDbState,issue:issueSessionToken,authenticate:authenticateRequest,owner:(user:UserProfile)=>isVerifiedPlatformOwner(user,CONFIGURED_OWNER_EMAIL)});
-  registerAccountRoutes(app,{authenticate:authenticateRequest,save:saveDbState,hash:hashPassword,verify:verifyPassword,revoke:revokeAllUserSessions,issue:issueSessionToken});
-  registerTeachingRoutes(app,{authenticate:authenticateRequest,save:saveDbState,hash:hashPassword,revoke:revokeAllUserSessions});
+  registerTeachingRoutes(app,{authenticate:authenticateRequest,save:saveDbState,hash:hashPasswordAsync,revoke:revokeAllUserSessions});
   registerDemoRoutes(app,{authenticate:authenticateRequest,save:saveDbState,hash:hashPassword,revoke:revokeAllUserSessions});
   registerContentRoutes(app,{authenticate:authenticateRequest,save:saveDbState});
   registerStudentHomeRoutes(app,{authenticate:authenticateRequest,save:saveDbState});
-  app.use('/api',(req,res,next)=>{const c=authenticateRequest(req);if(c?.user.role==='teacher'&&!['/state','/auth/logout','/search'].includes(req.path)&&!req.path.startsWith('/teaching/'))return res.status(403).json({error:'O‘qituvchi uchun bu amalga ruxsat yo‘q.'});next();});
+  app.use('/api',(req,res,next)=>{if(req.path==='/health')return next();const c=authenticateRequest(req);if(c?.user.role==='teacher'&&!['/state','/auth/logout','/search'].includes(req.path)&&!req.path.startsWith('/teaching/'))return res.status(403).json({error:'O‘qituvchi uchun bu amalga ruxsat yo‘q.'});next();});
 
 
   function enforceRateLimit(
@@ -575,17 +598,7 @@ async function startServer() {
   }
 
   app.get('/api/health', (_req, res) => {
-    const hasGemini = Boolean(
-      process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY !== 'MY_GEMINI_API_KEY'
-    );
-    res.json({
-      status: 'ok',
-      persistence: process.env.PERSISTENCE_DRIVER === 'firestore' ? 'firestore' : 'local',
-      geminiConfigured: hasGemini,
-      platformOwnerEmail: CONFIGURED_OWNER_EMAIL,
-      authorizedAdminCount: AUTHORIZED_ADMIN_EMAILS.length,
-      timestamp: new Date().toISOString(),
-    });
+    res.set('Cache-Control','no-store').json({status:'ok'});
   });
 
   app.post('/api/test/reset', (_req, res) => {
@@ -629,8 +642,8 @@ async function startServer() {
     if (!email || !String(email).includes('@')) {
       return res.status(400).json({ error: 'To‘g‘ri elektron pochta manzilini kiriting.' });
     }
-    if (!password || String(password).length < 6) {
-      return res.status(400).json({ error: 'Parol kamida 6 ta belgidan iborat bo‘lishi shart.' });
+    if (!validPassword(password)) {
+      return res.status(400).json({ error: passwordPolicyMessage });
     }
 
     const normalizedBootstrapEmail = String(email).trim().toLowerCase();
@@ -854,6 +867,7 @@ async function startServer() {
     clearSessionCookie(res);
     const authCtx = authenticateRequest(req);
     if (authCtx) {
+      revokeCurrentRefresh(req,authCtx.db);
       revokeSessionToken(authCtx.token);
       appendAuditLog(
         authCtx.db,
@@ -1166,9 +1180,9 @@ async function startServer() {
     if (inviteToken && String(inviteToken).trim()) {
       const rawTok = String(inviteToken).trim().toUpperCase();
       const tokenHash = computeSimpleHash(rawTok);
-      const invitation = db.invitations.find((inv) => inv.tokenHash === tokenHash);
+      const invitation = findSecureInvitation(db.invitations,rawTok);
       if (invitation) {
-        const validation = validateInvitationToken(rawTok, invitation, nowIso);
+        const validation = validateSecureInvitation(rawTok, invitation, nowIso);
         if (!validation.valid) {
           return res.status(400).json({ error: validation.error || 'Taklif kodi yaroqsiz.' });
         }
@@ -1182,7 +1196,7 @@ async function startServer() {
         );
       } else {
         resolvedClass = db.classes.find(
-          (c) => c.inviteCode.toUpperCase() === rawTok && c.status !== 'archived'
+          (c) => false
         );
         if (!resolvedClass) {
           return res.status(400).json({ error: 'Taklif kodi topilmadi yoki muddati tugagan.' });
@@ -1260,18 +1274,16 @@ async function startServer() {
 
     // Also allow class inviteCode for student registration if institution allows it
     const tokenHash = computeSimpleHash(rawToken);
-    const invitation = db.invitations.find((inv) => inv.tokenHash === tokenHash);
+    const invitation = findSecureInvitation(db.invitations,rawToken);
 
     if (invitation) {
-      const check = validateInvitationToken(rawToken, invitation);
+      const check = validateSecureInvitation(rawToken, invitation);
       if (!check.valid) {
         return res.status(400).json({ error: check.error });
       }
       return res.json({
         type: 'invitation',
         institutionName: invitation.institutionName,
-        inviteeName: invitation.inviteeName,
-        email: invitation.email,
         role: invitation.role,
         className: invitation.className,
         subject: invitation.subject,
@@ -1280,7 +1292,7 @@ async function startServer() {
 
     // Check if it matches an active ClassRoom inviteCode for students
     const cls = db.classes.find(
-      (c) => c.inviteCode.toUpperCase() === rawToken && c.status !== 'archived'
+      (c) => false
     );
     if (cls) {
       const inst = db.institutions.find((i) => i.id === cls.institutionId);
@@ -1298,6 +1310,7 @@ async function startServer() {
 
   // Register account using a verified single-use Invitation Token (or Class Invite Code)
   app.post('/api/auth/register-with-invite', (req, res) => {
+    if(!enforceRateLimit(req,res,'register-with-invite',10,15*60_000))return;
     const env = resolveRequestEnv(req);
     const db = getDbState(env);
     const { displayName, email, password, inviteToken } = req.body;
@@ -1308,8 +1321,8 @@ async function startServer() {
     if (!email || !String(email).includes('@')) {
       return res.status(400).json({ error: 'To‘g‘ri elektron pochta manzilini kiriting.' });
     }
-    if (!password || String(password).length < 6) {
-      return res.status(400).json({ error: 'Parol kamida 6 ta belgidan iborat bo‘lishi shart.' });
+    if (!validPassword(password)) {
+      return res.status(400).json({ error: passwordPolicyMessage });
     }
     if (!inviteToken || !String(inviteToken).trim()) {
       return res.status(400).json({ error: 'Taklif kodini kiritish majburiy.' });
@@ -1322,13 +1335,13 @@ async function startServer() {
 
     const rawToken = String(inviteToken).trim().toUpperCase();
     const tokenHash = computeSimpleHash(rawToken);
-    const invitation = db.invitations.find((inv) => inv.tokenHash === tokenHash);
+    const invitation = findSecureInvitation(db.invitations,rawToken);
 
     const nowIso = new Date().toISOString();
     const newUid = `user-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
 
     if (invitation) {
-      const validation = validateInvitationToken(rawToken, invitation, nowIso);
+      const validation = validateSecureInvitation(rawToken, invitation, nowIso);
       if (!validation.valid) {
         return res.status(400).json({ error: validation.error });
       }
@@ -1458,7 +1471,7 @@ async function startServer() {
 
     // Check if rawToken is a valid ClassRoom inviteCode for a student
     const cls = db.classes.find(
-      (c) => c.inviteCode.toUpperCase() === rawToken && c.status !== 'archived'
+      (c) => false
     );
     if (cls) {
       const newUser: UserProfile = {
@@ -1638,6 +1651,9 @@ async function startServer() {
     );
 
     const isOwner = isVerifiedPlatformOwner(user, CONFIGURED_OWNER_EMAIL);
+    const grant=leadershipGrant({user,db});
+    if(grant)return res.json({user:{...user,mfaRequired:false},institution,institutions:[institution],academicYears:db.academicYears.filter(y=>y.institutionId===instId),classes:db.classes.filter(cl=>cl.institutionId===instId),subjects:instSubjects,topics:[],lessons:[],workPlans:[],users:[],questions:[],assessments:[],attempts:[],notifications:myNotifications,teacherAssignments:db.teacherAssignments.filter(v=>v.institutionId===instId)});
+
 
     if (isOwner) {
       return res.json({
@@ -1743,7 +1759,7 @@ async function startServer() {
       const mySubjects = myClass
         ? db.subjects.filter(
             (s) =>
-              isSubjectCompatibleWithClass(s.name, myClass, db.subjects).compatible ||
+              (!(s as any).schoolImportOnly||myLessons.some(l=>l.subjectId===s.id))&&isSubjectCompatibleWithClass(s.name, myClass, db.subjects).compatible ||
               (hasApprovedTTrackMath && s.name.toLowerCase() === 'matematika')
           )
         : instSubjects;
@@ -2739,7 +2755,7 @@ async function startServer() {
 
     const { rawToken, tokenHash } = generateCryptographicInviteToken(targetRole);
     const nowIso = new Date().toISOString();
-    const expiresIso = new Date(Date.now() + 1000 * 60 * 60 * 24 * 14).toISOString(); // 14 days
+    const expiresIso = new Date(Date.now() + 1000 * 60 * 60 * 24 * 7).toISOString(); // 7 days
 
     const newInvite: Invitation = {
       id: `inv-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
@@ -2827,7 +2843,7 @@ async function startServer() {
 
     const inst = db.institutions.find((i) => i.id === user.institutionId) || db.institutions[0];
     const nowIso = new Date().toISOString();
-    const expiresIso = new Date(Date.now() + 1000 * 60 * 60 * 24 * 14).toISOString();
+    const expiresIso = new Date(Date.now() + 1000 * 60 * 60 * 24 * 7).toISOString();
 
     const createdInvites: Array<{ inviteeName: string; email: string; rawToken: string }> = [];
 
@@ -2948,7 +2964,8 @@ async function startServer() {
     const nowIso = new Date().toISOString();
     const newUid = `user-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
     const targetRole: UserRole = 'student';
-    const hasCustomPassword = typeof password === 'string' && password.trim().length >= 6;
+    if(password!==undefined&&!validPassword(password))return res.status(400).json({error:passwordPolicyMessage});
+    const hasCustomPassword = validPassword(password);
 
     const newUser: UserProfile = {
       uid: newUid,
@@ -3601,7 +3618,7 @@ async function startServer() {
 
     if (action === 'send_invite') {
       const inst = db.institutions.find((i) => i.id === user.institutionId) || db.institutions[0];
-      const expiresIso = new Date(Date.now() + 14 * 86400000).toISOString();
+      const expiresIso = new Date(Date.now() + 7 * 86400000).toISOString();
       const createdTokens: Array<{ uid: string; displayName: string; rawToken: string }> = [];
 
       for (const s of matchedStudents) {
@@ -3746,10 +3763,7 @@ async function startServer() {
       ? db.lessons || []
       : (db.lessons || []).filter(
           (l) =>
-            lessonMatchesClass(l, user.classCode || user.classId) &&
-            (!l.additionalCurriculumAssignment || l.tTrackVisibilityApproved === true) &&
-            l.status !== 'planned' &&
-            l.status !== 'archived'
+            studentCanAccessLesson(user,l,db.classes)
         );
 
     for (const l of allowedLessons) {
@@ -3821,10 +3835,7 @@ async function startServer() {
       ? db.lessons || []
       : (db.lessons || []).filter(
           (l) =>
-            lessonMatchesClass(l, user.classCode || user.classId) &&
-            (!l.additionalCurriculumAssignment || l.tTrackVisibilityApproved === true) &&
-            l.status !== 'planned' &&
-            l.status !== 'archived'
+            studentCanAccessLesson(user,l,db.classes)
         );
 
     for (const l of lessonsPool) {
@@ -6524,7 +6535,7 @@ async function startServer() {
           availableFrom: meta?.availabilityStart || nowIso.slice(0, 10),
           dueDate:
             meta?.availabilityEnd ||
-            new Date(Date.now() + 14 * 86400000).toISOString().slice(0, 10),
+            new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10),
           classId: classId ? String(classId) : '',
           teacherId: user.uid,
           institutionId: targetInstId,
@@ -7899,9 +7910,9 @@ Savollar va javoblar: ${JSON.stringify(anonymizedAnswers)}
         c.id === user.classId ||
         (user.classCode && c.code.toLowerCase() === user.classCode.toLowerCase())
     );
-    const classCode = (myClass?.code || user.classCode || '7a1').toLowerCase();
+    const classCode = myClass?.code?.toLowerCase() || '';
 
-    if (!lessonMatchesClass(lesson, classCode)) {
+    if (!studentCanAccessLesson(user,lesson,db.classes)) {
       return res.status(403).json({ error: 'Ushbu dars sizning sinfingizga biriktirilmagan.' });
     }
 
@@ -8028,9 +8039,9 @@ Savollar va javoblar: ${JSON.stringify(anonymizedAnswers)}
         c.id === user.classId ||
         (user.classCode && c.code.toLowerCase() === user.classCode.toLowerCase())
     );
-    const classCode = (myClass?.code || user.classCode || '7a1').toLowerCase();
+    const classCode = myClass?.code?.toLowerCase() || '';
 
-    if (!lessonMatchesClass(lesson, classCode)) {
+    if (!studentCanAccessLesson(user,lesson,db.classes)) {
       return res.status(403).json({ error: 'Ushbu dars sizning sinfingizga biriktirilmagan.' });
     }
 
@@ -9484,7 +9495,7 @@ Savollar va javoblar: ${JSON.stringify(anonymizedAnswers)}
       observedNeed: String(observedNeed).trim(),
       goal: String(goal).trim(),
       recommendedActivity: String(recommendedActivity || '').trim(),
-      reviewDate: reviewDate || new Date(Date.now() + 14 * 86400000).toISOString().slice(0, 10),
+      reviewDate: reviewDate || new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10),
       status: status || 'Yangi',
       progressNotes: String(progressNotes || '').trim(),
       createdByUid: user.uid,

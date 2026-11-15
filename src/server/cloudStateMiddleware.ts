@@ -1,5 +1,5 @@
 import {runtimeMetrics,quotaExhausted} from './runtimeMetrics';
-import {sessionBody} from './sessionCookies';
+import {prepareSessionBody} from './sessionCookies';
 import type { RequestHandler } from 'express';
 import { requestDatabase } from './requestDatabase';
 import { readCloudState, writeCloudState, StateConflictError } from './cloudState';
@@ -24,10 +24,11 @@ return async (req,res,next) => {
      void (async()=>{
        try {
          const commitBegan=performance.now();
+         const response=prepareSessionBody(res,body);
          if(context.dirty){if((snapshot as any).readOnly)throw Error('Scoped exam context cannot mutate school records');await store.write(context.state,context.revision,baseState);}
          for(const action of context.afterCommit)action();
          res.setHeader('Server-Timing',`state;dur=${readMs.toFixed(1)}, commit;dur=${(performance.now()-commitBegan).toFixed(1)}`);
-         json(sessionBody(res,body));
+         response.commit();json(response.body);
        } catch(error) {runtimeMetrics.failure(quotaExhausted(error)?'quota_exhausted':error instanceof StateConflictError?'conflict':'write_failed');
          const conflict=error instanceof StateConflictError||(error as any)?.code==='40001';
          res.status(conflict?409:503);

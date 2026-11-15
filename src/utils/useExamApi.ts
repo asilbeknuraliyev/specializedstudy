@@ -1,3 +1,4 @@
+import {sessionFetch} from './sessionFetch';
 import { useCallback } from "react";
 import { useLearnOS } from "../context/LearnOSContext";
 export function useExamApi() {
@@ -6,7 +7,7 @@ export function useExamApi() {
     async (path: string, method = "GET", body?: unknown) => {
       let response: Response;
       try {
-        response = await fetch(path, {
+        response = await sessionFetch(path, {
           method,
           headers: {
             "Content-Type": "application/json",

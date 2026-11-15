@@ -107,6 +107,12 @@ export interface AcademicYearItem {
 export type StudentAccountStatus = 'active' | 'pending_activation' | 'suspended' | 'archived';
 
 export interface UserProfile {
+  position?:string;
+  subjects?:string[];
+  academicYear?:string;
+  sourceImport?:{batchId:string;sourceHash:string;sourceSheet:string;sourceRow:number;sourceClass?:string};
+  leadershipDesignation?:'director'|'academic_deputy';
+  mfaRequired?:boolean;
   login?: string;
   mustChangePassword?: boolean;
   linkedGoogleUid?: string;
@@ -142,6 +148,9 @@ export interface UserProfile {
 }
 
 export interface ClassRoom {
+  additionalSubjectIds?:string[];
+  displayName?:string;
+  sectionLabel?:string;
   id: string;
   code: string; // e.g., '5a1', '7t'
   name: string; // e.g., '5a1', '7t'

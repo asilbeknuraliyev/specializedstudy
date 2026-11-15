@@ -7,7 +7,8 @@ export function createPrivateApiPreflight(
     if(!req.path.startsWith('/api/'))return next();
     if(/^\/api\/learning-demo(?:\/|$)/.test(req.path)&&!String(process.env.PERSISTENCE_NAMESPACE||'').startsWith('_specialized_preview_'))return res.status(404).json({error:'Topilmadi.'});
     if(req.path==='/api/test/reset'&&process.env.NODE_ENV!=='test')return res.status(404).json({error:'Topilmadi.'});
-    if(/^\/api\/(?:health$|auth\/(?:login|provider-sync|firebase-sync|diagnostics|bootstrap-status|bootstrap|register-with-invite)$|invitations\/preview\/[^/]+$)/.test(req.path)||(req.path==='/api/test/reset'&&process.env.NODE_ENV==='test'))return next();
+    if(/^\/api\/(?:health$|auth\/(?:login|refresh|provider-sync|firebase-sync|register-with-invite)$|invitations\/preview\/[^/]+$)/.test(req.path)||(req.path==='/api/test/reset'&&process.env.NODE_ENV==='test'))return next();
+    if(process.env.NODE_ENV==='test'&&/^\/api\/auth\/(bootstrap|bootstrap-status)$/.test(req.path))return next();
     const signed = verify(token(req));
     if (!signed || (signed.env === "test" && process.env.NODE_ENV !== "test"))
       return res

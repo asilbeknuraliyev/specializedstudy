@@ -1,0 +1,1 @@
+export async function boundedMap<T,R>(items:T[],concurrency:number,fn:(item:T,index:number)=>Promise<R>){const result=new Array<R>(items.length);let cursor=0;await Promise.all(Array.from({length:Math.min(concurrency,items.length)},async()=>{for(;;){const i=cursor++;if(i>=items.length)return;result[i]=await fn(items[i],i);}}));return result;}

@@ -122,6 +122,11 @@ export interface PersistentDatabaseState {
   topicSessions?: import('./topicEngine').TopicSession[];
   topicReviews?: import('./topicEngine').ReviewRecord[];
   accountOperations?: string[];
+  schoolImportJobs?: import('./schoolImportEngine').SchoolImportJob[];
+  refreshSessions?: import('./refreshSessions').RefreshSession[];
+  leadershipGrants?: import('./leadershipSecurity').LeadershipGrant[];
+  mfaCredentials?: import('./leadershipSecurity').MfaCredential[];
+  mfaVerifiedSessions?: import('./leadershipSecurity').MfaSession[];
   demoLabs?: import('./demoLabEngine').DemoLab[];
   contentImports?: import('./contentImportEngine').ContentImportJob[];
   contentWriteLocks?: Record<string, number>;
@@ -760,6 +765,7 @@ export function hashPassword(password: string): string {
   const derived = crypto.scryptSync(password, salt, 64).toString('hex');
   return `${salt}:${derived}`;
 }
+export async function hashPasswordAsync(password:string):Promise<string>{const salt=crypto.randomBytes(16).toString('hex');const derived=await new Promise<Buffer>((resolve,reject)=>crypto.scrypt(password,salt,64,(error,value)=>error?reject(error):resolve(value)));return salt+':'+derived.toString('hex');}
 
 export function generateSecureRandomPassword(): string {
   return `SS-${crypto.randomBytes(16).toString('hex')}!9a`;
@@ -803,7 +809,8 @@ export function revokeAllUserSessions(uid: string): void {
 export function issueSessionToken(
   uid: string,
   env: 'prod' | 'test',
-  expiresInMs: number = 1000 * 60 * 60 * 24 * 7
+  expiresInMs: number = 15 * 60 * 1000,
+  sessionId?:string
 ): string {
   const now = Math.max(Date.now(),(requestDatabase.getStore()?.state.revokedBeforeByUser?.[uid]||0)+1);
   const payload = JSON.stringify({
@@ -812,6 +819,7 @@ export function issueSessionToken(
     jti: crypto.randomBytes(8).toString('hex'),
     iat: now,
     exp: now + expiresInMs,
+    ...(sessionId?{sid:sessionId}:{}),
   });
   const base64Payload = Buffer.from(payload, 'utf-8').toString('base64url');
   const signature = crypto
@@ -852,6 +860,8 @@ export function verifySessionToken(
       return null;
     }
     const revokedBefore = requestDatabase.getStore()?.state.revokedBeforeByUser?.[decoded.uid] || revokedBeforeTimestampByUser.get(decoded.uid);
+    const durable=requestDatabase.getStore()?.state;
+    if(decoded.sid&&durable&&!(durable.refreshSessions||[]).some(s=>s.id===decoded.sid&&s.userId===decoded.uid&&!s.revokedAt&&s.expiresAt>Date.now()))return null;
     if (revokedBefore && typeof decoded.iat === 'number' && decoded.iat <= revokedBefore) {
       return null;
     }
@@ -868,8 +878,8 @@ export function generateCryptographicInviteToken(rolePrefix: string): {
   rawToken: string;
   tokenHash: string;
 } {
-  const rand = crypto.randomBytes(4).toString('hex').toUpperCase();
+  const rand = crypto.randomBytes(24).toString('hex').toUpperCase();
   const rawToken = `INV-${rolePrefix.slice(0, 3).toUpperCase()}-${rand}`;
-  const tokenHash = computeSimpleHash(rawToken);
+  const tokenHash = 'sha256:'+crypto.createHash('sha256').update(rawToken).digest('hex');
   return { rawToken, tokenHash };
 }
