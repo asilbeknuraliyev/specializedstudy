@@ -890,7 +890,7 @@ export const LearnOSProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
 
   const [sessionToken, setSessionToken] = useState<string | null>(() => {
-    localStorage.setItem('learnos_session_token','cookie');return 'cookie';
+    localStorage.removeItem('learnos_session_token');return 'cookie';
   });
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(() => {
     try {
@@ -1163,7 +1163,6 @@ export const LearnOSProvider: React.FC<{ children: React.ReactNode }> = ({ child
                 if (syncData.token && syncData.user) {
                   setSessionToken(syncData.token);
                   setCurrentUser(syncData.user);
-                  localStorage.setItem('learnos_session_token', syncData.token);
                   localStorage.setItem('learnos_cached_user', JSON.stringify(syncData.user));
                   const retryRes = await apiFetch('/api/state', { method: 'GET' }, syncData.token);
                   if (retryRes.ok) {
@@ -1309,7 +1308,6 @@ export const LearnOSProvider: React.FC<{ children: React.ReactNode }> = ({ child
         return [data.user, ...filtered];
       });
       setSessionToken(data.token);
-      localStorage.setItem('learnos_session_token', data.token);
       try {
         localStorage.setItem('learnos_cached_user', JSON.stringify(data.user));
       } catch {
@@ -1353,7 +1351,7 @@ export const LearnOSProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
       // If Firebase Auth already has an active Google user (e.g. after redirect or refresh)
       // and no backend session token is stored yet, automatically synchronize with backend
-      const existingBackendToken = localStorage.getItem('learnos_session_token');
+      const existingBackendToken = sessionToken;
       if (!existingBackendToken && !googleSignInInFlightRef.current) {
         googleSignInInFlightRef.current = true;
         setIsGoogleSigningIn(true);
@@ -1407,7 +1405,6 @@ export const LearnOSProvider: React.FC<{ children: React.ReactNode }> = ({ child
       }
 
       setSessionToken(data.token);
-      localStorage.setItem('learnos_session_token', data.token);
       setIsBootstrapped(true);
       await refreshState(data.token);
       addToast('success', 'Specialized Study va administrator hisobi muvaffaqiyatli faollashtirildi!');
@@ -1428,7 +1425,6 @@ export const LearnOSProvider: React.FC<{ children: React.ReactNode }> = ({ child
       }
 
       setSessionToken(data.token);
-      localStorage.setItem('learnos_session_token', data.token);
       await refreshState(data.token);
       addToast('success', `Xush kelibsiz, ${data.user.displayName}!`);
       return data.user;
@@ -1453,7 +1449,6 @@ export const LearnOSProvider: React.FC<{ children: React.ReactNode }> = ({ child
       }
 
       setSessionToken(data.token);
-      localStorage.setItem('learnos_session_token', data.token);
       await refreshState(data.token);
       addToast('success', 'Taklifnoma tasdiqlandi va hisobingiz faollashtirildi!');
       return data.user;

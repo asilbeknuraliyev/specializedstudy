@@ -4987,7 +4987,7 @@ var apiErrorHandler = (error, _req, res, _next) => {
 };
 
 // src/server/securityHeaders.ts
-var productionCsp = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https:; connect-src 'self' https://*.supabase.co wss://*.supabase.co; worker-src 'self' blob:; frame-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'";
+var productionCsp = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https:; connect-src 'self' https://*.supabase.co wss://*.supabase.co; worker-src 'self' blob:; frame-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'";
 
 // src/utils/passwordPolicy.ts
 function validPassword(value, min = 8) {
@@ -17424,13 +17424,13 @@ async function startServer() {
     req.requestId = reqId;
     res.setHeader("X-Request-Id", reqId);
     if (req.path.startsWith("/api/")) res.setHeader("Cache-Control", "no-store");
-    res.setHeader("X-Frame-Options", "SAMEORIGIN");
+    res.setHeader("X-Frame-Options", "DENY");
     res.setHeader(
       "Content-Security-Policy",
       process.env.NODE_ENV === "production" ? productionCsp : productionCsp.replace("script-src 'self'", "script-src 'self' 'unsafe-inline' 'unsafe-eval'").replace("connect-src 'self'", "connect-src 'self' ws: wss:")
     );
     res.setHeader("Cross-Origin-Opener-Policy", "same-origin-allow-popups");
-    res.setHeader("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
+    res.setHeader("Strict-Transport-Security", "max-age=63072000; includeSubDomains; preload");
     res.setHeader("X-Content-Type-Options", "nosniff");
     res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
     res.setHeader(
@@ -17454,7 +17454,7 @@ async function startServer() {
         res.setHeader("Access-Control-Allow-Methods", "GET,POST,PUT,DELETE,OPTIONS");
         res.setHeader(
           "Access-Control-Allow-Headers",
-          "Content-Type, Authorization, X-LearnOS-Env, X-Request-Id, X-Test-Rate-Limit, X-Test-Client-Id, X-Teaching-Subject"
+          process.env.NODE_ENV === "test" ? "Content-Type, Authorization, X-LearnOS-Env, X-Request-Id, X-Test-Rate-Limit, X-Test-Client-Id, X-Teaching-Subject" : "Content-Type, Authorization, X-Request-Id, X-Teaching-Subject"
         );
       }
     }
