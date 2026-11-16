@@ -1,5 +1,5 @@
 import {useEffect,useRef,useState} from 'react';import {Link} from 'react-router-dom';import {useExamApi} from '../utils/useExamApi';import {useLearnOS} from '../context/LearnOSContext';
-import {auth,GoogleAuthProvider,signInWithPopup} from '../authClient';import {encryptCredentialExport,decryptCredentialExport} from '../utils/credentialExport';
+import {startGoogleProof,takeGoogleProof} from '../authClient';import {encryptCredentialExport,decryptCredentialExport} from '../utils/credentialExport';
 import {createCredentialWorkbook,type CredentialWorkbookRow} from '../utils/credentialWorkbook';
 import type {SchoolImportJob,PersonImportItem,PlanImportItem} from '../server/schoolImportEngine';
 const card='min-w-0 rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-700 dark:bg-slate-900';const input='min-h-12 min-w-0 max-w-full w-full rounded-xl border border-slate-300 bg-transparent px-3 text-sm dark:border-slate-600';const primary='min-h-12 rounded-xl bg-blue-600 px-4 text-sm font-semibold text-white disabled:opacity-40';const secondary='min-h-11 rounded-xl border border-slate-300 px-3 text-sm disabled:opacity-40';
@@ -24,7 +24,27 @@ export function SchoolImportCenter(){
  const fatal=(row:PersonImportItem)=>row.issues.some(i=>['INVALID_NAME','UNKNOWN_CLASS','DUPLICATE_SOURCE'].includes(i.code));
  const revealPlan=async(row:PlanImportItem)=>{setPreviewTitle(row.fileName+' · '+row.sheetName);setPreview((await api('/api/school-imports/'+job!.id+'/rows?plan='+row.id+'&limit=600')).rows);};
  const commit=async()=>{const result=await api('/api/school-imports/'+job!.id+'/commit','POST',{operationId:crypto.randomUUID(),approvedReviewRevision:job!.reviewRevision||0,selected:[...selected],allowValidPart:partial,mode,people:rows.filter(r=>job!.kind!=='workplans').map(r=>person(r)),plans:Object.values(plans).filter(p=>selected.has(p.id)),reason});setErrors(result.errors||[]);setMessage(`${result.createdAccounts||0} hisob, ${result.createdLessons||0} dars yaratildi. ${result.matched||0} mavjud hisob saqlandi. Xatoli qatorlar alohida ko‘rsatiladi.`);const latest=await load();setJob(latest.find((v:SchoolImportJob)=>v.id===job!.id)||job);setApproved(false);await refreshState();};
- const claim=async()=>{const result=await signInWithPopup(auth,new GoogleAuthProvider());const idToken=await result.user.getIdToken();const packet=await api('/api/school-imports/'+job!.id+'/credentials/claim','POST',{idToken});setCredentials(packet.credentials);setShown(new Set());setCredentialPage(0);setJob({...job!,credentialsClaimedAt:new Date().toISOString()});setMessage('Kirishlar faqat shu oynada bir marta ko‘rsatiladi. Qayta ko‘rish uchun parol reseti kerak.');await load();};
+ const claim=async()=>{
+  if(job)await startGoogleProof({kind:'credentials',jobId:job.id});
+ };
+ useEffect(()=>{
+  const proof=takeGoogleProof('credentials');
+  if(proof?.intent.kind!=='credentials')return;
+  const {jobId}=proof.intent;
+  if(proof.error){setMessage(proof.error);return;}
+  void run('Kirish paketi olinmoqda',async()=>{
+   const list=await load();
+   const source=list.find((item:SchoolImportJob)=>item.id===jobId);
+   if(!source)throw Error('Tasdiqlangan hisob paketi topilmadi.');
+   const packet=await api('/api/school-imports/'+jobId+'/credentials/claim','POST',{idToken:proof.idToken});
+   setCredentials(packet.credentials);
+   setShown(new Set());
+   setCredentialPage(0);
+   setJob({...source,credentialsClaimedAt:new Date().toISOString()});
+   setMessage('Kirishlar tayyor. Shu oynadan parolli Excel faylini yuklab oling.');
+   await load();
+  });
+ },[api]);
  const saveEncrypted=async()=>{const content=await encryptCredentialExport(credentials,exportKey),blob=new Blob([content],{type:'application/octet-stream'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='specialized-kirishlar-'+new Date().toISOString().slice(0,10)+'.ss-credentials';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);setExportKey('');setMessage('Faqat shifrlangan paket yuklandi. Uning kalitini paketdan alohida ishonchli kanal orqali yetkazing.');};
  const saveWorkbook=async()=>{
   const workbook=await createCredentialWorkbook(credentials,exportKey);

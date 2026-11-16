@@ -2898,12 +2898,14 @@ function registerLeadershipSecurity(app2, deps) {
     res.json({ enabled: !!credential(c)?.enabledAt, required: !!leadershipGrant(c), verified: mfaVerified(c) });
   });
   app2.post("/api/account/mfa/enroll", asyncRoute(async (req, res) => {
+    res.set("Cache-Control", "no-store");
     const c = access(req, res);
     if (!c) return;
     const p = z.object({ password: z.string().max(128).optional(), idToken: z.string().max(16e3).optional() }).safeParse(req.body);
     if (!p.success || !await proof(c, p.data)) return res.status(403).json({ error: "Joriy parol yoki yangi Google tasdig\u2018i kerak." });
     if (credential(c)?.enabledAt) return res.status(409).json({ error: "MFA allaqachon yoqilgan. Almashtirish uchun xavfsiz recovery kerak." });
-    if (!sessionFamily(c.token)) return res.status(409).json({ error: "Hisobdan chiqib, qayta kiring." });
+    const sessionId = sessionFamily(c.token);
+    if (!sessionId) return res.status(409).json({ error: "Hisobdan chiqib, qayta kiring." });
     const secret = base32(crypto2.randomBytes(20)), purpose = c.user.institutionId + ":mfa:" + c.user.uid;
     c.db.mfaCredentials ||= [];
     let current = credential(c);
@@ -2913,21 +2915,24 @@ function registerLeadershipSecurity(app2, deps) {
     }
     current.pending = sealSecret(secret, purpose);
     current.pendingUntil = Date.now() + 10 * 6e4;
+    current.pendingSessionId = sessionId;
     audit(c, "MFA sozlash boshlandi", c.user.uid);
     deps.save(c.env, c.db);
     res.json({ secret, uri: "otpauth://totp/" + encodeURIComponent("Specialized Study:" + (c.user.login || c.user.uid)) + "?secret=" + secret + "&issuer=Specialized%20Study&algorithm=SHA1&digits=6&period=30", expiresAt: current.pendingUntil });
   }));
   app2.post("/api/account/mfa/confirm", (req, res) => {
+    res.set("Cache-Control", "no-store");
     const c = access(req, res);
     if (!c) return;
     const current = credential(c);
-    if (!current?.pending || !current.pendingUntil || current.pendingUntil < Date.now()) return res.status(400).json({ error: "Sozlash muddati tugagan. Qayta boshlang." });
+    if (!current?.pending || !current.pendingUntil || current.pendingUntil < Date.now() || !current.pendingSessionId || current.pendingSessionId !== sessionFamily(c.token)) return res.status(400).json({ error: "Shu sessiyada MFA sozlashni qayta boshlang." });
     const secret = openSecret(current.pending, c.user.institutionId + ":mfa:" + c.user.uid), counter = validTotp(secret, String(req.body.code || ""));
     if (counter === void 0) return res.status(400).json({ error: "Autentifikator kodi noto\u2018g\u2018ri." });
     const recoveryCodes = Array.from({ length: 8 }, () => crypto2.randomBytes(9).toString("hex"));
     current.secret = current.pending;
     delete current.pending;
     delete current.pendingUntil;
+    delete current.pendingSessionId;
     current.enabledAt = (/* @__PURE__ */ new Date()).toISOString();
     current.lastCounter = counter;
     current.recoveryHashes = recoveryCodes.map(hash);

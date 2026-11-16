@@ -6,7 +6,7 @@ export const LEADERSHIP_MATRIX={
  academic_deputy:['overview.read','roster.read','attendance.read','results.read','reports.read','curriculum.manage','timetable.manage'],
 } as const;
 export type LeadershipGrant={id:string;userId:string;schoolId:string;designation:LeadershipRole;permissions:string[];approvedBy:string;approvedAt:string;identityVerifiedAt:string;revokedAt?:string};
-export type MfaCredential={id:string;userId:string;schoolId:string;pending?:string;pendingUntil?:number;secret?:string;enabledAt?:string;lastCounter?:number;recoveryHashes:string[]};
+export type MfaCredential={id:string;userId:string;schoolId:string;pending?:string;pendingUntil?:number;pendingSessionId?:string;secret?:string;enabledAt?:string;lastCounter?:number;recoveryHashes:string[]};
 export type MfaSession={id:string;userId:string;schoolId:string;verifiedAt:number;expiresAt:number};
 const hash=(value:string)=>crypto.createHash('sha256').update(value).digest('hex');
 export function base32(bytes:Buffer){const chars='ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';let bits=0,value=0,out='';for(const b of bytes){value=(value<<8)|b;bits+=8;while(bits>=5){out+=chars[(value>>>(bits-5))&31];bits-=5;}}if(bits)out+=chars[(value<<(5-bits))&31];return out;}
@@ -33,20 +33,23 @@ export function registerLeadershipSecurity(app:Express,deps:any){
  const proof=async(c:any,body:any)=>{if(body.password&&await deps.verify(body.password,c.db.passwordHashes[c.user.uid]))return true;if(body.idToken){try{const id=await deps.providerProof(String(body.idToken).slice(0,16000),c.db);return id.uid===c.user.uid&&id.email_verified&&id.firebase?.sign_in_provider==='google.com'&&Date.now()/1000-id.auth_time<=300;}catch{return false;}}return false;};
  app.get('/api/account/mfa/status',(req,res)=>{const c=access(req,res);if(!c)return;res.json({enabled:!!credential(c)?.enabledAt,required:!!leadershipGrant(c),verified:mfaVerified(c)});});
  app.post('/api/account/mfa/enroll',asyncRoute(async(req,res)=>{
+  res.set('Cache-Control','no-store');
   const c=access(req,res);if(!c)return;const p=z.object({password:z.string().max(128).optional(),idToken:z.string().max(16000).optional()}).safeParse(req.body);
   if(!p.success||!await proof(c,p.data))return res.status(403).json({error:'Joriy parol yoki yangi Google tasdig‘i kerak.'});
   if(credential(c)?.enabledAt)return res.status(409).json({error:'MFA allaqachon yoqilgan. Almashtirish uchun xavfsiz recovery kerak.'});
-  if(!sessionFamily(c.token))return res.status(409).json({error:'Hisobdan chiqib, qayta kiring.'});
+  const sessionId=sessionFamily(c.token);
+  if(!sessionId)return res.status(409).json({error:'Hisobdan chiqib, qayta kiring.'});
   const secret=base32(crypto.randomBytes(20)),purpose=c.user.institutionId+':mfa:'+c.user.uid;
   c.db.mfaCredentials||=[];let current=credential(c);if(!current){current={id:c.user.uid,userId:c.user.uid,schoolId:c.user.institutionId,recoveryHashes:[]};c.db.mfaCredentials.push(current);}
-  current.pending=sealSecret(secret,purpose);current.pendingUntil=Date.now()+10*60000;audit(c,'MFA sozlash boshlandi',c.user.uid);deps.save(c.env,c.db);
+  current.pending=sealSecret(secret,purpose);current.pendingUntil=Date.now()+10*60000;current.pendingSessionId=sessionId;audit(c,'MFA sozlash boshlandi',c.user.uid);deps.save(c.env,c.db);
   res.json({secret,uri:'otpauth://totp/'+encodeURIComponent('Specialized Study:'+(c.user.login||c.user.uid))+'?secret='+secret+'&issuer=Specialized%20Study&algorithm=SHA1&digits=6&period=30',expiresAt:current.pendingUntil});
  }));
  app.post('/api/account/mfa/confirm',(req,res)=>{
-  const c=access(req,res);if(!c)return;const current=credential(c);if(!current?.pending||!current.pendingUntil||current.pendingUntil<Date.now())return res.status(400).json({error:'Sozlash muddati tugagan. Qayta boshlang.'});
+  res.set('Cache-Control','no-store');
+  const c=access(req,res);if(!c)return;const current=credential(c);if(!current?.pending||!current.pendingUntil||current.pendingUntil<Date.now()||!current.pendingSessionId||current.pendingSessionId!==sessionFamily(c.token))return res.status(400).json({error:'Shu sessiyada MFA sozlashni qayta boshlang.'});
   const secret=openSecret<string>(current.pending,c.user.institutionId+':mfa:'+c.user.uid),counter=validTotp(secret,String(req.body.code||''));if(counter===undefined)return res.status(400).json({error:'Autentifikator kodi noto‘g‘ri.'});
   const recoveryCodes=Array.from({length:8},()=>crypto.randomBytes(9).toString('hex'));
-  current.secret=current.pending;delete current.pending;delete current.pendingUntil;current.enabledAt=new Date().toISOString();current.lastCounter=counter;current.recoveryHashes=recoveryCodes.map(hash);stamp(c);audit(c,'MFA yoqildi',c.user.uid);deps.save(c.env,c.db);return res.json({enabled:true,recoveryCodes});
+  current.secret=current.pending;delete current.pending;delete current.pendingUntil;delete current.pendingSessionId;current.enabledAt=new Date().toISOString();current.lastCounter=counter;current.recoveryHashes=recoveryCodes.map(hash);stamp(c);audit(c,'MFA yoqildi',c.user.uid);deps.save(c.env,c.db);return res.json({enabled:true,recoveryCodes});
  });
  app.post('/api/account/mfa/challenge',(req,res)=>{
   const c=access(req,res);if(!c)return;const current=credential(c);if(!current?.secret||!current.enabledAt)return res.status(400).json({error:'Avval MFA sozlang.'});
