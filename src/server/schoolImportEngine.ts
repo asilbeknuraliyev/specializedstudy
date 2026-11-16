@@ -6,7 +6,7 @@ export type SchoolSourceFile={name:string;sourceHash:string;sheets:SourceSheet[]
 export type PersonImportItem=SchoolPersonRow&{id:string;sourceHash:string;existingCandidates:string[]};
 export type PlanImportItem={id:string;fileName:string;sourceHash:string;sheetName:string;sourceEvidence?:string[];sourceIssues?:SourceIssue[];lessons:SchoolPlanRow[];suggestion:ReturnType<typeof inferSchoolPlanTarget>;issues:string[]};
 export type SchoolImportPayload={people:PersonImportItem[];plans:PlanImportItem[]};
-export type SchoolImportJob={id:string;institutionId:string;actorId:string;kind:SchoolImportKind;academicYear:string;sourceDigest:string;files:Array<{name:string;sourceHash:string}>;createdAt:string;status:'review'|'committed'|'undone';publication?:'draft'|'partial'|'published';addedSubjectAssignments?:Array<{classId:string;subjectId:string}>;storagePath:string;summary:{people:number;plans:number;lessons:number;issues:number;duplicates:number};createdUsers:string[];createdLessons:string[];createdPlans:string[];credentialPath?:string;credentialExpiresAt?:number;credentialsClaimedAt?:string;reviewRevision?:number;reviewOperations?:string[];reviewOperationDigests?:Record<string,string>;committedAt?:string;undoneAt?:string};
+export type SchoolImportJob={id:string;institutionId:string;actorId:string;kind:SchoolImportKind;academicYear:string;sourceDigest:string;files:Array<{name:string;sourceHash:string}>;createdAt:string;status:'review'|'committed'|'undone';publication?:'draft'|'partial'|'published';addedSubjectAssignments?:Array<{classId:string;subjectId:string}>;storagePath:string;summary:{people:number;plans:number;lessons:number;issues:number;duplicates:number};createdUsers:string[];createdLessons:string[];createdPlans:string[];credentialPath?:string;credentialExpiresAt?:number;credentialsClaimedAt?:string;credentialClaimOperationId?:string;identityLinkRequired?:boolean;reviewRevision?:number;reviewOperations?:string[];reviewOperationDigests?:Record<string,string>;committedAt?:string;undoneAt?:string};
 export function analyzeSchoolFiles(kind:SchoolImportKind,files:SchoolSourceFile[],users:any[],institutionId:string):SchoolImportPayload{
  const people:PersonImportItem[]=[],plans:PlanImportItem[]=[];
  for(const file of files){
@@ -28,10 +28,14 @@ export function analyzeSchoolFiles(kind:SchoolImportKind,files:SchoolSourceFile[
  return{people,plans};
 }
 export function importSummary(payload:SchoolImportPayload){return{people:payload.people.length,plans:payload.plans.length,lessons:payload.plans.reduce((n,p)=>n+p.lessons.length,0),issues:payload.people.reduce((n,p)=>n+p.issues.length,0)+payload.plans.reduce((n,p)=>n+p.issues.length+p.lessons.reduce((v,l)=>v+l.issues.length,0),0),duplicates:payload.people.filter(p=>p.issues.some(i=>i.code==='DUPLICATE_SOURCE')).length};}
+const cyrillic: Record<string,string> = {
+ а:'a',б:'b',в:'v',г:'g',д:'d',е:'e',ё:'yo',ж:'j',з:'z',и:'i',й:'y',к:'k',л:'l',м:'m',н:'n',о:'o',п:'p',р:'r',с:'s',т:'t',у:'u',ф:'f',х:'x',ц:'ts',ч:'ch',ш:'sh',щ:'shch',ы:'i',э:'e',ю:'yu',я:'ya',ў:'o',қ:'q',ғ:'g',ҳ:'h',
+};
+const loginPart=(value:string)=>Array.from(value.normalize('NFKD').toLowerCase(),c=>cyrillic[c]??c).join('').replace(/[^a-z0-9]/g,'');
 export function nextPersonLogin(row:Pick<PersonImportItem,'role'|'classCode'|'displayName'>,used:Set<string>){
  let base:string;
  if(row.role==='student')base='st.'+row.classCode;
- else{const parts=normalizedText(row.displayName).toLowerCase().replace(/[‘’']/g,'').split(' ');const translit=(v:string)=>v.normalize('NFKD').replace(/[^a-z0-9]/g,'');base='teacher.'+[translit(parts[1]||''),translit(parts[0]||'')].filter(Boolean).join('.');if(base==='teacher.')base='teacher.staff';base=base.slice(0,34);}
+ else{const [surname, givenName]=normalizedText(row.displayName).split(/\s+/).map(loginPart);base=[givenName,surname].filter(Boolean).join('.')||'school.staff';base=base.slice(0,34);}
  let n=1,login:string;
- do{login=row.role==='student'?base+'.'+String(n).padStart(3,'0'):base+(n===1?'':'.'+n);n++;}while(used.has(login));used.add(login);return login;
+ do{login=row.role==='student'?base+'.'+String(n).padStart(3,'0'):base+(n===1?'':'.'+n);n++;}while(used.has(login.toLowerCase()));used.add(login.toLowerCase());return login;
 }

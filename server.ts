@@ -822,7 +822,7 @@ registerAcademicActivityRoutes(app,{authenticate:authenticateRequest,save:saveDb
       saveDbState(env, db);
     };
 
-    const passwordValid=await verifyPasswordAsync(password,user?.status==='active'?db.passwordHashes[user.uid]:undefined);
+    const passwordValid=await verifyPasswordAsync(password,user?.status==='active'&&user.schoolIdentityProvisioning!=='pending'&&(!user.mustChangePassword||!user.initialPasswordExpiresAt||user.initialPasswordExpiresAt>Date.now())?db.passwordHashes[user.uid]:undefined);
     if (!user) {
       recordFailedLogin('hisob topilmadi');
       return res.status(401).json({ error: 'Login yoki parol noto‘g‘ri.' });

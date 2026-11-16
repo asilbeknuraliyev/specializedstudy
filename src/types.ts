@@ -117,6 +117,9 @@ export interface UserProfile {
   mustChangePassword?: boolean;
   linkedGoogleUid?: string;
   linkedSupabaseUid?: string;
+  managedSupabaseIdentityId?: string;
+  initialPasswordExpiresAt?: number;
+  schoolIdentityProvisioning?: 'pending' | 'linked';
   loginAliases?: string[];
   uid: string;
   displayName: string;

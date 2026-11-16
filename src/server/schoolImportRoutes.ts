@@ -1,14 +1,19 @@
+import {ensureManagedSchoolIdentity} from './managedSchoolIdentity';
+import {mfaVerified} from './leadershipSecurity';
+import {createSchoolInitialPassword} from './schoolCredentials';
 import {reviewedSchoolPayload} from './schoolDataReview';
 import crypto from 'node:crypto';import type {Express} from 'express';import {z} from 'zod';import {asyncRoute} from './asyncRoute';import {boundedMap} from './boundedMap';
 import {analyzeSchoolFiles,importSummary,nextPersonLogin,schoolDigest,type SchoolImportPayload,type SchoolImportJob} from './schoolImportEngine';
 import {putImportPayload,getImportPayload} from './privateImportStore';import {schoolClassCode,standardSubject} from '../utils/schoolSourceImport';
 const sheet=z.object({name:z.string().min(1).max(160),startRow:z.number().int().min(1).max(10000).optional(),rows:z.array(z.array(z.union([z.string().max(4000),z.number().finite(),z.null()])).max(40)).max(3000)});
 const previewSchema=z.object({kind:z.enum(['students','teachers','workplans']),academicYear:z.literal('2026-2027'),files:z.array(z.object({name:z.string().min(1).max(500).refine(v=>!v.split(/[\\/]/).includes('..')&&!v.startsWith('/')),sourceHash:z.string().regex(/^[a-f0-9]{64}$/),sheets:z.array(sheet).min(1).max(20)})).min(1).max(150)});
-const commitSchema=z.object({operationId:z.uuid(),selected:z.array(z.string().regex(/^[a-f0-9]{64}$/)).max(1000),allowValidPart:z.literal(true),mode:z.enum(['draft','publish']).default('draft'),
+const commitSchema=z.object({operationId:z.uuid(),approvedReviewRevision:z.number().int().nonnegative().optional(),selected:z.array(z.string().regex(/^[a-f0-9]{64}$/)).max(1000),allowValidPart:z.literal(true),mode:z.enum(['draft','publish']).default('draft'),
  people:z.array(z.object({id:z.string(),matchUid:z.string().max(200).optional(),pendingReview:z.boolean().default(false),assignments:z.array(z.object({classCode:z.string().max(8),subject:z.string().min(2).max(100)})).max(100).default([])})).max(600).default([]),
  plans:z.array(z.object({id:z.string(),subject:z.string().min(2).max(100),classCodes:z.array(z.string().max(8)).min(1).max(19),confirmed:z.literal(true),confirmAdditionalSubjects:z.boolean().default(false)})).max(150).default([]),reason:z.string().trim().min(8).max(1000)});
 export function registerSchoolImportRoutes(app:Express,deps:any){
  const put=deps.put||putImportPayload,get=deps.get||getImportPayload;
+ const hosted=()=>deps.enforceProvisioningApproval?.() ?? process.env.VERCEL_ENV==='production';
+ const verifiedMfa=(c:any)=>deps.mfaVerified?.(c) ?? mfaVerified(c);
  const access=(req:any,res:any)=>{const c=deps.authenticate(req);if(!c){res.status(401).json({error:'Hisobga kiring.'});return;}if(!deps.owner(c.user)){res.status(403).json({error:'Faqat tasdiqlangan platforma administratoriga ruxsat.'});return;}return c;};
  const jobFor=(c:any,id:string)=>(c.db.schoolImportJobs||[]).find((j:SchoolImportJob)=>j.id===id&&j.institutionId===c.user.institutionId) as SchoolImportJob|undefined;
  const audit=(c:any,action:string,id:string)=>c.db.auditLogs.unshift({id:crypto.randomUUID(),institutionId:c.user.institutionId,actorUid:c.user.uid,actorName:c.user.displayName,actorRole:c.user.role,action,target:'Maktab ma’lumotlari importi',recordId:id,createdAt:new Date().toISOString()});
@@ -28,25 +33,42 @@ export function registerSchoolImportRoutes(app:Express,deps:any){
  }));
  app.post('/api/school-imports/:id/commit',asyncRoute(async(req,res)=>{
   const c=access(req,res);if(!c)return;const job=jobFor(c,req.params.id);if(!job)return res.status(404).json({error:'Import topilmadi.'});if(job.status==='committed')return res.json({committed:true,duplicate:true,createdAccounts:job.createdUsers.length,createdLessons:job.createdLessons.length});if(job.status!=='review')return res.status(409).json({error:'Import holati kiritishga mos emas.'});
-  const p=commitSchema.safeParse(req.body);if(!p.success||!p.data.selected.length)return res.status(400).json({error:'To‘g‘ri qatorlarni tanlang, mapping va asosni tasdiqlang.'});const source:SchoolImportPayload=await get(c.user.institutionId,job.id,'source',job.storagePath),payload=reviewedSchoolPayload(source,c.db,job.id,c.user.institutionId),selected=new Set(p.data.selected),now=new Date().toISOString(),errors:Array<{row:number;sheet:string;error:string}>=[];
+  const p=commitSchema.safeParse(req.body);if(!p.success||!p.data.selected.length)return res.status(400).json({error:'To‘g‘ri qatorlarni tanlang, mapping va asosni tasdiqlang.'});
+  const controlled = hosted();
+  if(controlled&&!verifiedMfa(c)) return res.status(403).json({code:'MFA_REQUIRED',error:'Hisob yaratishdan oldin Xavfsizlik bo‘limida MFA tasdig‘idan o‘ting.'});
+  if(controlled&&(p.data.approvedReviewRevision===undefined||p.data.approvedReviewRevision!==(job.reviewRevision||0)))return res.status(409).json({code:'REVIEW_CONFLICT',error:'Importni yangilang va ko‘rib chiqilgan versiyani tasdiqlang.'});
+const source:SchoolImportPayload=await get(c.user.institutionId,job.id,'source',job.storagePath),payload=reviewedSchoolPayload(source,c.db,job.id,c.user.institutionId),selected=new Set(p.data.selected),now=new Date().toISOString(),errors:Array<{row:number;sheet:string;error:string}>=[];
+  if(controlled&&[...payload.people,...payload.plans].some(row=>selected.has(row.id)&&row.review?.decision!=='approve'))
+   return res.status(409).json({code:'APPROVAL_REQUIRED',error:'Tanlangan har bir yozuvni ma’lumot sifati oynasida tasdiqlang.'});
   const allIds=new Set([...payload.people,...payload.plans].map(v=>v.id));if([...selected].some(id=>!allIds.has(id)))return res.status(400).json({error:'Tanlangan qator ushbu importga tegishli emas.'});
   const credentials:any[]=[],newUsers:any[]=[],newLessons:any[]=[],newPlans:any[]=[],newSubjects:any[]=[],newAssignments:any[]=[],additionalSubjects:Array<{classId:string;subjectId:string}>=[];let matched=0,duplicates=0;
-  const used=new Set<string>(c.db.users.flatMap((u:any)=>[u.login,...(u.loginAliases||[])]).filter(Boolean));const hashRows:Array<{user:any;password:string}>=[];
+  const used=new Set<string>(c.db.users.flatMap((u:any)=>[u.login,u.email,...(u.loginAliases||[])]).filter((value:unknown): value is string=>typeof value==='string'&&value.length>0).map((value:string)=>value.toLowerCase()));const usedPasswords=new Set<string>();const hashRows:Array<{user:any;password:string}>=[];
   for(const row of payload.people.filter(v=>selected.has(v.id))){
-   if(row.review&&row.review.decision!=='approve'){errors.push({row:row.sourceRow,sheet:row.sourceSheet,error:'Bu qator tasdiqlanmagan yoki rad etilgan.'});continue;}if(row.role==='teacher'&&row.review?.decision!=='approve'){errors.push({row:row.sourceRow,sheet:row.sourceSheet,error:'Xodim shaxsi, lavozimi va tizim rolini ma’lumot sifati oynasida tasdiqlang.'});continue;}const decision={...(row.review?.person||{}),...(p.data.people.find(v=>v.id===row.id)||{})};const fatal=row.issues.find((v:any)=>['INVALID_NAME','UNKNOWN_CLASS','DUPLICATE_SOURCE'].includes(v.code));if(fatal){errors.push({row:row.sourceRow,sheet:row.sourceSheet,error:fatal.message});continue;}
+   if(row.review&&row.review.decision!=='approve'){errors.push({row:row.sourceRow,sheet:row.sourceSheet,error:'Bu qator tasdiqlanmagan yoki rad etilgan.'});continue;}if(row.role==='teacher'&&row.review?.decision!=='approve'){errors.push({row:row.sourceRow,sheet:row.sourceSheet,error:'Xodim shaxsi, lavozimi va tizim rolini ma’lumot sifati oynasida tasdiqlang.'});continue;}const decision={...(row.review?.person||{}),...(!controlled?p.data.people.find(v=>v.id===row.id)||{}:{})};const fatal=row.issues.find((v:any)=>['INVALID_NAME','UNKNOWN_CLASS','DUPLICATE_SOURCE'].includes(v.code));if(fatal){errors.push({row:row.sourceRow,sheet:row.sourceSheet,error:fatal.message});continue;}
    if(row.existingCandidates.length||decision?.matchUid){const uid=decision?.matchUid||(row.reconciliation.matchUid),old=c.db.users.find((u:any)=>u.uid===uid&&u.institutionId===c.user.institutionId&&(row.role==='student'?u.role==='student':['teacher','staff'].includes(u.role)));if(!old){errors.push({row:row.sourceRow,sheet:row.sourceSheet,error:'Mavjud hisobni aniq tasdiqlang. Natija va parollar o‘zgarmaydi.'});continue;}if(row.review?.person?.updateExisting===true){if(row.role==='student'){const updatedClass=c.db.classes.find((cl:any)=>cl.institutionId===c.user.institutionId&&cl.code===row.classCode);if(!updatedClass){errors.push({row:row.sourceRow,sheet:row.sourceSheet,error:'Mavjud hisobning yangi sinfi topilmadi.'});continue;}Object.assign(old,{classId:updatedClass.id,classCode:updatedClass.code,grade:updatedClass.grade,track:updatedClass.track});}else{const reviewed=row.review!.person!,pairs=reviewed.assignments||[];if(reviewed.replaceAssignments){if(pairs.some((a:any)=>!c.db.classes.some((cl:any)=>cl.code===schoolClassCode(a.classCode)&&cl.institutionId===c.user.institutionId))){errors.push({row:row.sourceRow,sheet:row.sourceSheet,error:'Yangilangan ustoz biriktirishi maktab sinfiga mos emas.'});continue;}c.db.teacherAssignments=c.db.teacherAssignments.filter((a:any)=>a.teacherId!==old.uid||a.institutionId!==c.user.institutionId);for(const a of pairs){const cl=c.db.classes.find((cl:any)=>cl.code===schoolClassCode(a.classCode)&&cl.institutionId===c.user.institutionId);c.db.teacherAssignments.push({id:'assignment-'+schoolDigest([old.uid,cl.id,a.subject]).slice(0,32),institutionId:c.user.institutionId,teacherId:old.uid,classId:cl.id,subject:standardSubject(a.subject),createdAt:now});}old.assignedClassIds=[...new Set(c.db.teacherAssignments.filter((a:any)=>a.teacherId===old.uid).map((a:any)=>a.classId))];old.subjects=[...new Set(pairs.map((a:any)=>standardSubject(a.subject)))];old.subject=old.subjects[0];old.role=row.category==='teacher'||pairs.length?'teacher':'staff';old.status=old.role==='teacher'&&!pairs.length?'pending_activation':'active';}old.position=row.position;old.staffCategory=row.category;}old.displayName=row.displayName;old.updatedAt=now;deps.revoke(old.uid);}matched++;continue;}
    const cls=row.classCode?c.db.classes.find((v:any)=>v.code===row.classCode&&v.institutionId===c.user.institutionId):undefined;if(row.role==='student'&&!cls){errors.push({row:row.sourceRow,sheet:row.sourceSheet,error:'Rasmiy sinf bazada topilmadi.'});continue;}
    const assignments=decision?.assignments||[];if(row.role==='teacher'&&row.category==='teacher'&&!assignments.length&&!decision?.pendingReview&&row.review?.decision!=='approve'){errors.push({row:row.sourceRow,sheet:row.sourceSheet,error:'Sinf/fanni tanlang yoki biriktirish kutilayotgan hisob sifatida tayyorlashni tasdiqlang.'});continue;}
+   if(controlled&&row.role==='teacher'&&row.category==='teacher'&&!assignments.length){errors.push({row:row.sourceRow,sheet:row.sourceSheet,error:'Tasdiqlangan fan va sinf biriktirilmaguncha ushbu hisob ochilmaydi.'});continue;}
+   if(controlled&&assignments.some((a:any)=>{
+    const cl=c.db.classes.find((v:any)=>v.code===schoolClassCode(a.classCode)&&v.institutionId===c.user.institutionId);
+    const subject=standardSubject(a.subject);
+    return !cl||!cl.subjectNames?.includes(subject)&&!c.db.subjects.some((v:any)=>v.name===subject&&[...cl.subjectIds||[],...cl.additionalSubjectIds||[]].includes(v.id));
+   })){errors.push({row:row.sourceRow,sheet:row.sourceSheet,error:'Fan ushbu sinfning tasdiqlangan fanlar ro‘yxatida yo‘q.'});continue;}
    if(assignments.some((a:any)=>!c.db.classes.some((cl:any)=>cl.code===schoolClassCode(a.classCode)&&cl.institutionId===c.user.institutionId))){errors.push({row:row.sourceRow,sheet:row.sourceSheet,error:'Ustoz sinfi maktab doirasiga mos emas.'});continue;}
    const uid='person-'+schoolDigest([c.user.institutionId,job.sourceDigest,row.id]).slice(0,40);if(c.db.users.some((u:any)=>u.uid===uid)){duplicates++;continue;}
-   const login=nextPersonLogin(row,used),password=crypto.randomBytes(18).toString('base64url')+'Aa7',subjectNames=[...new Set(assignments.map((a:any)=>standardSubject(a.subject)))];
+   const login=nextPersonLogin(row,used),password=createSchoolInitialPassword(row.role,usedPasswords),subjectNames=[...new Set(assignments.map((a:any)=>standardSubject(a.subject)))];
    const user:any={uid,login,email:'',emailVerified:false,platformAdmin:false,platformOwner:false,displayName:row.displayName,role:row.role==='teacher'&&row.category!=='teacher'&&!assignments.length?'staff':row.role,staffCategory:row.role==='teacher'?row.category:undefined,institutionId:c.user.institutionId,status:row.role==='teacher'&&row.category==='teacher'&&!assignments.length?'pending_activation':'active',mustChangePassword:true,academicYear:job.academicYear,createdAt:now,position:row.position,subjects:subjectNames.length?subjectNames:row.subjects,subject:subjectNames[0]||row.subjects[0],sourceImport:{batchId:job.id,sourceHash:row.sourceHash,sourceSheet:row.sourceSheet,sourceRow:row.sourceRow,sourceClass:row.sourceClass}};
+   if(controlled){
+    user.status='pending_activation';
+    user.schoolIdentityProvisioning='pending';
+    user.initialPasswordExpiresAt=Date.now()+7*86400000;
+   }
    if(cls)Object.assign(user,{classId:cls.id,classCode:cls.code,grade:cls.grade,track:cls.track,studentCode:'SS-'+uid.slice(-12).toUpperCase(),enrolledAt:now});
    if(user.role==='teacher'){user.assignedClassIds=[...new Set(assignments.map((a:any)=>c.db.classes.find((cl:any)=>cl.code===schoolClassCode(a.classCode)&&cl.institutionId===c.user.institutionId).id))];for(const assignment of assignments){const classId=c.db.classes.find((cl:any)=>cl.code===schoolClassCode(assignment.classCode)&&cl.institutionId===c.user.institutionId).id;newAssignments.push({id:'assignment-'+schoolDigest([uid,classId,assignment.subject]).slice(0,32),institutionId:c.user.institutionId,teacherId:uid,classId,subject:standardSubject(assignment.subject),createdAt:now});}}
    newUsers.push(user);hashRows.push({user,password});credentials.push({uid,displayName:user.displayName,login,password,classCode:user.classCode,subject:user.subject,position:user.position,status:user.status,mustChangePassword:true});
   }
   for(const plan of payload.plans.filter(v=>selected.has(v.id))){
-   if(plan.review&&plan.review.decision!=='approve'){errors.push({row:0,sheet:plan.sheetName,error:'Bu varaq tasdiqlanmagan yoki rad etilgan.'});continue;}const decision=p.data.plans.find(v=>v.id===plan.id)||plan.review?.plan;if(!decision){errors.push({row:0,sheet:plan.sheetName,error:'Sinf, fan va yo‘nalish mappingini alohida tasdiqlang.'});continue;}
+   if(plan.review&&plan.review.decision!=='approve'){errors.push({row:0,sheet:plan.sheetName,error:'Bu varaq tasdiqlanmagan yoki rad etilgan.'});continue;}const decision=controlled?plan.review?.plan:p.data.plans.find(v=>v.id===plan.id)||plan.review?.plan;if(!decision){errors.push({row:0,sheet:plan.sheetName,error:'Sinf, fan va yo‘nalish mappingini alohida tasdiqlang.'});continue;}
    const classes=decision.classCodes.map(code=>c.db.classes.find((v:any)=>v.institutionId===c.user.institutionId&&v.code===schoolClassCode(code)));if(classes.some(v=>!v)||new Set(classes.map(v=>v.id)).size!==classes.length){errors.push({row:0,sheet:plan.sheetName,error:'Rasmiy sinflarni takrorsiz tanlang.'});continue;}
    if(new Set(classes.map(cl=>cl.grade)).size!==1||(plan.suggestion.grade&&classes.some(cl=>cl.grade!==plan.suggestion.grade))){errors.push({row:0,sheet:plan.sheetName,error:'Bitta ish rejasiga bir xil, manbaga mos bosqichdagi sinflarni tanlang.'});continue;}
    const subjectName=standardSubject(decision.subject);if(classes.some(cl=>!cl.subjectNames?.includes(subjectName))&&!decision.confirmAdditionalSubjects){errors.push({row:0,sheet:plan.sheetName,error:'Bu sinfga qo‘shimcha fan biriktirishni alohida tasdiqlang.'});continue;}
@@ -66,11 +88,12 @@ export function registerSchoolImportRoutes(app:Express,deps:any){
   let credentialPath:string|undefined;if(credentials.length)credentialPath=await put(c.user.institutionId,job.id,'credentials-'+p.data.operationId,credentials);
   c.db.users.push(...newUsers);for(const row of hashes)c.db.passwordHashes[row.uid]=row.hash;c.db.lessons.push(...newLessons);c.db.workPlans.push(...newPlans);c.db.subjects.push(...newSubjects);c.db.teacherAssignments.push(...newAssignments);const appliedSubjects:Array<{classId:string;subjectId:string}>=[];for(const change of additionalSubjects){const cl=c.db.classes.find((v:any)=>v.id===change.classId);if(!cl.additionalSubjectIds?.includes(change.subjectId))appliedSubjects.push(change);cl.additionalSubjectIds=[...new Set([...(cl.additionalSubjectIds||[]),change.subjectId])];cl.displayName=cl.code.toUpperCase();cl.sectionLabel=cl.code.slice(String(cl.grade).length).toUpperCase();}
   for(const user of newUsers.filter(u=>u.role==='student')){c.db.studentEnrollments.push({id:'enrollment-'+schoolDigest([user.uid,user.classId,job.academicYear]).slice(0,32),institutionId:c.user.institutionId,studentId:user.uid,classId:user.classId,classCode:user.classCode,grade:user.grade,track:user.track,status:'active',enrolledAt:now});}
-  Object.assign(job,{status:'committed',publication:p.data.mode==='publish'?'published':'draft',addedSubjectAssignments:appliedSubjects,committedAt:now,createdUsers:newUsers.map(v=>v.uid),createdLessons:newLessons.map(v=>v.id),createdPlans:newPlans.map(v=>v.id),credentialPath,credentialExpiresAt:credentialPath?Date.now()+24*3600000:undefined});
+  Object.assign(job,{identityLinkRequired:controlled&&newUsers.length>0,status:'committed',publication:p.data.mode==='publish'?'published':'draft',addedSubjectAssignments:appliedSubjects,committedAt:now,createdUsers:newUsers.map(v=>v.uid),createdLessons:newLessons.map(v=>v.id),createdPlans:newPlans.map(v=>v.id),credentialPath,credentialExpiresAt:credentialPath?Date.now()+24*3600000:undefined});
   audit(c,'Import tasdiqlandi: '+p.data.reason,job.id);deps.save(c.env,c.db);return res.json({committed:true,createdAccounts:newUsers.length,createdLessons:newLessons.length,createdPlans:newPlans.length,matched,duplicates,errors,credentialClaimAvailable:!!credentialPath});
  }));
  app.post('/api/school-imports/:id/publish',(req,res)=>{
   const c=access(req,res);if(!c)return;const job=jobFor(c,req.params.id);if(!job||job.status!=='committed'||job.kind!=='workplans')return res.status(409).json({error:'Kiritilgan ish rejasi importini tanlang.'});
+  if(hosted()&&!verifiedMfa(c))return res.status(403).json({code:'MFA_REQUIRED',error:'Nashrdan oldin MFA tasdig‘i kerak.'});
   if(req.body.reviewed!==true||String(req.body.reason||'').trim().length<8)return res.status(400).json({error:'Nashrni ko‘rib chiqqaningizni va asosni tasdiqlang.'});
   const errors:any[]=[];let published=0;job.addedSubjectAssignments||=[];
   for(const lesson of c.db.lessons.filter((l:any)=>job.createdLessons.includes(l.id)&&l.institutionId===c.user.institutionId&&l.status==='draft')){
@@ -84,10 +107,39 @@ export function registerSchoolImportRoutes(app:Express,deps:any){
   for(const id of job.createdPlans){const plan=c.db.workPlans.find((p:any)=>p.id===id);if(plan&&c.db.lessons.some((l:any)=>l.workPlanId===id&&l.status==='published'))plan.status='published';}
   job.publication=c.db.lessons.some((l:any)=>job.createdLessons.includes(l.id)&&l.status==='draft')?'partial':'published';if(published){audit(c,'Ish rejalari nashr qilindi: '+String(req.body.reason).slice(0,1000),job.id);deps.save(c.env,c.db);}return res.json({published,errors,publication:job.publication,previousRecordsPreserved:true});
  });
+ app.post('/api/school-imports/:id/link-identities',asyncRoute(async(req,res)=>{
+  const c=access(req,res);if(!c)return;
+  const job=jobFor(c,req.params.id);
+  if(!job||job.actorId!==c.user.uid||job.status!=='committed'||!job.identityLinkRequired)
+   return res.status(404).json({error:'Tasdiqlangan hisob paketi topilmadi.'});
+  if(!verifiedMfa(c))return res.status(403).json({code:'MFA_REQUIRED',error:'Hisoblarni ulashdan oldin MFA tasdig‘idan o‘ting.'});
+  if(job.credentialExpiresAt&&job.credentialExpiresAt<Date.now())return res.status(410).json({error:'Paket muddati tugadi. Hisoblarni ulashdan oldin yangi xavfsiz kirishlar tayyorlang.'});
+  const profiles=c.db.users.filter((u:any)=>job.createdUsers.includes(u.uid)&&u.sourceImport?.batchId===job.id&&u.institutionId===job.institutionId);
+  if(profiles.length!==job.createdUsers.length)return res.status(409).json({error:'Hisoblar ro‘yxati o‘zgargan. Paketni tekshiring.'});
+  const pending=profiles.filter((u:any)=>u.schoolIdentityProvisioning==='pending'&&u.status==='pending_activation').slice(0,12);
+  const ensure=deps.ensureManagedIdentity||ensureManagedSchoolIdentity;
+  let linked=0,failed=0;
+  for(const user of pending){
+   try {
+    user.managedSupabaseIdentityId=await ensure(job.institutionId,user.uid);
+    user.schoolIdentityProvisioning='linked';
+    user.status='active';
+    user.updatedAt=new Date().toISOString();
+    linked++;
+   } catch {failed++;}
+  }
+  if(linked||failed){audit(c,'Hisoblarni Supabase Auth bilan bog‘lash: '+linked+' ulanish, '+failed+' xato',job.id);deps.save(c.env,c.db);}
+  res.json({linked,failed,remaining:profiles.filter((u:any)=>u.schoolIdentityProvisioning!=='linked').length});
+ }));
  app.post('/api/school-imports/:id/credentials/claim',asyncRoute(async(req,res)=>{
   const c=access(req,res);if(!c)return;const job=jobFor(c,req.params.id);if(!job||job.actorId!==c.user.uid||job.status!=='committed'||!job.credentialPath)return res.status(403).json({error:'Bu kirish paketini olishga ruxsat yo‘q.'});if(job.credentialsClaimedAt||!job.credentialExpiresAt||job.credentialExpiresAt<Date.now())return res.status(410).json({error:'Bir martalik ko‘rish tugagan. Kerak bo‘lsa hisob parolini xavfsiz tiklang.'});
+  if(hosted()&&!verifiedMfa(c))return res.status(403).json({code:'MFA_REQUIRED',error:'Kirish paketini olishdan oldin MFA tasdig‘idan o‘ting.'});
+  if(job.identityLinkRequired&&job.createdUsers.some(uid=>!c.db.users.some((u:any)=>u.uid===uid&&u.institutionId===job.institutionId&&u.schoolIdentityProvisioning==='linked'&&u.managedSupabaseIdentityId)))
+   return res.status(409).json({code:'IDENTITY_LINK_PENDING',error:'Kirish paketidan oldin barcha hisoblarni Supabase Auth bilan bog‘lang.'});
+
+  res.set('Cache-Control','no-store');
   let proof:any;try{proof=await deps.providerProof(String(req.body.idToken||'').slice(0,16000),c.db);}catch{return res.status(403).json({error:'Yangi Google tasdig‘i kerak.'});}if(proof.uid!==c.user.uid||!proof.email_verified||proof.firebase?.sign_in_provider!=='google.com'||Date.now()/1000-proof.auth_time>300)return res.status(403).json({error:'Yangi Google tasdig‘i kerak.'});
-  const kind=job.credentialPath.split('/').at(-1)!.replace(/\.enc$/,'');const credentials=await get(c.user.institutionId,job.id,kind,job.credentialPath);job.credentialsClaimedAt=new Date().toISOString();audit(c,'Boshlang‘ich kirishlar bir marta ko‘rsatildi',job.id);deps.save(c.env,c.db);return res.json({credentials,oneTime:true,expiresAt:job.credentialExpiresAt});
+  const kind=job.credentialPath.split('/').at(-1)!.replace(/\.enc$/,'');const credentials=await get(c.user.institutionId,job.id,kind,job.credentialPath);job.credentialsClaimedAt=new Date().toISOString();job.credentialClaimOperationId=crypto.randomUUID();audit(c,'Boshlang‘ich kirishlar bir marta ko‘rsatildi',job.id);deps.save(c.env,c.db);return res.json({credentials,oneTime:true,expiresAt:job.credentialExpiresAt});
  }));
  app.post('/api/school-imports/:id/undo',(req,res)=>{
   const c=access(req,res);if(!c)return;const job=jobFor(c,req.params.id);if(!job)return res.status(404).json({error:'Import topilmadi.'});if(job.status==='undone')return res.json({undone:true,duplicate:true});if(job.status!=='committed'||String(req.body.reason||'').trim().length<8)return res.status(409).json({error:'Import holati va qaytarish sababini tekshiring.'});

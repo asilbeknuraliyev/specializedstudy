@@ -3466,22 +3466,58 @@ function analyzeSchoolFiles(kind, files, users, institutionId) {
 function importSummary(payload) {
   return { people: payload.people.length, plans: payload.plans.length, lessons: payload.plans.reduce((n, p) => n + p.lessons.length, 0), issues: payload.people.reduce((n, p) => n + p.issues.length, 0) + payload.plans.reduce((n, p) => n + p.issues.length + p.lessons.reduce((v, l) => v + l.issues.length, 0), 0), duplicates: payload.people.filter((p) => p.issues.some((i) => i.code === "DUPLICATE_SOURCE")).length };
 }
+var cyrillic = {
+  \u0430: "a",
+  \u0431: "b",
+  \u0432: "v",
+  \u0433: "g",
+  \u0434: "d",
+  \u0435: "e",
+  \u0451: "yo",
+  \u0436: "j",
+  \u0437: "z",
+  \u0438: "i",
+  \u0439: "y",
+  \u043A: "k",
+  \u043B: "l",
+  \u043C: "m",
+  \u043D: "n",
+  \u043E: "o",
+  \u043F: "p",
+  \u0440: "r",
+  \u0441: "s",
+  \u0442: "t",
+  \u0443: "u",
+  \u0444: "f",
+  \u0445: "x",
+  \u0446: "ts",
+  \u0447: "ch",
+  \u0448: "sh",
+  \u0449: "shch",
+  \u044B: "i",
+  \u044D: "e",
+  \u044E: "yu",
+  \u044F: "ya",
+  \u045E: "o",
+  \u049B: "q",
+  \u0493: "g",
+  \u04B3: "h"
+};
+var loginPart = (value) => Array.from(value.normalize("NFKD").toLowerCase(), (c) => cyrillic[c] ?? c).join("").replace(/[^a-z0-9]/g, "");
 function nextPersonLogin(row2, used) {
   let base4;
   if (row2.role === "student") base4 = "st." + row2.classCode;
   else {
-    const parts = normalizedText(row2.displayName).toLowerCase().replace(/[‘’']/g, "").split(" ");
-    const translit = (v) => v.normalize("NFKD").replace(/[^a-z0-9]/g, "");
-    base4 = "teacher." + [translit(parts[1] || ""), translit(parts[0] || "")].filter(Boolean).join(".");
-    if (base4 === "teacher.") base4 = "teacher.staff";
+    const [surname, givenName] = normalizedText(row2.displayName).split(/\s+/).map(loginPart);
+    base4 = [givenName, surname].filter(Boolean).join(".") || "school.staff";
     base4 = base4.slice(0, 34);
   }
   let n = 1, login;
   do {
     login = row2.role === "student" ? base4 + "." + String(n).padStart(3, "0") : base4 + (n === 1 ? "" : "." + n);
     n++;
-  } while (used.has(login));
-  used.add(login);
+  } while (used.has(login.toLowerCase()));
+  used.add(login.toLowerCase());
   return login;
 }
 
@@ -4190,6 +4226,46 @@ function projectTeachingIdentity(user, assignments, requested) {
   return { ...user, subject, subjects: [...new Set(mine.map((a) => a.subject))], assignedClassIds: [...new Set(approved.map((a) => a.classId))] };
 }
 
+// src/server/managedSchoolIdentity.ts
+init_runtimeScope();
+import { createHash } from "node:crypto";
+async function ensureManagedSchoolIdentity(schoolId, uid) {
+  const hex = createHash("sha256").update(JSON.stringify([runtimeNamespace(), schoolId, uid])).digest("hex");
+  const id = `${hex.slice(0, 8)}-${hex.slice(8, 12)}-4${hex.slice(13, 16)}-8${hex.slice(17, 20)}-${hex.slice(20, 32)}`;
+  const email = `school-${hex.slice(0, 40)}@accounts.specialized.invalid`;
+  const admin = serverSupabase().auth.admin;
+  const read5 = () => admin.getUserById(id);
+  let result = await read5();
+  if (result.error?.status === 404) {
+    const created = await admin.createUser({
+      id,
+      email,
+      email_confirm: false,
+      ban_duration: "876000h",
+      app_metadata: { schoolManagedIdentity: true, schoolId, applicationUid: uid }
+    });
+    result = created.error ? await read5() : created;
+  }
+  const identity = result.data?.user;
+  const bannedUntil = Date.parse(identity?.banned_until || "");
+  if (result.error || !identity || identity.id !== id || identity.email !== email || identity.app_metadata?.schoolManagedIdentity !== true || identity.app_metadata.schoolId !== schoolId || identity.app_metadata.applicationUid !== uid || identity.email_confirmed_at || !(bannedUntil > Date.now())) {
+    throw new Error("Managed school identity could not be verified");
+  }
+  return identity.id;
+}
+
+// src/server/schoolCredentials.ts
+import { randomBytes } from "node:crypto";
+function createSchoolInitialPassword(role, used) {
+  for (; ; ) {
+    const parts = randomBytes(18).toString("base64url").match(/.{6}/g);
+    const password = role === "student" ? `sps-${parts.join("")}Aa7` : `${parts.join("-")}-Aa7`;
+    if (used.has(password)) continue;
+    used.add(password);
+    return password;
+  }
+}
+
 // src/server/schoolImportRoutes.ts
 import crypto7 from "node:crypto";
 import { z as z5 } from "zod";
@@ -4213,6 +4289,7 @@ var sheet = z5.object({ name: z5.string().min(1).max(160), startRow: z5.number()
 var previewSchema = z5.object({ kind: z5.enum(["students", "teachers", "workplans"]), academicYear: z5.literal("2026-2027"), files: z5.array(z5.object({ name: z5.string().min(1).max(500).refine((v) => !v.split(/[\\/]/).includes("..") && !v.startsWith("/")), sourceHash: z5.string().regex(/^[a-f0-9]{64}$/), sheets: z5.array(sheet).min(1).max(20) })).min(1).max(150) });
 var commitSchema = z5.object({
   operationId: z5.uuid(),
+  approvedReviewRevision: z5.number().int().nonnegative().optional(),
   selected: z5.array(z5.string().regex(/^[a-f0-9]{64}$/)).max(1e3),
   allowValidPart: z5.literal(true),
   mode: z5.enum(["draft", "publish"]).default("draft"),
@@ -4222,6 +4299,8 @@ var commitSchema = z5.object({
 });
 function registerSchoolImportRoutes(app2, deps) {
   const put = deps.put || putImportPayload, get = deps.get || getImportPayload;
+  const hosted = () => deps.enforceProvisioningApproval?.() ?? process.env.VERCEL_ENV === "production";
+  const verifiedMfa = (c) => deps.mfaVerified?.(c) ?? mfaVerified(c);
   const access = (req, res) => {
     const c = deps.authenticate(req);
     if (!c) {
@@ -4280,12 +4359,18 @@ function registerSchoolImportRoutes(app2, deps) {
     if (job.status !== "review") return res.status(409).json({ error: "Import holati kiritishga mos emas." });
     const p = commitSchema.safeParse(req.body);
     if (!p.success || !p.data.selected.length) return res.status(400).json({ error: "To\u2018g\u2018ri qatorlarni tanlang, mapping va asosni tasdiqlang." });
+    const controlled = hosted();
+    if (controlled && !verifiedMfa(c)) return res.status(403).json({ code: "MFA_REQUIRED", error: "Hisob yaratishdan oldin Xavfsizlik bo\u2018limida MFA tasdig\u2018idan o\u2018ting." });
+    if (controlled && (p.data.approvedReviewRevision === void 0 || p.data.approvedReviewRevision !== (job.reviewRevision || 0))) return res.status(409).json({ code: "REVIEW_CONFLICT", error: "Importni yangilang va ko\u2018rib chiqilgan versiyani tasdiqlang." });
     const source2 = await get(c.user.institutionId, job.id, "source", job.storagePath), payload = reviewedSchoolPayload(source2, c.db, job.id, c.user.institutionId), selected = new Set(p.data.selected), now = (/* @__PURE__ */ new Date()).toISOString(), errors = [];
+    if (controlled && [...payload.people, ...payload.plans].some((row2) => selected.has(row2.id) && row2.review?.decision !== "approve"))
+      return res.status(409).json({ code: "APPROVAL_REQUIRED", error: "Tanlangan har bir yozuvni ma\u2019lumot sifati oynasida tasdiqlang." });
     const allIds = new Set([...payload.people, ...payload.plans].map((v) => v.id));
     if ([...selected].some((id) => !allIds.has(id))) return res.status(400).json({ error: "Tanlangan qator ushbu importga tegishli emas." });
     const credentials = [], newUsers = [], newLessons = [], newPlans = [], newSubjects = [], newAssignments = [], additionalSubjects = [];
     let matched = 0, duplicates = 0;
-    const used = new Set(c.db.users.flatMap((u) => [u.login, ...u.loginAliases || []]).filter(Boolean));
+    const used = new Set(c.db.users.flatMap((u) => [u.login, u.email, ...u.loginAliases || []]).filter((value) => typeof value === "string" && value.length > 0).map((value) => value.toLowerCase()));
+    const usedPasswords = /* @__PURE__ */ new Set();
     const hashRows = [];
     for (const row2 of payload.people.filter((v) => selected.has(v.id))) {
       if (row2.review && row2.review.decision !== "approve") {
@@ -4296,7 +4381,7 @@ function registerSchoolImportRoutes(app2, deps) {
         errors.push({ row: row2.sourceRow, sheet: row2.sourceSheet, error: "Xodim shaxsi, lavozimi va tizim rolini ma\u2019lumot sifati oynasida tasdiqlang." });
         continue;
       }
-      const decision = { ...row2.review?.person || {}, ...p.data.people.find((v) => v.id === row2.id) || {} };
+      const decision = { ...row2.review?.person || {}, ...!controlled ? p.data.people.find((v) => v.id === row2.id) || {} : {} };
       const fatal = row2.issues.find((v) => ["INVALID_NAME", "UNKNOWN_CLASS", "DUPLICATE_SOURCE"].includes(v.code));
       if (fatal) {
         errors.push({ row: row2.sourceRow, sheet: row2.sourceSheet, error: fatal.message });
@@ -4354,6 +4439,18 @@ function registerSchoolImportRoutes(app2, deps) {
         errors.push({ row: row2.sourceRow, sheet: row2.sourceSheet, error: "Sinf/fanni tanlang yoki biriktirish kutilayotgan hisob sifatida tayyorlashni tasdiqlang." });
         continue;
       }
+      if (controlled && row2.role === "teacher" && row2.category === "teacher" && !assignments.length) {
+        errors.push({ row: row2.sourceRow, sheet: row2.sourceSheet, error: "Tasdiqlangan fan va sinf biriktirilmaguncha ushbu hisob ochilmaydi." });
+        continue;
+      }
+      if (controlled && assignments.some((a) => {
+        const cl = c.db.classes.find((v) => v.code === schoolClassCode(a.classCode) && v.institutionId === c.user.institutionId);
+        const subject = standardSubject(a.subject);
+        return !cl || !cl.subjectNames?.includes(subject) && !c.db.subjects.some((v) => v.name === subject && [...cl.subjectIds || [], ...cl.additionalSubjectIds || []].includes(v.id));
+      })) {
+        errors.push({ row: row2.sourceRow, sheet: row2.sourceSheet, error: "Fan ushbu sinfning tasdiqlangan fanlar ro\u2018yxatida yo\u2018q." });
+        continue;
+      }
       if (assignments.some((a) => !c.db.classes.some((cl) => cl.code === schoolClassCode(a.classCode) && cl.institutionId === c.user.institutionId))) {
         errors.push({ row: row2.sourceRow, sheet: row2.sourceSheet, error: "Ustoz sinfi maktab doirasiga mos emas." });
         continue;
@@ -4363,8 +4460,13 @@ function registerSchoolImportRoutes(app2, deps) {
         duplicates++;
         continue;
       }
-      const login = nextPersonLogin(row2, used), password = crypto7.randomBytes(18).toString("base64url") + "Aa7", subjectNames = [...new Set(assignments.map((a) => standardSubject(a.subject)))];
+      const login = nextPersonLogin(row2, used), password = createSchoolInitialPassword(row2.role, usedPasswords), subjectNames = [...new Set(assignments.map((a) => standardSubject(a.subject)))];
       const user = { uid, login, email: "", emailVerified: false, platformAdmin: false, platformOwner: false, displayName: row2.displayName, role: row2.role === "teacher" && row2.category !== "teacher" && !assignments.length ? "staff" : row2.role, staffCategory: row2.role === "teacher" ? row2.category : void 0, institutionId: c.user.institutionId, status: row2.role === "teacher" && row2.category === "teacher" && !assignments.length ? "pending_activation" : "active", mustChangePassword: true, academicYear: job.academicYear, createdAt: now, position: row2.position, subjects: subjectNames.length ? subjectNames : row2.subjects, subject: subjectNames[0] || row2.subjects[0], sourceImport: { batchId: job.id, sourceHash: row2.sourceHash, sourceSheet: row2.sourceSheet, sourceRow: row2.sourceRow, sourceClass: row2.sourceClass } };
+      if (controlled) {
+        user.status = "pending_activation";
+        user.schoolIdentityProvisioning = "pending";
+        user.initialPasswordExpiresAt = Date.now() + 7 * 864e5;
+      }
       if (cls) Object.assign(user, { classId: cls.id, classCode: cls.code, grade: cls.grade, track: cls.track, studentCode: "SS-" + uid.slice(-12).toUpperCase(), enrolledAt: now });
       if (user.role === "teacher") {
         user.assignedClassIds = [...new Set(assignments.map((a) => c.db.classes.find((cl) => cl.code === schoolClassCode(a.classCode) && cl.institutionId === c.user.institutionId).id))];
@@ -4382,7 +4484,7 @@ function registerSchoolImportRoutes(app2, deps) {
         errors.push({ row: 0, sheet: plan2.sheetName, error: "Bu varaq tasdiqlanmagan yoki rad etilgan." });
         continue;
       }
-      const decision = p.data.plans.find((v) => v.id === plan2.id) || plan2.review?.plan;
+      const decision = controlled ? plan2.review?.plan : p.data.plans.find((v) => v.id === plan2.id) || plan2.review?.plan;
       if (!decision) {
         errors.push({ row: 0, sheet: plan2.sheetName, error: "Sinf, fan va yo\u2018nalish mappingini alohida tasdiqlang." });
         continue;
@@ -4452,7 +4554,7 @@ function registerSchoolImportRoutes(app2, deps) {
     for (const user of newUsers.filter((u) => u.role === "student")) {
       c.db.studentEnrollments.push({ id: "enrollment-" + schoolDigest([user.uid, user.classId, job.academicYear]).slice(0, 32), institutionId: c.user.institutionId, studentId: user.uid, classId: user.classId, classCode: user.classCode, grade: user.grade, track: user.track, status: "active", enrolledAt: now });
     }
-    Object.assign(job, { status: "committed", publication: p.data.mode === "publish" ? "published" : "draft", addedSubjectAssignments: appliedSubjects, committedAt: now, createdUsers: newUsers.map((v) => v.uid), createdLessons: newLessons.map((v) => v.id), createdPlans: newPlans.map((v) => v.id), credentialPath, credentialExpiresAt: credentialPath ? Date.now() + 24 * 36e5 : void 0 });
+    Object.assign(job, { identityLinkRequired: controlled && newUsers.length > 0, status: "committed", publication: p.data.mode === "publish" ? "published" : "draft", addedSubjectAssignments: appliedSubjects, committedAt: now, createdUsers: newUsers.map((v) => v.uid), createdLessons: newLessons.map((v) => v.id), createdPlans: newPlans.map((v) => v.id), credentialPath, credentialExpiresAt: credentialPath ? Date.now() + 24 * 36e5 : void 0 });
     audit(c, "Import tasdiqlandi: " + p.data.reason, job.id);
     deps.save(c.env, c.db);
     return res.json({ committed: true, createdAccounts: newUsers.length, createdLessons: newLessons.length, createdPlans: newPlans.length, matched, duplicates, errors, credentialClaimAvailable: !!credentialPath });
@@ -4462,6 +4564,7 @@ function registerSchoolImportRoutes(app2, deps) {
     if (!c) return;
     const job = jobFor(c, req.params.id);
     if (!job || job.status !== "committed" || job.kind !== "workplans") return res.status(409).json({ error: "Kiritilgan ish rejasi importini tanlang." });
+    if (hosted() && !verifiedMfa(c)) return res.status(403).json({ code: "MFA_REQUIRED", error: "Nashrdan oldin MFA tasdig\u2018i kerak." });
     if (req.body.reviewed !== true || String(req.body.reason || "").trim().length < 8) return res.status(400).json({ error: "Nashrni ko\u2018rib chiqqaningizni va asosni tasdiqlang." });
     const errors = [];
     let published = 0;
@@ -4501,12 +4604,46 @@ function registerSchoolImportRoutes(app2, deps) {
     }
     return res.json({ published, errors, publication: job.publication, previousRecordsPreserved: true });
   });
+  app2.post("/api/school-imports/:id/link-identities", asyncRoute(async (req, res) => {
+    const c = access(req, res);
+    if (!c) return;
+    const job = jobFor(c, req.params.id);
+    if (!job || job.actorId !== c.user.uid || job.status !== "committed" || !job.identityLinkRequired)
+      return res.status(404).json({ error: "Tasdiqlangan hisob paketi topilmadi." });
+    if (!verifiedMfa(c)) return res.status(403).json({ code: "MFA_REQUIRED", error: "Hisoblarni ulashdan oldin MFA tasdig\u2018idan o\u2018ting." });
+    if (job.credentialExpiresAt && job.credentialExpiresAt < Date.now()) return res.status(410).json({ error: "Paket muddati tugadi. Hisoblarni ulashdan oldin yangi xavfsiz kirishlar tayyorlang." });
+    const profiles = c.db.users.filter((u) => job.createdUsers.includes(u.uid) && u.sourceImport?.batchId === job.id && u.institutionId === job.institutionId);
+    if (profiles.length !== job.createdUsers.length) return res.status(409).json({ error: "Hisoblar ro\u2018yxati o\u2018zgargan. Paketni tekshiring." });
+    const pending = profiles.filter((u) => u.schoolIdentityProvisioning === "pending" && u.status === "pending_activation").slice(0, 12);
+    const ensure = deps.ensureManagedIdentity || ensureManagedSchoolIdentity;
+    let linked = 0, failed = 0;
+    for (const user of pending) {
+      try {
+        user.managedSupabaseIdentityId = await ensure(job.institutionId, user.uid);
+        user.schoolIdentityProvisioning = "linked";
+        user.status = "active";
+        user.updatedAt = (/* @__PURE__ */ new Date()).toISOString();
+        linked++;
+      } catch {
+        failed++;
+      }
+    }
+    if (linked || failed) {
+      audit(c, "Hisoblarni Supabase Auth bilan bog\u2018lash: " + linked + " ulanish, " + failed + " xato", job.id);
+      deps.save(c.env, c.db);
+    }
+    res.json({ linked, failed, remaining: profiles.filter((u) => u.schoolIdentityProvisioning !== "linked").length });
+  }));
   app2.post("/api/school-imports/:id/credentials/claim", asyncRoute(async (req, res) => {
     const c = access(req, res);
     if (!c) return;
     const job = jobFor(c, req.params.id);
     if (!job || job.actorId !== c.user.uid || job.status !== "committed" || !job.credentialPath) return res.status(403).json({ error: "Bu kirish paketini olishga ruxsat yo\u2018q." });
     if (job.credentialsClaimedAt || !job.credentialExpiresAt || job.credentialExpiresAt < Date.now()) return res.status(410).json({ error: "Bir martalik ko\u2018rish tugagan. Kerak bo\u2018lsa hisob parolini xavfsiz tiklang." });
+    if (hosted() && !verifiedMfa(c)) return res.status(403).json({ code: "MFA_REQUIRED", error: "Kirish paketini olishdan oldin MFA tasdig\u2018idan o\u2018ting." });
+    if (job.identityLinkRequired && job.createdUsers.some((uid) => !c.db.users.some((u) => u.uid === uid && u.institutionId === job.institutionId && u.schoolIdentityProvisioning === "linked" && u.managedSupabaseIdentityId)))
+      return res.status(409).json({ code: "IDENTITY_LINK_PENDING", error: "Kirish paketidan oldin barcha hisoblarni Supabase Auth bilan bog\u2018lang." });
+    res.set("Cache-Control", "no-store");
     let proof;
     try {
       proof = await deps.providerProof(String(req.body.idToken || "").slice(0, 16e3), c.db);
@@ -4517,6 +4654,7 @@ function registerSchoolImportRoutes(app2, deps) {
     const kind = job.credentialPath.split("/").at(-1).replace(/\.enc$/, "");
     const credentials = await get(c.user.institutionId, job.id, kind, job.credentialPath);
     job.credentialsClaimedAt = (/* @__PURE__ */ new Date()).toISOString();
+    job.credentialClaimOperationId = crypto7.randomUUID();
     audit(c, "Boshlang\u2018ich kirishlar bir marta ko\u2018rsatildi", job.id);
     deps.save(c.env, c.db);
     return res.json({ credentials, oneTime: true, expiresAt: job.credentialExpiresAt });
@@ -10490,9 +10628,14 @@ function registerAccountRoutes(app2, deps) {
     if (!c) return;
     const u = c.db.users.find((u2) => u2.uid === req.params.uid && u2.institutionId === c.user.institutionId && ["student", "teacher"].includes(u2.role));
     if (!u) return res.status(404).json({ error: "Hisob topilmadi." });
+    if (u.sourceImport && process.env.VERCEL_ENV === "production" && !mfaVerified(c)) return res.status(403).json({ code: "MFA_REQUIRED", error: "Hisobni boshqarishdan oldin MFA tasdig\u2018i kerak." });
+    if (u.schoolIdentityProvisioning === "pending" && req.body.status === "active") return res.status(409).json({ error: "Avval hisobni Supabase Auth bilan bog\u2018lang." });
     let password;
     if (req.body.resetPassword === true) {
-      password = crypto26.randomBytes(18).toString("base64url") + "Aa7";
+      if (u.sourceImport && process.env.VERCEL_ENV === "production" && req.body.identityVerified !== true) return res.status(400).json({ error: "Avval hisob egasining shaxsini maktab ro\u2018yxati bo\u2018yicha tekshiring." });
+      password = createSchoolInitialPassword(u.role, /* @__PURE__ */ new Set());
+      res.set("Cache-Control", "no-store");
+      u.initialPasswordExpiresAt = Date.now() + 7 * 864e5;
       c.db.passwordHashes[u.uid] = await deps.hash(password);
       u.mustChangePassword = true;
     } else if (["active", "suspended"].includes(req.body.status)) u.status = req.body.status;
@@ -10510,7 +10653,12 @@ function registerAccountRoutes(app2, deps) {
     if (parsed.data.password === parsed.data.oldPassword) return res.status(400).json({ error: "Yangi parol joriy paroldan farq qilsin." });
     if (!await deps.verify(parsed.data.oldPassword, c.db.passwordHashes[c.user.uid])) return res.status(400).json({ error: "Joriy parol noto\u2018g\u2018ri." });
     c.db.passwordHashes[c.user.uid] = await deps.hash(parsed.data.password);
+    const stored = c.db.users.find((u) => u.uid === c.user.uid && u.institutionId === c.user.institutionId);
+    if (!stored) return res.status(409).json({ error: "Hisob yozuvi yangilandi. Qayta kiring." });
+    stored.mustChangePassword = false;
+    delete stored.initialPasswordExpiresAt;
     c.user.mustChangePassword = false;
+    delete c.user.initialPasswordExpiresAt;
     deps.revoke(c.user.uid, c.env);
     audit(c, "O\u2018z parolini yangiladi", c.user.uid);
     deps.save(c.env, c.db);
@@ -17578,7 +17726,7 @@ async function startServer() {
       );
       saveDbState(env, db);
     };
-    const passwordValid = await verifyPasswordAsync(password, user?.status === "active" ? db.passwordHashes[user.uid] : void 0);
+    const passwordValid = await verifyPasswordAsync(password, user?.status === "active" && user.schoolIdentityProvisioning !== "pending" && (!user.mustChangePassword || !user.initialPasswordExpiresAt || user.initialPasswordExpiresAt > Date.now()) ? db.passwordHashes[user.uid] : void 0);
     if (!user) {
       recordFailedLogin("hisob topilmadi");
       return res.status(401).json({ error: "Login yoki parol noto\u2018g\u2018ri." });
