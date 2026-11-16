@@ -2,6 +2,17 @@
   "version": 2,
   "redirects": [
     {
+      "source": "/",
+      "has": [
+        {
+          "type": "host",
+          "value": "specializedstudy.vercel.app"
+        }
+      ],
+      "destination": "https://specializedschool.vercel.app/",
+      "statusCode": 301
+    },
+    {
       "source": "/api/:path*",
       "has": [
         {
