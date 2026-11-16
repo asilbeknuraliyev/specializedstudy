@@ -4551,6 +4551,8 @@ function registerSchoolImportRoutes(app2, deps) {
       }
     }
     if (!newUsers.length && !newLessons.length && !matched && !duplicates) return res.status(409).json({ error: "Kiritishga tayyor qator yo\u2018q. Xatolar va mappingni tekshiring.", errors });
+    if (!newUsers.length && !newPlans.length && !matched && !duplicates)
+      return res.status(409).json({ code: "NO_IMPORTABLE_ROWS", error: errors[0]?.error || "Kiritishga tayyor yozuv topilmadi.", errors });
     const hashes = await boundedMap(hashRows, 2, async (row2) => ({ uid: row2.user.uid, hash: await deps.hash(row2.password) }));
     let credentialPath;
     if (credentials.length) credentialPath = await put(c.user.institutionId, job.id, "credentials-" + p.data.operationId, credentials);
@@ -4571,7 +4573,7 @@ function registerSchoolImportRoutes(app2, deps) {
     for (const user of newUsers.filter((u) => u.role === "student")) {
       c.db.studentEnrollments.push({ id: "enrollment-" + schoolDigest([user.uid, user.classId, job.academicYear]).slice(0, 32), institutionId: c.user.institutionId, studentId: user.uid, classId: user.classId, classCode: user.classCode, grade: user.grade, track: user.track, status: "active", enrolledAt: now });
     }
-    Object.assign(job, { identityLinkRequired: controlled && newUsers.length > 0, status: "committed", publication: p.data.mode === "publish" ? "published" : "draft", addedSubjectAssignments: appliedSubjects, committedAt: now, createdUsers: newUsers.map((v) => v.uid), createdLessons: newLessons.map((v) => v.id), createdPlans: newPlans.map((v) => v.id), credentialPath, credentialExpiresAt: credentialPath ? Date.now() + 24 * 36e5 : void 0 });
+    Object.assign(job, { identityLinkRequired: controlled && newUsers.length > 0, status: "committed", publication: p.data.mode === "publish" ? "published" : "draft", addedSubjectAssignments: appliedSubjects, committedAt: now, committedByUid: c.user.uid, createdUsers: newUsers.map((v) => v.uid), createdLessons: newLessons.map((v) => v.id), createdPlans: newPlans.map((v) => v.id), credentialPath, credentialExpiresAt: credentialPath ? Date.now() + 24 * 36e5 : void 0 });
     audit(c, "Import tasdiqlandi: " + p.data.reason, job.id);
     deps.save(c.env, c.db);
     return res.json({ committed: true, createdAccounts: newUsers.length, createdLessons: newLessons.length, createdPlans: newPlans.length, matched, duplicates, errors, credentialClaimAvailable: !!credentialPath });
@@ -4625,7 +4627,7 @@ function registerSchoolImportRoutes(app2, deps) {
     const c = access(req, res);
     if (!c) return;
     const job = jobFor(c, req.params.id);
-    if (!job || job.actorId !== c.user.uid || job.status !== "committed" || !job.identityLinkRequired)
+    if (!job || (job.committedByUid || job.actorId) !== c.user.uid || job.status !== "committed" || !job.identityLinkRequired)
       return res.status(404).json({ error: "Tasdiqlangan hisob paketi topilmadi." });
     if (!verifiedMfa(c)) return res.status(403).json({ code: "MFA_REQUIRED", error: "Hisoblarni ulashdan oldin MFA tasdig\u2018idan o\u2018ting." });
     if (job.credentialExpiresAt && job.credentialExpiresAt < Date.now()) return res.status(410).json({ error: "Paket muddati tugadi. Hisoblarni ulashdan oldin yangi xavfsiz kirishlar tayyorlang." });
@@ -4655,7 +4657,7 @@ function registerSchoolImportRoutes(app2, deps) {
     const c = access(req, res);
     if (!c) return;
     const job = jobFor(c, req.params.id);
-    if (!job || job.actorId !== c.user.uid || job.status !== "committed" || !job.credentialPath) return res.status(403).json({ error: "Bu kirish paketini olishga ruxsat yo\u2018q." });
+    if (!job || (job.committedByUid || job.actorId) !== c.user.uid || job.status !== "committed" || !job.credentialPath) return res.status(403).json({ error: "Bu kirish paketini olishga ruxsat yo\u2018q." });
     if (job.credentialsClaimedAt || !job.credentialExpiresAt || job.credentialExpiresAt < Date.now()) return res.status(410).json({ error: "Bir martalik ko\u2018rish tugagan. Kerak bo\u2018lsa hisob parolini xavfsiz tiklang." });
     if (hosted() && !verifiedMfa(c)) return res.status(403).json({ code: "MFA_REQUIRED", error: "Kirish paketini olishdan oldin MFA tasdig\u2018idan o\u2018ting." });
     if (job.identityLinkRequired && job.createdUsers.some((uid) => !c.db.users.some((u) => u.uid === uid && u.institutionId === job.institutionId && u.schoolIdentityProvisioning === "linked" && u.managedSupabaseIdentityId)))

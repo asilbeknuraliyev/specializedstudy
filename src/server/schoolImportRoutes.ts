@@ -84,11 +84,13 @@ const source:SchoolImportPayload=await get(c.user.institutionId,job.id,'source',
    if(lessons.length){if(decision.confirmAdditionalSubjects&&p.data.mode==='publish')for(const cl of classes)additionalSubjects.push({classId:cl.id,subjectId:subject.id});newPlans.push({id:workPlanId,institutionId:c.user.institutionId,title:subjectName+' · '+classes.map(v=>v.code.toUpperCase()).join(', ')+' · '+job.academicYear,fileName:plan.fileName,classId:classes[0].id,classIds:classes.map(v=>v.id),classCode:classes[0].code,classCodes:classes.map(v=>v.code),grade:classes[0].grade,track:classes[0].track,academicYear:job.academicYear,subjectId:subject.id,subjectName,planType:'annual',status:p.data.mode==='publish'?'published':'draft',rows:[],warnings:plan.issues,importJobId:job.id,sourceWorksheet:plan.sheetName,sourceHash:plan.sourceHash,additionalCurriculumAssignment:subjectName==='Matematika'&&classes.some(v=>v.track==='T'),tTrackVisibilityApproved:subjectName==='Matematika'&&classes.some(v=>v.track==='T')?true:undefined,version:job.sourceDigest,createdByUid:c.user.uid,createdByName:c.user.displayName,createdAt:now});newLessons.push(...lessons);}
   }
   if(!newUsers.length&&!newLessons.length&&!matched&&!duplicates)return res.status(409).json({error:'Kiritishga tayyor qator yo‘q. Xatolar va mappingni tekshiring.',errors});
+  if(!newUsers.length&&!newPlans.length&&!matched&&!duplicates)
+   return res.status(409).json({code:'NO_IMPORTABLE_ROWS',error:errors[0]?.error||'Kiritishga tayyor yozuv topilmadi.',errors});
   const hashes=await boundedMap(hashRows,2,async row=>({uid:row.user.uid,hash:await deps.hash(row.password)}));
   let credentialPath:string|undefined;if(credentials.length)credentialPath=await put(c.user.institutionId,job.id,'credentials-'+p.data.operationId,credentials);
   c.db.users.push(...newUsers);for(const row of hashes)c.db.passwordHashes[row.uid]=row.hash;c.db.lessons.push(...newLessons);c.db.workPlans.push(...newPlans);c.db.subjects.push(...newSubjects);c.db.teacherAssignments.push(...newAssignments);const appliedSubjects:Array<{classId:string;subjectId:string}>=[];for(const change of additionalSubjects){const cl=c.db.classes.find((v:any)=>v.id===change.classId);if(!cl.additionalSubjectIds?.includes(change.subjectId))appliedSubjects.push(change);cl.additionalSubjectIds=[...new Set([...(cl.additionalSubjectIds||[]),change.subjectId])];cl.displayName=cl.code.toUpperCase();cl.sectionLabel=cl.code.slice(String(cl.grade).length).toUpperCase();}
   for(const user of newUsers.filter(u=>u.role==='student')){c.db.studentEnrollments.push({id:'enrollment-'+schoolDigest([user.uid,user.classId,job.academicYear]).slice(0,32),institutionId:c.user.institutionId,studentId:user.uid,classId:user.classId,classCode:user.classCode,grade:user.grade,track:user.track,status:'active',enrolledAt:now});}
-  Object.assign(job,{identityLinkRequired:controlled&&newUsers.length>0,status:'committed',publication:p.data.mode==='publish'?'published':'draft',addedSubjectAssignments:appliedSubjects,committedAt:now,createdUsers:newUsers.map(v=>v.uid),createdLessons:newLessons.map(v=>v.id),createdPlans:newPlans.map(v=>v.id),credentialPath,credentialExpiresAt:credentialPath?Date.now()+24*3600000:undefined});
+  Object.assign(job,{identityLinkRequired:controlled&&newUsers.length>0,status:'committed',publication:p.data.mode==='publish'?'published':'draft',addedSubjectAssignments:appliedSubjects,committedAt:now,committedByUid:c.user.uid,createdUsers:newUsers.map(v=>v.uid),createdLessons:newLessons.map(v=>v.id),createdPlans:newPlans.map(v=>v.id),credentialPath,credentialExpiresAt:credentialPath?Date.now()+24*3600000:undefined});
   audit(c,'Import tasdiqlandi: '+p.data.reason,job.id);deps.save(c.env,c.db);return res.json({committed:true,createdAccounts:newUsers.length,createdLessons:newLessons.length,createdPlans:newPlans.length,matched,duplicates,errors,credentialClaimAvailable:!!credentialPath});
  }));
  app.post('/api/school-imports/:id/publish',(req,res)=>{
@@ -110,7 +112,7 @@ const source:SchoolImportPayload=await get(c.user.institutionId,job.id,'source',
  app.post('/api/school-imports/:id/link-identities',asyncRoute(async(req,res)=>{
   const c=access(req,res);if(!c)return;
   const job=jobFor(c,req.params.id);
-  if(!job||job.actorId!==c.user.uid||job.status!=='committed'||!job.identityLinkRequired)
+  if(!job||(job.committedByUid||job.actorId)!==c.user.uid||job.status!=='committed'||!job.identityLinkRequired)
    return res.status(404).json({error:'Tasdiqlangan hisob paketi topilmadi.'});
   if(!verifiedMfa(c))return res.status(403).json({code:'MFA_REQUIRED',error:'Hisoblarni ulashdan oldin MFA tasdig‘idan o‘ting.'});
   if(job.credentialExpiresAt&&job.credentialExpiresAt<Date.now())return res.status(410).json({error:'Paket muddati tugadi. Hisoblarni ulashdan oldin yangi xavfsiz kirishlar tayyorlang.'});
@@ -132,7 +134,7 @@ const source:SchoolImportPayload=await get(c.user.institutionId,job.id,'source',
   res.json({linked,failed,remaining:profiles.filter((u:any)=>u.schoolIdentityProvisioning!=='linked').length});
  }));
  app.post('/api/school-imports/:id/credentials/claim',asyncRoute(async(req,res)=>{
-  const c=access(req,res);if(!c)return;const job=jobFor(c,req.params.id);if(!job||job.actorId!==c.user.uid||job.status!=='committed'||!job.credentialPath)return res.status(403).json({error:'Bu kirish paketini olishga ruxsat yo‘q.'});if(job.credentialsClaimedAt||!job.credentialExpiresAt||job.credentialExpiresAt<Date.now())return res.status(410).json({error:'Bir martalik ko‘rish tugagan. Kerak bo‘lsa hisob parolini xavfsiz tiklang.'});
+  const c=access(req,res);if(!c)return;const job=jobFor(c,req.params.id);if(!job||(job.committedByUid||job.actorId)!==c.user.uid||job.status!=='committed'||!job.credentialPath)return res.status(403).json({error:'Bu kirish paketini olishga ruxsat yo‘q.'});if(job.credentialsClaimedAt||!job.credentialExpiresAt||job.credentialExpiresAt<Date.now())return res.status(410).json({error:'Bir martalik ko‘rish tugagan. Kerak bo‘lsa hisob parolini xavfsiz tiklang.'});
   if(hosted()&&!verifiedMfa(c))return res.status(403).json({code:'MFA_REQUIRED',error:'Kirish paketini olishdan oldin MFA tasdig‘idan o‘ting.'});
   if(job.identityLinkRequired&&job.createdUsers.some(uid=>!c.db.users.some((u:any)=>u.uid===uid&&u.institutionId===job.institutionId&&u.schoolIdentityProvisioning==='linked'&&u.managedSupabaseIdentityId)))
    return res.status(409).json({code:'IDENTITY_LINK_PENDING',error:'Kirish paketidan oldin barcha hisoblarni Supabase Auth bilan bog‘lang.'});
