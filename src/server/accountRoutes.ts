@@ -1,5 +1,5 @@
 import {mfaVerified} from './leadershipSecurity';
-import {createSchoolInitialPassword} from './schoolCredentials';
+import {createSchoolInitialPassword,createEasySchoolCredential} from './schoolCredentials';
 import {asyncRoute} from './asyncRoute';
 import {boundedMap} from './boundedMap';
 import {validPassword} from '../utils/passwordPolicy';
@@ -13,7 +13,23 @@ export function registerAccountRoutes(app:Express,deps:any){const access=(req:an
  if(u.schoolIdentityProvisioning==='pending'&&req.body.status==='active')return res.status(409).json({error:'Avval hisobni Supabase Auth bilan bog‘lang.'});
  let password:string|undefined;if(req.body.resetPassword===true){
  if(u.sourceImport&&process.env.VERCEL_ENV==='production'&&req.body.identityVerified!==true)return res.status(400).json({error:'Avval hisob egasining shaxsini maktab ro‘yxati bo‘yicha tekshiring.'});
- password=createSchoolInitialPassword(u.role,new Set<string>());res.set('Cache-Control','no-store');u.initialPasswordExpiresAt=Date.now()+7*86400000;c.db.passwordHashes[u.uid]=await deps.hash(password);u.mustChangePassword=true;}else if(['active','suspended'].includes(req.body.status))u.status=req.body.status;else return res.status(400).json({error:'Amalni tekshiring.'});deps.revoke(u.uid,c.env);audit(c,password?'Parol tiklandi':'Hisob holati yangilandi',u.uid);deps.save(c.env,c.db);res.json({login:u.login||u.email,password,status:u.status});}));
+ if(req.body.credentialFormat!==undefined&&req.body.credentialFormat!=='easy-school')return res.status(400).json({error:'Credential formati noto‘g‘ri.'});
+ let nextLogin=u.login;
+ if(req.body.credentialFormat==='easy-school'){
+  if(!u.sourceImport||req.body.identityVerified!==true)return res.status(400).json({error:'Maktab ro‘yxatidagi shaxsni tasdiqlang.'});
+  if(!mfaVerified(c))return res.status(403).json({code:'MFA_REQUIRED',error:'Parol formatini almashtirish uchun MFA tasdig‘i kerak.'});
+  try{
+   const proof=await (deps.providerProof||accountProviderProof)(String(req.body.idToken||'').slice(0,16000),c.db);
+   const age=Date.now()/1000-proof.auth_time;
+   if(proof.uid!==c.user.uid||!proof.email_verified||proof.firebase?.sign_in_provider!=='google.com'||!Number.isFinite(age)||age<0||age>300)throw Error();
+  }catch{return res.status(403).json({error:'Yangi Google tasdig‘i kerak.'});}
+  const used=new Set<string>(c.db.users.flatMap((user:any)=>[user.login,user.email,...(user.loginAliases||[])]).filter((value:unknown):value is string=>typeof value==='string'&&value.length>0).map((value:string)=>value.toLowerCase()));
+  const credential=createEasySchoolCredential(u,used);
+  password=credential.password;nextLogin=credential.login;
+ }else password=createSchoolInitialPassword(u.role,new Set<string>());
+ const passwordHash=await deps.hash(password);
+ res.set('Cache-Control','no-store');u.initialPasswordExpiresAt=Date.now()+7*86400000;c.db.passwordHashes[u.uid]=passwordHash;u.mustChangePassword=true;
+ if(nextLogin!==u.login){u.login=nextLogin;u.loginAliases=[];}}else if(['active','suspended'].includes(req.body.status))u.status=req.body.status;else return res.status(400).json({error:'Amalni tekshiring.'});deps.revoke(u.uid,c.env);audit(c,password?'Parol tiklandi':'Hisob holati yangilandi',u.uid);deps.save(c.env,c.db);res.json({login:u.login||u.email,password,status:u.status});}));
  app.post('/api/account/password',asyncRoute(async(req,res)=>{const c=access(req,res);if(!c)return;const parsed=z.object({oldPassword:z.string().max(128),password:z.string().min(12).max(128).refine(v=>validPassword(v,12))}).safeParse(req.body);if(!parsed.success)return res.status(400).json({error:'Yangi parol kamida 12 belgidan iborat bo‘lsin.'});if(parsed.data.password===parsed.data.oldPassword)return res.status(400).json({error:'Yangi parol joriy paroldan farq qilsin.'});if(!await deps.verify(parsed.data.oldPassword,c.db.passwordHashes[c.user.uid]))return res.status(400).json({error:'Joriy parol noto‘g‘ri.'});c.db.passwordHashes[c.user.uid]=await deps.hash(parsed.data.password);const stored=c.db.users.find((u:any)=>u.uid===c.user.uid&&u.institutionId===c.user.institutionId);
  if(!stored)return res.status(409).json({error:'Hisob yozuvi yangilandi. Qayta kiring.'});
  stored.mustChangePassword=false;delete stored.initialPasswordExpiresAt;c.user.mustChangePassword=false;delete c.user.initialPasswordExpiresAt;deps.revoke(c.user.uid,c.env);audit(c,'O‘z parolini yangiladi',c.user.uid);deps.save(c.env,c.db);res.json({user:c.user,token:deps.issue(c.user.uid,c.env)});}));

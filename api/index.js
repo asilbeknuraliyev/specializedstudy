@@ -4277,7 +4277,22 @@ async function ensureManagedSchoolIdentity(schoolId, uid) {
 }
 
 // src/server/schoolCredentials.ts
-import { randomBytes } from "node:crypto";
+import { randomBytes, randomInt } from "node:crypto";
+function createEasySchoolCredential(user, usedLogins) {
+  if (user.role === "student") {
+    for (; ; ) {
+      const login = "sps" + randomInt(1e6, 1e7);
+      if (usedLogins.has(login)) continue;
+      usedLogins.add(login);
+      return { login, password: login };
+    }
+  }
+  const name = user.login.split(".")[0];
+  if (!/^[a-z]{2,30}$/.test(name)) {
+    throw Error("Ustozning ismli loginini avval tekshiring.");
+  }
+  return { login: user.login, password: name[0].toUpperCase() + name.slice(1) + "-" + randomInt(1e5, 1e6) };
+}
 function createSchoolInitialPassword(role, used) {
   for (; ; ) {
     const parts = randomBytes(18).toString("base64url").match(/.{6}/g);
@@ -10657,11 +10672,32 @@ function registerAccountRoutes(app2, deps) {
     let password;
     if (req.body.resetPassword === true) {
       if (u.sourceImport && process.env.VERCEL_ENV === "production" && req.body.identityVerified !== true) return res.status(400).json({ error: "Avval hisob egasining shaxsini maktab ro\u2018yxati bo\u2018yicha tekshiring." });
-      password = createSchoolInitialPassword(u.role, /* @__PURE__ */ new Set());
+      if (req.body.credentialFormat !== void 0 && req.body.credentialFormat !== "easy-school") return res.status(400).json({ error: "Credential formati noto\u2018g\u2018ri." });
+      let nextLogin = u.login;
+      if (req.body.credentialFormat === "easy-school") {
+        if (!u.sourceImport || req.body.identityVerified !== true) return res.status(400).json({ error: "Maktab ro\u2018yxatidagi shaxsni tasdiqlang." });
+        if (!mfaVerified(c)) return res.status(403).json({ code: "MFA_REQUIRED", error: "Parol formatini almashtirish uchun MFA tasdig\u2018i kerak." });
+        try {
+          const proof = await (deps.providerProof || accountProviderProof)(String(req.body.idToken || "").slice(0, 16e3), c.db);
+          const age = Date.now() / 1e3 - proof.auth_time;
+          if (proof.uid !== c.user.uid || !proof.email_verified || proof.firebase?.sign_in_provider !== "google.com" || !Number.isFinite(age) || age < 0 || age > 300) throw Error();
+        } catch {
+          return res.status(403).json({ error: "Yangi Google tasdig\u2018i kerak." });
+        }
+        const used = new Set(c.db.users.flatMap((user) => [user.login, user.email, ...user.loginAliases || []]).filter((value) => typeof value === "string" && value.length > 0).map((value) => value.toLowerCase()));
+        const credential = createEasySchoolCredential(u, used);
+        password = credential.password;
+        nextLogin = credential.login;
+      } else password = createSchoolInitialPassword(u.role, /* @__PURE__ */ new Set());
+      const passwordHash = await deps.hash(password);
       res.set("Cache-Control", "no-store");
       u.initialPasswordExpiresAt = Date.now() + 7 * 864e5;
-      c.db.passwordHashes[u.uid] = await deps.hash(password);
+      c.db.passwordHashes[u.uid] = passwordHash;
       u.mustChangePassword = true;
+      if (nextLogin !== u.login) {
+        u.login = nextLogin;
+        u.loginAliases = [];
+      }
     } else if (["active", "suspended"].includes(req.body.status)) u.status = req.body.status;
     else return res.status(400).json({ error: "Amalni tekshiring." });
     deps.revoke(u.uid, c.env);
