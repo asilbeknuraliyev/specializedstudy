@@ -47,6 +47,7 @@
   ],
   "functions": {
     "api/index.js": {
+      "maxDuration": 300,
       "includeFiles": "{firebase-applet-config.json,supabase-public-config.json,public/assets/aistudio/*.zip}"
     }
   },

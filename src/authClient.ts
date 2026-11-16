@@ -16,7 +16,7 @@ export const getIdToken=async(_user:User,_refresh=false)=>accessToken;
 export const getIdTokenResult=async(_user:User,_refresh=false)=>({claims:{provider:'supabase'}});
 export function onAuthStateChanged(_auth:typeof auth,listener:(user:User|null)=>unknown){listeners.add(listener);return()=>{listeners.delete(listener);};}
 let redirectResult:Promise<{user:User}|null>|undefined;
-type GoogleProofIntent = { kind: 'mfa' } | { kind: 'credentials'; jobId: string };
+type GoogleProofIntent = { kind: 'mfa' } | { kind: 'credentials'; jobId: string } | { kind: 'rotation' };
 const proofStorageKey = 'ss_google_proof_intent';
 const proofLifetime = 5 * 60_000;
 let callbackIntent: GoogleProofIntent | null | undefined;
@@ -31,6 +31,7 @@ export function getGoogleProofIntent(): GoogleProofIntent | null {
   sessionStorage.removeItem(proofStorageKey);
   if (!intent || !Number.isFinite(intent.expiresAt) || Date.now() >= intent.expiresAt) return null;
   if (intent.kind === 'mfa') callbackIntent = { kind: 'mfa' };
+  if (intent.kind === 'rotation') callbackIntent = { kind: 'rotation' };
   if (intent.kind === 'credentials' && /^school-[a-f0-9]{40}$/.test(intent.jobId)) {
    callbackIntent = { kind: 'credentials', jobId: intent.jobId };
   }
@@ -65,7 +66,7 @@ export function completeGoogleProof(intent:GoogleProofIntent) {
   } catch {
    proofReply={intent,error:'Google tasdig‘i yakunlanmadi. Qayta urinib ko‘ring.'};
   }
-  return intent.kind==='mfa'?'/account/security':'/admin/school-imports';
+  return intent.kind==='mfa'?'/account/security':intent.kind==='rotation'?'/admin/accounts':'/admin/school-imports';
  })();
 }
 

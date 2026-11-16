@@ -1,3 +1,4 @@
+import {registerCredentialRotationRoutes} from './src/server/credentialRotationRoutes';
 import {registerAcademicActivityRoutes} from './src/server/academicActivityRoutes';
 import {studentAssignmentVisible} from './src/utils/schoolAudience';
 import {registerAcademicRoutes} from './src/server/academicRoutes';
@@ -529,6 +530,7 @@ async function startServer() {
 app.use(staffPermissionGuard(authenticateRequest));
   registerLeadershipSecurity(app,{authenticate:authenticateRequest,save:saveDbState,verify:verifyPasswordAsync,providerProof:accountProviderProof,owner:(user:UserProfile)=>isVerifiedPlatformOwner(user,CONFIGURED_OWNER_EMAIL),revoke:revokeAllUserSessions});
   registerLeadershipRoutes(app,{authenticate:authenticateRequest});
+  registerCredentialRotationRoutes(app,{authenticate:authenticateRequest,save:saveDbState,hash:hashPasswordAsync,owner:(user:UserProfile)=>isVerifiedPlatformOwner(user,CONFIGURED_OWNER_EMAIL),revoke:revokeAllUserSessions});
   registerSchoolImportRoutes(app,{authenticate:authenticateRequest,save:saveDbState,hash:hashPasswordAsync,providerProof:accountProviderProof,owner:(user:UserProfile)=>isVerifiedPlatformOwner(user,CONFIGURED_OWNER_EMAIL),revoke:revokeAllUserSessions});
 registerSchoolDataRoutes(app,{authenticate:authenticateRequest,save:saveDbState,hash:hashPasswordAsync,providerProof:accountProviderProof,owner:(user:UserProfile)=>isVerifiedPlatformOwner(user,CONFIGURED_OWNER_EMAIL),revoke:revokeAllUserSessions});
 registerAcademicRoutes(app,{authenticate:authenticateRequest,save:saveDbState,hash:hashPasswordAsync,providerProof:accountProviderProof,owner:(user:UserProfile)=>isVerifiedPlatformOwner(user,CONFIGURED_OWNER_EMAIL),revoke:revokeAllUserSessions});
