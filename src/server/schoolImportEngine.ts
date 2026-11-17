@@ -1,4 +1,5 @@
 import crypto from 'node:crypto';
+import {createStudentLogin} from './schoolCredentials';
 import {parsePeople,parseSchoolPlan,inferSchoolPlanTarget,nameIdentity,normalizedText,type SourceSheet,type SchoolPersonRow,type SchoolPlanRow,type SourceIssue} from '../utils/schoolSourceImport';
 export const schoolDigest=(value:unknown)=>crypto.createHash('sha256').update(JSON.stringify(value)).digest('hex');
 export type SchoolImportKind='students'|'teachers'|'workplans';
@@ -32,10 +33,16 @@ const cyrillic: Record<string,string> = {
  а:'a',б:'b',в:'v',г:'g',д:'d',е:'e',ё:'yo',ж:'j',з:'z',и:'i',й:'y',к:'k',л:'l',м:'m',н:'n',о:'o',п:'p',р:'r',с:'s',т:'t',у:'u',ф:'f',х:'x',ц:'ts',ч:'ch',ш:'sh',щ:'shch',ы:'i',э:'e',ю:'yu',я:'ya',ў:'o',қ:'q',ғ:'g',ҳ:'h',
 };
 const loginPart=(value:string)=>Array.from(value.normalize('NFKD').toLowerCase(),c=>cyrillic[c]??c).join('').replace(/[^a-z0-9]/g,'');
-export function nextPersonLogin(row:Pick<PersonImportItem,'role'|'classCode'|'displayName'>,used:Set<string>){
- let base:string;
- if(row.role==='student')base='st.'+row.classCode;
- else{const [surname, givenName]=normalizedText(row.displayName).split(/\s+/).map(loginPart);base=[givenName,surname].filter(Boolean).join('.')||'school.staff';base=base.slice(0,34);}
- let n=1,login:string;
- do{login=row.role==='student'?base+'.'+String(n).padStart(3,'0'):base+(n===1?'':'.'+n);n++;}while(used.has(login.toLowerCase()));used.add(login.toLowerCase());return login;
+export function nextPersonLogin(row:Pick<PersonImportItem,'role'|'displayName'>,uid:string,used:Set<string>){
+ if(row.role==='student')return createStudentLogin(used);
+ const [surname, givenName]=normalizedText(row.displayName).split(/\s+/).map(loginPart);
+ const base=[givenName,surname].filter(Boolean).join('.')||'school.staff';
+ const plain=base.slice(0,40).replace(/\.$/,'');
+ if(!used.has(plain)){used.add(plain);return plain;}
+ const suffix=schoolDigest(uid);
+ for(let length=8;length<=16;length+=2){
+  const login=base.slice(0,39-length).replace(/\.$/,'')+'.'+suffix.slice(0,length);
+  if(!used.has(login)){used.add(login);return login;}
+ }
+ throw Error('Bo‘sh xodim loginini ajratib bo‘lmadi.');
 }

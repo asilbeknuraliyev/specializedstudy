@@ -1634,6 +1634,13 @@ registerAcademicActivityRoutes(app,{authenticate:authenticateRequest,save:saveDb
     }
 
     const { user, db } = authCtx;
+    if (user.mustChangePassword) {
+      res.set('Cache-Control', 'no-store');
+      return res.json({ user: {
+        uid: user.uid, login: user.login, displayName: user.displayName, role: user.role,
+        status: user.status, institutionId: user.institutionId, mustChangePassword: true,
+      } });
+    }
     ensureSpecializedStudyStructure(db);
     const instId = user.institutionId;
     const scopedJson=res.json.bind(res);res.json=((body:any)=>scopedJson(scopeInstitutionResponse(body,db,instId))) as typeof res.json;

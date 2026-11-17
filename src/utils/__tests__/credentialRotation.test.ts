@@ -10,9 +10,17 @@ test('450-account rotation enforces owner MFA and reauthentication, retries with
   process.env.SESSION_SECRET = 'synthetic-encryption-secret-for-local-fixture-only';
   const providerUid = '00000000-0000-4000-8000-000000000001';
   const owner = { uid: 'DEMO-owner', institutionId: 'DEMO-school', role: 'platform_owner', status: 'active', linkedSupabaseUid: providerUid };
-  const users = Array.from({ length: 450 }, (_, index) => ({ uid: 'DEMO-user-' + index, institutionId: owner.institutionId, role: index < 426 ? 'student' : 'teacher', displayName: 'Synthetic Person', login: 'teacher.' + index, status: 'active', schoolIdentityProvisioning: 'linked' }));
-  const oldProfile = { uid: 'DEMO-existing', login: 'existing', role: 'student', institutionId: owner.institutionId };
-  const db: any = { users: [owner, oldProfile, ...users], passwordHashes: Object.fromEntries(users.map(user => [user.uid, 'original-hash'])), schoolImportJobs: [{ institutionId: owner.institutionId, kind: 'students', status: 'committed', createdUsers: users.slice(0, 426).map(user => user.uid) }, { institutionId: owner.institutionId, kind: 'teachers', status: 'committed', createdUsers: users.slice(426).map(user => user.uid) }], auditLogs: [], mfaVerifiedSessions: [] };
+  const users = Array.from({ length: 450 }, (_, index) => ({
+    uid: 'DEMO-user-' + index, institutionId: owner.institutionId, role: index < 426 ? 'student' : 'teacher',
+    displayName: 'Synthetic Person', login: index === 0 ? 'sps0000001' : 'teacher.' + index,
+    status: 'active', schoolIdentityProvisioning: 'linked', managedSupabaseIdentityId: 'fixture-' + index,
+    sourceImport: { batchId: index < 426 ? 'students' : 'teachers' }, mustChangePassword: true,
+  }));
+  const oldProfile = { ...users[0], uid: 'DEMO-existing', login: 'existing', mustChangePassword: false };
+  const db: any = { users: [owner, oldProfile, ...users], passwordHashes: Object.fromEntries([...users, oldProfile].map(user => [user.uid, 'original-hash'])), schoolImportJobs: [
+    { id: 'students', committedByUid: owner.uid, institutionId: owner.institutionId, kind: 'students', status: 'committed', createdUsers: [...users.slice(0, 426), oldProfile].map(user => user.uid) },
+    { id: 'teachers', committedByUid: owner.uid, institutionId: owner.institutionId, kind: 'teachers', status: 'committed', createdUsers: users.slice(426).map(user => user.uid) },
+  ], auditLogs: [], mfaVerifiedSessions: [] };
   const nativeFetch = globalThis.fetch;
   const objects = new Map<string, string>();
   globalThis.fetch = async (input: any, init?: any) => {
@@ -50,15 +58,21 @@ test('450-account rotation enforces owner MFA and reauthentication, retries with
     assert.equal((await send()).status, 200);
     assert.equal(hashes, 450);
     assert.equal(saves, 1);
+    const superseded = users[425];
+    db.passwordHashes[superseded.uid] = 'newer-account-reset';
     const claim = await send('/claim');
     assert.equal(claim.status, 200);
     const rows = (await claim.json()).credentials;
-    assert.equal(rows.length, 450);
-    assert(rows.slice(0, 426).every((row: any) => row.login === row.password && /^sps[1-9]\d{6}$/.test(row.login)));
-    assert.equal(new Set(rows.map((row: any) => row.password)).size, 450);
+    assert.equal(rows.length, 449);
+    assert(rows.slice(0, 425).every((row: any) => row.login !== row.password && /^sps\d{7}$/.test(row.login) && /^sps-/.test(row.password)));
+    assert.equal(rows[0].login, 'sps0000001');
+    assert(rows.slice(425).every((row: any) => /^(?:[A-Z][a-z]{3}-){6}\d{2}$/.test(row.password)));
+    assert.equal(new Set(rows.map((row: any) => row.password)).size, 449);
+    assert(rows.every((row: any) => row.uid !== superseded.uid));
     assert(rows.every((row: any) => row.expectedHash === undefined));
     assert.equal((await send('/claim')).status, 410);
     assert.equal(oldProfile.login, 'existing');
+    assert.equal(db.passwordHashes[oldProfile.uid], 'original-hash');
   } finally {
     globalThis.fetch = nativeFetch;
     server.closeAllConnections();

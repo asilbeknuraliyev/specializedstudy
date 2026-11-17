@@ -120,6 +120,7 @@ export interface UserProfile {
   managedSupabaseIdentityId?: string;
   initialPasswordExpiresAt?: number;
   schoolIdentityProvisioning?: 'pending' | 'linked';
+  schoolCredentialPolicyVersion?: number;
   loginAliases?: string[];
   uid: string;
   displayName: string;
