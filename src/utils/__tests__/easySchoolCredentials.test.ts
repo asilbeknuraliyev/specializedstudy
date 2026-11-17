@@ -1,20 +1,30 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import express from 'express';
-import { createEasySchoolCredential } from '../../server/schoolCredentials';
+import { createSchoolInitialPassword, createStudentLogin } from '../../server/schoolCredentials';
+import { nextPersonLogin } from '../../server/schoolImportEngine';
 import { registerAccountRoutes } from '../../server/accountRoutes';
 
-test('easy student credentials use unique seven digit codes and teacher credentials include the given name', () => {
+test('school credentials use unique student codes and independent, readable passwords', () => {
   const used = new Set<string>();
+  const passwords = new Set<string>();
   for (let index = 0; index < 426; index++) {
-    const result = createEasySchoolCredential({ role: 'student', login: 'old', displayName: 'Synthetic Student' }, used);
-    assert.match(result.login, /^sps[1-9]\d{6}$/);
-    assert.equal(result.password, result.login);
+    const login = createStudentLogin(used);
+    const password = createSchoolInitialPassword('student', passwords);
+    assert.match(login, /^sps\d{7}$/);
+    assert.match(password, /^sps-(?:[A-HJ-NP-Z2-9]{5}-){2}[A-HJ-NP-Z2-9]{5}$/);
+    assert.notEqual(password, login);
   }
   assert.equal(used.size, 426);
-  const teacher = createEasySchoolCredential({ role: 'teacher', login: 'synthetic.teacher', displayName: 'Synthetic Teacher' }, used);
-  assert.equal(teacher.login, 'synthetic.teacher');
-  assert.match(teacher.password, /^Synthetic-\d{6}$/);
+  for (let index = 0; index < 51; index++) {
+    assert.match(createSchoolInitialPassword('teacher', passwords), /^(?:[A-Z][a-z]{3}-){6}\d{2}$/);
+  }
+  assert.equal(passwords.size, 477);
+  const teacher = { role: 'teacher' as const, displayName: 'Synthetic Given' };
+  assert.equal(nextPersonLogin(teacher, 'fixture-a', used), 'given.synthetic');
+  const sameName = nextPersonLogin(teacher, 'fixture-b', used);
+  assert.match(sameName, /^given\.synthetic\.[a-f0-9]{8}$/);
+  assert.equal(nextPersonLogin(teacher, 'fixture-b', new Set(['given.synthetic'])), sameName);
 });
 
 test('easy credential reset requires genuine session MFA and fresh matching provider proof before any write', async () => {
@@ -45,12 +55,18 @@ test('easy credential reset requires genuine session MFA and fresh matching prov
     const response = await send('fresh-owner-proof');
     assert.equal(response.status, 200);
     const result = await response.json();
-    assert.equal(result.password, result.login);
-    assert.match(result.login, /^sps[1-9]\d{6}$/);
+    assert.match(result.password, /^sps-/);
+    assert.notEqual(result.password, result.login);
+    assert.match(result.login, /^sps\d{7}$/);
     assert.equal((student as any).mustChangePassword, true);
     assert.equal(db.passwordHashes[student.uid], 'new-synthetic-hash');
     assert.equal(saves, 1);
     assert.equal(revocations, 1);
+    const second = await send('fresh-owner-proof');
+    assert.equal(second.status, 200);
+    const secondResult = await second.json();
+    assert.equal(secondResult.login, result.login);
+    assert.notEqual(secondResult.password, result.password);
   } finally {
     server.closeAllConnections();
     await new Promise<void>(resolve => server.close(() => resolve()));

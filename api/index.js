@@ -3181,26 +3181,30 @@ function registerSupabaseAuthRoutes(app2, deps) {
 }
 
 // src/server/schoolCredentials.ts
-import { randomBytes, randomInt } from "node:crypto";
-function createEasySchoolCredential(user, usedLogins) {
-  if (user.role === "student") {
-    for (; ; ) {
-      const login = "sps" + randomInt(1e6, 1e7);
-      if (usedLogins.has(login)) continue;
-      usedLogins.add(login);
-      return { login, password: login };
-    }
+import { randomInt } from "node:crypto";
+var schoolCredentialPolicy = 2;
+var studentLoginPattern = /^sps[0-9]{7}$/;
+var readable = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+var consonants = "bdfghjklmnprstvz";
+var vowels = "aeiou";
+function sample(alphabet) {
+  return alphabet[randomInt(alphabet.length)];
+}
+function reservedAccountLogins(users) {
+  return new Set(users.flatMap((user) => [user.login, user.email, ...user.loginAliases || []]).filter((value) => Boolean(value)).map((value) => value.toLowerCase()));
+}
+function createStudentLogin(used) {
+  for (let attempt = 0; attempt < 64; attempt++) {
+    const login = "sps" + String(randomInt(1e7)).padStart(7, "0");
+    if (used.has(login)) continue;
+    used.add(login);
+    return login;
   }
-  const name = user.login.split(".")[0];
-  if (!/^[a-z]{2,30}$/.test(name)) {
-    throw Error("Ustozning ismli loginini avval tekshiring.");
-  }
-  return { login: user.login, password: name[0].toUpperCase() + name.slice(1) + "-" + randomInt(1e5, 1e6) };
+  throw Error("Bo\u2018sh o\u2018quvchi loginini ajratib bo\u2018lmadi.");
 }
 function createSchoolInitialPassword(role, used) {
   for (; ; ) {
-    const parts = randomBytes(18).toString("base64url").match(/.{6}/g);
-    const password = role === "student" ? `sps-${parts.join("")}Aa7` : `${parts.join("-")}-Aa7`;
+    const password = role === "student" ? "sps-" + Array.from({ length: 3 }, () => Array.from({ length: 5 }, () => sample(readable)).join("")).join("-") : Array.from({ length: 6 }, () => sample(consonants).toUpperCase() + sample(vowels) + sample(consonants) + sample(vowels)).join("-") + "-" + String(randomInt(100)).padStart(2, "0");
     if (used.has(password)) continue;
     used.add(password);
     return password;
@@ -3247,6 +3251,7 @@ async function getImportPayload(school, id, kind, path6) {
 init_runtimeScope();
 var request = z3.object({ operationId: z3.uuid(), idToken: z3.string().min(20).max(16e3), confirmed: z3.literal(true) });
 var digest = (value) => crypto7.createHash("sha256").update(value).digest("hex");
+var packetKind = "rotation-v2";
 function registerCredentialRotationRoutes(app2, deps) {
   const access = async (req, res) => {
     res.set("Cache-Control", "no-store");
@@ -3289,63 +3294,72 @@ function registerCredentialRotationRoutes(app2, deps) {
     const existing = db.accountCredentialRotations.find((item) => item.id === input.operationId);
     if (existing) {
       if (existing.ownerId !== user.uid || existing.schoolId !== user.institutionId) return res.status(403).json({ error: "Amal boshqa hisobga tegishli." });
+      if (existing.policyVersion !== schoolCredentialPolicy) return res.status(409).json({ error: "Bu eski paket. Yangilash amalini qayta boshlang." });
       return res.json({ id: existing.id, students: existing.students, teachers: existing.teachers, committed: true });
     }
-    const jobs = (db.schoolImportJobs || []).filter((job) => job.institutionId === user.institutionId && job.status === "committed" && ["students", "teachers"].includes(job.kind));
-    const ids = new Set(jobs.flatMap((job) => job.createdUsers));
-    const users = db.users.filter((person2) => ids.has(person2.uid) && person2.institutionId === user.institutionId && ["student", "teacher"].includes(person2.role));
-    if (users.filter((person2) => person2.role === "student").length !== 426 || users.filter((person2) => person2.role === "teacher").length !== 24 || users.some((person2) => person2.schoolIdentityProvisioning !== "linked" || person2.status !== "active")) {
-      return res.status(409).json({ error: "426 o\u2018quvchi va 24 ustoz ro\u2018yxatini qayta tekshiring." });
-    }
-    const path6 = runtimeNamespace() + "/imports/" + encodeURIComponent(user.institutionId) + "/" + input.operationId + "/rotation.enc";
+    const jobs = (db.schoolImportJobs || []).filter((job) => job.institutionId === user.institutionId && job.status === "committed" && job.committedByUid && ["students", "teachers"].includes(job.kind));
+    const users = db.users.filter(
+      (person2) => person2.institutionId === user.institutionId && person2.status === "active" && person2.schoolIdentityProvisioning === "linked" && person2.managedSupabaseIdentityId && person2.mustChangePassword === true && person2.schoolCredentialPolicyVersion !== schoolCredentialPolicy && jobs.some((job) => person2.sourceImport?.batchId === job.id && job.kind === person2.role + "s" && job.createdUsers.includes(person2.uid))
+    );
+    if (!users.length) return res.status(409).json({ error: "Yangilanishi kerak bo\u2018lgan tasdiqlangan hisob topilmadi." });
+    const path6 = runtimeNamespace() + "/imports/" + encodeURIComponent(user.institutionId) + "/" + input.operationId + "/" + packetKind + ".enc";
     let packet2;
     try {
-      packet2 = await getImportPayload(user.institutionId, input.operationId, "rotation", path6);
+      packet2 = await getImportPayload(user.institutionId, input.operationId, packetKind, path6);
     } catch {
     }
     if (!packet2) {
-      const used = new Set(db.users.flatMap((person2) => [person2.login, person2.email, ...person2.loginAliases || []]).filter(Boolean).map((value) => value.toLowerCase()));
+      const used = reservedAccountLogins(db.users);
       const passwords = /* @__PURE__ */ new Set();
       const rows = users.map((person2) => {
-        let credential;
-        do {
-          credential = createEasySchoolCredential(person2, used);
-        } while (passwords.has(credential.password));
-        passwords.add(credential.password);
-        return { ...credential, uid: person2.uid, displayName: person2.displayName, role: person2.role, classCode: person2.classCode, subject: person2.subject, expectedHash: digest(db.passwordHashes[person2.uid] || "") };
+        const login = person2.role === "student" && !studentLoginPattern.test(person2.login) ? createStudentLogin(used) : person2.login;
+        return { login, password: createSchoolInitialPassword(person2.role, passwords), uid: person2.uid, displayName: person2.displayName, role: person2.role, classCode: person2.classCode, subject: person2.subject, expectedHash: digest(db.passwordHashes[person2.uid] || "") };
       });
       packet2 = { ownerId: user.uid, schoolId: user.institutionId, rows };
-      await putImportPayload(user.institutionId, input.operationId, "rotation", packet2);
+      await putImportPayload(user.institutionId, input.operationId, packetKind, packet2);
     }
-    if (packet2.ownerId !== user.uid || packet2.schoolId !== user.institutionId || packet2.rows.length !== 450 || new Set(packet2.rows.map((row2) => row2.uid)).size !== 450 || packet2.rows.some((row2) => !ids.has(row2.uid) || digest(db.passwordHashes[row2.uid] || "") !== row2.expectedHash)) {
+    const eligible = new Map(users.map((person2) => [person2.uid, person2]));
+    const reserved = reservedAccountLogins(db.users);
+    if (packet2.ownerId !== user.uid || packet2.schoolId !== user.institutionId || packet2.rows.length !== eligible.size || new Set(packet2.rows.map((row2) => row2.uid)).size !== eligible.size || packet2.rows.some((row2) => {
+      const person2 = eligible.get(row2.uid);
+      return !person2 || row2.role !== person2.role || digest(db.passwordHashes[row2.uid] || "") !== row2.expectedHash || row2.login !== person2.login && reserved.has(row2.login);
+    })) {
       return res.status(409).json({ error: "Hisoblar parallel o\u2018zgargan. Yangi amal bilan qayta tekshiring." });
     }
-    const hashes = await boundedMap(packet2.rows, 2, async (row2) => ({ uid: row2.uid, value: await deps.hash(row2.password) }));
+    const hashes = await boundedMap(packet2.rows, 2, async (row2) => ({ row: row2, value: await deps.hash(row2.password) }));
     const expiresAt = Date.now() + 7 * 864e5;
-    for (const row2 of packet2.rows) {
-      const person2 = users.find((value) => value.uid === row2.uid);
+    for (const { row: row2, value } of hashes) {
+      const person2 = eligible.get(row2.uid);
+      if (person2.role === "student" && person2.login !== row2.login) person2.loginAliases = [];
       person2.login = row2.login;
-      if (person2.role === "student") person2.loginAliases = [];
-      person2.mustChangePassword = true;
+      person2.schoolCredentialPolicyVersion = schoolCredentialPolicy;
       person2.initialPasswordExpiresAt = expiresAt;
-      db.passwordHashes[person2.uid] = hashes.find((value) => value.uid === person2.uid).value;
+      db.passwordHashes[person2.uid] = value;
       deps.revoke(person2.uid, context.env);
     }
-    db.accountCredentialRotations.push({ id: input.operationId, ownerId: user.uid, schoolId: user.institutionId, students: 426, teachers: 24, path: path6, createdAt: (/* @__PURE__ */ new Date()).toISOString(), expiresAt: Date.now() + 864e5 });
-    audit(context, "450 hisob boshlang\u2018ich kirishlari MFA va yangi Google tasdig\u2018i bilan almashtirildi");
+    const students = packet2.rows.filter((row2) => row2.role === "student").length;
+    const teachers = packet2.rows.length - students;
+    const issuedHashes = Object.fromEntries(hashes.map(({ row: row2, value }) => [row2.uid, digest(value)]));
+    db.accountCredentialRotations.push({ id: input.operationId, ownerId: user.uid, schoolId: user.institutionId, students, teachers, path: path6, issuedHashes, policyVersion: schoolCredentialPolicy, createdAt: (/* @__PURE__ */ new Date()).toISOString(), expiresAt: Date.now() + 864e5 });
+    audit(context, packet2.rows.length + " hisobning boshlang\u2018ich kirishlari almashtirildi");
     deps.save(context.env, db);
-    return res.json({ id: input.operationId, students: 426, teachers: 24, committed: true });
+    return res.json({ id: input.operationId, students, teachers, committed: true });
   }));
   app2.post("/api/account-credential-rotations/claim", asyncRoute(async (req, res) => {
     const context = await access(req, res);
     if (!context) return;
     const job = (context.db.accountCredentialRotations || []).find((item) => item.id === context.input.operationId && item.ownerId === context.user.uid && item.schoolId === context.user.institutionId);
-    if (!job || job.claimedAt || job.expiresAt <= Date.now()) return res.status(410).json({ error: "Paket olingan yoki muddati tugagan." });
-    const packet2 = await getImportPayload(context.user.institutionId, job.id, "rotation", job.path);
+    if (!job || job.policyVersion !== schoolCredentialPolicy || job.claimedAt || job.expiresAt <= Date.now()) return res.status(410).json({ error: "Paket olingan yoki muddati tugagan." });
+    const packet2 = await getImportPayload(context.user.institutionId, job.id, packetKind, job.path);
+    const current = new Map(context.db.users.map((person2) => [person2.uid, person2]));
+    const credentials = packet2.rows.filter((row2) => {
+      const profile = current.get(row2.uid);
+      return profile?.institutionId === job.schoolId && profile.status === "active" && profile.mustChangePassword && profile.login === row2.login && digest(context.db.passwordHashes[row2.uid] || "") === job.issuedHashes[row2.uid];
+    }).map(({ expectedHash, ...row2 }) => row2);
     job.claimedAt = (/* @__PURE__ */ new Date()).toISOString();
     audit(context, "Yangi kirishlar paketi haqiqiy MFA va Google tasdig\u2018i bilan bir marta olindi");
     deps.save(context.env, context.db);
-    res.json({ credentials: packet2.rows.map(({ expectedHash, ...row2 }) => row2) });
+    res.json({ credentials });
   }));
 }
 
@@ -3676,11 +3690,11 @@ function allocateAcademicLessons(calendar, slots, topics, schoolId, batchId, his
   const allocated = /* @__PURE__ */ new Set();
   for (const rows of lanes.values()) {
     rows.sort((a, b) => a.date.localeCompare(b.date) || a.startTime.localeCompare(b.startTime));
-    const sample = rows[0];
-    const prior2 = preserved.filter((r) => r.classId === sample.classId && r.subject === sample.subject && r.curriculumArea === sample.curriculumArea && (r.groupId || r.groupNumber) === (sample.groupId || sample.groupNumber) && r.quarter === sample.quarter);
+    const sample2 = rows[0];
+    const prior2 = preserved.filter((r) => r.classId === sample2.classId && r.subject === sample2.subject && r.curriculumArea === sample2.curriculumArea && (r.groupId || r.groupNumber) === (sample2.groupId || sample2.groupNumber) && r.quarter === sample2.quarter);
     const used = /* @__PURE__ */ new Map();
     for (const r of prior2) for (const a of r.allocations || (r.topicId ? [{ topicId: r.topicId, hours: r.allocatedHours }] : [])) used.set(a.topicId, (used.get(a.topicId) || 0) + a.hours);
-    const plan2 = topics.filter((t) => t.classIds.includes(sample.classId) && t.subject === sample.subject && (t.curriculumArea || "") === (sample.curriculumArea || "") && t.quarter === sample.quarter).map((t) => ({ ...t, hours: Math.max(0, t.hours - (used.get(t.id) || 0)) })).filter((t) => t.hours > 1e-8).sort((a, b) => a.order - b.order || a.id.localeCompare(b.id));
+    const plan2 = topics.filter((t) => t.classIds.includes(sample2.classId) && t.subject === sample2.subject && (t.curriculumArea || "") === (sample2.curriculumArea || "") && t.quarter === sample2.quarter).map((t) => ({ ...t, hours: Math.max(0, t.hours - (used.get(t.id) || 0)) })).filter((t) => t.hours > 1e-8).sort((a, b) => a.order - b.order || a.id.localeCompare(b.id));
     let n = 0;
     for (const topic of plan2) {
       if (!Number.isFinite(topic.hours) || topic.hours <= 0 || topic.hours > 8) {
@@ -3800,21 +3814,24 @@ var cyrillic = {
   \u04B3: "h"
 };
 var loginPart = (value) => Array.from(value.normalize("NFKD").toLowerCase(), (c) => cyrillic[c] ?? c).join("").replace(/[^a-z0-9]/g, "");
-function nextPersonLogin(row2, used) {
-  let base4;
-  if (row2.role === "student") base4 = "st." + row2.classCode;
-  else {
-    const [surname, givenName] = normalizedText(row2.displayName).split(/\s+/).map(loginPart);
-    base4 = [givenName, surname].filter(Boolean).join(".") || "school.staff";
-    base4 = base4.slice(0, 34);
+function nextPersonLogin(row2, uid, used) {
+  if (row2.role === "student") return createStudentLogin(used);
+  const [surname, givenName] = normalizedText(row2.displayName).split(/\s+/).map(loginPart);
+  const base4 = [givenName, surname].filter(Boolean).join(".") || "school.staff";
+  const plain = base4.slice(0, 40).replace(/\.$/, "");
+  if (!used.has(plain)) {
+    used.add(plain);
+    return plain;
   }
-  let n = 1, login;
-  do {
-    login = row2.role === "student" ? base4 + "." + String(n).padStart(3, "0") : base4 + (n === 1 ? "" : "." + n);
-    n++;
-  } while (used.has(login.toLowerCase()));
-  used.add(login.toLowerCase());
-  return login;
+  const suffix = schoolDigest(uid);
+  for (let length = 8; length <= 16; length += 2) {
+    const login = base4.slice(0, 39 - length).replace(/\.$/, "") + "." + suffix.slice(0, length);
+    if (!used.has(login)) {
+      used.add(login);
+      return login;
+    }
+  }
+  throw Error("Bo\u2018sh xodim loginini ajratib bo\u2018lmadi.");
 }
 
 // src/server/academicActivityRoutes.ts
@@ -4630,7 +4647,7 @@ function registerSchoolImportRoutes(app2, deps) {
     if ([...selected].some((id) => !allIds.has(id))) return res.status(400).json({ error: "Tanlangan qator ushbu importga tegishli emas." });
     const credentials = [], newUsers = [], newLessons = [], newPlans = [], newSubjects = [], newAssignments = [], additionalSubjects = [];
     let matched = 0, duplicates = 0;
-    const used = new Set(c.db.users.flatMap((u) => [u.login, u.email, ...u.loginAliases || []]).filter((value) => typeof value === "string" && value.length > 0).map((value) => value.toLowerCase()));
+    const used = reservedAccountLogins(c.db.users);
     const usedPasswords = /* @__PURE__ */ new Set();
     const hashRows = [];
     for (const row2 of payload.people.filter((v) => selected.has(v.id))) {
@@ -4721,8 +4738,9 @@ function registerSchoolImportRoutes(app2, deps) {
         duplicates++;
         continue;
       }
-      const login = nextPersonLogin(row2, used), password = createSchoolInitialPassword(row2.role, usedPasswords), subjectNames = [...new Set(assignments.map((a) => standardSubject(a.subject)))];
+      const login = nextPersonLogin(row2, uid, used), password = createSchoolInitialPassword(row2.role, usedPasswords), subjectNames = [...new Set(assignments.map((a) => standardSubject(a.subject)))];
       const user = { uid, login, email: "", emailVerified: false, platformAdmin: false, platformOwner: false, displayName: row2.displayName, role: row2.role === "teacher" && row2.category !== "teacher" && !assignments.length ? "staff" : row2.role, staffCategory: row2.role === "teacher" ? row2.category : void 0, institutionId: c.user.institutionId, status: row2.role === "teacher" && row2.category === "teacher" && !assignments.length ? "pending_activation" : "active", mustChangePassword: true, academicYear: job.academicYear, createdAt: now, position: row2.position, subjects: subjectNames.length ? subjectNames : row2.subjects, subject: subjectNames[0] || row2.subjects[0], sourceImport: { batchId: job.id, sourceHash: row2.sourceHash, sourceSheet: row2.sourceSheet, sourceRow: row2.sourceRow, sourceClass: row2.sourceClass } };
+      user.schoolCredentialPolicyVersion = schoolCredentialPolicy;
       if (controlled) {
         user.status = "pending_activation";
         user.schoolIdentityProvisioning = "pending";
@@ -4913,7 +4931,8 @@ function registerSchoolImportRoutes(app2, deps) {
     } catch {
       return res.status(403).json({ error: "Yangi Google tasdig\u2018i kerak." });
     }
-    if (proof.uid !== c.user.uid || !proof.email_verified || proof.firebase?.sign_in_provider !== "google.com" || Date.now() / 1e3 - proof.auth_time > 300) return res.status(403).json({ error: "Yangi Google tasdig\u2018i kerak." });
+    const age = Date.now() / 1e3 - proof.auth_time;
+    if (proof.uid !== c.user.uid || !proof.email_verified || proof.firebase?.sign_in_provider !== "google.com" || !Number.isFinite(age) || age < 0 || age > 300) return res.status(403).json({ error: "Yangi Google tasdig\u2018i kerak." });
     const kind = job.credentialPath.split("/").at(-1).replace(/\.enc$/, "");
     const credentials = await get(c.user.institutionId, job.id, kind, job.credentialPath);
     job.credentialsClaimedAt = (/* @__PURE__ */ new Date()).toISOString();
@@ -10792,11 +10811,9 @@ function registerAccountRoutes(app2, deps) {
         } catch {
           return res.status(403).json({ error: "Yangi Google tasdig\u2018i kerak." });
         }
-        const used = new Set(c.db.users.flatMap((user) => [user.login, user.email, ...user.loginAliases || []]).filter((value) => typeof value === "string" && value.length > 0).map((value) => value.toLowerCase()));
-        const credential = createEasySchoolCredential(u, used);
-        password = credential.password;
-        nextLogin = credential.login;
-      } else password = createSchoolInitialPassword(u.role, /* @__PURE__ */ new Set());
+        if (u.role === "student" && !studentLoginPattern.test(nextLogin)) nextLogin = createStudentLogin(reservedAccountLogins(c.db.users));
+      }
+      password = createSchoolInitialPassword(u.role, /* @__PURE__ */ new Set());
       const passwordHash = await deps.hash(password);
       res.set("Cache-Control", "no-store");
       u.initialPasswordExpiresAt = Date.now() + 7 * 864e5;
@@ -10816,13 +10833,15 @@ function registerAccountRoutes(app2, deps) {
   app2.post("/api/account/password", asyncRoute(async (req, res) => {
     const c = access(req, res);
     if (!c) return;
+    res.set("Cache-Control", "no-store");
+    if (c.user.mustChangePassword && c.user.initialPasswordExpiresAt && c.user.initialPasswordExpiresAt <= Date.now()) return res.status(410).json({ error: "Boshlang\u2018ich parol muddati tugagan. Maktab administratoriga murojaat qiling." });
     const parsed = z16.object({ oldPassword: z16.string().max(128), password: z16.string().min(12).max(128).refine((v) => validPassword(v, 12)) }).safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ error: "Yangi parol kamida 12 belgidan iborat bo\u2018lsin." });
     if (parsed.data.password === parsed.data.oldPassword) return res.status(400).json({ error: "Yangi parol joriy paroldan farq qilsin." });
     if (!await deps.verify(parsed.data.oldPassword, c.db.passwordHashes[c.user.uid])) return res.status(400).json({ error: "Joriy parol noto\u2018g\u2018ri." });
-    c.db.passwordHashes[c.user.uid] = await deps.hash(parsed.data.password);
     const stored = c.db.users.find((u) => u.uid === c.user.uid && u.institutionId === c.user.institutionId);
     if (!stored) return res.status(409).json({ error: "Hisob yozuvi yangilandi. Qayta kiring." });
+    c.db.passwordHashes[c.user.uid] = await deps.hash(parsed.data.password);
     stored.mustChangePassword = false;
     delete stored.initialPasswordExpiresAt;
     c.user.mustChangePassword = false;
@@ -10840,7 +10859,8 @@ function registerAccountRoutes(app2, deps) {
     try {
       const id = await accountProviderProof(p.data.idToken, c.db);
       if (id.firebase?.sign_in_provider !== "google.com" || !id.email_verified || Date.now() / 1e3 - id.auth_time > 300 || ![c.user.uid, c.user.linkedGoogleUid].includes(id.uid)) return res.status(403).json({ error: "O\u2018z Google hisobingizni qayta tasdiqlang." });
-      if (c.db.users.some((u) => u.uid !== c.user.uid && (u.login === p.data.login || u.email === p.data.login))) return res.status(409).json({ error: "Login band." });
+      if ((c.user.sourceImport || studentLoginPattern.test(p.data.login)) && p.data.login !== c.user.login) return res.status(409).json({ error: "Maktab tayinlagan login o\u2018zgarmaydi." });
+      if (reservedAccountLogins(c.db.users.filter((u) => u.uid !== c.user.uid)).has(p.data.login)) return res.status(409).json({ error: "Login band." });
       c.user.login = p.data.login;
       c.db.passwordHashes[c.user.uid] = await deps.hash(p.data.password);
       c.user.mustChangePassword = false;
@@ -18592,6 +18612,18 @@ async function startServer() {
       return res.status(401).json({ error: "Avtorizatsiya talab qilinadi." });
     }
     const { user, db } = authCtx;
+    if (user.mustChangePassword) {
+      res.set("Cache-Control", "no-store");
+      return res.json({ user: {
+        uid: user.uid,
+        login: user.login,
+        displayName: user.displayName,
+        role: user.role,
+        status: user.status,
+        institutionId: user.institutionId,
+        mustChangePassword: true
+      } });
+    }
     ensureSpecializedStudyStructure(db);
     const instId = user.institutionId;
     const scopedJson = res.json.bind(res);

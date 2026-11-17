@@ -227,7 +227,7 @@ export const LoginPage: React.FC = () => {
                     inputMode="text"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    placeholder="st131344"
+                    placeholder="sps4827316"
                     className="w-full min-h-[46px] pl-10 pr-4 py-2.5 text-sm bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl focus:outline-none focus:border-blue-600"
                   />
                 </div>
