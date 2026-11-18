@@ -1,12 +1,14 @@
 import crypto from 'node:crypto';
 import {z} from 'zod';
 
+import {editorialSource, solutionSteps} from '../utils/editorialDraft';
+
 export const bankQuestion=z.object({
- id:z.string().max(100).optional(),revision:z.number().int().optional(),
+ editorialSource:editorialSource.optional(),id:z.string().max(100).optional(),revision:z.number().int().optional(),
  kind:z.enum(['single','multiple','short','matching','ordering','blank','written']),
  prompt:z.string().trim().min(3).max(12000),options:z.array(z.string().trim().min(1).max(1000)).max(20).default([]),
  labels:z.array(z.string().trim().max(1000)).max(12).default([]),key:z.string().max(8000),
- accepted:z.array(z.string().max(1000)).max(20).default([]),explanation:z.string().max(5000).default(''),
+ accepted:z.array(z.string().max(1000)).max(20).default([]),explanation:z.string().max(5000).default(''),steps:solutionSteps.optional(),diagram:z.literal('quadratic-substitution').optional(),
  hint:z.string().max(2000).default(''),hints:z.array(z.string().trim().min(1).max(2000)).max(3).default([]),
  wrongFeedback:z.record(z.string().max(1000),z.string().max(1000)).default({}),
  source:z.object({title:z.string().trim().max(300),page:z.string().trim().max(40).default('')}).optional(),
@@ -70,7 +72,7 @@ export function publicSession(s:TopicSession,release=true){
   const q=s.questions.find(q=>q.id===r.id)!;
   const chosen=s.answers[q.id]||'';
   const selected=q.kind==='multiple'?chosen.split('|'):[chosen];
-  return{...r,prompt:q.prompt,kind:q.kind,yourAnswer:chosen,correctAnswer:q.kind==='written'?undefined:q.key,
+  return{...r,prompt:q.prompt,kind:q.kind,steps:q.steps,diagram:q.diagram,yourAnswer:chosen,correctAnswer:q.kind==='written'?undefined:q.key,
    wrongFeedback:r.earned<r.points?selected.filter(v=>q.wrongFeedback?.[v]).map(v=>q.wrongFeedback[v]):[],
    source:q.source,lessonId:s.lessonId||q.lessonId,sourceHref:'/student/lessons?lesson='+encodeURIComponent(s.lessonId||q.lessonId),
    confidence:s.confidence?.[q.id],confidentWrong:q.kind!=='written'&&r.earned<r.points&&s.confidence?.[q.id]==='high',

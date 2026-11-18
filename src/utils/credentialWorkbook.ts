@@ -21,7 +21,7 @@ export async function createCredentialWorkbook(rows: CredentialWorkbookRow[], pa
   const workbook = await xlsx.fromBlankAsync();
   const groups = new Map<string, CredentialWorkbookRow[]>();
   for (const row of rows) {
-    const name = row.classCode ? row.classCode.toUpperCase() : row.role === 'teacher' ? 'O‘qituvchilar' : 'Xodimlar';
+    const name = row.role === 'teacher' ? 'O‘qituvchilar' : row.classCode ? row.classCode.toUpperCase() : 'Xodimlar';
     const group = groups.get(name) ?? [];
     group.push(row);
     groups.set(name, group);

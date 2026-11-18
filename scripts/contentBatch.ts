@@ -13,7 +13,7 @@ if (!input || !destination || !Number.isSafeInteger(limit) || limit < 1 || limit
 const source:Inventory = JSON.parse(await readFile(input, 'utf8'));
 const topics = new Map(source.worksheets.flatMap(sheet => sheet.topics.map(topic =>
   [topic.id, {file:sheet.file, sheet:sheet.name, row:topic.sourceRow, kind:topic.kind}] as const)));
-const normalize = (s:string) => s.normalize('NFKC').toLowerCase().replace(/[^\p{L}\p{N}]+/gu,' ').trim();
+const normalize = (s:string) => s.normalize('NFKC').toLowerCase().replace(/\s+/gu,' ').trim();
 const seen = new Set<string>();
 await mkdir(destination, {recursive:true});
 let created = 0;
@@ -24,9 +24,9 @@ for (const item of pilot) {
   if (seen.has(fingerprint)) throw Error('Savol takrorlangan.');
   seen.add(fingerprint);
   const question = bankQuestion.parse({kind:'short',prompt:item.prompt,key:item.key,points:1,
-    explanation:item.explanation,hint:item.hint,difficulty:item.difficulty});
+    explanation:item.explanation,steps:item.steps,diagram:item.diagram,hint:item.hint,difficulty:item.difficulty});
   if (!item.verify(item.key)) throw Error('Hisoblangan javob kalitga mos kelmadi.');
-  const version = 'pilot-1';
+  const version = 'pilot-2';
   const job = {topicId:item.topic, templateVersion:version, provider:'editorial', cost:0,
     sourceHash:source.sha256, trace, validation:'passed', review:'pending', published:false, question};
   const data = JSON.stringify(job, null, 2);

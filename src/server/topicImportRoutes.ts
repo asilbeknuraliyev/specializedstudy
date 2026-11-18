@@ -12,11 +12,19 @@ export function registerTopicImports(app:Express,deps:any,guards:any) {
   const p=z.object({operationId:z.uuid(),questions:z.array(z.unknown()).min(1).max(100),dryRun:z.boolean(),validOnly:z.boolean().default(false)}).safeParse(req.body);
   if(!p.success)return res.status(400).json({error:'Import shaklini tekshiring.'});
   const valid:any[]=[],errors:Array<{row:number;error:string}>=[];
+  const fingerprint=(text:string)=>text.normalize('NFKC').toLocaleLowerCase('uz').trim().replace(/\s+/gu,' ');
+  const seen=new Set((c.db.topicQuestions||[])
+    .filter((q:any)=>q.institutionId===c.user.institutionId&&q.lessonId===req.params.lesson)
+    .map((q:any)=>fingerprint(q.prompt)));
   p.data.questions.forEach((raw,i)=>{
    const parsed=bankQuestion.safeParse(raw);
    if(!parsed.success)errors.push({row:i+2,error:parsed.error.issues.map(e=>e.message).join(' ')});
    else if(parsed.data.id)errors.push({row:i+2,error:'Import faqat yangi savol qo‘shadi. ID ustunini olib tashlang.'});
-   else valid.push(parsed.data);
+   else {
+    const key=fingerprint(parsed.data.prompt);
+    if(seen.has(key))errors.push({row:i+2,error:'Ushbu savol mavzu bankida yoki paketda mavjud.'});
+    else {seen.add(key);valid.push(parsed.data);}
+   }
   });
   if(p.data.dryRun)return res.json({dryRun:true,valid:valid.length,errors});
   c.db.topicImportBatches||=[];
