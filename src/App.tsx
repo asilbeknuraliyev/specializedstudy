@@ -1,3 +1,4 @@
+const CurriculumCoverage=lazy(()=>import('./components/CurriculumCoverage'));
 const AcademicWorkspace=lazy(()=>import('./components/AcademicWorkspace').then(m=>({default:m.AcademicWorkspace})));
 const SchoolDataCenter=lazy(()=>import('./components/SchoolDataCenter').then(m=>({default:m.SchoolDataCenter})));
 const SchoolDataReviewPage=lazy(()=>import('./components/SchoolDataCenter').then(m=>({default:m.SchoolDataReviewPage})));
@@ -107,7 +108,7 @@ export default function App() {
       <BrowserRouter>
         <Suspense fallback={<main className="min-h-[60vh] grid place-items-center text-slate-500" role="status">Sahifa yuklanmoqda…</main>}>
         <RouteErrorBoundary><Routes>
-          <Route path="/admin/school-data" element={<ProtectedRoute allowedRole="admin"><SchoolDataCenter/></ProtectedRoute>}/><Route path="/admin/school-data/review/:id" element={<ProtectedRoute allowedRole="admin"><SchoolDataReviewPage/></ProtectedRoute>}/>{["/admin/academic","/teacher/academic","/student/academic","/leadership/academic"].map(path=><Route key={path} path={path} element={<AcademicRoute/>}/>)}
+          <Route path="/admin/curriculum-coverage" element={<ProtectedRoute allowedRole="admin"><CurriculumCoverage/></ProtectedRoute>}/><Route path="/admin/school-data" element={<ProtectedRoute allowedRole="admin"><SchoolDataCenter/></ProtectedRoute>}/><Route path="/admin/school-data/review/:id" element={<ProtectedRoute allowedRole="admin"><SchoolDataReviewPage/></ProtectedRoute>}/>{["/admin/academic","/teacher/academic","/student/academic","/leadership/academic"].map(path=><Route key={path} path={path} element={<AcademicRoute/>}/>)}
           <Route path="/admin/school-imports" element={<ProtectedRoute allowedRole="admin"><SchoolImportCenter/></ProtectedRoute>}/>
           <Route path="/leadership/dashboard" element={<LeadershipRoute/>}/><Route path="/leadership/content" element={<LeadershipRoute content/>}/><Route path="/admin/leadership" element={<ProtectedRoute allowedRole="admin"><LeadershipAdmin/></ProtectedRoute>}/>
           <Route path="/account/security" element={<SecurityRoute/>}/><Route path="/admin/accounts" element={<ProtectedRoute allowedRole="admin"><AccountsCenter/></ProtectedRoute>}/><Route path="/help" element={<HelpPage/>}/>{/* Public Routes */}
