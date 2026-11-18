@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import express from 'express';
 import { registerCredentialRotationRoutes } from '../../server/credentialRotationRoutes';
 
-test('450-account rotation enforces owner MFA and reauthentication, retries without changing credentials twice, and claims once', async () => {
+test('Bulk rotation protects previously signed-in students, enforces owner MFA and reauthentication, retries without changing credentials twice, and claims once', async () => {
   process.env.AUTH_PROVIDER = 'supabase';
   process.env.SUPABASE_URL = 'https://synthetic.supabase.co';
   process.env.SUPABASE_SERVICE_ROLE_KEY = 'synthetic-server-key-for-local-test-only';
@@ -16,6 +16,7 @@ test('450-account rotation enforces owner MFA and reauthentication, retries with
     status: 'active', schoolIdentityProvisioning: 'linked', managedSupabaseIdentityId: 'fixture-' + index,
     sourceImport: { batchId: index < 426 ? 'students' : 'teachers' }, mustChangePassword: true,
   }));
+  const priorStudent = Object.assign(users[1], { lastLoginAt: '2026-01-01T00:00:00Z' });
   const oldProfile = { ...users[0], uid: 'DEMO-existing', login: 'existing', mustChangePassword: false };
   const db: any = { users: [owner, oldProfile, ...users], passwordHashes: Object.fromEntries([...users, oldProfile].map(user => [user.uid, 'original-hash'])), schoolImportJobs: [
     { id: 'students', committedByUid: owner.uid, institutionId: owner.institutionId, kind: 'students', status: 'committed', createdUsers: [...users.slice(0, 426), oldProfile].map(user => user.uid) },
@@ -53,24 +54,27 @@ test('450-account rotation enforces owner MFA and reauthentication, retries with
     assert.equal(hashes, 0);
     const first = await send();
     assert.equal(first.status, 200);
-    assert.equal(hashes, 450);
-    assert.equal(revoked, 450);
+    assert.equal(hashes, 449);
+    assert.equal(revoked, 449);
     assert.equal((await send()).status, 200);
-    assert.equal(hashes, 450);
+    assert.equal(hashes, 449);
     assert.equal(saves, 1);
     const superseded = users[425];
     db.passwordHashes[superseded.uid] = 'newer-account-reset';
     const claim = await send('/claim');
     assert.equal(claim.status, 200);
     const rows = (await claim.json()).credentials;
-    assert.equal(rows.length, 449);
-    assert(rows.slice(0, 425).every((row: any) => row.login !== row.password && /^sps\d{7}$/.test(row.login) && /^sps-/.test(row.password)));
+    assert.equal(rows.length, 448);
+    assert(rows.slice(0, 424).every((row: any) => row.login !== row.password && /^sps\d{7}$/.test(row.login) && /^sps-/.test(row.password)));
     assert.equal(rows[0].login, 'sps0000001');
-    assert(rows.slice(425).every((row: any) => /^(?:[A-Z][a-z]{3}-){6}\d{2}$/.test(row.password)));
-    assert.equal(new Set(rows.map((row: any) => row.password)).size, 449);
+    assert(rows.slice(424).every((row: any) => /^(?:[A-Z][a-z]{3}-){6}\d{2}$/.test(row.password)));
+    assert.equal(new Set(rows.map((row: any) => row.password)).size, 448);
     assert(rows.every((row: any) => row.uid !== superseded.uid));
     assert(rows.every((row: any) => row.expectedHash === undefined));
     assert.equal((await send('/claim')).status, 410);
+    assert(rows.every((row: any) => row.uid !== priorStudent.uid));
+    assert.equal(priorStudent.login, 'teacher.1');
+    assert.equal(db.passwordHashes[priorStudent.uid], 'original-hash');
     assert.equal(oldProfile.login, 'existing');
     assert.equal(db.passwordHashes[oldProfile.uid], 'original-hash');
   } finally {

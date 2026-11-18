@@ -58,6 +58,7 @@ export function registerCredentialRotationRoutes(app: Express, deps: any) {
     const jobs = (db.schoolImportJobs || []).filter((job: any) => job.institutionId === user.institutionId && job.status === 'committed' && job.committedByUid && ['students', 'teachers'].includes(job.kind));
     const users = db.users.filter((person: any) =>
       person.institutionId === user.institutionId && person.status === 'active' &&
+      !(person.role === 'student' && person.lastLoginAt) &&
       person.schoolIdentityProvisioning === 'linked' && person.managedSupabaseIdentityId &&
       !leadershipGrant({db,user:person}) && person.mustChangePassword === true && person.schoolCredentialPolicyVersion !== schoolCredentialPolicy &&
       jobs.some((job: any) => person.sourceImport?.batchId === job.id &&

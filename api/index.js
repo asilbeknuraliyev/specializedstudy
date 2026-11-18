@@ -3299,7 +3299,7 @@ function registerCredentialRotationRoutes(app2, deps) {
     }
     const jobs = (db.schoolImportJobs || []).filter((job) => job.institutionId === user.institutionId && job.status === "committed" && job.committedByUid && ["students", "teachers"].includes(job.kind));
     const users = db.users.filter(
-      (person2) => person2.institutionId === user.institutionId && person2.status === "active" && person2.schoolIdentityProvisioning === "linked" && person2.managedSupabaseIdentityId && !leadershipGrant({ db, user: person2 }) && person2.mustChangePassword === true && person2.schoolCredentialPolicyVersion !== schoolCredentialPolicy && jobs.some((job) => person2.sourceImport?.batchId === job.id && job.kind === person2.role + "s" && job.createdUsers.includes(person2.uid))
+      (person2) => person2.institutionId === user.institutionId && person2.status === "active" && !(person2.role === "student" && person2.lastLoginAt) && person2.schoolIdentityProvisioning === "linked" && person2.managedSupabaseIdentityId && !leadershipGrant({ db, user: person2 }) && person2.mustChangePassword === true && person2.schoolCredentialPolicyVersion !== schoolCredentialPolicy && jobs.some((job) => person2.sourceImport?.batchId === job.id && job.kind === person2.role + "s" && job.createdUsers.includes(person2.uid))
     );
     if (!users.length) return res.status(409).json({ error: "Yangilanishi kerak bo\u2018lgan tasdiqlangan hisob topilmadi." });
     const path6 = runtimeNamespace() + "/imports/" + encodeURIComponent(user.institutionId) + "/" + input.operationId + "/" + packetKind + ".enc";
