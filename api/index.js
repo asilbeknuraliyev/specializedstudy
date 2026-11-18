@@ -3299,7 +3299,7 @@ function registerCredentialRotationRoutes(app2, deps) {
     }
     const jobs = (db.schoolImportJobs || []).filter((job) => job.institutionId === user.institutionId && job.status === "committed" && job.committedByUid && ["students", "teachers"].includes(job.kind));
     const users = db.users.filter(
-      (person2) => person2.institutionId === user.institutionId && person2.status === "active" && person2.schoolIdentityProvisioning === "linked" && person2.managedSupabaseIdentityId && person2.mustChangePassword === true && person2.schoolCredentialPolicyVersion !== schoolCredentialPolicy && jobs.some((job) => person2.sourceImport?.batchId === job.id && job.kind === person2.role + "s" && job.createdUsers.includes(person2.uid))
+      (person2) => person2.institutionId === user.institutionId && person2.status === "active" && person2.schoolIdentityProvisioning === "linked" && person2.managedSupabaseIdentityId && !leadershipGrant({ db, user: person2 }) && person2.mustChangePassword === true && person2.schoolCredentialPolicyVersion !== schoolCredentialPolicy && jobs.some((job) => person2.sourceImport?.batchId === job.id && job.kind === person2.role + "s" && job.createdUsers.includes(person2.uid))
     );
     if (!users.length) return res.status(409).json({ error: "Yangilanishi kerak bo\u2018lgan tasdiqlangan hisob topilmadi." });
     const path6 = runtimeNamespace() + "/imports/" + encodeURIComponent(user.institutionId) + "/" + input.operationId + "/" + packetKind + ".enc";
@@ -3354,8 +3354,11 @@ function registerCredentialRotationRoutes(app2, deps) {
     const current = new Map(context.db.users.map((person2) => [person2.uid, person2]));
     const credentials = packet2.rows.filter((row2) => {
       const profile = current.get(row2.uid);
-      return profile?.institutionId === job.schoolId && profile.status === "active" && profile.mustChangePassword && profile.login === row2.login && digest(context.db.passwordHashes[row2.uid] || "") === job.issuedHashes[row2.uid];
-    }).map(({ expectedHash, ...row2 }) => row2);
+      return profile?.institutionId === job.schoolId && profile.status === "active" && !leadershipGrant({ db: context.db, user: profile }) && profile.mustChangePassword && profile.login === row2.login && digest(context.db.passwordHashes[row2.uid] || "") === job.issuedHashes[row2.uid];
+    }).map(({ expectedHash, ...row2 }) => {
+      const profile = current.get(row2.uid);
+      return { ...row2, status: profile.status, createdAt: profile.createdAt, mustChangePassword: profile.mustChangePassword };
+    });
     job.claimedAt = (/* @__PURE__ */ new Date()).toISOString();
     audit(context, "Yangi kirishlar paketi haqiqiy MFA va Google tasdig\u2018i bilan bir marta olindi");
     deps.save(context.env, context.db);

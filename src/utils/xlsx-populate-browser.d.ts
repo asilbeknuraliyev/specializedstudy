@@ -14,6 +14,7 @@ declare module 'xlsx-populate/browser/xlsx-populate.min.js' {
   const xlsx: {
     fromBlankAsync(): Promise<{
       sheet(index: number): Sheet;
+      addSheet(name: string): Sheet;
       outputAsync(options: { type: 'blob'; password: string }): Promise<Blob>;
     }>;
   };

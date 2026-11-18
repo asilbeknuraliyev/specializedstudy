@@ -53,14 +53,17 @@ export function SchoolCredentialRotation() {
       ? packet.credentials.length + ' ta amaldagi kirish yozuvi tayyor. Shifrlangan Excel faylini yuklang.'
       : 'Ushbu paketda amaldagi boshlang‘ich parol qolmagan.');
   };
-  const download = async (role: string) => {
-    const rows = credentials.filter(row => row.role === role);
+  const download = async () => {
+    const rows = credentials;
     const blob = await createCredentialWorkbook(rows, exportKey);
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = role === 'student' ? 'Oquvchilar-yangi-kirishlar.xlsx' : 'Ustozlar-yangi-kirishlar.xlsx';
+    link.download = 'Specialized_Study_Initial_Credentials.xlsx';
     link.click();
+    setCredentials([]);
+    setExportKey('');
+    setMessage('Shifrlangan fayl yuklashga berildi. Fayl parolini alohida kanal orqali yetkazing.');
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   };
   return <section className="my-5 space-y-4 rounded-2xl border border-blue-200 bg-white p-5 dark:bg-slate-900">
@@ -68,13 +71,12 @@ export function SchoolCredentialRotation() {
     <p className="text-sm leading-6">Tasdiqlangan importdagi eski boshlang‘ich kirishlarni yangilang. O‘quvchi logini sps va 7 tasodifiy raqamdan iborat. Boshlang‘ich parollar alohida yaratiladi va birinchi kirishda almashtiriladi.</p>
     {message && <p role="status" className="rounded-xl border p-3 text-sm">{message}</p>}
     {credentials.length ? <>
-      <label className="block text-sm">Excel fayllarini ochish uchun alohida parol
+      <label className="block text-sm">Excel faylini ochish uchun alohida parol
         <input className="mt-2 min-h-12 w-full rounded-xl border bg-transparent px-3" type="password" minLength={16} maxLength={256} autoComplete="new-password" value={exportKey} onChange={event => setExportKey(event.target.value)} />
       </label>
-      <p className="text-sm">Kamida 16 belgi. Ushbu oynani yopishdan oldin mavjud fayllarni yuklab oling.</p>
-      <div className="flex flex-wrap gap-3">{[['student', 'O‘quvchilar ro‘yxati'], ['teacher', 'O‘qituvchilar ro‘yxati']]
-        .filter(([role]) => credentials.some(row => row.role === role))
-        .map(([role, label]) => <button key={role} disabled={busy || exportKey.length < 16} className="ss-primary disabled:opacity-50" onClick={() => void run(() => download(role))}>{label}</button>)}</div>
+      <p className="text-sm">Kamida 16 belgi. Ushbu oynani yopishdan oldin faylni yuklab oling.</p>
+      <button disabled={busy || exportKey.length < 16} className="ss-primary" onClick={() => void run(download)}>Shifrlangan Excel faylini yuklash</button>
+      <p className="text-sm">Fayl parolini alohida xavfsiz kanal orqali yetkazing.</p>
     </> : <>
       {!proof ? <button disabled={busy} className="ss-primary" onClick={() => void run(async () => {
         sessionStorage.setItem('ss_school_rotation_id', operationId.current);

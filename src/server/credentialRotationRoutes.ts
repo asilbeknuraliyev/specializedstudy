@@ -2,7 +2,7 @@ import crypto from 'node:crypto';
 import type { Express } from 'express';
 import { z } from 'zod';
 import { asyncRoute } from './asyncRoute';
-import { mfaVerified } from './leadershipSecurity';
+import { leadershipGrant, mfaVerified } from './leadershipSecurity';
 import { accountProviderProof } from './supabaseAuth';
 import { createSchoolInitialPassword, createStudentLogin, reservedAccountLogins, schoolCredentialPolicy, studentLoginPattern } from './schoolCredentials';
 import { boundedMap } from './boundedMap';
@@ -59,7 +59,7 @@ export function registerCredentialRotationRoutes(app: Express, deps: any) {
     const users = db.users.filter((person: any) =>
       person.institutionId === user.institutionId && person.status === 'active' &&
       person.schoolIdentityProvisioning === 'linked' && person.managedSupabaseIdentityId &&
-      person.mustChangePassword === true && person.schoolCredentialPolicyVersion !== schoolCredentialPolicy &&
+      !leadershipGrant({db,user:person}) && person.mustChangePassword === true && person.schoolCredentialPolicyVersion !== schoolCredentialPolicy &&
       jobs.some((job: any) => person.sourceImport?.batchId === job.id &&
         job.kind === person.role + 's' && job.createdUsers.includes(person.uid)),
     );
@@ -117,9 +117,12 @@ export function registerCredentialRotationRoutes(app: Express, deps: any) {
     const current = new Map<string, any>(context.db.users.map((person: any) => [person.uid, person]));
     const credentials = packet.rows.filter(row => {
       const profile = current.get(row.uid);
-      return profile?.institutionId === job.schoolId && profile.status === 'active' && profile.mustChangePassword &&
+      return profile?.institutionId === job.schoolId && profile.status === 'active' && !leadershipGrant({db:context.db,user:profile}) && profile.mustChangePassword &&
         profile.login === row.login && digest(context.db.passwordHashes[row.uid] || '') === job.issuedHashes[row.uid];
-    }).map(({ expectedHash, ...row }) => row);
+    }).map(({ expectedHash, ...row }) => {
+      const profile = current.get(row.uid);
+      return { ...row, status: profile.status, createdAt: profile.createdAt, mustChangePassword: profile.mustChangePassword };
+    });
     job.claimedAt = new Date().toISOString();
     audit(context, 'Yangi kirishlar paketi haqiqiy MFA va Google tasdig‘i bilan bir marta olindi');
     deps.save(context.env, context.db);
