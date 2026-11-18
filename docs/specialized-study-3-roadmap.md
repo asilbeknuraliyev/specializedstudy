@@ -31,3 +31,5 @@ Oldingi production auditining tafsilotlari `docs/specialized-study-2-roadmap.md`
 
 
 [Reliz hisoboti](./specialized-study-3-release.md)
+
+[Joriy production tasdiqlash paketi](./specialized-study-3-production-approval.md)
