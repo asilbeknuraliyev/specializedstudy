@@ -1,3 +1,4 @@
+import {Link} from 'react-router-dom';
 import {useState} from 'react';
 import rows from '../data/curriculumCoverage.json';
 
@@ -5,7 +6,7 @@ export default function CurriculumCoverage(){
   const [subject,setSubject]=useState('');
   const [grade,setGrade]=useState('');
   const filtered=rows.filter(row=>(!subject||row.subject===subject)&&(!grade||String(row.grade??'')===grade));
-  return <main className="mx-auto max-w-5xl space-y-5 p-4">
+  return <main className="mx-auto max-w-5xl space-y-5 p-4"><Link className="ss-secondary inline-flex" to="/admin/content-operations">Jonli inventar va navbat</Link>
     <h1 className="text-3xl font-bold">Ish rejalari qamrovi</h1>
     <p>2026–2027 o‘quv yili arxivi. Fan va sinf bo‘yicha manba varaqlarini tekshiring.</p>
     <div className="flex flex-wrap gap-4">
