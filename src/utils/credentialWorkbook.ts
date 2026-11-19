@@ -31,14 +31,14 @@ export async function createCredentialWorkbook(rows: CredentialWorkbookRow[], pa
     const sheet = first ? workbook.sheet(0).name(name) : workbook.addSheet(name);
     first = false;
     const values = [
-      ['ID', 'F.I.Sh.', 'Sinf', 'Rol', 'Login', 'Boshlang‘ich parol', 'Hisob holati', 'Faollashtirish holati', 'Yaratilgan sana'],
+      ['ID', 'F.I.Sh.', 'Sinf', 'Rol', 'Login', 'Boshlang‘ich parol', 'Hisob holati', 'Faollashtirish holati', 'Yaratilgan sana', 'Kirish berilishi'],
       ...group.map(row => [row.uid ?? '', row.displayName ?? '', row.classCode?.toUpperCase() ?? '',
         row.role === 'teacher' ? 'O‘qituvchi' : row.classCode ? 'O‘quvchi' : 'Xodim', row.login, row.password,
-        row.status === 'active' ? 'Faol' : row.status ?? '', row.mustChangePassword ? 'Birinchi kirish kutilmoqda' : '', row.createdAt ?? '']),
+        row.status === 'active' ? 'Faol' : row.status ?? '', row.mustChangePassword ? 'Birinchi kirish kutilmoqda' : '', row.createdAt ?? '', 'Boshlang‘ich kirish chiqarildi']),
     ];
-    sheet.range(1, 1, values.length, 9).value(values);
-    sheet.range('A1:I1').style({bold:true,fill:'1D4ED8',fontColor:'FFFFFF'});
-    [45,42,12,18,32,48,22,30,28].forEach((width,i)=>sheet.column(i+1).width(width));
+    sheet.range(1, 1, values.length, 10).value(values);
+    sheet.range('A1:J1').style({bold:true,fill:'1D4ED8',fontColor:'FFFFFF'});
+    [45,42,12,18,32,48,22,30,28,34].forEach((width,i)=>sheet.column(i+1).width(width));
   }
   return workbook.outputAsync({ type: 'blob', password: passphrase });
 }

@@ -63,15 +63,32 @@ export function registerTopicRoutes(app:Express,deps:any){
  });
  app.post('/api/topic-bank/:lesson/approve',(req,res)=>{
   const c=author(req,res);if(!c)return;
-  const p=z.object({questions:z.array(z.object({id:z.string(),revision:z.number().int()})).min(1).max(100),acknowledgeWarnings:z.boolean().default(false)}).safeParse(req.body);
+  const p=z.object({questions:z.array(z.object({id:z.string(),revision:z.number().int()})).min(1).max(100),acknowledgeWarnings:z.boolean().default(false),reviewOnly:z.boolean().default(false)}).safeParse(req.body);
   if(!p.success)return res.status(400).json({error:'Tasdiqlash shaklini tekshiring.'});
   const rows=p.data.questions.map(r=>(c.db.topicQuestions||[]).find((q:any)=>q.id===r.id&&q.lessonId===c.lesson.id&&sameSchool(c,q)&&q.revision===r.revision));
   if(rows.some(q=>!q))return res.status(409).json({error:'Savol versiyasi yangilangan. Bankni yangilang.'});
   const errors=rows.flatMap((q:any)=>approvalErrors(q).map(error=>({id:q.id,error})));
   const warnings=rows.flatMap((q:any)=>publicationWarnings(q).map(error=>({id:q.id,error})));
   if(errors.length||warnings.length&&!p.data.acknowledgeWarnings)return res.status(400).json({error:errors.length?'Majburiy izohlarni to‘ldiring.':'Manbasiz savollarni ko‘rib, ogohlantirishni tasdiqlang.',errors,warnings});
-  for(const q of rows){q.status='published';q.approval={by:c.user.uid,at:new Date().toISOString(),revision:q.revision};}
+  for(const q of rows){q.status=p.data.reviewOnly?'review':'published';q.approval={by:c.user.uid,at:new Date().toISOString(),revision:q.revision};}
   audit(c,'Savollar inson tomonidan tasdiqlandi',c.lesson.id);save(c);res.json({approved:rows.length,warnings});
+ });
+ app.post('/api/topic-bank/:lesson/moderation',(req,res)=>{
+  const c=author(req,res);if(!c)return;
+  const input=z.object({id:z.string(),revision:z.number().int(),action:z.enum(['publish','reject'])}).safeParse(req.body);
+  if(!input.success)return res.status(400).json({error:'Ko‘rib chiqish shakli xato.'});
+  const {id,revision,action}=input.data;
+  const question=(c.db.topicQuestions||[]).find((q:any)=>q.id===id&&sameSchool(c,q)&&q.lessonId===c.lesson.id);
+  if(!question||question.revision!==revision)return res.status(409).json({error:'Savol versiyasi o‘zgardi. Bankni yangilang.'});
+  if(action==='publish'){
+   if(question.status!=='review'||question.approval?.revision!==revision)return res.status(409).json({error:'Avval ushbu versiyani tasdiqlang.'});
+   question.status='published';
+  }else{
+   if(!['draft','review'].includes(question.status))return res.status(409).json({error:'Faqat qoralama yoki ko‘rib chiqilayotgan savol rad etiladi.'});
+   question.status='archived';question.approval=undefined;
+  }
+  audit(c,action==='publish'?'Tasdiqlangan savol nashr qilindi':'Savol ko‘rib chiqishda rad etildi',id);
+  save(c);return res.json({status:question.status});
  });
  app.post('/api/topic-bank/:lesson/test',(req,res)=>{
   const c=author(req,res);if(!c)return;

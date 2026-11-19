@@ -1934,10 +1934,12 @@ registerAcademicActivityRoutes(app,{authenticate:authenticateRequest,save:saveDb
         studentSupportPlans: [], // Strictly confidential
         academicReports: [], // Strictly confidential
         timetables: (db.timetables || []).filter(
-          (t) => myClass && t.classCode.toLowerCase() === myClass.code.toLowerCase() && t.status === 'active'
+          (t) => myClass && t.institutionId === instId && t.status === 'active' &&
+            (t.classId === myClass.id || t.classCode?.toLowerCase() === myClass.code.toLowerCase())
         ),
         timetableEntries: (db.timetableEntries || []).filter(
-          (e) => myClass && e.classCode.toLowerCase() === myClass.code.toLowerCase()
+          (e) => myClass && e.institutionId === instId &&
+            (e.classId === myClass.id || e.classCode?.toLowerCase() === myClass.code.toLowerCase())
         ),
         submissionRevisions: (db.submissionRevisions || []).filter((r) => r.studentId === user.uid),
         announcements: (db.announcements || []).filter((ann) =>

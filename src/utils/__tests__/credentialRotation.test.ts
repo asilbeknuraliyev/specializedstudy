@@ -45,13 +45,21 @@ test('Bulk rotation protects previously signed-in students, enforces owner MFA a
   const operationId = crypto.randomUUID();
   const claims = { sub: providerUid, exp: Date.now() / 1000 + 600, amr: [{ method: 'oauth', timestamp: Math.floor(Date.now() / 1000) }] };
   const idToken = 'synthetic.' + Buffer.from(JSON.stringify(claims)).toString('base64url') + '.signature';
-  const send = (suffix = '', proof = idToken, authorization = 'owner') => nativeFetch('http://127.0.0.1:' + (server.address() as any).port + '/api/account-credential-rotations' + suffix, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: authorization }, body: JSON.stringify({ operationId, idToken: proof, confirmed: true }) });
+  let scope: string | undefined;
+  const send = (suffix = '', proof = idToken, authorization = 'owner') => nativeFetch('http://127.0.0.1:' + (server.address() as any).port + '/api/account-credential-rotations' + suffix, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: authorization }, body: JSON.stringify({ operationId, idToken: proof, confirmed: true, scope }) });
   try {
     assert.equal((await send('', idToken, 'anonymous')).status, 401);
     assert.equal((await send()).status, 403);
     db.mfaVerifiedSessions.push({ id: 'DEMO-session', userId: owner.uid, schoolId: owner.institutionId, expiresAt: Date.now() + 60000 });
     assert.equal((await send('', 'invalid-token-without-dot')).status, 403);
     assert.equal(hashes, 0);
+    assert.equal((await send()).status, 409);
+    const scopeResponse = await nativeFetch('http://127.0.0.1:' + (server.address() as any).port + '/api/account-credential-rotations/scope', { headers: { Authorization: 'owner' } });
+    assert.equal(scopeResponse.status, 200);
+    const counts = await scopeResponse.json();
+    assert.equal(counts.students, 425);
+    assert.equal(counts.teachers, 24);
+    scope = counts.scope;
     const first = await send();
     assert.equal(first.status, 200);
     assert.equal(hashes, 449);

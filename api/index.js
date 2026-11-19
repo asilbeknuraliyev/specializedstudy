@@ -3249,7 +3249,7 @@ async function getImportPayload(school, id, kind, path6) {
 
 // src/server/credentialRotationRoutes.ts
 init_runtimeScope();
-var request = z3.object({ operationId: z3.uuid(), idToken: z3.string().min(20).max(16e3), confirmed: z3.literal(true) });
+var request = z3.object({ operationId: z3.uuid(), idToken: z3.string().min(20).max(16e3), confirmed: z3.literal(true), scope: z3.string().regex(/^[a-f0-9]{64}$/).optional() });
 var digest = (value) => crypto7.createHash("sha256").update(value).digest("hex");
 var packetKind = "rotation-v2";
 function registerCredentialRotationRoutes(app2, deps) {
@@ -3286,6 +3286,41 @@ function registerCredentialRotationRoutes(app2, deps) {
   const audit = (context, action) => {
     context.db.auditLogs.unshift({ id: crypto7.randomUUID(), institutionId: context.user.institutionId, actorUid: context.user.uid, actorName: context.user.displayName, actorRole: context.user.role, action, target: "Credential rotation", recordId: context.input.operationId, createdAt: (/* @__PURE__ */ new Date()).toISOString() });
   };
+  const eligibleUsers = (db, user) => {
+    const jobs = (db.schoolImportJobs || []).filter((job) => job.institutionId === user.institutionId && job.status === "committed" && job.committedByUid && ["students", "teachers"].includes(job.kind));
+    return db.users.filter(
+      (person2) => person2.institutionId === user.institutionId && person2.status === "active" && !(person2.role === "student" && person2.lastLoginAt) && person2.schoolIdentityProvisioning === "linked" && person2.managedSupabaseIdentityId && !leadershipGrant({ db, user: person2 }) && person2.mustChangePassword === true && person2.schoolCredentialPolicyVersion !== schoolCredentialPolicy && jobs.some((job) => person2.sourceImport?.batchId === job.id && job.kind === person2.role + "s" && job.createdUsers.includes(person2.uid))
+    );
+  };
+  const scopeOf = (users) => ({
+    scope: digest(JSON.stringify(users.map((person2) => person2.uid).sort())),
+    students: users.filter((person2) => person2.role === "student").length,
+    teachers: users.filter((person2) => person2.role === "teacher").length
+  });
+  app2.get("/api/account-credential-rotations/scope", (req, res) => {
+    res.set("Cache-Control", "no-store");
+    const context = deps.authenticate(req);
+    if (!context) return res.status(401).json({ error: "Hisobga kiring." });
+    if (!deps.owner(context.user) || !mfaVerified(context)) return res.status(403).json({ error: "Owner sessiyasini MFA bilan tasdiqlang." });
+    const job = (context.db.accountCredentialRotations || []).find((row2) => row2.id === req.query.operationId && row2.ownerId === context.user.uid && row2.schoolId === context.user.institutionId && !row2.claimedAt && row2.expiresAt > Date.now());
+    return res.json(job ? { scope: job.approvedScope, students: job.students, teachers: job.teachers } : scopeOf(eligibleUsers(context.db, context.user)));
+  });
+  app2.post("/api/account-credential-rotations/download-audit", (req, res) => {
+    res.set("Cache-Control", "no-store");
+    const context = deps.authenticate(req);
+    if (!context) return res.status(401).json({ error: "Hisobga kiring." });
+    if (!deps.owner(context.user) || !mfaVerified(context)) return res.status(403).json({ error: "Owner sessiyasini MFA bilan tasdiqlang." });
+    const parsed = z3.uuid().safeParse(req.body?.operationId);
+    if (!parsed.success) return res.status(400).json({ error: "Amal identifikatori xato." });
+    const job = (context.db.accountCredentialRotations || []).find((row2) => row2.id === parsed.data && row2.ownerId === context.user.uid && row2.schoolId === context.user.institutionId && row2.claimedAt);
+    if (!job) return res.status(404).json({ error: "Olingan paket topilmadi." });
+    if (!job.downloadInitiatedAt) {
+      job.downloadInitiatedAt = (/* @__PURE__ */ new Date()).toISOString();
+      audit({ ...context, input: { operationId: job.id } }, "Shifrlangan Excel faylini yuklash brauzerda boshlandi");
+      deps.save(context.env, context.db);
+    }
+    return res.json({ recorded: true });
+  });
   app2.post("/api/account-credential-rotations", asyncRoute(async (req, res) => {
     const context = await access(req, res);
     if (!context) return;
@@ -3297,10 +3332,8 @@ function registerCredentialRotationRoutes(app2, deps) {
       if (existing.policyVersion !== schoolCredentialPolicy) return res.status(409).json({ error: "Bu eski paket. Yangilash amalini qayta boshlang." });
       return res.json({ id: existing.id, students: existing.students, teachers: existing.teachers, committed: true });
     }
-    const jobs = (db.schoolImportJobs || []).filter((job) => job.institutionId === user.institutionId && job.status === "committed" && job.committedByUid && ["students", "teachers"].includes(job.kind));
-    const users = db.users.filter(
-      (person2) => person2.institutionId === user.institutionId && person2.status === "active" && !(person2.role === "student" && person2.lastLoginAt) && person2.schoolIdentityProvisioning === "linked" && person2.managedSupabaseIdentityId && !leadershipGrant({ db, user: person2 }) && person2.mustChangePassword === true && person2.schoolCredentialPolicyVersion !== schoolCredentialPolicy && jobs.some((job) => person2.sourceImport?.batchId === job.id && job.kind === person2.role + "s" && job.createdUsers.includes(person2.uid))
-    );
+    const users = eligibleUsers(db, user);
+    if (input.scope !== scopeOf(users).scope) return res.status(409).json({ error: "Hisoblar doirasi o\u2018zgardi. Doirani qayta tekshirib tasdiqlang." });
     if (!users.length) return res.status(409).json({ error: "Yangilanishi kerak bo\u2018lgan tasdiqlangan hisob topilmadi." });
     const path6 = runtimeNamespace() + "/imports/" + encodeURIComponent(user.institutionId) + "/" + input.operationId + "/" + packetKind + ".enc";
     let packet2;
@@ -3340,7 +3373,7 @@ function registerCredentialRotationRoutes(app2, deps) {
     const students = packet2.rows.filter((row2) => row2.role === "student").length;
     const teachers = packet2.rows.length - students;
     const issuedHashes = Object.fromEntries(hashes.map(({ row: row2, value }) => [row2.uid, digest(value)]));
-    db.accountCredentialRotations.push({ id: input.operationId, ownerId: user.uid, schoolId: user.institutionId, students, teachers, path: path6, issuedHashes, policyVersion: schoolCredentialPolicy, createdAt: (/* @__PURE__ */ new Date()).toISOString(), expiresAt: Date.now() + 864e5 });
+    db.accountCredentialRotations.push({ id: input.operationId, ownerId: user.uid, schoolId: user.institutionId, students, teachers, approvedScope: input.scope, path: path6, issuedHashes, policyVersion: schoolCredentialPolicy, createdAt: (/* @__PURE__ */ new Date()).toISOString(), expiresAt: Date.now() + 864e5 });
     audit(context, packet2.rows.length + " hisobning boshlang\u2018ich kirishlari almashtirildi");
     deps.save(context.env, db);
     return res.json({ id: input.operationId, students, teachers, committed: true });
@@ -5158,11 +5191,15 @@ var digest2 = z8.string().regex(/^[a-f0-9]{64}$/);
 var editorialSource = z8.object({
   topicId: digest2,
   sourceHash: digest2,
+  subject: z8.string().max(100).optional(),
+  grade: z8.number().int().min(1).max(12).optional(),
+  cognitiveSkill: z8.string().max(120).optional(),
   templateVersion: z8.string().min(1).max(80),
   trace: z8.object({
     file: z8.string().min(1).max(500),
     sheet: z8.string().min(1).max(64),
     row: z8.number().int().positive(),
+    title: z8.string().max(1200).optional(),
     kind: z8.literal("lesson")
   })
 });
@@ -11754,7 +11791,7 @@ function registerTopicRoutes(app2, deps) {
   app2.post("/api/topic-bank/:lesson/approve", (req, res) => {
     const c = author(req, res);
     if (!c) return;
-    const p = z22.object({ questions: z22.array(z22.object({ id: z22.string(), revision: z22.number().int() })).min(1).max(100), acknowledgeWarnings: z22.boolean().default(false) }).safeParse(req.body);
+    const p = z22.object({ questions: z22.array(z22.object({ id: z22.string(), revision: z22.number().int() })).min(1).max(100), acknowledgeWarnings: z22.boolean().default(false), reviewOnly: z22.boolean().default(false) }).safeParse(req.body);
     if (!p.success) return res.status(400).json({ error: "Tasdiqlash shaklini tekshiring." });
     const rows = p.data.questions.map((r) => (c.db.topicQuestions || []).find((q) => q.id === r.id && q.lessonId === c.lesson.id && sameSchool(c, q) && q.revision === r.revision));
     if (rows.some((q) => !q)) return res.status(409).json({ error: "Savol versiyasi yangilangan. Bankni yangilang." });
@@ -11762,12 +11799,32 @@ function registerTopicRoutes(app2, deps) {
     const warnings = rows.flatMap((q) => publicationWarnings(q).map((error) => ({ id: q.id, error })));
     if (errors.length || warnings.length && !p.data.acknowledgeWarnings) return res.status(400).json({ error: errors.length ? "Majburiy izohlarni to\u2018ldiring." : "Manbasiz savollarni ko\u2018rib, ogohlantirishni tasdiqlang.", errors, warnings });
     for (const q of rows) {
-      q.status = "published";
+      q.status = p.data.reviewOnly ? "review" : "published";
       q.approval = { by: c.user.uid, at: (/* @__PURE__ */ new Date()).toISOString(), revision: q.revision };
     }
     audit(c, "Savollar inson tomonidan tasdiqlandi", c.lesson.id);
     save(c);
     res.json({ approved: rows.length, warnings });
+  });
+  app2.post("/api/topic-bank/:lesson/moderation", (req, res) => {
+    const c = author(req, res);
+    if (!c) return;
+    const input = z22.object({ id: z22.string(), revision: z22.number().int(), action: z22.enum(["publish", "reject"]) }).safeParse(req.body);
+    if (!input.success) return res.status(400).json({ error: "Ko\u2018rib chiqish shakli xato." });
+    const { id, revision, action } = input.data;
+    const question2 = (c.db.topicQuestions || []).find((q) => q.id === id && sameSchool(c, q) && q.lessonId === c.lesson.id);
+    if (!question2 || question2.revision !== revision) return res.status(409).json({ error: "Savol versiyasi o\u2018zgardi. Bankni yangilang." });
+    if (action === "publish") {
+      if (question2.status !== "review" || question2.approval?.revision !== revision) return res.status(409).json({ error: "Avval ushbu versiyani tasdiqlang." });
+      question2.status = "published";
+    } else {
+      if (!["draft", "review"].includes(question2.status)) return res.status(409).json({ error: "Faqat qoralama yoki ko\u2018rib chiqilayotgan savol rad etiladi." });
+      question2.status = "archived";
+      question2.approval = void 0;
+    }
+    audit(c, action === "publish" ? "Tasdiqlangan savol nashr qilindi" : "Savol ko\u2018rib chiqishda rad etildi", id);
+    save(c);
+    return res.json({ status: question2.status });
   });
   app2.post("/api/topic-bank/:lesson/test", (req, res) => {
     const c = author(req, res);
@@ -18894,10 +18951,10 @@ async function startServer() {
         academicReports: [],
         // Strictly confidential
         timetables: (db.timetables || []).filter(
-          (t) => myClass && t.classCode.toLowerCase() === myClass.code.toLowerCase() && t.status === "active"
+          (t) => myClass && t.institutionId === instId && t.status === "active" && (t.classId === myClass.id || t.classCode?.toLowerCase() === myClass.code.toLowerCase())
         ),
         timetableEntries: (db.timetableEntries || []).filter(
-          (e) => myClass && e.classCode.toLowerCase() === myClass.code.toLowerCase()
+          (e) => myClass && e.institutionId === instId && (e.classId === myClass.id || e.classCode?.toLowerCase() === myClass.code.toLowerCase())
         ),
         submissionRevisions: (db.submissionRevisions || []).filter((r) => r.studentId === user.uid),
         announcements: (db.announcements || []).filter(

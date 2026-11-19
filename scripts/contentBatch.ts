@@ -2,9 +2,10 @@ import { createHash, randomUUID } from 'node:crypto';
 import { mkdir, readFile, writeFile, rename, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import { bankQuestion } from '../src/server/topicEngine';
+import { additionalPilot } from './contentPilotExercises';
 import { pilot } from './contentPilot';
 
-type Inventory = { sha256: string; worksheets: {file:string; name:string; topics:{id:string; sourceRow:number;kind:string}[]}[] };
+type Inventory = { sha256: string; worksheets: {file:string; name:string; mapping:{grade?:number;subject?:string}; topics:{id:string; sourceRow:number;kind:string;title:string}[]}[] };
 const [input, destination, limitText = '3'] = process.argv.slice(2);
 const limit = Number(limitText);
 if (!input || !destination || !Number.isSafeInteger(limit) || limit < 1 || limit > 100) {
@@ -12,23 +13,33 @@ if (!input || !destination || !Number.isSafeInteger(limit) || limit < 1 || limit
 }
 const source:Inventory = JSON.parse(await readFile(input, 'utf8'));
 const topics = new Map(source.worksheets.flatMap(sheet => sheet.topics.map(topic =>
-  [topic.id, {file:sheet.file, sheet:sheet.name, row:topic.sourceRow, kind:topic.kind}] as const)));
+  [topic.id, {file:sheet.file, sheet:sheet.name, row:topic.sourceRow, kind:topic.kind, title:topic.title, grade:sheet.mapping.grade, subject:sheet.mapping.subject}] as const)));
 const normalize = (s:string) => s.normalize('NFKC').toLowerCase().replace(/\s+/gu,' ').trim();
 const seen = new Set<string>();
+const tokens = (text:string)=>new Set(normalize(text).match(/[\p{L}\d]+/gu)||[]);
+const acceptedPrompts:string[] = [];
+function closeMatch(prompt:string) {
+  const a = tokens(prompt);
+  return acceptedPrompts.some(other=>{
+    const b = tokens(other), shared=[...a].filter(token=>b.has(token)).length;
+    return shared/(a.size+b.size-shared)>=0.82;
+  });
+}
 await mkdir(destination, {recursive:true});
 let created = 0;
-for (const item of pilot) {
+for (const item of [...pilot.map(q=>({...q,kind:'short',options:[],skill:'Modeldan hisoblash'})),...additionalPilot]) {
   const trace = topics.get(item.topic);
-  if (!trace || trace.kind !== 'lesson') throw Error('Mavzu manbaga mos kelmadi.');
+  if (!trace || trace.kind !== 'lesson' || !trace.grade || !trace.subject) throw Error('Mavzu manbaga mos kelmadi.');
   const fingerprint = normalize(item.prompt);
-  if (seen.has(fingerprint)) throw Error('Savol takrorlangan.');
+  if (seen.has(fingerprint) || closeMatch(item.prompt)) throw Error('Savol takrorlangan.');
   seen.add(fingerprint);
-  const question = bankQuestion.parse({kind:'short',prompt:item.prompt,key:item.key,points:1,
+  acceptedPrompts.push(item.prompt);
+  const question = bankQuestion.parse({kind:item.kind,options:item.options,prompt:item.prompt,key:item.key,points:1,
     explanation:item.explanation,steps:item.steps,diagram:item.diagram,hint:item.hint,difficulty:item.difficulty});
   if (!item.verify(item.key)) throw Error('Hisoblangan javob kalitga mos kelmadi.');
-  const version = 'pilot-2';
+  const version = 'pilot-3';
   const job = {topicId:item.topic, templateVersion:version, provider:'editorial', cost:0,
-    sourceHash:source.sha256, trace, validation:'passed', review:'pending', published:false, question};
+    sourceHash:source.sha256, subject:trace.subject, grade:trace.grade, cognitiveSkill:item.skill, trace, validation:'passed', review:'pending', published:false, question};
   const data = JSON.stringify(job, null, 2);
   const id = createHash('sha256').update(data).digest('hex');
   const file = join(destination,id+'.json');

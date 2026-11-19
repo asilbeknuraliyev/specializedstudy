@@ -7,6 +7,8 @@ export function SchoolCredentialRotation() {
   const api = useExamApi();
   const operationId = useRef(sessionStorage.getItem('ss_school_rotation_id') || crypto.randomUUID());
   const [proof, setProof] = useState('');
+  const [scope, setScope] = useState<{scope:string;students:number;teachers:number}>();
+  const [claimedOperation, setClaimedOperation] = useState('');
   const [confirmed, setConfirmed] = useState(false);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
@@ -24,7 +26,7 @@ export function SchoolCredentialRotation() {
     try { await action(); } catch (error) { setMessage((error as Error).message); } finally { setBusy(false); }
   };
   const rotate = async () => {
-    const request = { operationId: operationId.current, idToken: proof, confirmed: true };
+    const request = { operationId: operationId.current, idToken: proof, confirmed: true, scope: scope?.scope };
     try {
       await api('/api/account-credential-rotations', 'POST', request);
     } catch (error) {
@@ -44,6 +46,7 @@ export function SchoolCredentialRotation() {
       setProof('');
       throw error;
     }
+    setClaimedOperation(packet.credentials.length ? operationId.current : '');
     setCredentials(packet.credentials);
     setProof('');
     setConfirmed(false);
@@ -65,11 +68,20 @@ export function SchoolCredentialRotation() {
     setExportKey('');
     setMessage('Shifrlangan fayl yuklashga berildi. Fayl parolini alohida kanal orqali yetkazing.');
     setTimeout(() => URL.revokeObjectURL(url), 1000);
+    if (claimedOperation) {
+      try { await api('/api/account-credential-rotations/download-audit', 'POST', { operationId: claimedOperation }); }
+      catch { setMessage('Fayl yuklashga berildi. Audit qaydini tasdiqlash uchun quyidagi tugmani bosing.'); return; }
+      setClaimedOperation('');
+    }
   };
   return <section className="my-5 space-y-4 rounded-2xl border border-blue-200 bg-white p-5 dark:bg-slate-900">
     <h2 className="text-lg font-bold">Maktab hisoblarining yangi kirishlari</h2>
     <p className="text-sm leading-6">Tasdiqlangan importdagi eski boshlang‘ich kirishlarni yangilang. O‘quvchi logini sps va 7 tasodifiy raqamdan iborat. Boshlang‘ich parollar alohida yaratiladi va birinchi kirishda almashtiriladi.</p>
     {message && <p role="status" className="rounded-xl border p-3 text-sm">{message}</p>}
+    {claimedOperation && !credentials.length && <button className="ss-secondary" disabled={busy} onClick={() => void run(async () => {
+      await api('/api/account-credential-rotations/download-audit', 'POST', { operationId: claimedOperation });
+      setClaimedOperation(''); setMessage('Fayl yuklash amali qayd etildi.');
+    })}>Yuklash auditini qayd etish</button>}
     {credentials.length ? <>
       <label className="block text-sm">Excel faylini ochish uchun alohida parol
         <input className="mt-2 min-h-12 w-full rounded-xl border bg-transparent px-3" type="password" minLength={16} maxLength={256} autoComplete="new-password" value={exportKey} onChange={event => setExportKey(event.target.value)} />
@@ -82,8 +94,12 @@ export function SchoolCredentialRotation() {
         sessionStorage.setItem('ss_school_rotation_id', operationId.current);
         await startGoogleProof({ kind: 'rotation' });
       })}>Google bilan almashtirishni tayyorlash</button> : <>
+        <button disabled={busy} className="ss-secondary" onClick={() => void run(async () => {
+          setConfirmed(false); setScope(await api('/api/account-credential-rotations/scope?operationId=' + operationId.current));
+        })}>Joriy doirani tekshirish</button>
+        {scope && <p role="status">{scope.students} o‘quvchi va {scope.teachers} o‘qituvchi.</p>}
         <label className="flex min-h-12 items-start gap-3 text-sm leading-6"><input className="mt-1" type="checkbox" checked={confirmed} onChange={event => setConfirmed(event.target.checked)} />Tasdiqlangan hisoblarning eski boshlang‘ich parollari va faol sessiyalarini bekor qilishga roziman.</label>
-        <button disabled={busy || !confirmed} className="ss-primary disabled:opacity-50" onClick={() => void run(rotate)}>{busy ? 'Kirishlar almashtirilmoqda…' : 'Boshlang‘ich kirishlarni almashtirish'}</button>
+        <button disabled={busy || !confirmed || !scope || scope.students + scope.teachers === 0} className="ss-primary disabled:opacity-50" onClick={() => void run(rotate)}>{busy ? 'Kirishlar almashtirilmoqda…' : 'Boshlang‘ich kirishlarni almashtirish'}</button>
       </>}
       <p className="text-xs leading-5 text-slate-500">MFA va yangi Google tasdig‘i talab qilinadi. Almashtirish bir necha daqiqa davom etishi mumkin.</p>
     </>}

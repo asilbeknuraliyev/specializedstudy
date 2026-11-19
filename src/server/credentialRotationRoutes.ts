@@ -9,7 +9,7 @@ import { boundedMap } from './boundedMap';
 import { getImportPayload, putImportPayload } from './privateImportStore';
 import { runtimeNamespace } from './runtimeScope';
 
-const request = z.object({ operationId: z.uuid(), idToken: z.string().min(20).max(16000), confirmed: z.literal(true) });
+const request = z.object({ operationId: z.uuid(), idToken: z.string().min(20).max(16000), confirmed: z.literal(true), scope: z.string().regex(/^[a-f0-9]{64}$/).optional() });
 const digest = (value: string) => crypto.createHash('sha256').update(value).digest('hex');
 const packetKind = 'rotation-v2';
 
@@ -44,6 +44,48 @@ export function registerCredentialRotationRoutes(app: Express, deps: any) {
   const audit = (context: any, action: string) => {
     context.db.auditLogs.unshift({ id: crypto.randomUUID(), institutionId: context.user.institutionId, actorUid: context.user.uid, actorName: context.user.displayName, actorRole: context.user.role, action, target: 'Credential rotation', recordId: context.input.operationId, createdAt: new Date().toISOString() });
   };
+  const eligibleUsers = (db: any, user: any): any[] => {
+    const jobs = (db.schoolImportJobs || []).filter((job: any) => job.institutionId === user.institutionId && job.status === 'committed' && job.committedByUid && ['students', 'teachers'].includes(job.kind));
+    return db.users.filter((person: any) =>
+      person.institutionId === user.institutionId && person.status === 'active' &&
+      !(person.role === 'student' && person.lastLoginAt) &&
+      person.schoolIdentityProvisioning === 'linked' && person.managedSupabaseIdentityId &&
+      !leadershipGrant({db,user:person}) && person.mustChangePassword === true && person.schoolCredentialPolicyVersion !== schoolCredentialPolicy &&
+      jobs.some((job: any) => person.sourceImport?.batchId === job.id &&
+        job.kind === person.role + 's' && job.createdUsers.includes(person.uid)),
+    );
+  };
+  const scopeOf = (users: any[]) => ({
+    scope: digest(JSON.stringify(users.map(person => person.uid).sort())),
+    students: users.filter(person => person.role === 'student').length,
+    teachers: users.filter(person => person.role === 'teacher').length,
+  });
+  app.get('/api/account-credential-rotations/scope', (req, res) => {
+    res.set('Cache-Control', 'no-store');
+    const context = deps.authenticate(req);
+    if (!context) return res.status(401).json({ error: 'Hisobga kiring.' });
+    if (!deps.owner(context.user) || !mfaVerified(context)) return res.status(403).json({ error: 'Owner sessiyasini MFA bilan tasdiqlang.' });
+    const job = (context.db.accountCredentialRotations || []).find((row: any) => row.id === req.query.operationId &&
+      row.ownerId === context.user.uid && row.schoolId === context.user.institutionId && !row.claimedAt && row.expiresAt > Date.now());
+    return res.json(job ? { scope: job.approvedScope, students: job.students, teachers: job.teachers } : scopeOf(eligibleUsers(context.db, context.user)));
+  });
+  app.post('/api/account-credential-rotations/download-audit', (req, res) => {
+    res.set('Cache-Control', 'no-store');
+    const context = deps.authenticate(req);
+    if (!context) return res.status(401).json({ error: 'Hisobga kiring.' });
+    if (!deps.owner(context.user) || !mfaVerified(context)) return res.status(403).json({ error: 'Owner sessiyasini MFA bilan tasdiqlang.' });
+    const parsed = z.uuid().safeParse(req.body?.operationId);
+    if (!parsed.success) return res.status(400).json({ error: 'Amal identifikatori xato.' });
+    const job = (context.db.accountCredentialRotations || []).find((row: any) =>
+      row.id === parsed.data && row.ownerId === context.user.uid && row.schoolId === context.user.institutionId && row.claimedAt);
+    if (!job) return res.status(404).json({ error: 'Olingan paket topilmadi.' });
+    if (!job.downloadInitiatedAt) {
+      job.downloadInitiatedAt = new Date().toISOString();
+      audit({ ...context, input: { operationId: job.id } }, 'Shifrlangan Excel faylini yuklash brauzerda boshlandi');
+      deps.save(context.env, context.db);
+    }
+    return res.json({ recorded: true });
+  });
   app.post('/api/account-credential-rotations', asyncRoute(async (req, res) => {
     const context = await access(req, res);
     if (!context) return;
@@ -55,15 +97,8 @@ export function registerCredentialRotationRoutes(app: Express, deps: any) {
       if (existing.policyVersion !== schoolCredentialPolicy) return res.status(409).json({ error: 'Bu eski paket. Yangilash amalini qayta boshlang.' });
       return res.json({ id: existing.id, students: existing.students, teachers: existing.teachers, committed: true });
     }
-    const jobs = (db.schoolImportJobs || []).filter((job: any) => job.institutionId === user.institutionId && job.status === 'committed' && job.committedByUid && ['students', 'teachers'].includes(job.kind));
-    const users = db.users.filter((person: any) =>
-      person.institutionId === user.institutionId && person.status === 'active' &&
-      !(person.role === 'student' && person.lastLoginAt) &&
-      person.schoolIdentityProvisioning === 'linked' && person.managedSupabaseIdentityId &&
-      !leadershipGrant({db,user:person}) && person.mustChangePassword === true && person.schoolCredentialPolicyVersion !== schoolCredentialPolicy &&
-      jobs.some((job: any) => person.sourceImport?.batchId === job.id &&
-        job.kind === person.role + 's' && job.createdUsers.includes(person.uid)),
-    );
+    const users = eligibleUsers(db, user);
+    if (input.scope !== scopeOf(users).scope) return res.status(409).json({ error: 'Hisoblar doirasi o‘zgardi. Doirani qayta tekshirib tasdiqlang.' });
     if (!users.length) return res.status(409).json({ error: 'Yangilanishi kerak bo‘lgan tasdiqlangan hisob topilmadi.' });
     const path = runtimeNamespace() + '/imports/' + encodeURIComponent(user.institutionId) + '/' + input.operationId + '/' + packetKind + '.enc';
     let packet: RotationPacket | undefined;
@@ -104,7 +139,7 @@ export function registerCredentialRotationRoutes(app: Express, deps: any) {
     const students = packet.rows.filter(row => row.role === 'student').length;
     const teachers = packet.rows.length - students;
     const issuedHashes = Object.fromEntries(hashes.map(({ row, value }) => [row.uid, digest(value)]));
-    db.accountCredentialRotations.push({ id: input.operationId, ownerId: user.uid, schoolId: user.institutionId, students, teachers, path, issuedHashes, policyVersion: schoolCredentialPolicy, createdAt: new Date().toISOString(), expiresAt: Date.now() + 86400000 });
+    db.accountCredentialRotations.push({ id: input.operationId, ownerId: user.uid, schoolId: user.institutionId, students, teachers, approvedScope: input.scope, path, issuedHashes, policyVersion: schoolCredentialPolicy, createdAt: new Date().toISOString(), expiresAt: Date.now() + 86400000 });
     audit(context, packet.rows.length + ' hisobning boshlang‘ich kirishlari almashtirildi');
     deps.save(context.env, db);
     return res.json({ id: input.operationId, students, teachers, committed: true });

@@ -1,3 +1,4 @@
+import {DashboardMetric,LearningDashboardHeader} from './LearningDashboardHeader';
 import {ReviewDesk} from './ReviewDesk';
 import {FeedbackTemplates} from './FeedbackTemplates';
 import { StudentLearningSummary } from "./StudentLearningSummary";
@@ -325,7 +326,14 @@ export function SchoolWorkspace() {
   };
   return (
     <main className="mx-auto max-w-7xl space-y-5">
-      <header className="rounded-3xl bg-slate-950 p-6 text-white">
+      {!student && !admin && module === "home" ? <LearningDashboardHeader
+        eyebrow={`Ustoz kabineti · ${subject}`} title={currentUser?.displayName || 'Ustoz kabineti'}
+        subtitle={`${data.today} · Bugungi darslar va tekshirish navbati`}
+        links={[{label:'Savollar banki va tasdiqlash',to:'/teacher/topic-bank'},{label:'Ishlarni tekshirish',to:'/teacher/workspace/grading'},{label:'O‘quv tahlili',to:'/teacher/topic-analysis'}]}>
+        <DashboardMetric value={classes.length} label="Biriktirilgan sinflar"/>
+        <DashboardMetric value={data.todaySchedule.length} label="Bugungi darslar"/>
+        <DashboardMetric value={data.counts.waiting} label="Tekshiruvda"/>
+      </LearningDashboardHeader> : <header className="rounded-3xl bg-slate-950 p-6 text-white">
         <p className="text-xs uppercase tracking-widest text-blue-300">
           {student
             ? "Mening maktabim"
@@ -337,7 +345,7 @@ export function SchoolWorkspace() {
         <p className="mt-2 text-sm text-slate-300">
           {currentUser?.displayName} · {data.today}
         </p>
-      </header>
+      </header>}
       {!student && (
         <nav
           aria-label="Ustoz ish bo‘limlari"
@@ -411,7 +419,7 @@ export function SchoolWorkspace() {
       </div>
       {module === "home" && (
         <>
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          {(student || admin) && <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             {[
               [data.counts.students, "O‘quvchilar"],
               [data.counts.waiting, "Tekshirish kutmoqda"],
@@ -423,7 +431,18 @@ export function SchoolWorkspace() {
                 <p className="mt-2 text-sm text-slate-500">{t}</p>
               </Card>
             ))}
-          </div>
+          </div>}
+          {!student && !admin && <div className="grid gap-4 md:grid-cols-2">
+            <Card>
+              <h2 className="text-xl font-semibold">Biriktirilgan sinflar</h2>
+              <div className="mt-4 flex flex-wrap gap-2">{classes.length ? classes.map((entry:any)=><Link key={entry.id} className="ss-secondary" to="/teacher/workspace/classes">{classCode(entry.id)}</Link>) : <p>Sinf biriktirilmagan.</p>}</div>
+            </Card>
+            <Card>
+              <h2 className="text-xl font-semibold">O‘quv dasturi</h2>
+              <p className="mt-3 text-sm text-slate-600 dark:text-slate-300">{data.lessonPagination?.total ?? data.lessons.length} ta mavzu</p>
+              <div className="mt-4 flex flex-wrap gap-2"><Link className="ss-secondary" to="/teacher/workspace/plans">Ish rejalari</Link><Link className="ss-secondary" to="/teacher/assessments">BSB / CHSB</Link></div>
+            </Card>
+          </div>}
           <Card>
             <h2 className="font-bold">Bugungi darslar</h2>
             <p className="mt-2 text-sm text-slate-500">
