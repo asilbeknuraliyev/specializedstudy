@@ -33,3 +33,14 @@ Oldingi production auditining tafsilotlari `docs/specialized-study-2-roadmap.md`
 [Reliz hisoboti](./specialized-study-3-release.md)
 
 [Joriy production tasdiqlash paketi](./specialized-study-3-production-approval.md)
+
+## 2026-11-19 · Ishlayotgan reliz nomzodi
+
+Kod `ff7e272227edfc284ab587c036bc338ee39850b8`. [Himoyalangan staging preview](https://specializedstudy-ncqfyd5d3-asilbeknuraliyev43-langs-projects.vercel.app).
+
+- **Hisoblar.** `/admin/accounts` sahifasidagi **Maktab hisoblarining yangi kirishlari** bo‘limiga joriy doirani tekshirish va yuklash boshlanganini qayd etish qo‘shildi. Owner MFA va yangi Google tasdig‘idan keyin aynan ko‘rsatilgan doirani tasdiqlaydi. Production’da 426 import o‘quvchi va 24 import ustoz kutmoqda. Avval kirgan 19 import o‘quvchi himoyalangan. Joriy Auth va yopiq Storage restore dalili hamda vakolatli administrator tasdig‘i kutilmoqda. Real chiqarish, yetkazish va faollashtirish soni 0.
+- **Savollar.** Supabase staging bankida 30 ta qoralama saqlandi. Matematika, fizika va informatikadan 10 tadan. Barchasi manba satri, javob, izoh, maslahat va tekshiruvdan o‘tgan kalit bilan bog‘langan. Tasdiqlangan va nashr qilingan staging savollar soni 0. [Ustoz banki](https://specializedstudy-ncqfyd5d3-asilbeknuraliyev43-langs-projects.vercel.app/teacher/topic-bank).
+- **Interfeys.** Playwright’da eski va yangi o‘quvchi hamda ustoz ekranlari, ustoz banki, 360 px mashq oynasi va grafik dars tasvirlari olingan. Mahalliy haqiqiy API bilan ustoz tasdiqlash va nashr qilish, o‘quvchi ruxsati, mashqni boshlash, oflayn qayta yuborish, refresh, ikki tab va topshirish tasdig‘i o‘tgan.
+- **Staging E2E.** Vercel sessiyasi bo‘lmagan brauzerda `POST /api/auth/login` so‘rovi chekka himoyada `401 Protected deployment` qaytaradi. Shu preview’ni jamoa a’zosi Vercel orqali ochib, keyin staging hisobiga kirishi kerak. Mahalliy sinov dalili staging E2E holatidan alohida.
+- **Kengaytirish.** 30 savolli paketni qayta ishga tushirish yangi dublikat yozmadi. Ustoz taqrizi kutilayotgani sababli barcha fanlar uchun katta hajmdagi processing boshlanmagan.
+
