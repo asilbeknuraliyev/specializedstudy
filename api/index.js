@@ -1956,15 +1956,11 @@ function ensureSpecializedStudyStructure(state) {
   const usersList = Array.isArray(state.users) ? state.users : [];
   for (const usr of usersList) {
     const normalizedEmail = String(usr.email || "").trim().toLowerCase();
-    const isAuthAdminEmail = isAuthorizedAdminEmail(normalizedEmail);
-    if (isAuthAdminEmail && usr.emailVerified !== false && usr.platformAdmin !== false) {
+    const isAuthAdminEmail = isAuthorizedAdminEmail(normalizedEmail, process.env.PLATFORM_OWNER_EMAIL);
+    if (isAuthAdminEmail && usr.emailVerified === true && usr.platformAdmin === true && state.customClaims[usr.uid]?.platformAdmin === true && (usr.role === "admin" || usr.role === "platform_owner")) {
       usr.role = "platform_owner";
       usr.platformOwner = true;
       usr.platformAdmin = true;
-      state.customClaims[usr.uid] = {
-        ...state.customClaims[usr.uid] || {},
-        platformAdmin: true
-      };
     } else if (!isAuthAdminEmail && (usr.role === "platform_owner" || usr.role === "admin")) {
       usr.role = "student";
       usr.platformOwner = false;
@@ -2792,6 +2788,7 @@ function openSecret(sealed, purpose) {
 
 // src/server/leadershipSecurity.ts
 var LEADERSHIP_MATRIX = {
+  school_administrator: ["overview.read", "roster.read", "attendance.read", "results.read", "reports.read"],
   director: ["overview.read", "roster.read", "attendance.read", "results.read", "reports.read"],
   academic_deputy: ["overview.read", "roster.read", "attendance.read", "results.read", "reports.read", "curriculum.manage", "timetable.manage"]
 };
@@ -2985,7 +2982,7 @@ function registerLeadershipSecurity(app2, deps) {
     const c = access(req, res);
     if (!c) return;
     if (!deps.owner(c.user)) return res.status(403).json({ error: "Faqat platforma egasiga ruxsat." });
-    const p = z.object({ designation: z.enum(["director", "academic_deputy"]), identityVerified: z.literal(true), reason: z.string().trim().min(12).max(1e3), idToken: z.string().max(16e3) }).safeParse(req.body);
+    const p = z.object({ designation: z.enum(["director", "academic_deputy", "school_administrator"]), identityVerified: z.literal(true), reason: z.string().trim().min(12).max(1e3), idToken: z.string().max(16e3) }).safeParse(req.body);
     if (!p.success || !await proof(c, p.data)) return res.status(403).json({ error: "Shaxsni alohida tekshiring va yangi Google tasdig\u2018ini bering." });
     const user = c.db.users.find((u) => u.uid === req.params.uid && u.institutionId === c.user.institutionId && ["teacher", "staff"].includes(u.role));
     if (!user) return res.status(404).json({ error: "Hisob topilmadi." });
@@ -3008,6 +3005,8 @@ function registerLeadershipSecurity(app2, deps) {
     const grant = (c.db.leadershipGrants || []).find((g) => g.userId === req.params.uid && g.schoolId === c.user.institutionId && !g.revokedAt);
     if (!grant) return res.status(404).json({ error: "Huquq topilmadi." });
     grant.revokedAt = (/* @__PURE__ */ new Date()).toISOString();
+    const user = c.db.users.find((u) => u.uid === grant.userId && u.institutionId === grant.schoolId);
+    if (user) delete user.leadershipDesignation;
     deps.revoke(grant.userId);
     audit(c, "Rahbariyat vakolati bekor qilindi", grant.userId);
     deps.save(c.env, c.db);
@@ -3117,7 +3116,7 @@ function registerSupabaseAuthRoutes(app2, deps) {
       const db = deps.database("prod");
       db.customClaims ||= {};
       let count = 0;
-      for (const user of db.users.filter((u) => u.status === "active" && u.emailVerified && u.platformAdmin && ["admin", "platform_owner"].includes(u.role) && isAuthorizedAdminEmail(u.email) && u.linkedSupabaseUid)) {
+      for (const user of db.users.filter((u) => u.status === "active" && u.emailVerified && u.platformAdmin && ["admin", "platform_owner"].includes(u.role) && isAuthorizedAdminEmail(u.email, deps.ownerEmail) && u.linkedSupabaseUid)) {
         const id = user.linkedSupabaseUid;
         const current = await serverSupabase().auth.admin.getUserById(id);
         if (current.error || !current.data.user || current.data.user.email?.toLowerCase() !== user.email.toLowerCase() || !current.data.user.email_confirmed_at) throw Error("Identity verification failed");
@@ -3146,7 +3145,7 @@ function registerSupabaseAuthRoutes(app2, deps) {
       if (!user) {
         if (!parsed.data.inviteToken) return res.status(403).json({ error: "Maktab hisobiga ulanish uchun administrator taklifi kerak." });
         if (db.users.some((u) => u.email.toLowerCase() === provider.email.toLowerCase())) return res.status(409).json({ error: "Avval mavjud hisobga kirib, Google hisobingizni biriktiring." });
-        if (isAuthorizedAdminEmail(provider.email)) return res.status(403).json({ error: "Administrator hisobi migratsiya reyestrida tasdiqlanishi kerak." });
+        if (isAuthorizedAdminEmail(provider.email, deps.ownerEmail)) return res.status(403).json({ error: "Administrator hisobi migratsiya reyestrida tasdiqlanishi kerak." });
         const school = db.institutions[0];
         if (!school) return res.status(503).json({ error: "Maktab sozlamasi tayyor emas." });
         let classroom, invitation;
@@ -3167,7 +3166,7 @@ function registerSupabaseAuthRoutes(app2, deps) {
       }
       const current = user;
       if (["admin", "platform_owner"].includes(current.role)) {
-        if (!isAuthorizedAdminEmail(provider.email) || provider.app_metadata?.platformAdmin !== true || !current.emailVerified || current.platformAdmin !== true || db.customClaims?.[current.uid]?.platformAdmin !== true) return res.status(403).json({ error: "Administrator ruxsati tasdiqlanmadi." });
+        if (!isAuthorizedAdminEmail(provider.email, deps.ownerEmail) || provider.app_metadata?.platformAdmin !== true || !current.emailVerified || current.platformAdmin !== true || db.customClaims?.[current.uid]?.platformAdmin !== true) return res.status(403).json({ error: "Administrator ruxsati tasdiqlanmadi." });
       }
       current.linkedSupabaseUid = provider.id;
       current.lastLoginAt = now;
@@ -17636,6 +17635,8 @@ function authenticateRequest(req) {
   if (requestedSubject !== void 0 && (typeof requestedSubject !== "string" || requestedSubject.length > 100)) return null;
   const effectiveUser = projectTeachingIdentity(user, db.teacherAssignments || [], requestedSubject);
   if (!effectiveUser) return null;
+  const designation = leadershipGrant({ user, db })?.designation;
+  if (effectiveUser.leadershipDesignation !== designation) effectiveUser.leadershipDesignation = designation;
   return { user: effectiveUser, env: verified.env, db, token };
 }
 function appendAuditLog(db, institutionId, actor, action, target, recordId, meta) {
@@ -17757,7 +17758,7 @@ async function startServer() {
   registerExamRoutes(app, { authenticate: authenticateRequest, save: saveDbState, notify: broadcastInstitutionUpdate });
   registerTopicRoutes(app, { authenticate: authenticateRequest, save: saveDbState });
   registerLearningDemoRoutes(app, { authenticate: authenticateRequest, save: saveDbState, hash: hashPassword, revoke: (uid) => revokeAllUserSessions(uid) });
-  registerSupabaseAuthRoutes(app, { database: getDbState, save: saveDbState, issue: issueSessionToken, authenticate: authenticateRequest, owner: (user) => isVerifiedPlatformOwner(user, CONFIGURED_OWNER_EMAIL) });
+  registerSupabaseAuthRoutes(app, { ownerEmail: CONFIGURED_OWNER_EMAIL, database: getDbState, save: saveDbState, issue: issueSessionToken, authenticate: authenticateRequest, owner: (user) => isVerifiedPlatformOwner(user, CONFIGURED_OWNER_EMAIL) });
   registerRefreshRoutes(app, { database: getDbState, save: saveDbState, issue: issueSessionToken, authenticate: authenticateRequest });
   registerAccountRoutes(app, { authenticate: authenticateRequest, save: saveDbState, hash: hashPasswordAsync, verify: verifyPasswordAsync, revoke: revokeAllUserSessions, issue: issueSessionToken });
   app.get("/api/auth/diagnostics", (req, res) => {

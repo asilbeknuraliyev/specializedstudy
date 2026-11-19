@@ -1,3 +1,4 @@
+import {authenticatedHome} from './utils/uiPermissions';
 import BiquadraticLesson from './components/BiquadraticLesson';
 const CurriculumCoverage=lazy(()=>import('./components/CurriculumCoverage'));
 const AcademicWorkspace=lazy(()=>import('./components/AcademicWorkspace').then(m=>({default:m.AcademicWorkspace})));
@@ -88,19 +89,20 @@ const ProtectedRoute: React.FC<{ allowedRole: 'admin' | 'student' | 'teacher'; c
   const { currentUser, authReady, isPlatformOwner } = useLearnOS();
   if (!authReady) return <main className="min-h-screen grid place-items-center bg-slate-50 text-slate-600" role="status" aria-live="polite">Hisob tekshirilmoqda…</main>;
   if (!currentUser) return <Navigate to="/login" replace />;
-  if(currentUser.leadershipDesignation&&!currentUser.mfaRequired&&!currentUser.mustChangePassword)return <Navigate to="/leadership/dashboard" replace/>;
+  if(currentUser.leadershipDesignation)return <Navigate to={authenticatedHome(currentUser)} replace/>;
   if(currentUser.mfaRequired)return <Navigate to="/account/security" replace/>;
   if(currentUser.mustChangePassword)return <Navigate to="/account/security" replace/>;
   if(currentUser.role==='staff')return <Navigate to="/account/security" replace/>;
   if (currentUser.status !== 'active') return <Navigate to="/login" replace />;
-  if (allowedRole === 'admin' && !isPlatformOwner) return <Navigate to={currentUser.role === 'student' ? '/student/dashboard' : '/login'} replace />;
-  if (allowedRole === 'student' && currentUser.role !== 'student') return <Navigate to={isPlatformOwner ? '/admin/dashboard' : '/login'} replace />;
-  if (allowedRole==='teacher'&&currentUser.role!=='teacher')return <Navigate to="/login" replace/>;
+  if (allowedRole === 'admin' && !isPlatformOwner) return <Navigate to={authenticatedHome(currentUser)} replace />;
+  if (allowedRole === 'student' && currentUser.role !== 'student') return <Navigate to={authenticatedHome(currentUser)} replace />;
+  if (allowedRole==='teacher'&&currentUser.role!=='teacher')return <Navigate to={authenticatedHome(currentUser)} replace/>;
   return <AppShell>{children}</AppShell>;
 };
 
+function AccessStatusRoute(){const {currentUser,authReady,logout}=useLearnOS();if(!authReady)return <p role="status">Hisob tekshirilmoqda…</p>;if(!currentUser)return <Navigate to="/login" replace/>;return <main className="mx-auto max-w-lg space-y-4 p-8"><h1 className="text-2xl font-bold">Kirish vakolatini tekshiring</h1><p>Bu hisob uchun boshqaruv paneli vakolati tasdiqlanmagan. Maktab egasiga murojaat qiling.</p><button className="ss-primary" onClick={()=>void logout()}>Hisobdan chiqish</button></main>;}
 function SecurityRoute(){const {currentUser,authReady}=useLearnOS();if(!authReady)return <p role="status">Hisob tekshirilmoqda…</p>;return currentUser?<AppShell><AccountSecurity/></AppShell>:<Navigate to="/login" replace/>;}
-function LeadershipRoute({content=false}:{content?:boolean}){const {currentUser,authReady}=useLearnOS();if(!authReady)return <p role="status">Hisob tekshirilmoqda…</p>;if(!currentUser)return <Navigate to="/login" replace/>;if(currentUser.mustChangePassword||currentUser.mfaRequired)return <Navigate to="/account/security" replace/>;if(!currentUser.leadershipDesignation)return <Navigate to="/login" replace/>;return <AppShell>{content?<ContentCenter/>:<LeadershipDashboard/>}</AppShell>;}
+function LeadershipRoute({content=false,schoolAdmin=false}:{content?:boolean;schoolAdmin?:boolean}){const {currentUser,authReady}=useLearnOS();if(!authReady)return <p role="status">Hisob tekshirilmoqda…</p>;if(!currentUser)return <Navigate to="/login" replace/>;if(currentUser.mustChangePassword||currentUser.mfaRequired)return <Navigate to="/account/security" replace/>;if(!currentUser.leadershipDesignation||schoolAdmin&&currentUser.leadershipDesignation!=='school_administrator')return <Navigate to={authenticatedHome(currentUser)} replace/>;return <AppShell>{content?<ContentCenter/>:<LeadershipDashboard/>}</AppShell>;}
 function AcademicRoute(){const {currentUser,authReady}=useLearnOS();if(!authReady)return <p role="status">Hisob tekshirilmoqda…</p>;if(!currentUser)return <Navigate to="/login" replace/>;if(currentUser.mustChangePassword||currentUser.mfaRequired||currentUser.role==='staff'&&!currentUser.leadershipDesignation)return <Navigate to="/account/security" replace/>;return <AppShell><AcademicWorkspace/></AppShell>;}
 function RouteErrorBoundary({children}:{children:React.ReactNode}){const location=useLocation();return <AppErrorBoundary key={location.pathname} scope="page">{children}</AppErrorBoundary>;}
 export default function App() {
@@ -111,7 +113,7 @@ export default function App() {
         <RouteErrorBoundary><Routes>
           <Route path="/admin/curriculum-coverage" element={<ProtectedRoute allowedRole="admin"><CurriculumCoverage/></ProtectedRoute>}/><Route path="/admin/school-data" element={<ProtectedRoute allowedRole="admin"><SchoolDataCenter/></ProtectedRoute>}/><Route path="/admin/school-data/review/:id" element={<ProtectedRoute allowedRole="admin"><SchoolDataReviewPage/></ProtectedRoute>}/>{["/admin/academic","/teacher/academic","/student/academic","/leadership/academic"].map(path=><Route key={path} path={path} element={<AcademicRoute/>}/>)}
           <Route path="/admin/school-imports" element={<ProtectedRoute allowedRole="admin"><SchoolImportCenter/></ProtectedRoute>}/>
-          <Route path="/leadership/dashboard" element={<LeadershipRoute/>}/><Route path="/leadership/content" element={<LeadershipRoute content/>}/><Route path="/admin/leadership" element={<ProtectedRoute allowedRole="admin"><LeadershipAdmin/></ProtectedRoute>}/>
+          <Route path="/account/access" element={<AccessStatusRoute/>}/><Route path="/school-admin/dashboard" element={<LeadershipRoute schoolAdmin/>}/><Route path="/leadership/dashboard" element={<LeadershipRoute/>}/><Route path="/leadership/content" element={<LeadershipRoute content/>}/><Route path="/admin/leadership" element={<ProtectedRoute allowedRole="admin"><LeadershipAdmin/></ProtectedRoute>}/>
           <Route path="/account/security" element={<SecurityRoute/>}/><Route path="/admin/accounts" element={<ProtectedRoute allowedRole="admin"><AccountsCenter/></ProtectedRoute>}/><Route path="/help" element={<HelpPage/>}/>{/* Public Routes */}
           <Route path="/admin/process" element={<ProtectedRoute allowedRole="admin"><WorkflowHub/></ProtectedRoute>}/><Route path="/teacher/content" element={<ProtectedRoute allowedRole="teacher"><WorkflowHub/></ProtectedRoute>}/>
           <Route path="/" element={<LandingPage />} />

@@ -400,15 +400,13 @@ export function ensureSpecializedStudyStructure(
   const usersList = Array.isArray(state.users) ? state.users : [];
   for (const usr of usersList) {
     const normalizedEmail = String(usr.email || '').trim().toLowerCase();
-    const isAuthAdminEmail = isAuthorizedAdminEmail(normalizedEmail);
-    if (isAuthAdminEmail && usr.emailVerified !== false && usr.platformAdmin !== false) {
+    const isAuthAdminEmail = isAuthorizedAdminEmail(normalizedEmail, process.env.PLATFORM_OWNER_EMAIL);
+    if (isAuthAdminEmail && usr.emailVerified === true && usr.platformAdmin === true &&
+      state.customClaims[usr.uid]?.platformAdmin === true &&
+      (usr.role === 'admin' || usr.role === 'platform_owner')) {
       usr.role = 'platform_owner';
       usr.platformOwner = true;
       usr.platformAdmin = true;
-      state.customClaims[usr.uid] = {
-        ...(state.customClaims[usr.uid] || {}),
-        platformAdmin: true,
-      };
     } else if (!isAuthAdminEmail && (usr.role === 'platform_owner' || usr.role === 'admin')) {
       usr.role = 'student';
       usr.platformOwner = false;

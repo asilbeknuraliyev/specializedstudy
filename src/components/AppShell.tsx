@@ -139,7 +139,7 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
   const isActiveTestRunner = /^\/student\/assessments\/[^/]+$/.test(location.pathname);
 
   const icons=isAdminAccount?[LayoutDashboard,BookOpen,Users,FileText,Settings]:currentUser.role==='teacher'?[Calendar,Users,ClipboardCheck,Library,FileText]:[LayoutDashboard,BookOpen,ClipboardCheck,FileText,UserIcon];
-  const allNavItems=(currentUser.leadershipDesignation?[['/leadership/dashboard','Maktab holati'],['/leadership/academic','Akademik taqvim'],...(currentUser.leadershipDesignation==='academic_deputy'?[['/leadership/content','O‘quv jarayoni']]:[]),['/account/security','Xavfsizlik']]:roleNavigation(currentUser.role)).map(([to,label],i)=>({to,label,icon:icons[i],end:true}));
+  const allNavItems=(currentUser.leadershipDesignation?[[currentUser.leadershipDesignation==='school_administrator'?'/school-admin/dashboard':'/leadership/dashboard','Maktab holati'],['/leadership/academic','Akademik taqvim'],...(currentUser.leadershipDesignation==='academic_deputy'?[['/leadership/content','O‘quv jarayoni']]:[]),['/account/security','Xavfsizlik']]:roleNavigation(currentUser.role)).map(([to,label],i)=>({to,label,icon:icons[i],end:true}));
   const navItems=allNavItems.filter(i=>previewEnabled||!/(?:^|\/)(?:demo|learning-demo)(?:$|\/)/.test(i.to));
   const studentMobileBottomItems=navItems;
 

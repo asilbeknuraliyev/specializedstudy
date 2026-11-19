@@ -111,7 +111,7 @@ export interface UserProfile {
   subjects?:string[];
   academicYear?:string;
   sourceImport?:{batchId:string;sourceHash:string;sourceSheet:string;sourceRow:number;sourceClass?:string};
-  leadershipDesignation?:'director'|'academic_deputy';
+  leadershipDesignation?:'director'|'academic_deputy'|'school_administrator';
   mfaRequired?:boolean;
   login?: string;
   mustChangePassword?: boolean;

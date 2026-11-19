@@ -39,7 +39,7 @@ export function registerSupabaseAuthRoutes(app:Express,deps:any){
   if(!actor||!deps.owner?.(actor.user))return res.status(403).json({error:'Faqat tasdiqlangan platforma egasiga ruxsat.'});
   try{
    const db:PersistentDatabaseState=deps.database('prod');db.customClaims||={};let count=0;
-   for(const user of db.users.filter(u=>u.status==='active'&&u.emailVerified&&u.platformAdmin&&['admin','platform_owner'].includes(u.role)&&isAuthorizedAdminEmail(u.email)&&u.linkedSupabaseUid)){
+   for(const user of db.users.filter(u=>u.status==='active'&&u.emailVerified&&u.platformAdmin&&['admin','platform_owner'].includes(u.role)&&isAuthorizedAdminEmail(u.email,deps.ownerEmail)&&u.linkedSupabaseUid)){
     const id=user.linkedSupabaseUid!;
     const current=await serverSupabase().auth.admin.getUserById(id);
     if(current.error||!current.data.user||current.data.user.email?.toLowerCase()!==user.email.toLowerCase()||!current.data.user.email_confirmed_at)throw Error('Identity verification failed');
@@ -65,7 +65,7 @@ export function registerSupabaseAuthRoutes(app:Express,deps:any){
     if(!parsed.data.inviteToken)return res.status(403).json({error:'Maktab hisobiga ulanish uchun administrator taklifi kerak.'});
     // Never attach a Google login to an existing password account by an untrusted client-supplied email.
     if(db.users.some(u=>u.email.toLowerCase()===provider.email!.toLowerCase()))return res.status(409).json({error:'Avval mavjud hisobga kirib, Google hisobingizni biriktiring.'});
-    if(isAuthorizedAdminEmail(provider.email))return res.status(403).json({error:'Administrator hisobi migratsiya reyestrida tasdiqlanishi kerak.'});
+    if(isAuthorizedAdminEmail(provider.email,deps.ownerEmail))return res.status(403).json({error:'Administrator hisobi migratsiya reyestrida tasdiqlanishi kerak.'});
     const school=db.institutions[0];if(!school)return res.status(503).json({error:'Maktab sozlamasi tayyor emas.'});
     let classroom:any,invitation:any;
     if(parsed.data.inviteToken){
@@ -84,7 +84,7 @@ export function registerSupabaseAuthRoutes(app:Express,deps:any){
    }
    const current=user!;
    if(['admin','platform_owner'].includes(current.role)){
-    if(!isAuthorizedAdminEmail(provider.email)||provider.app_metadata?.platformAdmin!==true||!current.emailVerified||current.platformAdmin!==true||db.customClaims?.[current.uid]?.platformAdmin!==true)return res.status(403).json({error:'Administrator ruxsati tasdiqlanmadi.'});
+    if(!isAuthorizedAdminEmail(provider.email,deps.ownerEmail)||provider.app_metadata?.platformAdmin!==true||!current.emailVerified||current.platformAdmin!==true||db.customClaims?.[current.uid]?.platformAdmin!==true)return res.status(403).json({error:'Administrator ruxsati tasdiqlanmadi.'});
    }
    current.linkedSupabaseUid=provider.id;current.lastLoginAt=now;
    db.auditLogs.unshift({id:crypto.randomUUID(),institutionId:current.institutionId,actorUid:current.uid,actorName:current.displayName,actorRole:current.role,action:'Supabase Google orqali kirish',target:'Hisob',recordId:current.uid,createdAt:now});

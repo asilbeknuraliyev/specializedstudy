@@ -15,7 +15,8 @@ import {
   ExternalLink,
 } from 'lucide-react';
 import { useLearnOS } from '../context/LearnOSContext';
-import { UserRole } from '../types';
+import type { UserProfile, UserRole } from '../types';
+import { authenticatedHome } from '../utils/uiPermissions';
 import { APP_NAME, APP_TAGLINE } from '../constants/curriculum';
 import { getRuntimeAuthDomainDiagnostics } from '../authClient';
 import {
@@ -51,20 +52,20 @@ export const LoginPage: React.FC = () => {
   const runtimeDiag = useMemo(() => getRuntimeAuthDomainDiagnostics(), []);
   const isMobileBrowser = useMemo(() => isMobileOrTouchRedirectPreferred(), []);
 
-  const navigateForRole = (role: UserRole) => {
+  const navigateForRole = (profile: UserProfile) => {
+    const home = authenticatedHome(profile);
     const savedDest = consumePostLoginDestination();
     if (savedDest) {
-      if (role === 'student' && savedDest.startsWith('/student/')) {
+      if (home === '/student/dashboard' && savedDest.startsWith('/student/')) {
         navigate(savedDest, { replace: true });
         return;
       }
-      if (['admin','platform_owner'].includes(role) && savedDest.startsWith('/admin/')) {
+      if (home === '/admin/dashboard' && savedDest.startsWith('/admin/')) {
         navigate(savedDest, { replace: true });
         return;
       }
     }
-    const path = role==='staff'?'/account/security':role === 'teacher' ? '/teacher/dashboard' : role === 'student' ? '/student/dashboard' : '/admin/dashboard';
-    navigate(path, { replace: true });
+    navigate(home, { replace: true });
   };
 
   useEffect(() => {
@@ -76,7 +77,7 @@ export const LoginPage: React.FC = () => {
 
   useEffect(() => {
     if (authReady && currentUser?.status === 'active') {
-      navigateForRole(currentUser.role);
+      navigateForRole(currentUser);
     }
   }, [authReady, currentUser]);
 
@@ -106,7 +107,7 @@ export const LoginPage: React.FC = () => {
     setSubmitting(true);
     try {
       const user = await loginWithPassword(email, password);
-      if (user.status === 'active') navigateForRole(user.role);
+      if (user.status === 'active') navigateForRole(user);
       else setErrorMsg('Hisobingiz faollashtirilishi kutilmoqda. Administratorga murojaat qiling.');
     } catch (err) {
       setErrorMsg(err instanceof Error ? err.message : 'Kirishda xatolik yuz berdi');
@@ -120,7 +121,7 @@ export const LoginPage: React.FC = () => {
     clearAuthError();
     const profile = await loginWithGoogle({ forceRedirect });
     if (profile?.status === 'active') {
-      navigateForRole(profile.role);
+      navigateForRole(profile);
     }
   };
 

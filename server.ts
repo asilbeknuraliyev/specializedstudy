@@ -387,6 +387,8 @@ function authenticateRequest(
   if(requestedSubject!==undefined&&(typeof requestedSubject!=='string'||requestedSubject.length>100))return null;
   const effectiveUser=projectTeachingIdentity(user,db.teacherAssignments||[],requestedSubject as string|undefined);
   if(!effectiveUser)return null;
+  const designation = leadershipGrant({user,db})?.designation;
+  if (effectiveUser.leadershipDesignation !== designation) effectiveUser.leadershipDesignation = designation;
   return { user:effectiveUser, env: verified.env, db, token };
 }
 
@@ -544,7 +546,7 @@ registerAcademicActivityRoutes(app,{authenticate:authenticateRequest,save:saveDb
   registerExamRoutes(app, {authenticate: authenticateRequest, save: saveDbState, notify: broadcastInstitutionUpdate});
   registerTopicRoutes(app,{authenticate:authenticateRequest,save:saveDbState});
   registerLearningDemoRoutes(app,{authenticate:authenticateRequest,save:saveDbState,hash:hashPassword,revoke:(uid:string)=>revokeAllUserSessions(uid)});
-  registerSupabaseAuthRoutes(app,{database:getDbState,save:saveDbState,issue:issueSessionToken,authenticate:authenticateRequest,owner:(user:UserProfile)=>isVerifiedPlatformOwner(user,CONFIGURED_OWNER_EMAIL)});
+  registerSupabaseAuthRoutes(app,{ownerEmail:CONFIGURED_OWNER_EMAIL,database:getDbState,save:saveDbState,issue:issueSessionToken,authenticate:authenticateRequest,owner:(user:UserProfile)=>isVerifiedPlatformOwner(user,CONFIGURED_OWNER_EMAIL)});
   registerRefreshRoutes(app,{database:getDbState,save:saveDbState,issue:issueSessionToken,authenticate:authenticateRequest});
   registerAccountRoutes(app,{authenticate:authenticateRequest,save:saveDbState,hash:hashPasswordAsync,verify:verifyPasswordAsync,revoke:revokeAllUserSessions,issue:issueSessionToken});
   app.get('/api/auth/diagnostics', (req, res) => {

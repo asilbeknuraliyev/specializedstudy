@@ -3,10 +3,10 @@ import test from 'node:test';import assert from 'node:assert/strict';import expr
 import {registerSupabaseAuthRoutes} from '../../server/supabaseAuth';
 test('Supabase provider sync preserves immutable application IDs and trusts only server metadata and existing grants',async()=>{
  process.env.AUTH_PROVIDER='supabase';
- const adminEmail='asilbeknuraliyev43@gmail.com';
+ const adminEmail='configured-owner@example.invalid';
  const db:any={institutions:[{id:'DEMO-school'}],users:[{uid:'legacy-admin',email:adminEmail,emailVerified:true,platformAdmin:true,role:'platform_owner',status:'active',institutionId:'DEMO-school'},{uid:'native-learner',email:'native@example.invalid',role:'student',status:'active',institutionId:'DEMO-school'}],customClaims:{'legacy-admin':{platformAdmin:true}},auditLogs:[]};
  let identity:any={google:true,user:{id:'provider-admin',email:adminEmail,email_confirmed_at:'2026-01-01',app_metadata:{legacyApplicationUid:'legacy-admin',platformAdmin:true},user_metadata:{role:'student'}}};
- const app=express();app.use(express.json());registerSupabaseAuthRoutes(app,{database:()=>db,verifyIdentity:async()=>identity,save:()=>{},issue:(uid:string)=>'synthetic-session-'+uid});
+ const app=express();app.use(express.json());registerSupabaseAuthRoutes(app,{ownerEmail:adminEmail,database:()=>db,verifyIdentity:async()=>identity,save:()=>{},issue:(uid:string)=>'synthetic-session-'+uid});
  const server=app.listen(0,'127.0.0.1');await new Promise<void>(r=>server.once('listening',r));const base='http://127.0.0.1:'+(server.address() as any).port;
  const sync=async(body:any={})=>{const r=await fetch(base+'/api/auth/provider-sync',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({idToken:'synthetic-provider-token',...body})});return{status:r.status,body:await r.json()};};
  try{
