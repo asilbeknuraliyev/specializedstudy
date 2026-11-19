@@ -8,7 +8,7 @@ type Missing = {id:string;title:string;subject?:string;grade?:number;file:string
 type ContentResponse = {year?:string;sources:Source[];jobs:Job[];missing:{total:number;rows:Missing[]};
  entries?:Array<{id:string;status:string;attempts:number;error_code?:string;subject?:string;topic:string}>;canManage?:boolean};
 const jobLabels:Record<string,string>={pending:'Navbatda',validating:'Tekshirilmoqda',review:'Ustoz tekshiruviga tayyor',
- paused:'Pauzada',failed:'Xato',needs_source:'Qo‘shimcha manba kerak'};
+ paused:'Pauzada',failed:'Xato',needs_source:'Qo‘shimcha manba kerak',published:'Nashr qilingan'};
 
 export default function ContentOperations(){
  const api=useExamApi();

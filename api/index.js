@@ -5308,10 +5308,13 @@ function questionHints(q) {
 function publicationWarnings(q) {
   return q.source?.title?.trim() ? [] : ["Manba ko\u2018rsatilmagan."];
 }
+function hasCurrentTopicPublication(q) {
+  return q.status === "published" && (q.approval?.revision === q.revision || q.practiceQuality?.policy === "curriculum-practice-v1" && q.practiceQuality.revision === q.revision);
+}
 function approvalErrors(q) {
   return q.explanation.trim() ? [] : ["Izoh / yechim majburiy."];
 }
-function publicQuestion(q) {
+function publicQuestion(q, showHints = true) {
   return {
     id: q.id,
     revision: q.revision,
@@ -5323,7 +5326,7 @@ function publicQuestion(q) {
     difficulty: q.difficulty,
     image: q.image,
     sourceImages: q.sourceImages,
-    hintCount: questionHints(q).length
+    hintCount: showHints ? questionHints(q).length : 0
   };
 }
 function publicSession(s, release = true) {
@@ -5339,6 +5342,7 @@ function publicSession(s, release = true) {
       diagram: q.diagram,
       yourAnswer: chosen,
       correctAnswer: q.kind === "written" ? void 0 : q.key,
+      hints: s.hintsAfterSubmission ? questionHints(q) : void 0,
       wrongFeedback: r.earned < r.points ? selected.filter((v) => q.wrongFeedback?.[v]).map((v) => q.wrongFeedback[v]) : [],
       source: q.source,
       lessonId: s.lessonId || q.lessonId,
@@ -5356,7 +5360,7 @@ function publicSession(s, release = true) {
     title: s.title,
     subject: s.subject,
     lessonId: s.lessonId,
-    questions: s.questions.map(publicQuestion),
+    questions: s.questions.map((q) => publicQuestion(q, !s.hintsAfterSubmission)),
     answers: s.answers,
     flags: s.flags,
     revision: s.revision,
@@ -5369,7 +5373,7 @@ function publicSession(s, release = true) {
     confidenceEnabled: s.confidenceEnabled,
     confidence: s.confidence || {},
     hintsUsed: s.hintsUsed || {},
-    revealedHints: Object.fromEntries(s.questions.map((q) => [q.id, questionHints(q).slice(0, s.hintsUsed?.[q.id] || 0)])),
+    revealedHints: s.hintsAfterSubmission ? {} : Object.fromEntries(s.questions.map((q) => [q.id, questionHints(q).slice(0, s.hintsUsed?.[q.id] || 0)])),
     timeSpentMs: s.timeSpentMs || {},
     results: feedback,
     events: s.events
@@ -5395,7 +5399,7 @@ function allowedReviewCatalog(db, user) {
   for (const t of db.topicTests || []) {
     const lesson = lessons.get(t.lessonId);
     if (!lesson || t.status !== "published" || t.institutionId !== school || t.schoolId && t.schoolId !== school || t.classIds && !t.classIds.includes(user.classId || "")) continue;
-    for (const q of t.snapshot) if (q.kind !== "written" && q.status === "published" && q.approval?.revision === q.revision && q.institutionId === school && (!q.schoolId || q.schoolId === school) && q.lessonId === lesson.id) {
+    for (const q of t.snapshot) if (q.kind !== "written" && hasCurrentTopicPublication(q) && q.institutionId === school && (!q.schoolId || q.schoolId === school) && q.lessonId === lesson.id) {
       const id = reviewId(school, user.uid, q.id, q.revision);
       result.set(id, { question: q, lessonId: lesson.id, title: lesson.topicTitle || lesson.title, subject: lesson.subjectName || lesson.subject || "" });
     }
@@ -11821,7 +11825,7 @@ function registerTopicRoutes(app2, deps) {
     const records = p.data.questions.map((q) => {
       const old = q.id && c.db.topicQuestions.find((x) => x.id === q.id);
       if (old) questionVersion(c, old);
-      const record = { ...q, id: q.id || crypto33.randomUUID(), institutionId: c.user.institutionId, schoolId: c.user.institutionId, lessonId: c.lesson.id, revision: (old?.revision || 0) + 1, status: "draft", approval: void 0 };
+      const record = { ...q, id: q.id || crypto33.randomUUID(), institutionId: c.user.institutionId, schoolId: c.user.institutionId, lessonId: c.lesson.id, revision: (old?.revision || 0) + 1, status: "draft", approval: void 0, practiceQuality: void 0 };
       if (old) Object.assign(old, record);
       else c.db.topicQuestions.push(record);
       questionVersion(c, record);
@@ -11879,7 +11883,7 @@ function registerTopicRoutes(app2, deps) {
     const d = p.data, status = d.publish === true ? "published" : d.publish === false ? "draft" : d.status || "draft";
     const questions = (c.db.topicQuestions || []).filter((q) => sameSchool(c, q) && q.lessonId === c.lesson.id && d.questionIds.includes(q.id));
     if (questions.length !== new Set(d.questionIds).size || d.count > questions.length) return res.status(400).json({ error: "Savollar soni yoki bank tanlovi mos emas." });
-    if (status === "published" && questions.some((q) => q.status !== "published" || q.approval?.revision !== q.revision || approvalErrors(q).length)) return res.status(400).json({ error: "Nashrdan oldin har bir savolni izohi bilan ko\u2018rib, tasdiqlang." });
+    if (status === "published" && questions.some((q) => !hasCurrentTopicPublication(q) || approvalErrors(q).length)) return res.status(400).json({ error: "Nashrdan oldin har bir savolni izohi bilan ko\u2018rib, tasdiqlang." });
     c.db.topicTests ||= [];
     c.db.topicTestVersions ||= [];
     const old = d.id && c.db.topicTests.find((t) => t.id === d.id && sameSchool(c, t) && t.lessonId === c.lesson.id);
@@ -11960,7 +11964,7 @@ function registerTopicRoutes(app2, deps) {
     if (c.db.topicSessions.filter((s2) => s2.studentId === c.user.uid && s2.testId === test.id).length >= test.maxAttempts) return res.status(409).json({ error: "Urinishlar tugagan." });
     let questions = structuredClone((test.shuffle ? shuffle(test.snapshot) : test.snapshot).slice(0, test.count));
     for (const q of questions) if (test.shuffle && ["single", "multiple"].includes(q.kind)) q.options = shuffle(q.options);
-    const now = Date.now(), s = { id: crypto33.randomUUID(), institutionId: c.user.institutionId, schoolId: c.user.institutionId, studentId: c.user.uid, classId: c.user.classId, testId: test.id, version: test.version, lessonId: test.lessonId, title: test.title, subject: ownLesson2(c, test.lessonId)?.subjectName, release: test.release, trackExits: test.trackExits, passPercent: test.passPercent, confidenceEnabled: test.confidenceEnabled, questions, answers: {}, flags: [], confidence: {}, hintsUsed: {}, timeSpentMs: {}, operations: [], revision: 0, startedAt: new Date(now).toISOString(), deadlineAt: test.durationMinutes ? new Date(now + test.durationMinutes * 6e4).toISOString() : void 0, maxScore: questions.reduce((n, q) => n + q.points, 0), pending: false, events: [] };
+    const now = Date.now(), s = { id: crypto33.randomUUID(), institutionId: c.user.institutionId, schoolId: c.user.institutionId, studentId: c.user.uid, classId: c.user.classId, testId: test.id, version: test.version, lessonId: test.lessonId, title: test.title, subject: ownLesson2(c, test.lessonId)?.subjectName, release: test.release, trackExits: test.trackExits, passPercent: test.passPercent, confidenceEnabled: test.confidenceEnabled, hintsAfterSubmission: test.hintsAfterSubmission, questions, answers: {}, flags: [], confidence: {}, hintsUsed: {}, timeSpentMs: {}, operations: [], revision: 0, startedAt: new Date(now).toISOString(), deadlineAt: test.durationMinutes ? new Date(now + test.durationMinutes * 6e4).toISOString() : void 0, maxScore: questions.reduce((n, q) => n + q.points, 0), pending: false, events: [] };
     c.db.topicSessions.push(s);
     save(c);
     res.json({ session: publicSession(s), serverNow: now });
@@ -12013,6 +12017,7 @@ function registerTopicRoutes(app2, deps) {
     const c = sessionAccess(req, res);
     if (!c) return;
     const p = z23.object({ questionId: z23.string(), operationId: z23.uuid(), expectedLevel: z23.number().int().min(0).max(3) }).safeParse(req.body);
+    if (c.s.hintsAfterSubmission) return res.status(403).json({ error: "Bu mashqda ishoralar javob topshirilgandan keyin ko\u2018rinadi." });
     if (!p.success || c.s.submittedAt) return res.status(400).json({ error: "Maslahat so\u2018rovini tekshiring." });
     if (c.s.deadlineAt && Date.now() >= Date.parse(c.s.deadlineAt)) return res.status(409).json({ error: "Test vaqti tugagan." });
     const q = c.s.questions.find((q2) => q2.id === p.data.questionId);

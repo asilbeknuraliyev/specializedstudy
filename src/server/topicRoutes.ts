@@ -7,7 +7,7 @@ import type {Express} from 'express';
 import {z} from 'zod';
 import {registerTopicImports} from './topicImportRoutes';
 import {registerTopicGrading} from './topicGradingRoutes';
-import {bankQuestion,gradeQuestion,publicQuestion,publicSession,shuffle,approvalErrors,publicationWarnings,questionHints,type BankQuestion,type TopicSession} from './topicEngine';
+import {bankQuestion,gradeQuestion,publicQuestion,publicSession,shuffle,hasCurrentTopicPublication,approvalErrors,publicationWarnings,questionHints,type BankQuestion,type TopicSession} from './topicEngine';
 
 export function registerTopicRoutes(app:Express,deps:any){
  const access=(req:any,res:any,author=false)=>{
@@ -57,7 +57,7 @@ export function registerTopicRoutes(app:Express,deps:any){
   for(const q of p.data.questions){const old=q.id&&c.db.topicQuestions.find((x:any)=>x.id===q.id&&sameSchool(c,x)&&x.lessonId===c.lesson.id);if(q.id&&!old)return res.status(404).json({error:'Savol topilmadi.'});if(old&&q.revision!==old.revision)return res.status(409).json({error:'Savol boshqa oynada yangilangan. Saqlanmagan matningiz saqlanadi; bankni yangilang.'});}
   const records=p.data.questions.map(q=>{
    const old=q.id&&c.db.topicQuestions.find((x:any)=>x.id===q.id);if(old)questionVersion(c,old);
-   const record={...q,id:q.id||crypto.randomUUID(),institutionId:c.user.institutionId,schoolId:c.user.institutionId,lessonId:c.lesson.id,revision:(old?.revision||0)+1,status:'draft',approval:undefined};
+   const record={...q,id:q.id||crypto.randomUUID(),institutionId:c.user.institutionId,schoolId:c.user.institutionId,lessonId:c.lesson.id,revision:(old?.revision||0)+1,status:'draft',approval:undefined,practiceQuality:undefined};
    if(old)Object.assign(old,record);else c.db.topicQuestions.push(record);questionVersion(c,record);return record;
   });remember(c,'questions',p.data,records.map((q:any)=>({id:q.id,version:q.revision})));audit(c,'Savolning yangi versiyasi saqlandi',c.lesson.id);save(c);res.json({questions:records});
  });
@@ -98,7 +98,7 @@ export function registerTopicRoutes(app:Express,deps:any){
   const d=p.data,status=d.publish===true?'published':d.publish===false?'draft':d.status||'draft';
   const questions=(c.db.topicQuestions||[]).filter((q:any)=>sameSchool(c,q)&&q.lessonId===c.lesson.id&&d.questionIds.includes(q.id));
   if(questions.length!==new Set(d.questionIds).size||d.count>questions.length)return res.status(400).json({error:'Savollar soni yoki bank tanlovi mos emas.'});
-  if(status==='published'&&questions.some((q:any)=>q.status!=='published'||q.approval?.revision!==q.revision||approvalErrors(q).length))return res.status(400).json({error:'Nashrdan oldin har bir savolni izohi bilan ko‘rib, tasdiqlang.'});
+  if(status==='published'&&questions.some((q:any)=>!hasCurrentTopicPublication(q)||approvalErrors(q).length))return res.status(400).json({error:'Nashrdan oldin har bir savolni izohi bilan ko‘rib, tasdiqlang.'});
   c.db.topicTests||=[];c.db.topicTestVersions||=[];
   const old=d.id&&c.db.topicTests.find((t:any)=>t.id===d.id&&sameSchool(c,t)&&t.lessonId===c.lesson.id);
   if(d.id&&!old)return res.status(404).json({error:'Test topilmadi.'});
@@ -165,7 +165,7 @@ export function registerTopicRoutes(app:Express,deps:any){
   if(c.db.topicSessions.filter((s:any)=>s.studentId===c.user.uid&&s.testId===test.id).length>=test.maxAttempts)return res.status(409).json({error:'Urinishlar tugagan.'});
   let questions=structuredClone((test.shuffle?shuffle(test.snapshot):test.snapshot).slice(0,test.count));
   for(const q of questions)if(test.shuffle&&['single','multiple'].includes(q.kind))q.options=shuffle(q.options);
-  const now=Date.now(),s:TopicSession={id:crypto.randomUUID(),institutionId:c.user.institutionId,schoolId:c.user.institutionId,studentId:c.user.uid,classId:c.user.classId,testId:test.id,version:test.version,lessonId:test.lessonId,title:test.title,subject:ownLesson(c,test.lessonId)?.subjectName,release:test.release,trackExits:test.trackExits,passPercent:test.passPercent,confidenceEnabled:test.confidenceEnabled,questions,answers:{},flags:[],confidence:{},hintsUsed:{},timeSpentMs:{},operations:[],revision:0,startedAt:new Date(now).toISOString(),deadlineAt:test.durationMinutes?new Date(now+test.durationMinutes*60000).toISOString():undefined,maxScore:questions.reduce((n:number,q:BankQuestion)=>n+q.points,0),pending:false,events:[]};
+  const now=Date.now(),s:TopicSession={id:crypto.randomUUID(),institutionId:c.user.institutionId,schoolId:c.user.institutionId,studentId:c.user.uid,classId:c.user.classId,testId:test.id,version:test.version,lessonId:test.lessonId,title:test.title,subject:ownLesson(c,test.lessonId)?.subjectName,release:test.release,trackExits:test.trackExits,passPercent:test.passPercent,confidenceEnabled:test.confidenceEnabled,hintsAfterSubmission:test.hintsAfterSubmission,questions,answers:{},flags:[],confidence:{},hintsUsed:{},timeSpentMs:{},operations:[],revision:0,startedAt:new Date(now).toISOString(),deadlineAt:test.durationMinutes?new Date(now+test.durationMinutes*60000).toISOString():undefined,maxScore:questions.reduce((n:number,q:BankQuestion)=>n+q.points,0),pending:false,events:[]};
   c.db.topicSessions.push(s);save(c);res.json({session:publicSession(s),serverNow:now});
  });
  app.get('/api/topic-sessions/:id',(req,res)=>{const c=sessionAccess(req,res);if(!c)return;if(c.s.deadlineAt&&Date.now()>=Date.parse(c.s.deadlineAt)&&!c.s.submittedAt){submit(c);save(c);}res.json({session:visible(c),serverNow:Date.now()});});
@@ -193,6 +193,7 @@ export function registerTopicRoutes(app:Express,deps:any){
  app.post('/api/topic-sessions/:id/hint',(req,res)=>{
   const c=sessionAccess(req,res);if(!c)return;
   const p=z.object({questionId:z.string(),operationId:z.uuid(),expectedLevel:z.number().int().min(0).max(3)}).safeParse(req.body);
+  if(c.s.hintsAfterSubmission)return res.status(403).json({error:'Bu mashqda ishoralar javob topshirilgandan keyin ko‘rinadi.'});
   if(!p.success||c.s.submittedAt)return res.status(400).json({error:'Maslahat so‘rovini tekshiring.'});
   if(c.s.deadlineAt&&Date.now()>=Date.parse(c.s.deadlineAt))return res.status(409).json({error:'Test vaqti tugagan.'});
   const q=c.s.questions.find((q:BankQuestion)=>q.id===p.data.questionId);if(!q)return res.status(400).json({error:'Begona savol.'});

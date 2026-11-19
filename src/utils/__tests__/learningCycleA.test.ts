@@ -76,3 +76,37 @@ test('lesson practice is filtered before pagination and includes only the studen
  assert.equal(unauthorized.data.testTotal,0);
  assert.equal(unauthorized.data.sessionTotal,0);
 }));
+
+test('editorial practice hides answer and hint content until submission',()=>fixture(async({call,db,questions}:any)=>{
+ const lessonId='l';
+ const items=Array.from({length:10},(_,index)=>({
+  ...questions[0],id:'editorial-'+index,prompt:'Mavzu savoli '+(index+1),revision:2,status:'published',
+  institutionId:'s',schoolId:'s',lessonId,
+  practiceQuality:{policy:'curriculum-practice-v1',revision:2,checkedAt:'2026-11-19T00:00:00Z'}
+ }));
+ db.topicQuestions.push(...items);
+ db.topicTests.push({
+  id:'editorial-practice',title:'10 savolli mashq',status:'published',version:1,institutionId:'s',schoolId:'s',lessonId,
+  classIds:['c1'],count:10,snapshot:items,maxAttempts:10,passPercent:0,release:'immediate',hintsAfterSubmission:true
+ });
+ const list=await call('/topic-tests?lesson=l','GET',undefined,'student');
+ assert.equal(list.data.tests[0].snapshot,undefined);
+ assert.equal((await call('/topic-tests/editorial-practice/start','POST',{},'foreign')).status,403);
+ const started=await call('/topic-tests/editorial-practice/start','POST',{},'student');
+ assert.equal(started.status,200);
+ const session=started.data.session;
+ assert.equal(session.questions.length,10);
+ assert.ok(session.questions.every((q:any)=>q.hintCount===0&&q.key===undefined&&q.explanation===undefined));
+ const path='/topic-sessions/'+session.id;
+ assert.equal((await call(path+'/hint','POST',{questionId:items[0].id,expectedLevel:0,operationId:crypto.randomUUID()},'student')).status,403);
+ const answers=Object.fromEntries(items.map(item=>[item.id,'3']));
+ const saved=await call(path,'PUT',{revision:0,answers,flags:[]},'student');
+ assert.equal(saved.status,200);
+ assert.equal((await call(path,'GET',undefined,'student')).data.session.answers[items[0].id],'3');
+ const result=await call(path,'PUT',{revision:saved.data.session.revision,answers,flags:[],submit:true},'student');
+ assert.equal(result.status,200);
+ assert.equal(result.data.session.results.length,10);
+ assert.equal(result.data.session.results[0].correctAnswer,'4');
+ assert.equal(result.data.session.results[0].hints[0],'Birliklarni sanang.');
+ assert.equal(db.mistakeRecords.length,10);
+}));

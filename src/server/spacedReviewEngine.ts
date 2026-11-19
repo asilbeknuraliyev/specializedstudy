@@ -1,7 +1,7 @@
 import crypto from 'node:crypto';
 import type {PersistentDatabaseState} from './dbEngine';
 import type {UserProfile} from '../types';
-import {gradeQuestion,type BankQuestion,type Confidence,type TopicSession} from './topicEngine';
+import {gradeQuestion,hasCurrentTopicPublication,type BankQuestion,type Confidence,type TopicSession} from './topicEngine';
 
 // Calendar days in the school timezone, not elapsed browser hours. A new item is
 // due tomorrow at 09:00. Due, independent successes advance one box. Early or
@@ -28,7 +28,7 @@ export function allowedReviewCatalog(db:PersistentDatabaseState,user:UserProfile
  const result:ReviewCatalog=new Map();
  for(const t of db.topicTests||[]){
   const lesson=lessons.get(t.lessonId);if(!lesson||t.status!=='published'||t.institutionId!==school||t.schoolId&&t.schoolId!==school||t.classIds&&!t.classIds.includes(user.classId||''))continue;
-  for(const q of t.snapshot)if(q.kind!=='written'&&q.status==='published'&&q.approval?.revision===q.revision&&q.institutionId===school&&(!q.schoolId||q.schoolId===school)&&q.lessonId===lesson.id){
+  for(const q of t.snapshot)if(q.kind!=='written'&&hasCurrentTopicPublication(q)&&q.institutionId===school&&(!q.schoolId||q.schoolId===school)&&q.lessonId===lesson.id){
    const id=reviewId(school,user.uid,q.id,q.revision);result.set(id,{question:q,lessonId:lesson.id,title:lesson.topicTitle||lesson.title,subject:lesson.subjectName||lesson.subject||''});
   }
  }

@@ -31,11 +31,12 @@ export type PublicationStatus='draft'|'review'|'published'|'archived';
 export type BankQuestion=z.infer<typeof bankQuestion>&{
  id:string;institutionId:string;schoolId?:string;lessonId:string;revision:number;status:PublicationStatus;
  approval?:{by:string;at:string;revision:number};
+ practiceQuality?:{policy:'curriculum-practice-v1';revision:number;checkedAt:string};
 };
 export type TopicTest={
  id:string;institutionId:string;schoolId?:string;lessonId:string;classIds?:string[];title:string;status:PublicationStatus;version:number;
  questionIds:string[];snapshot:BankQuestion[];count:number;durationMinutes:number;maxAttempts:number;passPercent:number;
- trackExits:boolean;release:'immediate'|'review';shuffle:boolean;confidenceEnabled?:boolean;updatedAt?:string;createdBy?:string;
+ trackExits:boolean;hintsAfterSubmission?:boolean;release:'immediate'|'review';shuffle:boolean;confidenceEnabled?:boolean;updatedAt?:string;createdBy?:string;
 };
 export type TopicQuestionVersion={id:string;schoolId:string;questionId:string;revision:number;question:BankQuestion;createdAt:string};
 export type TopicTestVersion={id:string;schoolId:string;testId:string;version:number;test:TopicTest;createdAt:string};
@@ -43,7 +44,7 @@ export type Confidence='low'|'medium'|'high';
 export type TopicResult={id:string;earned:number;points:number;explanation:string;pending:boolean;teacherComment?:string;gradedBy?:string;gradedAt?:string};
 export type TopicSession={
  id:string;institutionId:string;schoolId?:string;studentId:string;classId?:string;testId:string;version:number;lessonId?:string;
- title?:string;subject?:string;release?:string;trackExits?:boolean;passPercent?:number;confidenceEnabled?:boolean;
+ title?:string;subject?:string;release?:string;trackExits?:boolean;hintsAfterSubmission?:boolean;passPercent?:number;confidenceEnabled?:boolean;
  questions:BankQuestion[];answers:Record<string,string>;flags:string[];revision:number;startedAt:string;deadlineAt?:string;
  submittedAt?:string;score?:number;maxScore:number;pending:boolean;results?:TopicResult[];reviewRecordedAt?:string;
  confidence?:Record<string,Confidence>;hintsUsed?:Record<string,number>;timeSpentMs?:Record<string,number>;
@@ -59,13 +60,17 @@ export function gradeQuestion(q:BankQuestion,answer:string){
 export function shuffle<T>(list:T[]){const a=[...list];for(let i=a.length-1;i>0;i--){const j=crypto.randomInt(i+1);[a[i],a[j]]=[a[j],a[i]];}return a;}
 export function questionHints(q:BankQuestion){return q.hints?.length?q.hints:q.hint?[q.hint]:[];}
 export function publicationWarnings(q:BankQuestion){return q.source?.title?.trim()?[]:['Manba ko‘rsatilmagan.'];}
+export function hasCurrentTopicPublication(q:BankQuestion){
+ return q.status==='published'&&(q.approval?.revision===q.revision||
+   q.practiceQuality?.policy==='curriculum-practice-v1'&&q.practiceQuality.revision===q.revision);
+}
 export function approvalErrors(q:BankQuestion){return q.explanation.trim()?[]:['Izoh / yechim majburiy.'];}
 
 // Never spread a private question into a student DTO. Distractor explanations and
 // unrevealed hints may reveal a solution as surely as a field named "key".
-export function publicQuestion(q:BankQuestion){return{
+export function publicQuestion(q:BankQuestion,showHints=true){return{
  id:q.id,revision:q.revision,kind:q.kind,prompt:q.prompt,options:q.options,labels:q.labels,points:q.points,
- difficulty:q.difficulty,image:q.image,sourceImages:q.sourceImages,hintCount:questionHints(q).length,
+ difficulty:q.difficulty,image:q.image,sourceImages:q.sourceImages,hintCount:showHints?questionHints(q).length:0,
  };}
 export function publicSession(s:TopicSession,release=true){
  const feedback=s.submittedAt&&release?s.results?.map(r=>{
@@ -73,6 +78,7 @@ export function publicSession(s:TopicSession,release=true){
   const chosen=s.answers[q.id]||'';
   const selected=q.kind==='multiple'?chosen.split('|'):[chosen];
   return{...r,prompt:q.prompt,kind:q.kind,steps:q.steps,diagram:q.diagram,yourAnswer:chosen,correctAnswer:q.kind==='written'?undefined:q.key,
+   hints:s.hintsAfterSubmission?questionHints(q):undefined,
    wrongFeedback:r.earned<r.points?selected.filter(v=>q.wrongFeedback?.[v]).map(v=>q.wrongFeedback[v]):[],
    source:q.source,lessonId:s.lessonId||q.lessonId,sourceHref:'/student/lessons?lesson='+encodeURIComponent(s.lessonId||q.lessonId),
    confidence:s.confidence?.[q.id],confidentWrong:q.kind!=='written'&&r.earned<r.points&&s.confidence?.[q.id]==='high',
@@ -80,10 +86,10 @@ export function publicSession(s:TopicSession,release=true){
   };
  }):undefined;
  return{id:s.id,testId:s.testId,version:s.version,title:s.title,subject:s.subject,lessonId:s.lessonId,
-  questions:s.questions.map(publicQuestion),answers:s.answers,flags:s.flags,revision:s.revision,startedAt:s.startedAt,
+  questions:s.questions.map(q=>publicQuestion(q,!s.hintsAfterSubmission)),answers:s.answers,flags:s.flags,revision:s.revision,startedAt:s.startedAt,
   deadlineAt:s.deadlineAt,submittedAt:s.submittedAt,score:s.submittedAt&&release?s.score:undefined,maxScore:s.maxScore,
   pending:s.pending,confidenceEnabled:s.confidenceEnabled,confidence:s.confidence||{},hintsUsed:s.hintsUsed||{},
-  revealedHints:Object.fromEntries(s.questions.map(q=>[q.id,questionHints(q).slice(0,s.hintsUsed?.[q.id]||0)])),
+  revealedHints:s.hintsAfterSubmission?{}:Object.fromEntries(s.questions.map(q=>[q.id,questionHints(q).slice(0,s.hintsUsed?.[q.id]||0)])),
   timeSpentMs:s.timeSpentMs||{},results:feedback,events:s.events,
  };
 }
