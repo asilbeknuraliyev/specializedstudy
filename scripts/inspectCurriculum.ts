@@ -11,7 +11,9 @@ const archive=await JSZip.loadAsync(bytes);
 const sheets=[];
 for(const [file,entry] of Object.entries(archive.files)){
   if(entry.dir||!file.toLowerCase().endsWith('.xlsx')||file.split('/').pop()?.startsWith('~$'))continue;
-  const workbook=XLSX.read(await entry.async('nodebuffer'),{type:'buffer'});
+  const workbookBytes = await entry.async('nodebuffer');
+  const sourceHash = createHash('sha256').update(workbookBytes).digest('hex');
+  const workbook=XLSX.read(workbookBytes,{type:'buffer'});
   for(const name of workbook.SheetNames){
     const ws=workbook.Sheets[name];
     const sheet={name,rows:XLSX.utils.sheet_to_json<unknown[]>(ws,{header:1,range:0,blankrows:true,defval:''})};
@@ -21,7 +23,7 @@ for(const [file,entry] of Object.entries(archive.files)){
       id:createHash('sha256').update(JSON.stringify(['2026-2027',file,name,row.sourceRow])).digest('hex'),
       ...row, status:'review',kind:/(?:^|[^\p{L}])(?:bsb|chsb|бсб|чсб)(?!\p{L})|summativ/iu.test(row.title)?'assessment':'lesson'
     }));
-    sheets.push({file,name,mapping,issues:parsed.issues,topics});
+    sheets.push({file,name,sourceHash,mapping,issues:parsed.issues,topics});
   }
 }
 const result={academicYear:'2026-2027',sha256:createHash('sha256').update(bytes).digest('hex'),files:new Set(sheets.map(s=>s.file)).size,sheets:sheets.length,topics:sheets.reduce((n,s)=>n+s.topics.length,0),worksheets:sheets};
