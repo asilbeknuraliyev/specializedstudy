@@ -11921,8 +11921,10 @@ function registerTopicRoutes(app2, deps) {
     if (!c) return;
     if (c.user.role !== "student") return res.status(403).json({ error: "Faqat o\u2018quvchi." });
     const page = Math.max(0, Math.floor(Number(req.query.page) || 0));
-    const tests = (c.db.topicTests || []).filter((t) => sameSchool(c, t) && t.status === "published" && (!t.classIds || t.classIds.includes(c.user.classId)) && canStudy(c, ownLesson2(c, t.lessonId)));
-    const sessions = (c.db.topicSessions || []).filter((s) => s.studentId === c.user.uid && sameSchool(c, s)).slice().reverse();
+    const lessonId = typeof req.query.lesson === "string" ? req.query.lesson : void 0;
+    const tests = (c.db.topicTests || []).filter((test) => (!lessonId || test.lessonId === lessonId) && sameSchool(c, test) && test.status === "published" && (!test.classIds || test.classIds.includes(c.user.classId)) && canStudy(c, ownLesson2(c, test.lessonId)));
+    const scopedTestIds = new Set(lessonId ? (c.db.topicTests || []).filter((test) => sameSchool(c, test) && test.lessonId === lessonId).map((test) => test.id) : []);
+    const sessions = (c.db.topicSessions || []).filter((session) => session.studentId === c.user.uid && sameSchool(c, session) && (!lessonId || (session.lessonId ? session.lessonId === lessonId : scopedTestIds.has(session.testId)))).slice().reverse();
     res.json({ tests: tests.slice(page * 20, page * 20 + 20).map(({ snapshot, ...t }) => t), testTotal: tests.length, sessions: sessions.slice(page * 20, page * 20 + 20).map((s) => ({ id: s.id, testId: s.testId, title: s.title, submittedAt: s.submittedAt, startedAt: s.startedAt, score: s.release === "review" && s.pending ? void 0 : s.score, maxScore: s.maxScore, pending: s.pending })), sessionTotal: sessions.length, page });
   });
   const sessionAccess = (req, res) => {

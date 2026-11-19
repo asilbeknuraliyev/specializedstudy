@@ -55,3 +55,24 @@ test('overlapping cold reads share I/O, isolate mutable snapshots and do not cac
  let reads=0,release:()=>void=()=>{};const gate=new Promise<void>(r=>release=r);const read=coalescedRead(async()=>{reads++;await gate;return{revision:reads,state:{users:[{id:'a'}]}};});
  const left=read(),right=read();release();const [a,b]=await Promise.all([left,right]);assert.equal(reads,1);a.state.users[0].id='mutated';assert.equal(b.state.users[0].id,'a');const c=await read();assert.equal(c.revision,2);
 });
+
+test('lesson practice is filtered before pagination and includes only the student’s matching history',()=>fixture(async({call,db,publish}:any)=>{
+ const {test:other}=await publish('shared');
+ const {test:target}=await publish('l');
+ db.topicTests.unshift(...Array.from({length:20},(_,i)=>({...other,id:'other-'+i})));
+ const callAsStudent=(path:string)=>call(path,'GET',undefined,'student');
+ assert.ok(!(await callAsStudent('/topic-tests')).data.tests.some((test:any)=>test.id===target.id));
+ await call('/topic-tests/'+other.id+'/start','POST',{},'student');
+ await call('/topic-tests/'+target.id+'/start','POST',{},'student');
+ delete db.topicSessions[1].lessonId;
+ const matching=await callAsStudent('/topic-tests?lesson=l');
+ assert.equal(matching.status,200);
+ assert.equal(matching.data.testTotal,1);
+ assert.equal(matching.data.sessionTotal,1);
+ assert.equal(matching.data.tests[0].id,target.id);
+ assert.equal(matching.data.tests[0].snapshot,undefined);
+ assert.equal(matching.data.sessions[0].testId,target.id);
+ const unauthorized=await call('/topic-tests?lesson=l','GET',undefined,'foreign');
+ assert.equal(unauthorized.data.testTotal,0);
+ assert.equal(unauthorized.data.sessionTotal,0);
+}));
